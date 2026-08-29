@@ -32,7 +32,10 @@ def _run_experiment(workspace: AutoMLWorkspace, cmd: RunExperimentCommand):
     experiment = workspace.repository.get_experiment(cmd.experiment_id)
     if experiment is None:
         raise KeyError(f"Experiment not found: {cmd.experiment_id}")
-    return workspace.run_experiment(workspace._get_run(cmd.run_id), experiment)
+    run = workspace._get_run(cmd.run_id)
+    if experiment.run_id != run.id:
+        raise ValueError(f"Experiment {experiment.id} does not belong to run {run.id}")
+    return workspace.run_experiment(run, experiment)
 
 
 def register_handlers(

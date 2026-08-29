@@ -231,10 +231,23 @@ class AutoMLWorkspace:
             feature_set = self.repository.get_feature_set(feature_set_id)
             if feature_set is None:
                 raise KeyError(f"FeatureSet not found: {feature_set_id}")
+            if feature_set.dataset_id != run.dataset_id:
+                raise ValueError(
+                    f"FeatureSet {feature_set_id} belongs to dataset {feature_set.dataset_id}, "
+                    f"not run dataset {run.dataset_id}"
+                )
             resolved_features = feature_set.feature_names
         if resolved_features is None:
             registry = self.get_feature_registry(run.dataset_id)
             resolved_features = registry.active_feature_names(dataset.target_column)
+        if not resolved_features:
+            raise ValueError("An experiment requires at least one feature")
+
+        registry = self.get_feature_registry(run.dataset_id)
+        known_features = {feature.name for feature in registry.list()}
+        unknown_features = sorted(set(resolved_features) - known_features)
+        if unknown_features:
+            raise ValueError(f"Unknown features for dataset {run.dataset_id}: {', '.join(unknown_features)}")
 
         if model_ids:
             self.model_registry.validate_for_task(model_ids, run.config.task_type)
@@ -244,6 +257,8 @@ class AutoMLWorkspace:
             run.config.models_exclude,
             task_type=run.config.task_type,
         )
+        if not active_models:
+            raise ValueError("An experiment requires at least one compatible model")
         experiment = Experiment(
             id=f"exp_{uuid.uuid4().hex[:8]}",
             run_id=run.id,
@@ -272,6 +287,8 @@ class AutoMLWorkspace:
     ) -> list[TrialResult]:
         if run.status == RunStatus.CANCELLED:
             raise RuntimeError(f"Run {run.id} is cancelled")
+        if experiment.run_id != run.id:
+            raise ValueError(f"Experiment {experiment.id} does not belong to run {run.id}")
 
         dataset = self._get_dataset(run.dataset_id)
         experiment.status = ExperimentStatus.RUNNING
@@ -529,12 +546,14 @@ class AutoMLWorkspace:
         )
 
     def exclude_model(self, run: AutoMLRun, model_id: str) -> None:
+        self.model_registry.validate_for_task([model_id], run.config.task_type)
         if model_id not in run.config.models_exclude:
             run.config.models_exclude.append(model_id)
         self.repository.save_run(run)
         self._emit("ModelExcluded", {"model_id": model_id}, run_id=run.id)
 
     def include_model(self, run: AutoMLRun, model_id: str) -> None:
+        self.model_registry.validate_for_task([model_id], run.config.task_type)
         if model_id not in run.config.models_include:
             run.config.models_include.append(model_id)
         if model_id in run.config.models_exclude:

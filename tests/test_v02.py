@@ -180,3 +180,46 @@ def test_events_are_recorded(app) -> None:
     cmd.dispatch(ExcludeFeatureCommand(dataset.id, "customer_id", run_id=run.id))
     events = ws.repository.list_events(run_id=run.id)
     assert any(e["event_type"] == "FeatureExcluded" for e in events)
+
+
+def test_rejects_experiment_from_another_run(app) -> None:
+    ws, cmd, _, dataset, run = app
+    other_run = ws.create_run(dataset)
+    experiment = cmd.dispatch(
+        CreateExperimentCommand(run_id=run.id, name="owned", model_ids=["logistic_regression"])
+    )
+
+    with pytest.raises(ValueError, match="does not belong"):
+        cmd.dispatch(RunExperimentCommand(other_run.id, experiment.id))
+
+
+def test_rejects_feature_set_from_another_dataset(app, sample_dataset_path: Path) -> None:
+    ws, cmd, _, _, run = app
+    other_dataset = ws.register_dataset(
+        name="other",
+        path=sample_dataset_path,
+        target="churn",
+        task_type="binary_classification",
+    )
+    feature_set = ws.create_feature_set(other_dataset.id, "foreign", ["salary", "debt"])
+
+    with pytest.raises(ValueError, match="belongs to dataset"):
+        cmd.dispatch(
+            CreateExperimentCommand(run_id=run.id, name="invalid", feature_set_id=feature_set.id)
+        )
+
+
+def test_rejects_unknown_model_and_feature(app) -> None:
+    _, cmd, _, _, run = app
+
+    with pytest.raises(ValueError, match="not compatible"):
+        cmd.dispatch(ExcludeModelCommand(run.id, "not_registered"))
+    with pytest.raises(ValueError, match="Unknown features"):
+        cmd.dispatch(
+            CreateExperimentCommand(
+                run_id=run.id,
+                name="invalid_feature",
+                feature_names=["not_a_column"],
+                model_ids=["logistic_regression"],
+            )
+        )
