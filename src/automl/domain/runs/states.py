@@ -13,6 +13,7 @@ class RunStatus(str, Enum):
     COMPLETED = "COMPLETED"
     PAUSED = "PAUSED"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
 
 class RunPhase(str, Enum):

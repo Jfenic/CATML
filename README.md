@@ -1,6 +1,11 @@
-# AutoML Platform (V0.1)
+# AutoML Platform (CATML)
 
-Plataforma AutoML modular con arquitectura hexagonal, orientada a experimentos tabulares reproducibles.
+Plataforma AutoML modular con arquitectura hexagonal. El objetivo no es solo entrenar un modelo, sino gestionar de forma reproducible **qué tarea se resuelve**, **qué modelos aplican**, **qué features se usan** y **qué experimentos se ejecutan** — con la misma API para humanos, CLI y futuros agentes LLM.
+
+**Versión actual:** `0.2.0`  
+**Estado:** V0.1 + V0.2 implementados. V0.3 (planner automático) pendiente.
+
+---
 
 ## Requisitos
 
@@ -16,33 +21,173 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Ejemplo rápido
+---
+
+## Cómo funciona (flujo mental)
+
+```text
+1. Registrar dataset
+2. Planificar tarea (clasificación / regresión / clustering)
+3. Obtener catálogo de modelos compatibles con esa tarea
+4. Configurar features y modelos (Commands)
+5. Crear y ejecutar Experiment → Trial → métricas
+6. Comparar resultados (leaderboard, benchmark)
+```
+
+Cada paso pasa por **CommandBus** (escritura) o **QueryBus** (lectura). El dominio no conoce sklearn ni SQLite directamente.
+
+---
+
+## Ejemplo completo (CLI)
+
+### 1. Ver catálogo de tareas y modelos
 
 ```bash
-# Ejecutar un experimento con el dataset de ejemplo
-automl run-demo
+automl task list
+```
 
-# Ejecutar tests
+Muestra qué modelos y métricas aplican a cada tipo de tarea.
+
+### 2. Planificar tarea desde el dataset
+
+```bash
+automl task plan --dataset examples/data/customers_churn.csv --target churn
+```
+
+Inferencia automática: `binary_classification` → modelos `logistic_regression`, `random_forest`, `svc` → métrica `roc_auc`.
+
+### 3. Demo end-to-end
+
+```bash
+automl run-demo
+```
+
+Registra dataset, excluye `customer_id`, prioriza features financieras, crea experimento y muestra leaderboard.
+
+### 4. Benchmark de mejoras (V0.1 → V0.2)
+
+```bash
+automl benchmark run
+automl benchmark history
+```
+
+Compara 5 escenarios y guarda resultados en SQLite con **Δ vs baseline**.
+
+### 5. Tests
+
+```bash
 pytest
 ```
 
-## Estructura
+---
 
-```text
-src/automl/
-├── domain/          # Entidades y contratos (Python puro)
-├── application/     # Servicios y casos de uso
-├── engine/          # Profiling, training, evaluation
-├── plugins/         # Modelos (sklearn)
-├── infrastructure/  # SQLite, storage
-└── interfaces/      # CLI
+## Ejemplo programático
+
+```python
+from automl.application.bootstrap import build_application
+from automl.application.commands.workspace_commands import (
+    CreateExperimentCommand,
+    ExcludeFeatureCommand,
+    RunExperimentCommand,
+)
+from automl.application.queries.workspace_queries import (
+    GetTaskPlanQuery,
+    GetLeaderboardQuery,
+    ListModelsQuery,
+)
+
+ws, cmd, qry = build_application(root_dir=".automl/mi-proyecto")
+
+# 1. Dataset + plan de tarea
+dataset = ws.register_dataset(
+    name="churn",
+    path="examples/data/customers_churn.csv",
+    target="churn",
+)
+plan = qry.dispatch(GetTaskPlanQuery(dataset.id))
+print(plan.task_type.value, plan.recommended_models)  # binary_classification, [...]
+
+# 2. Run + control humano
+run = ws.create_run(dataset)
+cmd.dispatch(ExcludeFeatureCommand(dataset.id, "customer_id", run_id=run.id))
+
+models = qry.dispatch(ListModelsQuery(run_id=run.id))  # solo compatibles con la tarea
+
+# 3. Experimento
+experiment = cmd.dispatch(
+    CreateExperimentCommand(
+        run_id=run.id,
+        name="baseline",
+        model_ids=["logistic_regression", "random_forest"],
+        priority="high",
+    )
+)
+results = cmd.dispatch(RunExperimentCommand(run.id, experiment.id))
+leaderboard = qry.dispatch(GetLeaderboardQuery(run.id))
 ```
 
-## V0.1 — Alcance actual
+---
 
-- Registro de dataset y perfilado básico
-- FeatureRegistry y ModelRegistry
-- Creación y ejecución manual de Experiment/Trial
-- Evaluación con holdout y cross-validation
-- Persistencia en SQLite
-- Dataset de ejemplo: `examples/data/customers_churn.csv`
+## Tipos de tarea y modelos
+
+| Tarea | Modelos | Métrica default |
+|-------|---------|-----------------|
+| `binary_classification` | logistic_regression, random_forest, svc | roc_auc |
+| `multiclass_classification` | logistic_regression, random_forest, svc | accuracy |
+| `regression` | ridge, random_forest, svr | r2 |
+| `clustering` | kmeans, agglomerative, dbscan | silhouette |
+
+Definido en `src/automl/domain/tasks/task_type.py` (`TASK_CATALOG`).
+
+---
+
+## Estructura del proyecto
+
+```text
+CATML/
+├── src/automl/
+│   ├── domain/           # Entidades puras (Run, Experiment, TaskType, FeatureSet)
+│   ├── application/      # CommandBus, QueryBus, workspace, bootstrap
+│   ├── engine/           # Profiling, task planner, sklearn trainer
+│   ├── plugins/models/   # Adaptadores sklearn por tarea
+│   ├── infrastructure/   # SQLite repository
+│   ├── benchmarks/       # Harness de comparación entre versiones
+│   └── interfaces/cli/   # CLI
+├── tests/                # test_v01, test_v02, test_tasks, test_benchmark
+├── examples/data/        # customers_churn.csv
+├── AutoML_Arquitectura_Tecnica.md   # Spec formal + roadmap V0.1–V1.0
+├── DEVELOPER_GUIDE.md    # Guía para continuar el desarrollo
+└── planning.txt          # Notas de arquitectura (conversacional)
+```
+
+---
+
+## Qué está implementado
+
+| Fase | Estado | Capacidades |
+|------|--------|-------------|
+| **V0.1** | ✅ | Dominio, Experiment/Trial, SQLite, trainer sklearn, demo |
+| **V0.2** | ✅ | CQRS, FeatureSet, pause/resume, benchmark, catálogo por tarea |
+| **V0.3** | ⏳ | Experiment Planner + Priority Engine |
+| **V0.5** | 📋 | Feature Discovery & Selection (documentado) |
+| **V0.9–V1.0** | 📋 | LLM tools + agente |
+
+---
+
+## Documentación
+
+- **Arquitectura formal:** [AutoML_Arquitectura_Tecnica.md](AutoML_Arquitectura_Tecnica.md)
+- **Guía para desarrolladores:** [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
+- **Notas de diseño:** [planning.txt](planning.txt)
+
+---
+
+## Dataset de ejemplo
+
+`examples/data/customers_churn.csv` — 500 filas, columnas: `customer_id`, `salary`, `debt`, `age`, `tenure`, `account_balance`, `country`, `churn`.
+
+---
+
+## Principio rector
+
+> La interfaz humana, la CLI, la API y el futuro LLM consumen los mismos **Commands** y **Queries**. El dominio permanece puro; las librerías ML son plugins.

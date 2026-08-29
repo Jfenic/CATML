@@ -509,6 +509,145 @@ y experimentar directamente.
 
 ---
 
+# 9.1 Feature Discovery & Selection (subsistema explícito)
+
+La arquitectura ya permitía esto conceptualmente vía `FeatureSet`, ablation e importancia, pero debe ser un **subsistema de primera clase** porque CATML vivirá en gran medida de evidencia sobre features.
+
+## Tres problemas distintos — no confundirlos
+
+| Problema | Qué hace | Ejemplos | Módulo |
+| --- | --- | --- | --- |
+| Selección | Elige columnas originales | MI, SHAP, L1, RFE, ablation | `features/selection/` |
+| Reducción | Nueva representación | PCA | `features/reduction/` |
+| Validación | ¿Mejora en la práctica? | CV sobre FeatureSets | `features/experiments/` |
+
+**PCA** no responde “X2 y X5 son las mejores columnas”; crea `PC1 = 0.4·X1 + 0.2·X2 - …`. Es transformación, no selección clásica.
+
+**SHAP** rankea contribución al modelo. **L1** embedded lleva coeficientes a cero. **MI** es filter sin entrenar. Los tres son útiles y complementarios.
+
+## Tres tipos de selección a soportar
+
+| Tipo | Ejemplos | Entrena modelo |
+| --- | --- | --- |
+| Filter | correlación, MI, chi², varianza | No |
+| Wrapper | RFE, Sequential Feature Selection | Sí, muchos |
+| Embedded | Lasso/L1, árboles, SHAP | Sí |
+
+## Estructura de módulos
+
+```text
+features/
+├── feature.py
+├── feature_set.py
+├── registry.py
+├── groups.py
+├── interactions.py
+├── generators.py
+├── evidence.py
+├── selection_strategy.py
+├── selection/
+│   ├── base.py
+│   ├── correlation.py
+│   ├── mutual_information.py
+│   ├── variance.py
+│   ├── l1.py
+│   ├── rfe.py
+│   ├── permutation.py
+│   ├── shap.py
+│   └── ensemble.py
+├── reduction/
+│   ├── base.py
+│   └── pca.py
+└── experiments/
+    ├── ablation.py
+    └── subset.py
+```
+
+Separar `selection/` de `reduction/` es obligatorio.
+
+## Contrato común
+
+```python
+class FeatureSelectorPort(Protocol):
+    def fit(self, context): ...
+    def rank_features(self) -> list[FeatureRank]: ...
+    def select(self, k: int) -> FeatureSetCandidate: ...
+```
+
+## FeatureSelectionStrategy
+
+```python
+FeatureSelectionStrategy(
+    methods=["mutual_information", "shap", "permutation"],
+    top_k=[10, 25, 50],
+    combine_method="weighted_rank",
+)
+```
+
+Combina rankings de varios métodos → más robusto que confiar solo en SHAP.
+
+## Principio CATML: proponer ≠ aceptar
+
+```text
+MI / SHAP / L1 / PCA / usuario / LLM
+              ↓
+      Candidate FeatureSets
+              ↓
+       Priority Engine
+              ↓
+         Experiments
+              ↓
+      CV → FeatureEvidence
+```
+
+Ejemplo:
+
+```text
+Feature Set       Features   AUC
+All                  120    .912
+SHAP Top 50           50    .921
+SHAP Top 25           25    .925  ← gana experimentalmente
+PCA 95% → 37 comps    37    .918  (47s → 16s entrenamiento)
+```
+
+## Ablation
+
+```text
+Baseline (5 features)           .930
+without salary                  .881  ← impacto enorme
+without country                 .931  ← candidata a exclusión
+```
+
+## FeatureEvidence
+
+```python
+@dataclass
+class FeatureEvidence:
+    feature_id: str
+    mutual_information: float | None
+    shap_importance: float | None
+    permutation_importance: float | None
+    linear_coefficient: float | None
+    ablation_impact: float | None
+    experiment_count: int
+    confidence: float
+```
+
+## FeatureDiscoveryEngine
+
+Propone interacciones y features generadas:
+
+```text
+debt_to_income = debt / salary  →  +0.04 AUC  →  status: USEFUL
+```
+
+El Priority Engine y el futuro LLM consumen esta evidencia.
+
+| Regla CATML. SHAP recomienda. L1 recomienda. MI recomienda. PCA propone. El usuario y el LLM recomiendan. CATML crea el experimento y los datos deciden. |
+| --- |
+
+---
+
 # 10. El experimento debe ser una entidad de primer nivel
 
 Esta es probablemente la segunda decisión arquitectónica más importante.
@@ -1172,7 +1311,15 @@ automl/
 │   ├── features/
 │   │   ├── feature.py
 │   │   ├── feature_set.py
-│   │   └── registry.py
+│   │   ├── registry.py
+│   │   ├── groups.py
+│   │   ├── interactions.py
+│   │   ├── generators.py
+│   │   ├── evidence.py
+│   │   ├── selection_strategy.py
+│   │   ├── selection/       # filter / wrapper / embedded
+│   │   ├── reduction/       # PCA, etc.
+│   │   └── experiments/     # ablation, subset comparison
 │   │
 │   ├── models/
 │   │   ├── model.py
@@ -1203,6 +1350,9 @@ automl/
 │   ├── profiling/
 │   ├── planning/
 │   ├── priority/
+│   ├── feature_analysis/
+│   ├── feature_experiments/
+│   ├── feature_discovery/
 │   ├── optimization/
 │   ├── training/
 │   ├── evaluation/
@@ -1470,9 +1620,12 @@ Optuna
 
 
 V0.5
-Feature interactions
-+ ablation experiments
-+ experiment history
+Feature Discovery & Selection
++ filter / wrapper / embedded selectors
++ SHAP / L1 / MI / permutation / RFE
++ PCA-as-experiment (reduction/)
++ ablation + subset comparison
++ FeatureEvidence + FeatureDiscoveryEngine
 
 
 V0.6

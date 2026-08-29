@@ -83,6 +83,7 @@ En una fase posterior, el mismo flujo podrá iniciarse mediante lenguaje natural
 | Event driven | Los cambios relevantes generan eventos internos que pueden consumir logging, UI o futuros agentes. |
 | Reproducibility | Dataset, configuración, versión de plugin, seeds, trials, métricas y artefactos quedan versionados. |
 | Human + Agent parity | Un usuario y un agente LLM utilizan los mismos comandos/queries. |
+| Evidence before acceptance | SHAP, L1, MI, PCA y recomendaciones humanas/LLM proponen; CATML valida con experimentos y métricas reales. |
 
 # 5. Arquitectura de alto nivel
 
@@ -107,6 +108,9 @@ INTERFACES
       +-------------------+-------------------+
       |                   |                   |
    Planner            Priority            Optimizer
+      |                   |                   |
+   Feature Analysis   Feature Experiments     |
+   (selection/reduction)                     |
       |                   |                   |
       +-------------------+-------------------+
                           |
@@ -140,6 +144,9 @@ agents (futuro) ---> application commands / queries
 | DatasetProfile | Resumen estructurado del dataset que consume el motor y, posteriormente, el LLM. |
 | Feature | Unidad de información con modalidad, origen, tipo semántico, estado y prioridad. |
 | FeatureSet | Conjunto versionado de features utilizado por uno o más experimentos. |
+| FeatureSelectionStrategy | Configuración declarativa de métodos, top-K y combinación de rankings. |
+| FeatureEvidence | Evidencia acumulada por feature (MI, SHAP, ablation, etc.) y confianza. |
+| FeatureInteractionEvidence | Evidencia experimental de interacciones entre features. |
 | ModelSpec | Definición lógica de un modelo disponible y sus capacidades. |
 | Experiment | Hipótesis o pregunta que se desea comprobar. |
 | Trial | Ejecución concreta: pipeline, modelo, parámetros, dataset split y seed. |
@@ -167,6 +174,17 @@ automl-platform/
 |   |   |-- runs/
 |   |   |-- datasets/
 |   |   |-- features/
+|   |   |   |-- feature.py
+|   |   |   |-- feature_set.py
+|   |   |   |-- registry.py
+|   |   |   |-- groups.py
+|   |   |   |-- interactions.py
+|   |   |   |-- generators.py
+|   |   |   |-- evidence.py
+|   |   |   |-- selection_strategy.py
+|   |   |   |-- selection/          # filter / wrapper / embedded
+|   |   |   |-- reduction/          # PCA y otras transformaciones
+|   |   |   `-- experiments/        # ablation, subset comparison
 |   |   |-- models/
 |   |   |-- experiments/
 |   |   `-- pipelines/
@@ -182,6 +200,9 @@ automl-platform/
 |   |   |-- optimization/
 |   |   |-- training/
 |   |   |-- evaluation/
+|   |   |-- feature_analysis/       # orquesta selectores y genera candidatos
+|   |   |-- feature_experiments/    # ablation, subset, PCA-as-experiment
+|   |   |-- feature_discovery/      # interacciones y features generadas
 |   |   `-- ensemble/
 |   |-- plugins/
 |   |   |-- models/
@@ -215,7 +236,7 @@ automl-platform/
 | V0.2 | Control humano de experimentos | Añadir/quitar modelos, prioridades, experimentos directos, pausa/reanudación. |
 | V0.3 | Planificación y priorización automática | Planner rule-based, queue y scoring de experimentos/features. |
 | V0.4 | Optimización automática | Optuna, budgets, early stopping y leaderboard reproducible. |
-| V0.5 | Experimentación avanzada de features | Ablation, interacciones, grupos, búsqueda jerárquica y knowledge inicial. |
+| V0.5 | Feature Discovery & Selection | Subsistema explícito: filter/wrapper/embedded, SHAP/L1/MI, ablation, PCA como experimento, FeatureEvidence y comparación experimental de FeatureSets. |
 | V0.6 | Sistema de plugins estable | Modelos/métricas/optimizers/preprocessors instalables sin tocar el core. |
 | V0.7 | Imágenes y multimodalidad inicial | Image modality, embeddings, PipelineGraph y experimentos tabular+image. |
 | V0.8 | Knowledge y meta-learning | Historial reusable, similitud de datasets y warm-start del planner. |
@@ -438,53 +459,273 @@ Experiment
 
 Permite reemplazar Optuna por BayesianOptimizer, Hyperband o un optimizer propio sin reestructurar el proyecto.
 
-# V0.5 — Experimentación avanzada de features
+# V0.5 — Feature Discovery & Selection
 
-Hacer que el AutoML aprenda qué columnas, grupos y combinaciones aportan valor, evitando una explosión combinatoria mediante priorización y búsqueda jerárquica.
+Formalizar un **subsistema explícito** de descubrimiento y selección de features, separando claramente **selección** (elegir columnas originales), **reducción** (nueva representación, p. ej. PCA) y **validación experimental** (los datos deciden).
+
+## Distinción conceptual obligatoria
+
+| Problema | Qué responde | Ejemplos | Tratamiento en CATML |
+| --- | --- | --- | --- |
+| Selección de features | ¿Qué columnas originales aportan señal? | MI, SHAP, L1, RFE, ablation | `features/selection/` |
+| Reducción de dimensionalidad | ¿Cómo representar X con menos dimensiones? | PCA, autoencoders tabulares | `features/reduction/` |
+| Validación | ¿La propuesta mejora generalización/coste? | CV sobre FeatureSets | `features/experiments/` + `Experiment` |
+
+**PCA no es selección clásica**: crea componentes (`PC1 = 0.4·X1 + 0.2·X2 - …`) y no identifica directamente “las mejores columnas”. Por eso vive en `reduction/`, no en `selection/`.
+
+**SHAP, L1 y regresión no son intercambiables**: SHAP explica contribución del modelo entrenado; L1 embedded selecciona durante entrenamiento; MI es filter sin modelo. CATML soporta los **tres tipos**:
+
+| Tipo | Ejemplos | Entrena modelo |
+| --- | --- | --- |
+| Filter | correlación, mutual information, chi², varianza | No |
+| Wrapper | RFE, Sequential Feature Selection | Sí, muchas veces |
+| Embedded | Lasso/L1, importancia de árboles, SHAP | Sí |
 
 ## Alcance
 
-- Feature ablation y feature addition.
-- FeatureGroup y FeatureSet versionados.
-- Pairwise interactions priorizadas.
-- Búsqueda jerárquica/beam search sobre combinaciones prometedoras.
-- Importance mediante permutation importance, SHAP u otras técnicas disponibles.
-- Feature history para reutilizar evidencia dentro del mismo run/workspace.
+- Subsistema `features/selection/` con contrato común `FeatureSelectorPort`.
+- Subsistema `features/reduction/` con `DimensionalityReducerPort` (PCA inicial).
+- `FeatureSelectionStrategy` declarativa (métodos, top-K, combine_method).
+- Rankings combinados (`weighted_rank`, Borda, etc.) a partir de múltiples métodos.
+- Generación automática de **FeatureSets candidatos** (Top 10/25/50 por método y combinados).
+- **Feature experiments**: comparación experimental de subsets, ablation leave-one-out y PCA-as-experiment.
+- `FeatureEvidence` y `FeatureInteractionEvidence` persistidos por run/workspace.
+- `FeatureDiscoveryEngine` para proponer interacciones y features generadas (`salary × debt`, `debt / salary`).
+- Integración con Priority Engine y Experiment Planner: propuesta → cola → experimento → evidencia.
+
+## Estructura de módulos
+
+```text
+domain/features/
+├── feature.py
+├── feature_set.py
+├── registry.py
+├── groups.py
+├── interactions.py
+├── generators.py
+├── evidence.py
+├── selection_strategy.py
+├── selection/
+│   ├── base.py              # FeatureSelectorPort
+│   ├── correlation.py
+│   ├── mutual_information.py
+│   ├── variance.py
+│   ├── l1.py                # embedded
+│   ├── rfe.py               # wrapper
+│   ├── permutation.py       # embedded/post-hoc
+│   ├── shap.py              # embedded/post-hoc
+│   └── ensemble.py          # combina rankings
+├── reduction/
+│   ├── base.py              # DimensionalityReducerPort
+│   └── pca.py
+└── experiments/
+    ├── ablation.py
+    └── subset.py
+
+engine/
+├── feature_analysis/        # ejecuta selectores/reductores
+├── feature_experiments/     # materializa Experiment/Trial desde candidatos
+└── feature_discovery/       # interacciones y features generadas
+```
+
+## Contrato común de selectores
+
+```python
+class FeatureSelectorPort(Protocol):
+    method_id: str
+    selector_type: Literal["filter", "wrapper", "embedded"]
+
+    def fit(self, context: FeatureAnalysisContext) -> None: ...
+    def rank_features(self) -> list[FeatureRank]: ...
+    def select(self, k: int) -> FeatureSetCandidate: ...
+```
+
+Implementaciones previstas: `MutualInformationSelector`, `SHAPSelector`, `L1Selector`, `PermutationSelector`, `RFESelector`, `CorrelationSelector`, `VarianceSelector`, `EnsembleRankSelector`.
+
+El core AutoML no necesita conocer la implementación interna; solo consume rankings y candidatos.
+
+## FeatureSelectionStrategy
+
+```python
+@dataclass
+class FeatureSelectionStrategy:
+    methods: list[str]                    # ["mutual_information", "shap", "permutation"]
+    top_k: list[int]                      # [10, 25, 50]
+    combine_method: str = "weighted_rank"   # weighted_rank | borda | intersection
+    include_reduction: bool = False         # generar experimentos PCA
+    reduction_variances: list[float] = field(default_factory=lambda: [0.95])
+```
+
+Ejemplo de salida combinada:
+
+```text
+                MI    SHAP   Permutation
+salary           1       1            2
+debt             3       2            1
+age              2       4            3
+
+combined_rank:
+salary      0.96
+debt        0.93
+age         0.84
+```
+
+## Principio CATML: proponer ≠ aceptar
+
+Ninguna recomendación se acepta sin validación experimental:
+
+```text
+SHAP / L1 / MI / PCA / usuario / LLM
+              ↓
+      Candidate FeatureSets
+              ↓
+       Priority Engine
+              ↓
+    Feature Experiments (Experiment entity)
+              ↓
+         CV / holdout
+              ↓
+         FeatureEvidence
+              ↓
+        Knowledge Store
+```
+
+Ejemplo de comparación experimental:
+
+```text
+Feature Set          Features    AUC
+All                     120    .912
+SHAP Top 50              50    .921
+SHAP Top 25              25    .925   ← mejor generalización
+SHAP Top 10              10    .903
+MI Top 25                25    .918
+L1 Top 25                25    .922
+PCA 95% var → 37 comps   37    .918   (training 47s → 16s)
+```
+
+## Ablation experiments
+
+Tras identificar un conjunto prometedor, el sistema genera experimentos leave-one-out:
+
+```text
+Baseline: salary + debt + age + sessions + country  → AUC .930
+without salary    → .881   (impacto alto)
+without debt      → .902   (impacto alto)
+without age       → .928   (impacto bajo)
+without sessions  → .917   (impacto medio)
+without country   → .931   (candidata a exclusión)
+```
+
+El impacto de ablation alimenta `FeatureEvidence.ablation_impact`.
+
+## FeatureEvidence e interacciones
+
+```python
+@dataclass
+class FeatureEvidence:
+    feature_id: str
+    mutual_information: float | None
+    shap_importance: float | None
+    permutation_importance: float | None
+    linear_coefficient: float | None
+    ablation_impact: float | None
+    experiment_count: int
+    confidence: float
+
+@dataclass
+class FeatureInteractionEvidence:
+    features: tuple[str, ...]
+    interaction_score: float
+    experimental_gain: float
+    confidence: float
+```
+
 ## Clases e interfaces principales
 
 | Clase / interfaz | Responsabilidad | Tipo |
 | --- | --- | --- |
+| FeatureSelectorPort | Contrato fit/rank/select para filter/wrapper/embedded. | Port |
+| DimensionalityReducerPort | Contrato fit/transform (PCA, etc.). | Port |
+| FeatureSelectionStrategy | Configuración declarativa de métodos y top-K. | Domain |
+| FeatureRank | Ranking parcial de un método concreto. | Domain |
+| FeatureSetCandidate | Propuesta versionada antes de experimento. | Domain |
+| FeatureAnalysisEngine | Orquesta selectores/reductores sobre un RunContext. | Engine |
+| FeatureExperimentFactory | Genera Experiment de subset, ablation y PCA. | Engine |
+| FeatureDiscoveryEngine | Propone interacciones y features generadas. | Engine |
+| AblationExperimentBuilder | Leave-one-out sobre FeatureSet baseline. | Engine |
+| SubsetComparisonExperimentBuilder | All vs Top-K por método/combinado. | Engine |
+| PCAExperimentBuilder | Original vs PCA(n components / variance). | Engine |
+| EnsembleRankSelector | Combina rankings de múltiples métodos. | Engine |
+| FeatureEvidence | Evidencia acumulada por feature. | Domain |
+| FeatureInteractionEvidence | Evidencia de pares/grupos de features. | Domain |
+| FeatureEvidenceRepository | Persistencia de evidencia por run/workspace. | Port |
 | FeatureGroup | Agrupa features por semántica/origen. | Domain |
-| FeatureSet | Conjunto versionado de features. | Domain |
-| FeatureExperimentFactory | Genera ablation/addition/interaction experiments. | Engine |
-| FeatureSelectorPort | Contrato de selección/pruning. | Port |
-| BeamFeatureSelector | Explora combinaciones por niveles. | Engine |
-| FeatureImportancePort | Contrato para calcular importancia. | Port |
-| FeatureInteractionScorer | Score de posibles interacciones. | Engine |
-| FeatureKnowledge | Historial agregado por feature/interacción. | Domain |
-| FeatureKnowledgeRepository | Persistencia de conocimiento. | Port |
+| BeamFeatureSelector | Explora combinaciones por niveles (wrapper). | Engine |
+| GetFeatureEvidenceQuery | Consulta evidencia para UI/CLI/LLM. | Query |
+| RunFeatureAnalysisCommand | Ejecuta análisis y genera candidatos. | Command |
+| CompareFeatureSetsQuery | Tabla comparativa de subsets experimentados. | Query |
 
 ## Flujo principal
 
-Baseline
-   -> individual / group tests
-   -> rank features
-   -> select top-K
-   -> pairwise candidate generation
-   -> priority scoring
-   -> execute promising combinations
-   -> update FeatureKnowledge
-   -> next level if budget allows
+```text
+Dataset
+   ↓
+Feature Profiler
+   ↓
+Feature Analysis Engine
+   ├─ Filters: MI, correlation, variance
+   ├─ Embedded: SHAP, L1, permutation
+   └─ Wrapper: RFE, SFS
+   ↓
+Optional: Reduction analysis (PCA candidates)
+   ↓
+Candidate FeatureSets (Top 10/25/50 × método × combinado)
+   ↓
+Priority Engine
+   ↓
+Feature Experiments (subset / ablation / PCA)
+   ↓
+CV evaluation → TrialResult
+   ↓
+FeatureEvidence + FeatureKnowledge update
+   ↓
+Planner usa evidencia en siguientes iteraciones
+```
+
+## Queries y commands nuevos
+
+Commands:
+- `RunFeatureAnalysisCommand`
+- `CreateFeatureSetFromRankingCommand`
+- `RunFeatureAblationCommand`
+- `RunFeatureSubsetComparisonCommand`
+- `RunPCAExperimentCommand`
+
+Queries:
+- `GetFeatureImportanceQuery` / `GetFeatureEvidenceQuery`
+- `ListFeatureSetCandidatesQuery`
+- `CompareFeatureSetsQuery`
+- `GetFeatureInteractionEvidenceQuery`
 
 ## Criterios de finalización
 
-- El sistema puede responder si una feature o grupo mejora significativamente el baseline.
-- No genera todas las combinaciones posibles; aplica top-K/beam/budget.
-- El historial identifica combinaciones útiles y no útiles.
-- El usuario puede forzar una combinación aunque el score automático sea bajo.
+- El sistema distingue selection vs reduction en código y dominio.
+- Soporta al menos un método filter, uno embedded (SHAP o L1) y uno wrapper (RFE).
+- Genera automáticamente experimentos All vs Top-K y registra resultados comparables.
+- Ablation leave-one-out produce `ablation_impact` en `FeatureEvidence`.
+- PCA se evalúa como experimento (métrica + tiempo/RAM), no se asume beneficio.
+- Rankings de métodos múltiples pueden combinarse vía `FeatureSelectionStrategy`.
+- El usuario puede forzar un FeatureSet aunque el score automático sea bajo.
+- Toda evidencia queda trazable: método, seed, modelo usado para SHAP/L1, FeatureSet versionado.
+
 ## Preparación para fases futuras
 
-El futuro LLM podrá generar hipótesis semánticas de interacción, mientras que esta fase seguirá validándolas experimentalmente.
+- V0.8 reutiliza `FeatureEvidence` como input del knowledge layer y warm-start del planner.
+- V0.9 expone `GetFeatureEvidenceQuery` y `RunFeatureAnalysisCommand` como LLM tools.
+- V1.0 Feature Advisor Agent propone hipótesis semánticas; CATML las valida experimentalmente.
+
+| Regla CATML. SHAP recomienda. L1 recomienda. MI recomienda. PCA propone otra representación. El usuario y el LLM recomiendan. Pero finalmente CATML crea el experimento y los datos deciden. |
+| --- |
 
 # V0.6 — Arquitectura de plugins estable
 
@@ -723,6 +964,9 @@ Las siguientes interfaces deben diseñarse temprano porque determinan si el sist
 | PriorityScorerPort | score(candidate, context) | Hace intercambiable la estrategia de priorización. |
 | ModelPlugin | capabilities(), search_space(), build() | Permite añadir modelos sin ramas hardcodeadas. |
 | ModalityPlugin | profile(), build_nodes(), capabilities() | Base de multimodalidad. |
+| FeatureSelectorPort | fit(), rank_features(), select(k) | Desacopla filter/wrapper/embedded de CATML core. |
+| DimensionalityReducerPort | fit(), transform(), n_components() | PCA y reducción sin confundirla con selección. |
+| FeatureEvidenceRepository | save/get/list per run/workspace | Persiste evidencia acumulada de features. |
 | Repository ports | save/get/list/version | Permite SQLite/Postgres/object storage sin contaminar dominio. |
 | EventBusPort | publish(event) | Aísla event bus in-memory, Redis, Kafka u otros. |
 
@@ -814,6 +1058,112 @@ FeatureSet
 
 No se debe modificar físicamente el dataset cada vez que se excluye o prioriza una columna. La selección debe ser lógica y versionada mediante Feature/FeatureSet.
 
+## 12.1 Subsistema Feature Discovery & Selection
+
+El subsistema convierte análisis de features en **propuestas versionadas** y **experimentos comparables**. Tres capas cooperan:
+
+```text
+selection/     → elige columnas originales (filter / wrapper / embedded)
+reduction/     → transforma representación (PCA, futuros autoencoders)
+experiments/   → valida empíricamente qué FeatureSet generaliza mejor
+```
+
+### Arquitectura interna
+
+```text
+                     Dataset
+                        ↓
+                 Feature Profiler
+                        ↓
+              Feature Analysis Engine
+                        │
+       ┌────────────────┼─────────────────┐
+       ↓                ↓                 ↓
+    Filters          Embedded          Wrapper
+       │                │                 │
+   MI / corr        SHAP / L1        RFE / SFS
+       │                │                 │
+       └────────────────┼─────────────────┘
+                        ↓
+                Candidate FeatureSets
+                        ↓
+                  Priority Engine
+                        ↓
+                 Experiment Planner
+                        ↓
+              Feature Experiments
+                        ↓
+                  CV evaluation
+                        ↓
+                  FeatureEvidence
+                        ↓
+                  Knowledge Store
+                        ↓
+              (futuro) LLM + Feature Advisor
+```
+
+### FeatureSelectionStrategy
+
+```python
+@dataclass
+class FeatureSelectionStrategy:
+    methods: list[str]           # mutual_information, shap, l1, permutation, rfe
+    top_k: list[int]             # 10, 25, 50
+    combine_method: str          # weighted_rank | borda | intersection
+    include_reduction: bool      # activar experimentos PCA
+    reduction_variances: list[float]
+```
+
+### FeatureEvidence
+
+```python
+@dataclass
+class FeatureEvidence:
+    feature_id: str
+    mutual_information: float | None
+    shap_importance: float | None
+    permutation_importance: float | None
+    linear_coefficient: float | None
+    ablation_impact: float | None
+    experiment_count: int
+    confidence: float
+```
+
+### FeatureInteractionEvidence
+
+```python
+@dataclass
+class FeatureInteractionEvidence:
+    features: tuple[str, ...]
+    interaction_score: float
+    experimental_gain: float
+    confidence: float
+```
+
+### Tipos de experimento de features
+
+| Tipo | Hipótesis | Ejemplo |
+| --- | --- | --- |
+| Subset comparison | ¿Top-K mejora vs all features? | All (120) vs SHAP Top 25 |
+| Ablation | ¿Qué feature degrada más el modelo si se elimina? | Baseline minus salary |
+| Reduction | ¿PCA compensa pérdida de AUC con menor coste? | Original vs PCA 95% var |
+| Interaction | ¿Una feature generada aporta ganancia? | salary + debt + debt/salary |
+| Discovery | ¿Un par semántico merece exploración? | salary × debt |
+
+### Optimización multi-objetivo
+
+Los experimentos de features no optimizan solo la métrica principal. También registran:
+
+- training time
+- inferencia / latencia
+- RAM pico
+- número de features / componentes
+
+Así PCA puede ser preferible aunque pierda 0.005 AUC si reduce entrenamiento de 47s a 16s.
+
+| Regla de oro de selección. Ninguna recomendación — SHAP, L1, MI, PCA, usuario o LLM — se acepta sin un Experiment que lo confirme con métricas y costes medidos. |
+| --- |
+
 # 13. Eventos recomendados
 
 | Evento | Uso principal |
@@ -822,6 +1172,11 @@ No se debe modificar físicamente el dataset cada vez que se excluye o prioriza 
 | DatasetRegistered | Disparar profiling o UI updates. |
 | DatasetProfiled | Permitir planificación. |
 | FeaturePrioritized / FeatureExcluded | Actualizar plan/cola y audit log. |
+| FeatureAnalysisCompleted | Rankings listos; generar candidatos. |
+| FeatureSetCandidateCreated | Nuevo subset propuesto para experimentación. |
+| FeatureAblationCompleted | Actualizar FeatureEvidence.ablation_impact. |
+| FeatureEvidenceUpdated | Alimentar planner, knowledge y futuro LLM. |
+| FeatureInteractionDiscovered | Nueva interacción candidata a experimento. |
 | ModelAdded / ModelExcluded | Recalcular compatibilidad/search space. |
 | ExperimentCreated | Persistir y priorizar. |
 | ExperimentQueued / Started / Completed | Estado y observabilidad. |
@@ -856,7 +1211,8 @@ No se debe modificar físicamente el dataset cada vez que se excluye o prioriza 
 1. Integrar LightGBM/XGBoost/CatBoost mediante plugins/adapters.
 1. Añadir ExperimentPlanner y Priority Engine rule-based.
 1. Añadir Optuna detrás de OptimizerPort.
-1. Construir feature experiments y knowledge local.
+1. Implementar subsistema Feature Discovery & Selection (V0.5): selectores, PCA-as-experiment, ablation, FeatureEvidence.
+1. Construir feature discovery (interacciones, features generadas) y knowledge local.
 1. Estabilizar plugin API antes de multimodalidad.
 1. Añadir PipelineGraph y ImageModalityPlugin.
 1. Crear knowledge/meta-learning.
@@ -873,6 +1229,10 @@ No se debe modificar físicamente el dataset cada vez que se excluye o prioriza 
 - Perder la procedencia de quién realizó una modificación: user/system/agent.
 - Guardar únicamente el “best model” y descartar el historial experimental.
 - Añadir imágenes mediante excepciones especiales en el pipeline tabular en vez de una abstracción de modalidad.
+- Tratar PCA como selección de columnas en lugar de reducción/transformación separada.
+- Aceptar rankings SHAP/L1/MI como verdad final sin experimento de validación.
+- Mezclar `selection/` y `reduction/` en un único módulo ambiguo.
+- Confiar en un único método de importancia sin `FeatureSelectionStrategy` multi-método.
 # 18. Definición de éxito de V1.0
 
 El proyecto habrá alcanzado su arquitectura objetivo inicial cuando un mismo Run pueda ser gestionado de manera equivalente por una interfaz humana o por un agente, pudiendo seleccionar modelos y features, crear y priorizar experimentos, ejecutar optimización, comparar resultados y utilizar conocimiento histórico, manteniendo trazabilidad y reproducibilidad.
@@ -892,7 +1252,7 @@ El primer incremento de implementación debería limitarse a V0.1 y parte de V0.
 | V0.2 | CommandBus, QueryBus, Add/ExcludeModelCommand, Prioritize/ExcludeFeatureCommand, CreateFeatureSetCommand, Create/RunExperimentCommand, Pause/ResumeRunCommand, queries de profile/leaderboard/compare |
 | V0.3 | ExperimentPlannerPort, RuleBasedExperimentPlanner, ExperimentCandidate, Priority, PriorityScorerPort, RuleBasedPriorityScorer, ExperimentQueue, BudgetPolicy, Scheduler |
 | V0.4 | OptimizerPort, RandomSearchOptimizer, OptunaOptimizer, SearchSpace, ParameterSpec, SearchSpaceBuilder, TrialFactory, EarlyStoppingPolicy, LeaderboardService |
-| V0.5 | FeatureGroup, FeatureExperimentFactory, FeatureSelectorPort, BeamFeatureSelector, FeatureImportancePort, FeatureInteractionScorer, FeatureKnowledge, FeatureKnowledgeRepository |
+| V0.5 | FeatureSelectorPort, DimensionalityReducerPort, FeatureSelectionStrategy, FeatureRank, FeatureSetCandidate, FeatureAnalysisEngine, FeatureExperimentFactory, FeatureDiscoveryEngine, AblationExperimentBuilder, SubsetComparisonExperimentBuilder, PCAExperimentBuilder, EnsembleRankSelector, FeatureEvidence, FeatureInteractionEvidence, FeatureEvidenceRepository, MI/SHAP/L1/Permutation/RFE selectors, PCA reducer, RunFeatureAnalysisCommand, GetFeatureEvidenceQuery, CompareFeatureSetsQuery |
 | V0.6 | Plugin, PluginRegistry, ModelPlugin, MetricPlugin, OptimizerPlugin, PreprocessorPlugin, Capability, CompatibilityValidator |
 | V0.7 | Modality, DataSource, ModalityPlugin, ImageModalityPlugin, PipelineNode, PipelineGraph, ImageEncoderNode, FeatureFusionNode, GraphValidator |
 | V0.8 | DatasetMetaFeatures, ExperimentKnowledge, KnowledgeRepository, DatasetSimilarityPort, MetaLearningService, WarmStartPolicy |

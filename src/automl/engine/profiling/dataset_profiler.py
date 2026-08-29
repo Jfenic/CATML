@@ -42,12 +42,9 @@ def profile_dataset(dataset: Dataset) -> DatasetProfile:
 
 
 def infer_task_type(target_series: pd.Series) -> str:
-    unique = target_series.nunique(dropna=True)
-    if unique <= 20 and str(target_series.dtype) in {"object", "bool", "category", "int64", "int32"}:
-        if unique == 2:
-            return "binary_classification"
-        return "multiclass_classification"
-    return "regression"
+    from automl.engine.planning.task_planner import infer_task_type as _infer
+
+    return _infer(target_series).value
 
 
 def load_dataframe(path: str) -> pd.DataFrame:

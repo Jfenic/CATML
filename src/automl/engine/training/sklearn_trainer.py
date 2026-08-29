@@ -8,11 +8,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     accuracy_score,
+    calinski_harabasz_score,
     f1_score,
     mean_absolute_error,
     mean_squared_error,
     r2_score,
     roc_auc_score,
+    silhouette_score,
 )
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
@@ -35,8 +37,11 @@ class SklearnTrainer(TrainerPort):
         try:
             df = load_dataframe(execution.dataset_path)
             X = df[execution.feature_names]
-            y = df[execution.target_column]
 
+            if execution.task_type == "clustering":
+                return self._run_clustering(execution, X, started)
+
+            y = df[execution.target_column]
             model = build_sklearn_model(execution.trial.model_id, execution.task_type)
             pipeline = _build_pipeline(X, model)
 
@@ -94,6 +99,63 @@ class SklearnTrainer(TrainerPort):
                 training_time_seconds=elapsed,
                 failure_reason=str(exc),
             )
+
+    def _run_clustering(
+        self,
+        execution: TrialExecution,
+        X: pd.DataFrame,
+        started: float,
+    ) -> TrialResult:
+        import time
+
+        trial = execution.trial
+        numeric_X = X.select_dtypes(include=["number"])
+        if numeric_X.empty:
+            raise ValueError("Clustering requires at least one numeric feature.")
+
+        preprocessor = Pipeline([
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ])
+        X_scaled = preprocessor.fit_transform(numeric_X)
+        model = build_sklearn_model(
+            execution.trial.model_id,
+            execution.task_type,
+            parameters=execution.trial.parameters,
+        )
+
+        if hasattr(model, "fit_predict"):
+            labels = model.fit_predict(X_scaled)
+        else:
+            model.fit(X_scaled)
+            labels = model.labels_ if hasattr(model, "labels_") else model.predict(X_scaled)
+
+        unique_labels = set(labels)
+        unique_labels.discard(-1)
+        n_clusters = len(unique_labels)
+
+        secondary: dict[str, float] = {"n_clusters": float(n_clusters)}
+        metric_name = execution.metric
+
+        if n_clusters >= 2 and len(labels) > n_clusters:
+            secondary["silhouette"] = float(silhouette_score(X_scaled, labels))
+            secondary["calinski_harabasz"] = float(calinski_harabasz_score(X_scaled, labels))
+        else:
+            secondary["silhouette"] = 0.0
+            secondary["calinski_harabasz"] = 0.0
+
+        primary_score = secondary.get(metric_name, secondary.get("silhouette", 0.0))
+        elapsed = time.perf_counter() - started
+        trial.status = TrialStatus.COMPLETED
+        return TrialResult(
+            trial_id=trial.id,
+            experiment_id=execution.experiment.id,
+            model_id=trial.model_id,
+            primary_metric=metric_name,
+            primary_score=float(primary_score),
+            secondary_metrics=secondary,
+            training_time_seconds=elapsed,
+        )
 
 
 def _build_pipeline(X: pd.DataFrame, model: Any) -> Pipeline:

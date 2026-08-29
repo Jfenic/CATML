@@ -36,6 +36,7 @@ class Experiment:
     status: ExperimentStatus = ExperimentStatus.CREATED
     created_by: str = "user"
     priority: str = "normal"
+    feature_set_id: str | None = None
 
 
 @dataclass

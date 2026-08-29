@@ -1,0 +1,240 @@
+# Guía para desarrolladores — CATML
+
+Documento orientado a que otro programador pueda **continuar el proyecto de forma modular**, sin reescribir el núcleo.
+
+**Versión de plataforma:** `0.2.0`  
+**Última fase completada:** V0.2  
+**Siguiente fase recomendada:** V0.3 (Experiment Planner + Priority Engine)
+
+---
+
+## 1. Punto de entrada rápido
+
+```bash
+pip install -e ".[dev]"
+pytest                          # 22 tests — debe pasar todo
+automl task list                # catálogo tarea → modelos
+automl run-demo                 # flujo completo
+automl benchmark run            # comparar escenarios V0.1 vs V0.2
+```
+
+El wiring de la aplicación está en:
+
+```text
+src/automl/application/bootstrap.py   → build_application()
+src/automl/application/services/workspace.py   → casos de uso
+src/automl/interfaces/cli/main.py   → CLI
+```
+
+---
+
+## 2. Arquitectura en capas (regla de dependencias)
+
+```text
+interfaces/  (CLI, futura API, futuros LLM tools)
+      ↓
+application/ (CommandBus, QueryBus, handlers, workspace)
+      ↓
+domain/      (Python puro — SIN sklearn, SIN SQLite)
+      ↑
+engine/      (profiling, planning, training)
+plugins/     (modelos concretos)
+infrastructure/ (SQLite, storage)
+```
+
+**Nunca importar sklearn o sqlite3 desde `domain/`.**
+
+---
+
+## 3. Módulos y responsabilidades
+
+| Módulo | Ruta | Qué hace | Puedes extender… |
+|--------|------|----------|------------------|
+| **Dominio — Runs** | `domain/runs/` | AutoMLRun, RunConfig, estados | Nuevos estados, campos de config |
+| **Dominio — Tasks** | `domain/tasks/` | TaskType, TASK_CATALOG, ProblemDefinition | Nuevas tareas, métricas, modelos en catálogo |
+| **Dominio — Features** | `domain/features/` | Feature, FeatureSet, FeatureRegistry | Feature evidence (V0.5) |
+| **Dominio — Experiments** | `domain/experiments/` | Experiment, Trial, TrialResult | Nuevos tipos de experimento |
+| **Dominio — Models** | `domain/models/` | ModelSpec, ModelRegistry | Validación por tarea |
+| **Application — CQRS** | `application/commands/`, `queries/`, `bus/` | Comandos y consultas | 1 comando = 1 handler en bootstrap |
+| **Application — Workspace** | `application/services/workspace.py` | Orquestación | Nuevos casos de uso delegando aquí |
+| **Engine — Planning** | `engine/planning/task_planner.py` | Inferir tarea desde dataset | RuleBasedExperimentPlanner (V0.3) |
+| **Engine — Training** | `engine/training/sklearn_trainer.py` | Ejecutar Trial | Nuevas ramas por task_type |
+| **Plugins — Models** | `plugins/models/sklearn_models.py` | build_sklearn_model, specs | LightGBM, XGBoost (V0.4) |
+| **Infrastructure** | `infrastructure/database/` | SQLite, eventos, benchmark | Postgres adapter |
+| **Benchmarks** | `benchmarks/runner.py` | Escenarios de regresión de calidad | Nuevos escenarios por versión |
+| **CLI** | `interfaces/cli/` | Subcomandos | API REST reutilizando buses |
+
+---
+
+## 4. Cómo añadir algo sin romper la arquitectura
+
+### A) Añadir un modelo nuevo
+
+1. Añadir `model_id` en `TASK_CATALOG` (`domain/tasks/task_type.py`) para las tareas compatibles.
+2. Implementar en `plugins/models/sklearn_models.py` → `build_sklearn_model()`.
+3. El `ModelRegistry` se puebla solo vía `default_model_specs()`.
+4. Test: experimento con el nuevo modelo + validación de incompatibilidad.
+
+**No tocar** `domain/` salvo el catálogo de tareas.
+
+### B) Añadir un Command (acción de usuario/agente)
+
+1. Dataclass en `application/commands/workspace_commands.py`.
+2. Handler en `application/bootstrap.py` → `register_handlers()`.
+3. Método en `workspace.py` con la lógica.
+4. (Opcional) Subcomando CLI.
+5. Test en `tests/test_v02.py` o nuevo archivo.
+
+### C) Añadir un Query (lectura)
+
+1. Dataclass en `application/queries/workspace_queries.py`.
+2. Handler en `bootstrap.py`.
+3. Test.
+
+### D) Añadir persistencia
+
+1. Tabla/método en `infrastructure/database/sqlite_repository.py`.
+2. Llamar desde `workspace.py`.
+3. Migración en `_migrate()` si alteras tablas existentes.
+
+### E) Añadir escenario de benchmark
+
+1. Nuevo método `_setup_*` en `benchmarks/runner.py`.
+2. Entrada en `scenarios()` con `id`, `version`, `description`.
+3. Test en `tests/test_benchmark.py`.
+
+---
+
+## 5. Roadmap — qué hacer en cada fase
+
+Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
+
+### ✅ V0.1 — Hecho
+
+- [x] Dominio: Run, Dataset, Feature, Experiment, Trial
+- [x] Trainer sklearn + SQLite
+- [x] Demo básico
+
+### ✅ V0.2 — Hecho
+
+- [x] CommandBus / QueryBus
+- [x] FeatureSet, persistencia de features
+- [x] Pause / Resume / Cancel / Clone
+- [x] CompareExperiments, event log
+- [x] Catálogo TaskType → modelos por tarea
+- [x] ProblemDefinition + task planner
+- [x] Benchmark harness (5 escenarios)
+
+### ⏳ V0.3 — Siguiente (modular, buen punto de entrada)
+
+**Objetivo:** generar experimentos automáticamente y priorizarlos.
+
+| Pieza | Dónde implementar | Port / clase |
+|-------|-------------------|--------------|
+| ExperimentPlannerPort | `domain/ports.py` | `propose(context) → list[ExperimentCandidate]` |
+| RuleBasedExperimentPlanner | `engine/planning/` | Usa DatasetProfile + ModelRegistry + FeatureRegistry |
+| PriorityScorerPort | `domain/ports.py` | `score(candidate, context)` |
+| ExperimentQueue | `engine/priority/` | Cola ordenada |
+| Scheduler | `engine/priority/` | Selecciona siguiente experimento |
+
+**Criterio de done:** el sistema propone experimentos sin intervención manual; prioridad `high`/`pinned` altera el orden.
+
+**Tests sugeridos:** `tests/test_v03_planner.py`
+
+### 📋 V0.4 — Optimización (Optuna)
+
+- `OptimizerPort` en domain
+- `OptunaOptimizer` en plugins
+- Budgets, early stopping, leaderboard por experimento
+
+### 📋 V0.5 — Feature Discovery & Selection
+
+Subsistema documentado en arquitectura §12.1 y §V0.5:
+
+```text
+domain/features/selection/   → SHAP, MI, L1, RFE
+domain/features/reduction/   → PCA
+domain/features/experiments/   → ablation, subset comparison
+```
+
+**Principio:** proponer ≠ aceptar — todo se valida con Experiment.
+
+---
+
+## 6. Archivos clave por tarea de desarrollo
+
+```text
+Quiero…                              → Empieza aquí
+─────────────────────────────────────────────────────────
+Entender el flujo completo             → workspace.py + bootstrap.py
+Añadir tipo de tarea                   → domain/tasks/task_type.py
+Cambiar inferencia de tarea            → engine/planning/task_planner.py
+Añadir modelo sklearn                  → plugins/models/sklearn_models.py
+Cambiar métricas de evaluación         → engine/training/sklearn_trainer.py
+Nuevo comando usuario/LLM              → commands/ + bootstrap.py
+Nueva consulta UI/LLM                  → queries/ + bootstrap.py
+Persistencia / auditoría               → sqlite_repository.py
+Medir mejoras entre versiones          → benchmarks/runner.py
+Documentación formal                   → AutoML_Arquitectura_Tecnica.md
+```
+
+---
+
+## 7. Convenciones del proyecto
+
+1. **Un experimento = una hipótesis verificable.** No monolitos `AutoML.fit()`.
+2. **Commands mutan, Queries leen.** Sin efectos secundarios en queries.
+3. **Modelos incompatibles con la tarea → ValueError** en `create_experiment`.
+4. **Eventos** en toda mutación relevante (`repository.append_event`).
+5. **Tests:** un archivo por fase (`test_v01`, `test_v02`, `test_tasks`, `test_benchmark`).
+6. **Versión:** actualizar `PLATFORM_VERSION` en `workspace.py` y `pyproject.toml`.
+
+---
+
+## 8. Composición para futuro LLM (V0.9)
+
+Cuando llegue V0.9, cada Command/Query existente se envuelve en un `AgentTool`:
+
+```text
+CreateExperimentCommand  →  CreateExperimentTool
+GetTaskPlanQuery         →  GetTaskPlanTool
+```
+
+No crear lógica nueva en la capa de agentes; solo wrappers con schema JSON.
+
+---
+
+## 9. Checklist antes de abrir PR
+
+- [ ] `pytest` pasa
+- [ ] Nuevo comportamiento tiene test
+- [ ] Sin imports de infra en `domain/`
+- [ ] Commands/Queries registrados en `bootstrap.py`
+- [ ] Si añades escenario benchmark, actualizar README
+- [ ] Migración SQLite si cambias schema
+
+---
+
+## 10. Contacto con la spec
+
+| Pregunta | Documento |
+|----------|-----------|
+| ¿Qué entidades existen? | `AutoML_Arquitectura_Tecnica.md` §6 |
+| ¿Qué va en V0.3? | `AutoML_Arquitectura_Tecnica.md` §V0.3 |
+| ¿Cómo funciona feature selection? | `AutoML_Arquitectura_Tecnica.md` §12.1 |
+| ¿Decisiones a evitar? | `AutoML_Arquitectura_Tecnica.md` §17 |
+| Checklist clases por fase | Anexo A |
+
+---
+
+## 11. Ejemplo de división de trabajo en paralelo
+
+Tres desarrolladores pueden trabajar en paralelo sin conflictos:
+
+| Dev A | Dev B | Dev C |
+|-------|-------|-------|
+| V0.3 Planner | V0.4 Optuna plugin | V0.5 MI selector |
+| `engine/planning/` | `plugins/optimizers/` | `domain/features/selection/` |
+| Sin tocar trainer | Sin tocar planner | Sin tocar optimizer |
+
+Punto de integración común: **`workspace.run_experiment()`** y **`bootstrap.register_handlers()`**.
