@@ -3,7 +3,7 @@
 Plataforma AutoML modular con arquitectura hexagonal. El objetivo no es solo entrenar un modelo, sino gestionar de forma reproducible **qué tarea se resuelve**, **qué modelos aplican**, **qué features se usan** y **qué experimentos se ejecutan** — con la misma API para humanos, CLI y futuros agentes LLM.
 
 **Versión actual:** `0.2.0`  
-**Estado:** V0.1 + V0.2 implementados. V0.3 (planner automático) pendiente.
+**Estado:** V0.1 + V0.2 cerrados y verificados. V0.3 (planner automático) pendiente.
 
 ---
 
@@ -167,7 +167,7 @@ CATML/
 | Fase | Estado | Capacidades |
 |------|--------|-------------|
 | **V0.1** | ✅ | Dominio, Experiment/Trial, SQLite, trainer sklearn, demo |
-| **V0.2** | ✅ | CQRS, FeatureSet, pause/resume, benchmark, catálogo por tarea |
+| **V0.2** | ✅ | CQRS, FeatureSet, pause/resume, validación de ownership, benchmark, catálogo por tarea |
 | **V0.3** | ⏳ | Experiment Planner + Priority Engine |
 | **V0.5** | 📋 | Feature Discovery & Selection (documentado) |
 | **V0.9–V1.0** | 📋 | LLM tools + agente |

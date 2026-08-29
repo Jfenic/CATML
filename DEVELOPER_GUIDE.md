@@ -12,7 +12,7 @@ Documento orientado a que otro programador pueda **continuar el proyecto de form
 
 ```bash
 pip install -e ".[dev]"
-pytest                          # 22 tests — debe pasar todo
+pytest                          # 26 tests — debe pasar todo
 automl task list                # catálogo tarea → modelos
 automl run-demo                 # flujo completo
 automl benchmark run            # comparar escenarios V0.1 vs V0.2
@@ -124,6 +124,8 @@ Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
 - [x] Catálogo TaskType → modelos por tarea
 - [x] ProblemDefinition + task planner
 - [x] Benchmark harness (5 escenarios)
+- [x] Validación de pertenencia Run → Experiment y Dataset → FeatureSet
+- [x] CI en Python 3.10/3.12 con cobertura mínima del 85%
 
 ### ⏳ V0.3 — Siguiente (modular, buen punto de entrada)
 
