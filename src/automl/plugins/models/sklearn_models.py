@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression, Ridge
@@ -37,7 +38,11 @@ def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None =
             if is_regression
             else RandomForestClassifier(n_estimators=100, random_state=42)
         ),
-        "svc": SVR() if is_regression else SVC(probability=True, random_state=42),
+        "svc": (
+            SVR()
+            if is_regression
+            else CalibratedClassifierCV(SVC(random_state=42), method="sigmoid", cv=3)
+        ),
         "ridge": Ridge(alpha=1.0),
         "svr": SVR(),
     }

@@ -6,6 +6,7 @@ from automl.application.bootstrap import build_application
 from automl.application.commands.workspace_commands import CreateExperimentCommand, RunExperimentCommand
 from automl.application.queries.workspace_queries import GetTaskPlanQuery, ListModelsQuery, ListTaskTypesQuery
 from automl.domain.tasks.task_type import TaskType
+from automl.plugins.models.sklearn_models import build_sklearn_model
 
 
 @pytest.fixture
@@ -89,3 +90,8 @@ def test_clustering_task_plan_and_run(tmp_path: Path, sample_dataset_path: Path)
     assert len(results) == 1
     assert results[0].succeeded
     assert results[0].primary_metric == "silhouette"
+
+
+def test_svc_classifier_exposes_calibrated_probabilities() -> None:
+    model = build_sklearn_model("svc", "binary_classification")
+    assert hasattr(model, "predict_proba")
