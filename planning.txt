@@ -1,0 +1,1507 @@
+Sí. Con lo que acabas de definir, la arquitectura debería diseñarse con una idea muy concreta:
+
+> **La interfaz humana y el futuro LLM deben utilizar exactamente las mismas capacidades internas.**
+
+Eso evita construir hoy una aplicación para humanos y, dentro de seis meses, tener que rehacerla para agentes.
+
+La estructura que te recomiendo es una arquitectura **modular + hexagonal**, con un dominio AutoML independiente de la API, la interfaz gráfica, las librerías de ML y el futuro LLM.
+
+---
+
+# 1. Principio central
+
+Hoy:
+
+```text
+Usuario
+   ↓
+Web / CLI / API
+   ↓
+Commands
+   ↓
+AutoML Core
+```
+
+Mañana:
+
+```text
+Usuario
+   ↓
+LLM Agent
+   ↓
+Tools
+   ↓
+Commands
+   ↓
+AutoML Core
+```
+
+Los dos caminos terminan exactamente en el mismo sitio.
+
+```text
+             ┌──────────────┐
+             │     UI       │
+             └──────┬───────┘
+                    │
+                    │
+             ┌──────▼───────┐
+             │ Commands/API │
+             └──────┬───────┘
+                    │
+                    ▼
+               AutoML Core
+                    ▲
+                    │
+             ┌──────┴───────┐
+             │   LLM Tools  │
+             └──────▲───────┘
+                    │
+             ┌──────┴───────┐
+             │  LLM Agent   │
+             └──────────────┘
+```
+
+Esta decisión arquitectónica es probablemente la más importante del proyecto.
+
+---
+
+# 2. No construyas `AutoML.fit()` como un bloque gigante
+
+Evitaría esto:
+
+```python
+class AutoML:
+
+    def fit(self, df):
+
+        analyze()
+        preprocess()
+        select_features()
+        search_models()
+        tune()
+        ensemble()
+        save()
+```
+
+Porque más adelante quieres poder decir:
+
+```text
+No ejecutes XGBoost.
+
+Añade CatBoost.
+
+Prueba solamente estas columnas.
+
+Da prioridad a salary + debt.
+
+Ejecuta este experimento concreto.
+
+No hagas tuning todavía.
+
+Compara estos dos modelos.
+
+Continúa desde el experimento anterior.
+```
+
+Si todo está dentro de `fit()`, cada modificación será dolorosa.
+
+En su lugar, el AutoML debería funcionar mediante **fases independientes**.
+
+---
+
+# 3. Pipeline por fases
+
+Yo definiría explícitamente un lifecycle:
+
+```text
+PHASE 1
+Dataset registration
+
+        ↓
+
+PHASE 2
+Dataset profiling
+
+        ↓
+
+PHASE 3
+Problem definition
+
+        ↓
+
+PHASE 4
+Feature analysis
+
+        ↓
+
+PHASE 5
+Experiment planning
+
+        ↓
+
+PHASE 6
+Experiment execution
+
+        ↓
+
+PHASE 7
+Evaluation
+
+        ↓
+
+PHASE 8
+Optimization
+
+        ↓
+
+PHASE 9
+Model selection
+
+        ↓
+
+PHASE 10
+Ensemble / finalization
+```
+
+Pero ninguna fase debería ser obligatoriamente automática.
+
+Por ejemplo el usuario puede parar en:
+
+```text
+Dataset Profile
+```
+
+hacer cambios:
+
+```text
+exclude customer_id
+priority salary
+priority debt
+include CatBoost
+exclude RandomForest
+```
+
+y después continuar.
+
+---
+
+# 4. Introduciría el concepto de `Run`
+
+Todo debería pertenecer a una ejecución.
+
+```python
+class AutoMLRun:
+    id
+    dataset_id
+    problem
+    config
+    current_phase
+    status
+```
+
+Ejemplo:
+
+```text
+Run: automl_2026_001
+
+Dataset:
+customers.parquet
+
+Target:
+churn
+
+Task:
+binary_classification
+
+Current phase:
+EXPERIMENTATION
+
+Budget:
+2 hours
+```
+
+Esto permite:
+
+```text
+crear
+parar
+reanudar
+modificar
+comparar
+clonar
+```
+
+una ejecución.
+
+Muy importante para el futuro LLM.
+
+El agente podrá decir:
+
+```text
+resume run_83
+```
+
+sin empezar desde cero.
+
+---
+
+# 5. Configuración declarativa
+
+No pondría las decisiones directamente en código.
+
+Tendría un `RunConfig`.
+
+Por ejemplo:
+
+```yaml
+task:
+  type: binary_classification
+  target: churn
+  metric: roc_auc
+
+models:
+  include:
+    - lightgbm
+    - xgboost
+    - catboost
+
+  exclude:
+    - random_forest
+
+features:
+  excluded:
+    - customer_id
+
+  priority:
+    - salary
+    - debt
+
+budget:
+  max_time: 3600
+  max_trials: 100
+```
+
+Esto permite que:
+
+```text
+UI
+CLI
+REST API
+LLM
+```
+
+modifiquen exactamente el mismo objeto.
+
+---
+
+# 6. Model Registry
+
+Para permitir añadir y quitar modelos fácilmente, necesitas un registro.
+
+No:
+
+```python
+if model == "xgboost":
+    ...
+elif model == "lightgbm":
+    ...
+elif model == "catboost":
+    ...
+```
+
+Eso no escala.
+
+Usaría:
+
+```python
+class ModelRegistry:
+
+    def register(self, model):
+        ...
+
+    def unregister(self, model_id):
+        ...
+
+    def get(self, model_id):
+        ...
+
+    def list(self):
+        ...
+```
+
+Cada modelo implementa un contrato común:
+
+```python
+class ModelPlugin:
+
+    id: str
+
+    def capabilities(self):
+        ...
+
+    def search_space(self):
+        ...
+
+    def build(self, params):
+        ...
+```
+
+Entonces:
+
+```text
+ModelRegistry
+
+├── logistic_regression
+├── random_forest
+├── lightgbm
+├── xgboost
+└── catboost
+```
+
+Y mañana:
+
+```text
+├── pytorch_mlp
+├── resnet
+├── vit
+├── custom_user_model
+```
+
+sin cambiar el core.
+
+---
+
+# 7. Plugins
+
+Incluso llevaría el sistema hacia un modelo de plugins.
+
+```text
+plugins/
+│
+├── models/
+│
+├── metrics/
+│
+├── preprocessors/
+│
+├── feature_generators/
+│
+├── optimizers/
+│
+└── modalities/
+```
+
+Por ejemplo:
+
+```python
+registry.register(
+    CatBoostPlugin()
+)
+```
+
+El núcleo no necesita saber qué es CatBoost.
+
+Solo sabe:
+
+```text
+"tengo un componente que implementa ModelPlugin"
+```
+
+Esto es fundamental si quieres que el proyecto crezca durante años.
+
+---
+
+# 8. Feature Registry
+
+Lo mismo con las columnas/features.
+
+Tendría:
+
+```python
+class Feature:
+
+    id
+    name
+    modality
+    source
+    semantic_type
+    status
+    priority
+```
+
+Por ejemplo:
+
+```text
+salary
+
+status:
+ACTIVE
+
+priority:
+HIGH
+
+semantic_type:
+currency
+
+modality:
+tabular
+```
+
+Una feature podría estar:
+
+```text
+ACTIVE
+EXCLUDED
+PRIORITY
+EXPERIMENTAL
+GENERATED
+```
+
+Así el usuario puede hacer:
+
+```text
+exclude(customer_id)
+
+prioritize(salary)
+
+prioritize(debt)
+```
+
+sin modificar el dataset físicamente.
+
+---
+
+# 9. Feature Sets
+
+Esto también debe ser una entidad.
+
+```python
+FeatureSet(
+    id="financial_features",
+    features=[
+        "salary",
+        "debt",
+        "account_balance"
+    ]
+)
+```
+
+El usuario podría crear:
+
+```text
+FeatureSet A
+salary
+debt
+
+FeatureSet B
+salary
+debt
+age
+
+FeatureSet C
+salary
+debt
+age
+country
+```
+
+y experimentar directamente.
+
+---
+
+# 10. El experimento debe ser una entidad de primer nivel
+
+Esta es probablemente la segunda decisión arquitectónica más importante.
+
+```python
+class Experiment:
+
+    id
+    hypothesis
+    dataset
+    feature_set
+    pipeline
+    models
+    metric
+    validation_strategy
+    priority
+    budget
+```
+
+Un experimento puede decir:
+
+```text
+Experiment #84
+
+Question:
+¿salary + debt mejora el modelo?
+
+Features:
+salary
+debt
+
+Models:
+LightGBM
+CatBoost
+
+Metric:
+ROC-AUC
+
+Priority:
+HIGH
+
+Budget:
+10 minutes
+```
+
+Entonces el usuario puede lanzar directamente:
+
+```text
+Run experiment
+```
+
+sin ejecutar AutoML completo.
+
+---
+
+# 11. `Trial` debajo de `Experiment`
+
+Separaría:
+
+```text
+Experiment
+```
+
+de:
+
+```text
+Trial
+```
+
+Ejemplo:
+
+```text
+Experiment:
+
+Comparar LightGBM vs CatBoost
+usando salary + debt
+```
+
+Puede producir:
+
+```text
+Trial 1
+LightGBM
+depth=4
+
+Trial 2
+LightGBM
+depth=7
+
+Trial 3
+CatBoost
+depth=5
+
+Trial 4
+CatBoost
+depth=8
+```
+
+Entonces:
+
+```text
+Experiment
+   │
+   ├── Trial
+   ├── Trial
+   ├── Trial
+   └── Trial
+```
+
+Esto hace que tu arquitectura sea muchísimo más limpia.
+
+---
+
+# 12. Experiment Planner
+
+Después tienes:
+
+```text
+ExperimentPlanner
+```
+
+que genera experimentos automáticamente.
+
+```text
+Dataset Profile
+     +
+Feature Information
+     +
+Model Registry
+     +
+History
+     ↓
+
+Experiment Planner
+     ↓
+
+Experiment A
+Experiment B
+Experiment C
+Experiment D
+```
+
+Pero el usuario también puede crear uno manualmente.
+
+```text
+Manual Experiment
+```
+
+Ambos deben producir exactamente el mismo objeto `Experiment`.
+
+---
+
+# 13. Priority Engine
+
+La prioridad debe estar desacoplada del planner.
+
+```text
+Experiment Planner
+       ↓
+
+Experiments
+
+       ↓
+
+Priority Engine
+
+       ↓
+
+Priority Queue
+```
+
+Por ejemplo:
+
+```text
+Experiment                       Priority
+
+salary + debt / LightGBM          0.94
+age + salary / CatBoost           0.87
+country / RandomForest            0.42
+full features / NeuralNet         0.31
+```
+
+Después:
+
+```text
+Scheduler
+```
+
+ejecuta en orden.
+
+---
+
+# 14. Prioridad manual + prioridad automática
+
+Esto es importante para lo que quieres.
+
+Cada experimento podría tener:
+
+```python
+class Priority:
+
+    system_score: float
+    user_score: float
+    effective_score: float
+```
+
+Ejemplo:
+
+```text
+AutoML considera:
+
+experiment A = 0.62
+
+Usuario:
+HIGH PRIORITY
+
+→ boost +0.25
+
+Final:
+0.87
+```
+
+O:
+
+```text
+AutoML:
+0.91
+
+Usuario:
+LOW PRIORITY
+
+→ final 0.55
+```
+
+Incluso:
+
+```text
+PINNED
+```
+
+significa:
+
+```text
+ejecutar inmediatamente
+```
+
+Eso después es perfecto para el agente LLM:
+
+```text
+LLM:
+"Creo que salary × debt es especialmente interesante."
+
+↓
+
+prioritize_experiment(...)
+```
+
+---
+
+# 15. Commands
+
+Aquí está la pieza que conectará todo.
+
+Crearía una capa explícita de comandos:
+
+```text
+commands/
+├── datasets.py
+├── features.py
+├── models.py
+├── experiments.py
+├── runs.py
+└── pipelines.py
+```
+
+Por ejemplo:
+
+```python
+AddModel("catboost")
+
+RemoveModel("random_forest")
+
+ExcludeFeature("customer_id")
+
+PrioritizeFeature("salary")
+
+CreateFeatureSet(...)
+
+CreateExperiment(...)
+
+PrioritizeExperiment(...)
+
+RunExperiment(...)
+
+PauseRun(...)
+
+ResumeRun(...)
+```
+
+La UI llama a estos comandos.
+
+El CLI llama a estos comandos.
+
+La API llama a estos comandos.
+
+Y en el futuro:
+
+```text
+LLM tool
+```
+
+llama exactamente a estos comandos.
+
+---
+
+# 16. Queries separadas de Commands
+
+También separaría lectura y escritura.
+
+Algo parecido a CQRS, pero sin complicarlo demasiado.
+
+Commands:
+
+```text
+CreateExperiment
+RunExperiment
+AddModel
+ExcludeFeature
+```
+
+Queries:
+
+```text
+ListModels
+GetDatasetProfile
+GetFeatureImportance
+ListExperiments
+GetLeaderboard
+CompareExperiments
+```
+
+Entonces el LLM podrá hacer:
+
+```text
+get_dataset_profile()
+
+list_models()
+
+get_top_experiments()
+
+compare_experiments()
+
+prioritize_feature()
+
+run_experiment()
+```
+
+Muy limpio.
+
+---
+
+# 17. Events
+
+También añadiría eventos desde la primera versión.
+
+No necesitas Kafka ni nada complejo.
+
+Simplemente eventos internos.
+
+Por ejemplo:
+
+```text
+DatasetRegistered
+
+DatasetProfiled
+
+FeaturePrioritized
+
+ExperimentCreated
+
+ExperimentStarted
+
+TrialCompleted
+
+ExperimentCompleted
+
+ModelSelected
+```
+
+Ejemplo:
+
+```python
+event_bus.publish(
+    TrialCompleted(
+        trial_id=trial.id,
+        score=0.92
+    )
+)
+```
+
+Esto te permitirá añadir posteriormente:
+
+```text
+logging
+
+monitorización
+
+dashboard
+
+notificaciones
+
+LLM observer
+
+meta-learning
+```
+
+sin modificar el código principal.
+
+---
+
+# 18. State Machine
+
+También modelaría explícitamente los estados.
+
+Por ejemplo un experimento:
+
+```text
+CREATED
+   ↓
+QUEUED
+   ↓
+RUNNING
+   ↓
+EVALUATING
+   ↓
+COMPLETED
+```
+
+o:
+
+```text
+FAILED
+CANCELLED
+PAUSED
+```
+
+Un AutoML Run:
+
+```text
+CREATED
+  ↓
+PROFILING
+  ↓
+PLANNING
+  ↓
+EXPERIMENTING
+  ↓
+OPTIMIZING
+  ↓
+FINALIZING
+  ↓
+COMPLETED
+```
+
+Esto será especialmente útil cuando tengas agentes.
+
+El LLM puede preguntar:
+
+```text
+¿en qué fase estamos?
+```
+
+y el sistema tiene una respuesta determinista.
+
+---
+
+# 19. Contexto compartido
+
+Introduciría un `RunContext`.
+
+```python
+@dataclass
+class RunContext:
+
+    run_id: str
+
+    dataset_profile: DatasetProfile
+
+    problem: ProblemDefinition
+
+    feature_registry: FeatureRegistry
+
+    model_registry: ModelRegistry
+
+    experiment_history: ExperimentHistory
+
+    config: AutoMLConfig
+```
+
+Pero cuidado:
+
+el LLM nunca debería modificarlo directamente.
+
+Debe utilizar:
+
+```text
+Commands
+```
+
+Esto mantiene consistencia.
+
+---
+
+# 20. Historial inmutable
+
+También guardaría toda modificación.
+
+Por ejemplo:
+
+```text
+10:31
+AutoML created experiment #31
+
+10:33
+User prioritized salary
+
+10:34
+User excluded customer_id
+
+10:35
+Experiment #31 started
+
+10:39
+Trial #94 completed
+
+10:40
+User added CatBoost
+```
+
+Esto sirve para:
+
+* reproducibilidad;
+* debugging;
+* auditoría;
+* explicar decisiones;
+* entrenamiento futuro de meta-learning;
+* contexto para el LLM.
+
+---
+
+# 21. El futuro agente debería ser una capa superior
+
+Cuando llegue el LLM:
+
+```text
+agents/
+│
+├── planner/
+├── feature_advisor/
+├── experiment_advisor/
+├── critic/
+└── orchestrator/
+```
+
+Por ejemplo:
+
+```text
+LLM Experiment Advisor
+
+observa:
+
+dataset profile
+experiment history
+leaderboard
+feature importance
+
+↓
+
+propone:
+
+"Experimenta con debt / salary"
+
+↓
+
+CreateExperimentCommand
+```
+
+El LLM nunca ejecuta directamente:
+
+```python
+xgboost.fit()
+```
+
+Hace:
+
+```text
+create_experiment()
+run_experiment()
+```
+
+---
+
+# 22. Imágenes encajan perfectamente
+
+Si el dominio está bien diseñado, `Feature` no necesita ser solamente una columna.
+
+Puedes tener:
+
+```text
+Feature
+├── TabularFeature
+├── ImageFeature
+├── TextFeature
+├── AudioFeature
+└── TimeseriesFeature
+```
+
+O mejor aún, una sola entidad:
+
+```python
+Feature(
+    name="product_image",
+    modality=Modality.IMAGE
+)
+```
+
+Entonces tendrás:
+
+```text
+modality plugins
+
+tabular
+image
+text
+audio
+timeseries
+```
+
+Cada uno produce representaciones utilizables por pipelines.
+
+---
+
+# 23. Estructura de proyecto que utilizaría
+
+Algo cercano a esto:
+
+```text
+automl/
+│
+├── domain/
+│   │
+│   ├── runs/
+│   │   ├── run.py
+│   │   ├── config.py
+│   │   └── states.py
+│   │
+│   ├── datasets/
+│   │   ├── dataset.py
+│   │   └── profile.py
+│   │
+│   ├── features/
+│   │   ├── feature.py
+│   │   ├── feature_set.py
+│   │   └── registry.py
+│   │
+│   ├── models/
+│   │   ├── model.py
+│   │   └── registry.py
+│   │
+│   ├── experiments/
+│   │   ├── experiment.py
+│   │   ├── trial.py
+│   │   ├── hypothesis.py
+│   │   └── priority.py
+│   │
+│   └── pipelines/
+│       ├── graph.py
+│       └── node.py
+│
+├── application/
+│   │
+│   ├── commands/
+│   │
+│   ├── queries/
+│   │
+│   ├── services/
+│   │
+│   └── events/
+│
+├── engine/
+│   │
+│   ├── profiling/
+│   ├── planning/
+│   ├── priority/
+│   ├── optimization/
+│   ├── training/
+│   ├── evaluation/
+│   └── ensemble/
+│
+├── plugins/
+│   │
+│   ├── models/
+│   ├── metrics/
+│   ├── preprocessing/
+│   ├── optimizers/
+│   └── modalities/
+│
+├── infrastructure/
+│   │
+│   ├── database/
+│   ├── storage/
+│   ├── workers/
+│   └── event_bus/
+│
+├── interfaces/
+│   │
+│   ├── api/
+│   ├── cli/
+│   └── web/
+│
+└── agents/
+    ├── tools/
+    ├── planner/
+    └── orchestrator/
+```
+
+Esta separación es mucho más robusta que estructurar el proyecto simplemente por librerías.
+
+---
+
+# 24. Dependencias
+
+Además impondría una regla estricta:
+
+```text
+Interfaces
+    ↓
+Application
+    ↓
+Domain
+```
+
+Y:
+
+```text
+Infrastructure
+    ↓
+Application interfaces
+```
+
+El dominio **no debe importar**:
+
+```text
+FastAPI
+SQLAlchemy
+Optuna
+XGBoost
+LightGBM
+OpenAI
+PyTorch
+```
+
+El dominio debería ser Python prácticamente puro.
+
+Por ejemplo:
+
+```text
+domain/
+```
+
+no debería saber que existe Optuna.
+
+Simplemente sabe:
+
+```python
+class OptimizerProtocol:
+    def suggest(...)
+```
+
+Luego:
+
+```text
+OptunaOptimizer
+```
+
+es una implementación externa.
+
+---
+
+# 25. Contratos / Ports
+
+Ejemplo:
+
+```python
+from typing import Protocol
+
+class OptimizerPort(Protocol):
+
+    def suggest(self, search_space):
+        ...
+
+    def observe(self, trial, result):
+        ...
+```
+
+Implementación:
+
+```python
+class OptunaOptimizer(OptimizerPort):
+    ...
+```
+
+Posteriormente:
+
+```python
+class BayesianOptimizer(OptimizerPort):
+    ...
+```
+
+O:
+
+```python
+class LLMGuidedOptimizer(OptimizerPort):
+    ...
+```
+
+El resto del sistema no cambia.
+
+---
+
+# 26. Lo mismo para el experiment planner
+
+```python
+class ExperimentPlannerPort(Protocol):
+
+    def propose(
+        self,
+        context
+    ) -> list[Experiment]:
+        ...
+```
+
+Hoy:
+
+```text
+RuleBasedExperimentPlanner
+```
+
+mañana:
+
+```text
+LLMExperimentPlanner
+```
+
+o incluso:
+
+```text
+HybridExperimentPlanner
+```
+
+que combina ambos.
+
+Eso es exactamente el tipo de extensión que quieres.
+
+---
+
+# 27. Arquitectura definitiva
+
+Conceptualmente quedaría:
+
+```text
+                     INTERFACES
+        ┌──────────────┼──────────────┐
+        │              │              │
+       Web            CLI            API
+        │              │              │
+        └──────────────┼──────────────┘
+                       ↓
+                 APPLICATION
+              Commands / Queries
+                       │
+                       ↓
+                    DOMAIN
+       ┌───────────────┼────────────────┐
+       │               │                │
+    Features        Experiments       Models
+       │               │                │
+       └───────────────┼────────────────┘
+                       ↓
+                    ENGINE
+       ┌───────────────┼────────────────┐
+       │               │                │
+    Planner         Priority         Optimizer
+       │               │                │
+       └───────────────┼────────────────┘
+                       ↓
+                    PLUGINS
+       ┌───────────────┼─────────────────┐
+       │               │                 │
+    XGBoost         LightGBM          PyTorch
+                                          │
+──────────────────────────────────────────┼─────
+                       FUTURO
+                                          │
+                                       Agents
+                                          │
+                                          ↓
+                                      LLM tools
+                                          │
+                                          ↓
+                                Commands / Queries
+```
+
+Y lo importante es que:
+
+```text
+LLM
+```
+
+**no rompe esta arquitectura.**
+
+Se convierte simplemente en otra interfaz inteligente encima del sistema.
+
+---
+
+## Las primeras versiones
+
+Yo dividiría el desarrollo así:
+
+```text
+V0.1
+Domain
++ Run
++ Dataset
++ Model Registry
++ Feature Registry
++ Experiment
++ Trial
+
+
+V0.2
+Manual experiments
++ Add/remove models
++ Include/exclude features
++ Priorities
+
+
+V0.3
+Experiment Planner
++ Priority Engine
++ automatic experiments
+
+
+V0.4
+Optuna
++ budgets
++ early stopping
++ leaderboard
+
+
+V0.5
+Feature interactions
++ ablation experiments
++ experiment history
+
+
+V0.6
+Plugins
++ custom models
++ custom metrics
+
+
+V0.7
+Image modality
++ embeddings
++ multimodal pipelines
+
+
+V0.8
+Knowledge / meta-learning
+
+
+V0.9
+LLM tools
+
+
+V1.0
+LLM Agent
++ human/agent collaboration
+```
+
+Ese orden también reduce muchísimo el riesgo técnico.
+
+Lo que estás construyendo entonces deja de ser simplemente un AutoML. La arquitectura empieza a parecerse a una **plataforma de experimentación autónoma de Machine Learning**, donde al principio el investigador es el humano y posteriormente el LLM se convierte en otro investigador capaz de utilizar exactamente las mismas herramientas.
+
+Y esa diferencia arquitectónica es la que permitirá añadir modelos, modalidades, estrategias de experimentación y agentes sin tener que reescribir el proyecto cada vez.
