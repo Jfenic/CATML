@@ -42,8 +42,13 @@ class SklearnTrainer(TrainerPort):
                 return self._run_clustering(execution, X, started)
 
             y = df[execution.target_column]
-            model = build_sklearn_model(execution.trial.model_id, execution.task_type)
+            model = build_sklearn_model(
+                execution.trial.model_id,
+                execution.task_type,
+                parameters=execution.trial.parameters,
+            )
             pipeline = _build_pipeline(X, model)
+
 
             metric_name = execution.metric
             if execution.validation_strategy == "cross_validation":
