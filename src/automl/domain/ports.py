@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from automl.domain.datasets.profile import DatasetProfile
+from automl.domain.experiments.candidate import ExperimentCandidate
+from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, Trial, TrialResult
+from automl.domain.features.registry import FeatureRegistry
+from automl.domain.models.registry import ModelRegistry
 from automl.domain.runs.run import AutoMLRun
 
 
@@ -66,4 +70,27 @@ class ExperimentRepositoryPort(Protocol):
         ...
 
     def get_leaderboard(self, run_id: str) -> list[TrialResult]:
+        ...
+
+
+class ExperimentPlannerPort(Protocol):
+    def propose(
+        self,
+        run: AutoMLRun,
+        profile: DatasetProfile,
+        feature_registry: FeatureRegistry,
+        model_registry: ModelRegistry,
+        history: list[TrialResult] | None = None,
+    ) -> list[ExperimentCandidate]:
+        ...
+
+
+class PriorityScorerPort(Protocol):
+    def score(
+        self,
+        candidate: ExperimentCandidate,
+        run: AutoMLRun,
+        profile: DatasetProfile,
+        user_priority: ExperimentPriority | str | None = None,
+    ) -> Priority:
         ...
