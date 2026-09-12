@@ -432,7 +432,7 @@ class SQLiteExperimentRepository:
                 "SELECT * FROM experiments WHERE run_id = ? ORDER BY name",
                 (run_id,),
             ).fetchall()
-        return [_row_to_experiment(row) for r in rows]
+        return [_row_to_experiment(r) for r in rows]
 
     # --- trials ---
 
