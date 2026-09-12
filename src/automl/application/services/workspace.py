@@ -5,24 +5,29 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from automl.domain.datasets.profile import Dataset
-from automl.domain.experiments.priority import ExperimentPriority
+from automl.domain.experiments.candidate import ExperimentCandidate
+from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult, TrialStatus
 from automl.domain.features.feature import Feature
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.features.registry import FeatureRegistry
 from automl.domain.models.registry import ModelRegistry
-from automl.domain.ports import TrialExecution
+from automl.domain.policies.budget import BudgetPolicy
+from automl.domain.ports import ExperimentPlannerPort, PriorityScorerPort, TrialExecution
 from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.domain.tasks.problem_definition import ProblemDefinition
 from automl.domain.tasks.task_type import TASK_CATALOG, TaskType, default_metric_for
+from automl.engine.planning.experiment_planner import RuleBasedExperimentPlanner
 from automl.engine.planning.task_planner import plan_from_dataframe
+from automl.engine.priority.scheduler import ExperimentQueue, Scheduler
+from automl.engine.priority.scorer import RuleBasedPriorityScorer
 from automl.engine.profiling.dataset_profiler import infer_task_type, load_dataframe, profile_dataset
 from automl.engine.training.sklearn_trainer import SklearnTrainer
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
 from automl.plugins.models.sklearn_models import default_model_specs
 
-PLATFORM_VERSION = "0.2.0"
+PLATFORM_VERSION = "0.3.0"
 
 
 @dataclass
@@ -31,9 +36,13 @@ class AutoMLWorkspace:
     root_dir: Path
     repository: SQLiteExperimentRepository
     model_registry: ModelRegistry = field(default_factory=ModelRegistry)
+    planner: ExperimentPlannerPort = field(default_factory=RuleBasedExperimentPlanner)
+    scorer: PriorityScorerPort = field(default_factory=RuleBasedPriorityScorer)
+    scheduler: Scheduler = field(default_factory=Scheduler)
     _runs: dict[str, AutoMLRun] = field(default_factory=dict)
     _datasets: dict[str, Dataset] = field(default_factory=dict)
     _feature_registries: dict[str, FeatureRegistry] = field(default_factory=dict)
+    _queues: dict[str, ExperimentQueue] = field(default_factory=dict)
 
     @classmethod
     def create(cls, name: str, root_dir: str | Path | None = None) -> AutoMLWorkspace:
@@ -560,3 +569,188 @@ class AutoMLWorkspace:
             run.config.models_exclude.remove(model_id)
         self.repository.save_run(run)
         self._emit("ModelAdded", {"model_id": model_id}, run_id=run.id)
+
+    # --- V0.3 Experiment Planner & Priority Engine ---
+
+    def get_experiment_queue(self, run_id: str) -> ExperimentQueue:
+        if run_id not in self._queues:
+            self._queues[run_id] = ExperimentQueue()
+        return self._queues[run_id]
+
+    def plan_experiments(
+        self,
+        run_id: str,
+        auto_enqueue: bool = True,
+        user_priorities: dict[str, str] | None = None,
+    ) -> list[ExperimentCandidate]:
+        run = self._get_run(run_id)
+        if run.status == RunStatus.CANCELLED:
+            raise RuntimeError(f"Run {run_id} is cancelled")
+
+        run.transition_to(RunStatus.PLANNING, RunPhase.EXPERIMENT_PLANNING)
+        self.repository.save_run(run)
+
+        profile = self.repository.get_dataset_profile(run.dataset_id)
+        if profile is None:
+            dataset = self._get_dataset(run.dataset_id)
+            profile = profile_dataset(dataset)
+            self.repository.save_dataset_profile(profile)
+
+        feature_registry = self.get_feature_registry(run.dataset_id)
+        history = self.repository.get_leaderboard(run.id)
+
+        candidates = self.planner.propose(
+            run=run,
+            profile=profile,
+            feature_registry=feature_registry,
+            model_registry=self.model_registry,
+            history=history,
+        )
+
+        priorities_map = user_priorities or {}
+        for candidate in candidates:
+            user_prio = (
+                priorities_map.get(candidate.id)
+                or priorities_map.get(candidate.name)
+                or None
+            )
+            score = self.scorer.score(
+                candidate=candidate,
+                run=run,
+                profile=profile,
+                user_priority=user_prio,
+            )
+            candidate.priority = score
+
+        if auto_enqueue:
+            queue = self.get_experiment_queue(run.id)
+            queue.enqueue_all(candidates)
+
+        self._emit(
+            "ExperimentsPlanned",
+            {
+                "run_id": run_id,
+                "candidate_count": len(candidates),
+                "candidates": [c.name for c in candidates],
+            },
+            run_id=run.id,
+        )
+        return candidates
+
+    def prioritize_candidate(
+        self,
+        run_id: str,
+        candidate_id: str,
+        priority: str,
+    ) -> Priority:
+        run = self._get_run(run_id)
+        queue = self.get_experiment_queue(run_id)
+        candidate = queue.get(candidate_id)
+        if candidate is None:
+            raise KeyError(f"Candidate not found in queue: {candidate_id}")
+
+        profile = self.repository.get_dataset_profile(run.dataset_id)
+        if profile is None:
+            dataset = self._get_dataset(run.dataset_id)
+            profile = profile_dataset(dataset)
+
+        new_priority = self.scorer.score(
+            candidate=candidate,
+            run=run,
+            profile=profile,
+            user_priority=priority,
+        )
+        queue.reprioritize(candidate_id, new_priority)
+        self._emit(
+            "CandidateReprioritized",
+            {
+                "candidate_id": candidate_id,
+                "priority": priority,
+                "effective_score": new_priority.effective_score,
+                "is_pinned": new_priority.is_pinned,
+            },
+            run_id=run.id,
+        )
+        return new_priority
+
+    def list_candidates(self, run_id: str) -> list[dict]:
+        queue = self.get_experiment_queue(run_id)
+        return [c.to_dict() for c in queue.list_queued()]
+
+    def execute_next_experiment(
+        self,
+        run_id: str,
+        budget: BudgetPolicy | None = None,
+    ) -> tuple[Experiment | None, list[TrialResult]]:
+        run = self._get_run(run_id)
+        if run.status in {RunStatus.PAUSED, RunStatus.CANCELLED}:
+            raise RuntimeError(f"Cannot execute next experiment: Run {run_id} is {run.status.value}")
+
+        queue = self.get_experiment_queue(run_id)
+        effective_budget = budget or BudgetPolicy()
+
+        existing_experiments = self.repository.list_experiments(run_id)
+        candidate = self.scheduler.select_next(
+            queue=queue,
+            budget=effective_budget,
+            executed_experiments=len(existing_experiments),
+        )
+        if candidate is None:
+            return None, []
+
+        prio_value = candidate.priority.level.value if candidate.priority else "normal"
+        experiment = self.create_experiment(
+            run=run,
+            name=candidate.name,
+            feature_names=candidate.feature_names,
+            feature_set_id=candidate.feature_set_id,
+            model_ids=candidate.model_ids,
+            hypothesis=candidate.hypothesis,
+            priority=prio_value,
+        )
+
+        results = self.run_experiment(run, experiment)
+        return experiment, results
+
+    def run_scheduled_experiments(
+        self,
+        run_id: str,
+        max_experiments: int | None = None,
+        max_trials: int | None = None,
+        budget: BudgetPolicy | None = None,
+    ) -> list[dict]:
+        run = self._get_run(run_id)
+        if budget is not None:
+            effective_budget = budget
+        else:
+            existing = len(self.repository.list_experiments(run_id))
+            effective_budget = BudgetPolicy(
+                max_experiments=existing + max_experiments if max_experiments is not None else None,
+                max_trials=max_trials,
+            )
+        executed: list[dict] = []
+
+
+        while len(self.get_experiment_queue(run_id)) > 0:
+            refreshed = self._get_run(run_id)
+            if refreshed.status in {RunStatus.PAUSED, RunStatus.CANCELLED}:
+                break
+
+            exp, results = self.execute_next_experiment(run_id, budget=effective_budget)
+            if exp is None:
+                break
+
+            best_score = max([r.primary_score for r in results if r.succeeded], default=0.0)
+            executed.append(
+                {
+                    "experiment_id": exp.id,
+                    "name": exp.name,
+                    "priority": exp.priority,
+                    "trials_count": len(results),
+                    "best_score": round(best_score, 4),
+                    "succeeded": any(r.succeeded for r in results),
+                }
+            )
+
+        return executed
+

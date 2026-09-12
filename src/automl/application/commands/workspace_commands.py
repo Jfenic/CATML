@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from automl.domain.policies.budget import BudgetPolicy
 
 
 @dataclass(frozen=True)
@@ -74,3 +78,32 @@ class CancelRunCommand:
 class CloneRunCommand:
     run_id: str
     new_name: str | None = None
+
+
+@dataclass(frozen=True)
+class PlanExperimentsCommand:
+    run_id: str
+    auto_enqueue: bool = True
+    user_priorities: dict[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class PrioritizeCandidateCommand:
+    run_id: str
+    candidate_id: str
+    priority: str
+
+
+@dataclass(frozen=True)
+class ExecuteNextExperimentCommand:
+    run_id: str
+    budget: BudgetPolicy | None = None
+
+
+@dataclass(frozen=True)
+class RunScheduledExperimentsCommand:
+    run_id: str
+    max_experiments: int | None = None
+    max_trials: int | None = None
+    budget: BudgetPolicy | None = None
+

@@ -10,22 +10,29 @@ from automl.application.commands.workspace_commands import (
     CreateFeatureSetCommand,
     ExcludeFeatureCommand,
     ExcludeModelCommand,
+    ExecuteNextExperimentCommand,
     PauseRunCommand,
+    PlanExperimentsCommand,
+    PrioritizeCandidateCommand,
     PrioritizeFeatureCommand,
     ResumeRunCommand,
     RunExperimentCommand,
+    RunScheduledExperimentsCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
     GetDatasetProfileQuery,
+    GetExperimentQueueQuery,
     GetLeaderboardQuery,
     GetTaskPlanQuery,
+    ListCandidatesQuery,
     ListExperimentsQuery,
     ListFeatureSetsQuery,
     ListModelsQuery,
     ListTaskTypesQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
+
 
 
 def _run_experiment(workspace: AutoMLWorkspace, cmd: RunExperimentCommand):
@@ -90,6 +97,35 @@ def register_handlers(
     command_bus.register(ResumeRunCommand, lambda cmd: workspace.resume_run(cmd.run_id))
     command_bus.register(CancelRunCommand, lambda cmd: workspace.cancel_run(cmd.run_id))
     command_bus.register(CloneRunCommand, lambda cmd: workspace.clone_run(cmd.run_id, cmd.new_name))
+    command_bus.register(
+        PlanExperimentsCommand,
+        lambda cmd: workspace.plan_experiments(
+            cmd.run_id,
+            auto_enqueue=cmd.auto_enqueue,
+            user_priorities=cmd.user_priorities,
+        ),
+    )
+    command_bus.register(
+        PrioritizeCandidateCommand,
+        lambda cmd: workspace.prioritize_candidate(
+            cmd.run_id,
+            cmd.candidate_id,
+            cmd.priority,
+        ),
+    )
+    command_bus.register(
+        ExecuteNextExperimentCommand,
+        lambda cmd: workspace.execute_next_experiment(cmd.run_id, budget=cmd.budget),
+    )
+    command_bus.register(
+        RunScheduledExperimentsCommand,
+        lambda cmd: workspace.run_scheduled_experiments(
+            cmd.run_id,
+            max_experiments=cmd.max_experiments,
+            max_trials=cmd.max_trials,
+            budget=cmd.budget,
+        ),
+    )
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(
@@ -111,6 +147,15 @@ def register_handlers(
     )
     query_bus.register(GetTaskPlanQuery, lambda q: workspace.get_task_plan(q.dataset_id))
     query_bus.register(ListTaskTypesQuery, lambda _q: workspace.list_task_types())
+    query_bus.register(
+        GetExperimentQueueQuery,
+        lambda q: workspace.get_experiment_queue(q.run_id),
+    )
+    query_bus.register(
+        ListCandidatesQuery,
+        lambda q: workspace.list_candidates(q.run_id),
+    )
+
 
 
 def build_application(root_dir: str | None = None) -> tuple[AutoMLWorkspace, CommandBus, QueryBus]:

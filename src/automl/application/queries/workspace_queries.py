@@ -42,3 +42,14 @@ class GetTaskPlanQuery:
 @dataclass(frozen=True)
 class ListTaskTypesQuery:
     pass
+
+
+@dataclass(frozen=True)
+class GetExperimentQueueQuery:
+    run_id: str
+
+
+@dataclass(frozen=True)
+class ListCandidatesQuery:
+    run_id: str
+

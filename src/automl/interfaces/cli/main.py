@@ -10,17 +10,21 @@ from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
     ExcludeFeatureCommand,
     ExcludeModelCommand,
+    PlanExperimentsCommand,
     PrioritizeFeatureCommand,
     RunExperimentCommand,
+    RunScheduledExperimentsCommand,
 )
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
     GetLeaderboardQuery,
     GetTaskPlanQuery,
+    ListCandidatesQuery,
     ListTaskTypesQuery,
 )
 from automl.application.services.workspace import PLATFORM_VERSION
 from automl.benchmarks.runner import BenchmarkRunner
+
 
 
 def _project_root() -> Path:
@@ -66,28 +70,42 @@ def run_demo(args: argparse.Namespace) -> int:
     cmd.dispatch(PrioritizeFeatureCommand(dataset.id, "debt", run_id=run.id))
     cmd.dispatch(ExcludeModelCommand(run.id, "svc"))
 
-    features = ws.get_feature_registry(dataset.id).active_feature_names(dataset.target_column)
-    experiment = cmd.dispatch(
-        CreateExperimentCommand(
-            run_id=run.id,
-            name="financial_baseline",
-            feature_names=features,
-            model_ids=["logistic_regression", "random_forest"],
-            hypothesis="Salary and debt features predict churn",
-            priority="high",
+    if getattr(args, "auto", False):
+        print(f"Run:         {run.id}")
+        print("\nPlanning experiments automatically via RuleBasedExperimentPlanner...\n")
+        candidates = cmd.dispatch(PlanExperimentsCommand(run_id=run.id))
+        for cand in candidates:
+            prio_info = (
+                f"effective={cand.priority.effective_score:.2f} [{cand.priority.level.value}]"
+                if cand.priority
+                else ""
+            )
+            print(f"  Candidate: {cand.name:28s} models={','.join(cand.model_ids):24s} {prio_info}")
+        print("\nRunning scheduled experiments via Priority Scheduler...\n")
+        cmd.dispatch(RunScheduledExperimentsCommand(run_id=run.id, max_experiments=3))
+    else:
+        features = ws.get_feature_registry(dataset.id).active_feature_names(dataset.target_column)
+        experiment = cmd.dispatch(
+            CreateExperimentCommand(
+                run_id=run.id,
+                name="financial_baseline",
+                feature_names=features,
+                model_ids=["logistic_regression", "random_forest"],
+                hypothesis="Salary and debt features predict churn",
+                priority="high",
+            )
         )
-    )
 
-    print(f"Run:         {run.id}")
-    print(f"Experiment:  {experiment.id}")
-    print("\nRunning trials...\n")
-    results = cmd.dispatch(RunExperimentCommand(run.id, experiment.id))
-    for result in results:
-        status = "OK" if result.succeeded else f"FAIL ({result.failure_reason})"
-        print(
-            f"  {result.model_id:22s} {result.primary_metric}={result.primary_score:.4f}  "
-            f"[{status}]  {result.training_time_seconds:.2f}s"
-        )
+        print(f"Run:         {run.id}")
+        print(f"Experiment:  {experiment.id}")
+        print("\nRunning trials...\n")
+        results = cmd.dispatch(RunExperimentCommand(run.id, experiment.id))
+        for result in results:
+            status = "OK" if result.succeeded else f"FAIL ({result.failure_reason})"
+            print(
+                f"  {result.model_id:22s} {result.primary_metric}={result.primary_score:.4f}  "
+                f"[{status}]  {result.training_time_seconds:.2f}s"
+            )
 
     leaderboard = qry.dispatch(GetLeaderboardQuery(run.id))
     print("\nLeaderboard:")
@@ -97,6 +115,47 @@ def run_demo(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(leaderboard, indent=2))
     return 0
+
+
+def plan_experiments_cli(args: argparse.Namespace) -> int:
+    dataset_path = Path(args.dataset) if args.dataset else _default_dataset()
+    workspace_dir = Path(args.workspace) if args.workspace else _project_root() / ".automl" / "demo"
+    ws, cmd, qry = build_application(root_dir=str(workspace_dir))
+    dataset = ws.register_dataset(
+        name="plan_dataset",
+        path=dataset_path,
+        target=args.target,
+    )
+    run = ws.create_run(dataset)
+    candidates = cmd.dispatch(PlanExperimentsCommand(run_id=run.id))
+    print(f"\nPlanned {len(candidates)} experiment candidates for run {run.id}:\n")
+    for c in candidates:
+        prio = c.priority
+        eff = f"{prio.effective_score:.2f} [{prio.level.value}]" if prio else "-"
+        print(f"  {c.name:28s} models={','.join(c.model_ids):24s} prio={eff}")
+        if prio and prio.breakdown.explanation:
+            print(f"    Reasoning: {prio.breakdown.explanation}")
+
+    if getattr(args, "auto_run", False):
+        print("\nExecuting scheduled experiments...\n")
+        results = cmd.dispatch(
+            RunScheduledExperimentsCommand(
+                run_id=run.id,
+                max_experiments=args.max_experiments,
+            )
+        )
+        for r in results:
+            print(f"  Experiment {r['name']:24s} trials={r['trials_count']} best_score={r['best_score']:.4f}")
+        leaderboard = qry.dispatch(GetLeaderboardQuery(run.id))
+        print("\nLeaderboard:")
+        for row in leaderboard:
+            print(f"  {row['model_id']:22s} {row['metric']}={row['score']:.4f}")
+
+    if args.json:
+        queued = qry.dispatch(ListCandidatesQuery(run.id))
+        print(json.dumps(queued, indent=2))
+    return 0
+
 
 
 def run_benchmark(args: argparse.Namespace) -> int:
@@ -167,8 +226,19 @@ def main(argv: list[str] | None = None) -> int:
     demo = sub.add_parser("run-demo", help="Run demo experiment via CommandBus")
     demo.add_argument("--dataset")
     demo.add_argument("--workspace")
+    demo.add_argument("--auto", action="store_true", help="Use automated experiment planner and priority scheduler")
     demo.add_argument("--json", action="store_true")
     demo.set_defaults(func=run_demo)
+
+    plan_exp = sub.add_parser("plan-experiments", help="Plan and prioritize experiments for a dataset")
+    plan_exp.add_argument("--dataset")
+    plan_exp.add_argument("--workspace")
+    plan_exp.add_argument("--target", default="churn")
+    plan_exp.add_argument("--auto-run", action="store_true", help="Execute planned experiments in priority order")
+    plan_exp.add_argument("--max-experiments", type=int, default=3)
+    plan_exp.add_argument("--json", action="store_true")
+    plan_exp.set_defaults(func=plan_experiments_cli)
+
 
     bench = sub.add_parser("benchmark", help="Benchmark harness")
     bench_sub = bench.add_subparsers(dest="bench_cmd", required=True)
