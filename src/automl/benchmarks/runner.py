@@ -10,6 +10,7 @@ from automl.application.commands.workspace_commands import (
     CreateFeatureSetCommand,
     ExcludeFeatureCommand,
     ExcludeModelCommand,
+    OptimizeExperimentCommand,
     PlanExperimentsCommand,
     PrioritizeFeatureCommand,
     RunExperimentCommand,
@@ -26,6 +27,7 @@ class BenchmarkScenario:
     description: str
     setup: Callable[[AutoMLWorkspace, object, object], tuple[str, str]]
     metric: str = "roc_auc"
+    executor: Callable[[AutoMLWorkspace, object, object, str, str], list[TrialResult]] | None = None
 
 
 def _best_result(results: list[TrialResult]) -> tuple[float, str | None]:
@@ -79,6 +81,13 @@ class BenchmarkRunner:
                 version="0.3",
                 description="RuleBasedExperimentPlanner + Priority Engine + Scheduler — V0.3",
                 setup=self._setup_automated_v03,
+            ),
+            BenchmarkScenario(
+                id="optuna_optimization_v04",
+                version="0.4",
+                description="Bayesian Hyperparameter Optimization (Optuna TPE) — V0.4",
+                setup=self._setup_optuna_v04,
+                executor=self._execute_optuna_v04,
             ),
         ]
 
@@ -185,6 +194,31 @@ class BenchmarkRunner:
         )
         return run.id, exp.id
 
+    def _setup_optuna_v04(self, ws, cmd, qry):
+        dataset, run = self._register_base(ws)
+        cmd.dispatch(ExcludeFeatureCommand(dataset.id, "customer_id", run_id=run.id))
+        cmd.dispatch(PrioritizeFeatureCommand(dataset.id, "salary", score=1.0, run_id=run.id))
+        cmd.dispatch(PrioritizeFeatureCommand(dataset.id, "debt", score=0.9, run_id=run.id))
+        exp = ws.create_experiment(
+            run=run,
+            name="optuna_lr_tune",
+            feature_names=["salary", "debt", "account_balance", "tenure", "age"],
+            model_ids=["logistic_regression"],
+            priority="high",
+        )
+        return run.id, exp.id
+
+    def _execute_optuna_v04(self, ws, cmd, qry, run_id, experiment_id):
+        cmd.dispatch(
+            OptimizeExperimentCommand(
+                run_id=run_id,
+                experiment_id=experiment_id,
+                model_id="logistic_regression",
+                optimizer="optuna",
+                n_trials=5,
+            )
+        )
+        return ws.repository.list_trial_results(experiment_id)
 
     def run_all(self, scenario_filter: str | None = None) -> list[dict]:
         import time
@@ -201,7 +235,10 @@ class BenchmarkRunner:
             ws, cmd, qry = build_application(root_dir=scenario_root)
             started = time.perf_counter()
             run_id, experiment_id = scenario.setup(ws, cmd, qry)
-            trial_results = cmd.dispatch(RunExperimentCommand(run_id, experiment_id))
+            if scenario.executor:
+                trial_results = scenario.executor(ws, cmd, qry, run_id, experiment_id)
+            else:
+                trial_results = cmd.dispatch(RunExperimentCommand(run_id, experiment_id))
             elapsed = time.perf_counter() - started
             best_score, best_model = _best_result(trial_results)
 

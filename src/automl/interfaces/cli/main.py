@@ -10,6 +10,7 @@ from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
     ExcludeFeatureCommand,
     ExcludeModelCommand,
+    OptimizeExperimentCommand,
     PlanExperimentsCommand,
     PrioritizeFeatureCommand,
     RunExperimentCommand,
@@ -157,6 +158,66 @@ def plan_experiments_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def optimize_cli(args: argparse.Namespace) -> int:
+    dataset_path = Path(args.dataset) if args.dataset else _default_dataset()
+    workspace_dir = Path(args.workspace) if args.workspace else _project_root() / ".automl" / "demo"
+    ws, cmd, qry = build_application(root_dir=str(workspace_dir))
+
+    if args.experiment_id and args.run_id:
+        run_id = args.run_id
+        experiment_id = args.experiment_id
+    else:
+        dataset = ws.register_dataset(
+            name="optimize_dataset",
+            path=dataset_path,
+            target=args.target,
+        )
+        run = ws.create_run(dataset)
+        run_id = run.id
+        features = ws.get_feature_registry(dataset.id).active_feature_names(dataset.target_column)
+        target_model = args.model or "logistic_regression"
+        exp = cmd.dispatch(
+            CreateExperimentCommand(
+                run_id=run.id,
+                name=f"opt_{target_model}",
+                feature_names=features,
+                model_ids=[target_model],
+            )
+        )
+        experiment_id = exp.id
+
+    print(f"\nStarting Hyperparameter Optimization (V{PLATFORM_VERSION})...")
+    print(f"  Run ID:        {run_id}")
+    print(f"  Experiment ID: {experiment_id}")
+    print(f"  Optimizer:     {args.optimizer}")
+    print(f"  Trials:        {args.trials}")
+    if args.model:
+        print(f"  Model:         {args.model}")
+
+    result = cmd.dispatch(
+        OptimizeExperimentCommand(
+            run_id=run_id,
+            experiment_id=experiment_id,
+            model_id=args.model,
+            optimizer=args.optimizer,
+            n_trials=args.trials,
+            timeout_seconds=args.timeout,
+            patience=args.patience,
+        )
+    )
+
+    print("\nOptimization Finished:")
+    print(f"  Best Score:    {result['best_score']:.4f}")
+    print(f"  Best Params:   {json.dumps(result['best_params'], indent=4)}")
+    print(f"  Trials Run:    {result['trials_executed']}")
+    print("\nTrial History:")
+    for t in result["trials"]:
+        print(f"  Trial {t['trial_id'][:8]}  score={t['score']:.4f}  time={t['training_time_s']:.2f}s  succeeded={t['succeeded']}")
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+    return 0
+
 
 def run_benchmark(args: argparse.Namespace) -> int:
     dataset = Path(args.dataset) if args.dataset else _default_dataset()
@@ -238,6 +299,20 @@ def main(argv: list[str] | None = None) -> int:
     plan_exp.add_argument("--max-experiments", type=int, default=3)
     plan_exp.add_argument("--json", action="store_true")
     plan_exp.set_defaults(func=plan_experiments_cli)
+
+    opt_parser = sub.add_parser("optimize", help="Optimize hyperparameters using Optuna or Random Search")
+    opt_parser.add_argument("--dataset")
+    opt_parser.add_argument("--workspace")
+    opt_parser.add_argument("--target", default="churn")
+    opt_parser.add_argument("--run-id")
+    opt_parser.add_argument("--experiment-id")
+    opt_parser.add_argument("--model", default=None, help="Model ID to optimize (e.g. logistic_regression, random_forest)")
+    opt_parser.add_argument("--optimizer", default="optuna", choices=["optuna", "random_search"])
+    opt_parser.add_argument("--trials", type=int, default=10, help="Number of trials to evaluate")
+    opt_parser.add_argument("--timeout", type=float, default=None, help="Max time in seconds")
+    opt_parser.add_argument("--patience", type=int, default=5, help="Early stopping patience")
+    opt_parser.add_argument("--json", action="store_true")
+    opt_parser.set_defaults(func=optimize_cli)
 
 
     bench = sub.add_parser("benchmark", help="Benchmark harness")

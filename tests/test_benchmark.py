@@ -23,12 +23,15 @@ def test_benchmark_scenarios_improve_or_match_baseline(tmp_path: Path, sample_da
     baseline = by_id["baseline_all_features"]["best_score"]
     full = by_id["full_v02_pipeline"]["best_score"]
     auto_v03 = by_id["automated_planning_v03"]["best_score"]
+    opt_v04 = by_id["optuna_optimization_v04"]["best_score"]
 
     assert baseline > 0.5
     assert full >= baseline - 0.05
     assert auto_v03 > 0.5
+    assert opt_v04 > 0.5
     assert by_id["full_v02_pipeline"]["delta_vs_baseline"] is not None
     assert by_id["automated_planning_v03"]["delta_vs_baseline"] is not None
+    assert by_id["optuna_optimization_v04"]["delta_vs_baseline"] is not None
 
 
 
