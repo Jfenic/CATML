@@ -2,9 +2,9 @@
 
 Documento orientado a que otro programador pueda **continuar el proyecto de forma modular**, sin reescribir el núcleo.
 
-**Versión de plataforma:** `0.2.0`  
-**Última fase completada:** V0.2  
-**Siguiente fase recomendada:** V0.3 (Experiment Planner + Priority Engine)
+**Versión de plataforma:** `0.3.0`  
+**Última fase completada:** V0.3  
+**Siguiente fase recomendada:** V0.4 (Optimización de hiperparámetros - Optuna)
 
 ---
 
@@ -12,11 +12,13 @@ Documento orientado a que otro programador pueda **continuar el proyecto de form
 
 ```bash
 pip install -e ".[dev]"
-pytest                          # 26 tests — debe pasar todo
+pytest                          # 31 tests — debe pasar todo
 automl task list                # catálogo tarea → modelos
-automl run-demo                 # flujo completo
-automl benchmark run            # comparar escenarios V0.1 vs V0.2
+automl run-demo --auto          # flujo automático con planner y scheduler
+automl plan-experiments        # inspeccionar candidatos y explicabilidad
+automl benchmark run            # comparar escenarios V0.1 vs V0.2 vs V0.3
 ```
+
 
 El wiring de la aplicación está en:
 
@@ -127,27 +129,34 @@ Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
 - [x] Validación de pertenencia Run → Experiment y Dataset → FeatureSet
 - [x] CI en Python 3.10/3.12 con cobertura mínima del 85%
 
-### ⏳ V0.3 — Siguiente (modular, buen punto de entrada)
+### ✅ V0.3 — Hecho
 
-**Objetivo:** generar experimentos automáticamente y priorizarlos.
+- [x] `ExperimentCandidate` (`domain/experiments/candidate.py`)
+- [x] `Priority` y `PriorityScoreBreakdown` con scoring explicable (`domain/experiments/priority.py`)
+- [x] `BudgetPolicy` (`domain/policies/budget.py`)
+- [x] Ports: `ExperimentPlannerPort`, `PriorityScorerPort` (`domain/ports.py`)
+- [x] `RuleBasedExperimentPlanner` (`engine/planning/experiment_planner.py`)
+- [x] `RuleBasedPriorityScorer` (`engine/priority/scorer.py`)
+- [x] `ExperimentQueue` y `Scheduler` con ordenamiento por `effective_score` y `pinned` (`engine/priority/scheduler.py`)
+- [x] CQRS: `PlanExperimentsCommand`, `PrioritizeCandidateCommand`, `ExecuteNextExperimentCommand`, `RunScheduledExperimentsCommand`
+- [x] Queries: `GetExperimentQueueQuery`, `ListCandidatesQuery`
+- [x] CLI `plan-experiments` y soporte `--auto` en `run-demo`
+- [x] Escenario de benchmark V0.3 (`automated_planning_v03`)
+- [x] Test suite `tests/test_v03_planner.py` (31 tests totales, 89% coverage)
+
+### ⏳ V0.4 — Siguiente (Optimización e Hiperparámetros)
+
+**Objetivo:** incorporar búsqueda automática eficiente dentro de un experimento manteniendo separada la decisión estratégica de qué experimentar y la optimización numérica de un modelo.
 
 | Pieza | Dónde implementar | Port / clase |
 |-------|-------------------|--------------|
-| ExperimentPlannerPort | `domain/ports.py` | `propose(context) → list[ExperimentCandidate]` |
-| RuleBasedExperimentPlanner | `engine/planning/` | Usa DatasetProfile + ModelRegistry + FeatureRegistry |
-| PriorityScorerPort | `domain/ports.py` | `score(candidate, context)` |
-| ExperimentQueue | `engine/priority/` | Cola ordenada |
-| Scheduler | `engine/priority/` | Selecciona siguiente experimento |
+| OptimizerPort | `domain/ports.py` | `suggest/observe/should_stop` |
+| RandomSearchOptimizer | `engine/optimization/` | Baseline de optimización |
+| OptunaOptimizer | `plugins/optimizers/` | Adaptador a Optuna |
+| SearchSpace & ParameterSpec | `domain/optimization/` | Definición declarativa de hiperparámetros |
+| EarlyStoppingPolicy | `engine/optimization/` | Criterios para detener un trial |
+| LeaderboardService | `application/services/` | Normaliza y rankea mejores trials |
 
-**Criterio de done:** el sistema propone experimentos sin intervención manual; prioridad `high`/`pinned` altera el orden.
-
-**Tests sugeridos:** `tests/test_v03_planner.py`
-
-### 📋 V0.4 — Optimización (Optuna)
-
-- `OptimizerPort` en domain
-- `OptunaOptimizer` en plugins
-- Budgets, early stopping, leaderboard por experimento
 
 ### 📋 V0.5 — Feature Discovery & Selection
 

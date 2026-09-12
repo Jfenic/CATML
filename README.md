@@ -2,8 +2,8 @@
 
 Plataforma AutoML modular con arquitectura hexagonal. El objetivo no es solo entrenar un modelo, sino gestionar de forma reproducible **qué tarea se resuelve**, **qué modelos aplican**, **qué features se usan** y **qué experimentos se ejecutan** — con la misma API para humanos, CLI y futuros agentes LLM.
 
-**Versión actual:** `0.2.0`  
-**Estado:** V0.1 + V0.2 cerrados y verificados. V0.3 (planner automático) pendiente.
+**Versión actual:** `0.3.0`  
+**Estado:** V0.1 + V0.2 + V0.3 cerrados y verificados. V0.4 (optimización Optuna) pendiente.
 
 ---
 
@@ -30,8 +30,9 @@ pip install -e ".[dev]"
 2. Planificar tarea (clasificación / regresión / clustering)
 3. Obtener catálogo de modelos compatibles con esa tarea
 4. Configurar features y modelos (Commands)
-5. Crear y ejecutar Experiment → Trial → métricas
-6. Comparar resultados (leaderboard, benchmark)
+5. Planificar experimentos automáticamente (V0.3 Planner + Priority Scorer)
+6. Ejecutar Experiment → Trial → métricas mediante Priority Scheduler
+7. Comparar resultados (leaderboard, benchmark)
 ```
 
 Cada paso pasa por **CommandBus** (escritura) o **QueryBus** (lectura). El dominio no conoce sklearn ni SQLite directamente.
@@ -56,28 +57,39 @@ automl task plan --dataset examples/data/customers_churn.csv --target churn
 
 Inferencia automática: `binary_classification` → modelos `logistic_regression`, `random_forest`, `svc` → métrica `roc_auc`.
 
-### 3. Demo end-to-end
+### 3. Demo end-to-end (manual y automático)
 
 ```bash
+# Modo interactivo clásico
 automl run-demo
+
+# Modo V0.3 con Experiment Planner y Priority Scheduler automático
+automl run-demo --auto
 ```
 
-Registra dataset, excluye `customer_id`, prioriza features financieras, crea experimento y muestra leaderboard.
+### 4. Planificador automático y cola de prioridades (V0.3)
 
-### 4. Benchmark de mejoras (V0.1 → V0.2)
+```bash
+automl plan-experiments --dataset examples/data/customers_churn.csv --target churn --auto-run
+```
+
+Genera candidatos (baseline, modelos alternativos, subconjuntos de features) con scoring explicable y los despacha según prioridad.
+
+### 5. Benchmark de mejoras (V0.1 → V0.2 → V0.3)
 
 ```bash
 automl benchmark run
 automl benchmark history
 ```
 
-Compara 5 escenarios y guarda resultados en SQLite con **Δ vs baseline**.
+Compara 6 escenarios y guarda resultados en SQLite con **Δ vs baseline**.
 
-### 5. Tests
+### 6. Tests
 
 ```bash
 pytest
 ```
+
 
 ---
 
