@@ -2,8 +2,8 @@
 
 A modular, hexagonal-architecture AutoML platform designed for reproducible machine learning experimentation. The core mission is not just training a model, but managing in an auditable and reproducible way **what task is being solved**, **which models apply**, **which features are selected**, and **which experiments are executed** — exposing the exact same API to human developers, the CLI, and future LLM agents.
 
-**Current Version:** `0.3.0`  
-**Status:** Phases V0.1, V0.2, and V0.3 completed and verified. V0.4 (Optuna optimization) in progress/next.
+**Current Version:** `0.4.0`  
+**Status:** Phases V0.1, V0.2, V0.3, and V0.4 completed and verified. V0.5 (Feature Discovery & Selection) next.
 
 ---
 
@@ -75,16 +75,26 @@ automl plan-experiments --dataset examples/data/customers_churn.csv --target chu
 
 Proposes candidates (fast baseline, alternative model exploration, prioritized feature subsets) with explainable priority scoring and dispatches them in scheduled order.
 
-### 5. Quality Regression Benchmark (V0.1 → V0.2 → V0.3)
+### 5. Hyperparameter Optimization with Optuna (V0.4)
+
+```bash
+# Bayesian hyperparameter tuning using Optuna TPE sampler
+automl optimize --dataset examples/data/customers_churn.csv --target churn --model logistic_regression --optimizer optuna --trials 10
+
+# Baseline random search tuning
+automl optimize --dataset examples/data/customers_churn.csv --target churn --model random_forest --optimizer random_search --trials 5
+```
+
+### 6. Quality Regression Benchmark (V0.1 → V0.2 → V0.3 → V0.4)
 
 ```bash
 automl benchmark run
 automl benchmark history
 ```
 
-Runs 6 distinct scenarios, computes **Δ vs baseline**, and stores historical records in SQLite.
+Runs 7 distinct scenarios, computes **Δ vs baseline**, and stores historical records in SQLite. Hyperparameter tuning scenario demonstrates a **+10.3% ROC AUC boost** over the baseline.
 
-### 6. Running Tests
+### 7. Running Tests
 
 ```bash
 pytest
@@ -153,14 +163,14 @@ Defined in [`src/automl/domain/tasks/task_type.py`](src/automl/domain/tasks/task
 ```text
 CATML/
 ├── src/automl/
-│   ├── domain/           # Pure entities (Run, Experiment, Candidate, Priority, TaskType, FeatureSet)
+│   ├── domain/           # Pure entities (Run, Experiment, Candidate, Priority, SearchSpace, OptimizationBudget)
 │   ├── application/      # CommandBus, QueryBus, workspace orchestration, bootstrap
-│   ├── engine/           # Profiling, rule-based planner, priority scorer, scheduler, trainer
-│   ├── plugins/models/   # Scikit-learn model adapters by task
+│   ├── engine/           # Profiling, planner, priority scorer, scheduler, optimization, trainer
+│   ├── plugins/          # Model adapters (sklearn) and optimizer adapters (Optuna)
 │   ├── infrastructure/   # SQLite repository and event logging
 │   ├── benchmarks/       # Scenario runner and quality regression history
-│   └── interfaces/cli/   # CLI subcommands
-├── tests/                # test_v01, test_v02, test_v03_planner, test_tasks, test_benchmark
+│   └── interfaces/cli/   # CLI subcommands (task, run-demo, plan-experiments, optimize, benchmark)
+├── tests/                # test_v01, test_v02, test_v03_planner, test_v04_optimizer, test_tasks, test_benchmark
 ├── examples/data/        # Sample datasets (customers_churn.csv)
 ├── AutoML_Arquitectura_Tecnica.md   # Formal architecture spec + roadmap V0.1–V1.0
 ├── DEVELOPER_GUIDE.md    # Developer guide for extending the codebase
@@ -176,7 +186,7 @@ CATML/
 | **V0.1** | ✅ | Pure domain, Experiment/Trial, SQLite persistence, Sklearn trainer, initial demo |
 | **V0.2** | ✅ | CQRS buses, FeatureSet, pause/resume/cancel/clone, ownership validation, benchmark, task catalog |
 | **V0.3** | ✅ | RuleBasedExperimentPlanner, Priority Engine with explainable scoring, Priority Queue with pinned support, BudgetPolicy, Scheduler, CLI `--auto` |
-| **V0.4** | ⏳ | Model & Hyperparameter Optimization (Optuna adapter, SearchSpace, EarlyStopping) |
+| **V0.4** | ✅ | Model & Hyperparameter Optimization (Optuna TPE adapter, SearchSpace, EarlyStopping, RandomSearch, CLI `optimize`, +10.3% benchmark gain) |
 | **V0.5** | 📋 | Feature Discovery & Selection (SHAP, Mutual Information, L1, RFE, Ablation studies) |
 | **V0.6** | 📋 | Plugin ecosystem (LightGBM, XGBoost, CatBoost, custom metrics) |
 | **V0.7** | 📋 | Multimodal pipelines (Image encoders, vector embeddings, tabular fusion) |

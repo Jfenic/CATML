@@ -2,9 +2,9 @@
 
 Documento orientado a que otro programador pueda **continuar el proyecto de forma modular**, sin reescribir el núcleo.
 
-**Versión de plataforma:** `0.3.0`  
-**Última fase completada:** V0.3  
-**Siguiente fase recomendada:** V0.4 (Optimización de hiperparámetros - Optuna)
+**Versión de plataforma:** `0.4.0`  
+**Última fase completada:** V0.4  
+**Siguiente fase recomendada:** V0.5 (Feature Discovery & Selection — SHAP, MI, Ablation)
 
 ---
 
@@ -12,11 +12,12 @@ Documento orientado a que otro programador pueda **continuar el proyecto de form
 
 ```bash
 pip install -e ".[dev]"
-pytest                          # 31 tests — debe pasar todo
+pytest                          # 44 tests — debe pasar todo con >= 85% coverage
 automl task list                # catálogo tarea → modelos
 automl run-demo --auto          # flujo automático con planner y scheduler
 automl plan-experiments        # inspeccionar candidatos y explicabilidad
-automl benchmark run            # comparar escenarios V0.1 vs V0.2 vs V0.3
+automl optimize --model logistic_regression --optimizer optuna --trials 10  # tuning bayesiano
+automl benchmark run            # comparar escenarios V0.1 a V0.4
 ```
 
 
@@ -144,31 +145,34 @@ Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
 - [x] Escenario de benchmark V0.3 (`automated_planning_v03`)
 - [x] Test suite `tests/test_v03_planner.py` (31 tests totales, 89% coverage)
 
-### ⏳ V0.4 — Siguiente (Optimización e Hiperparámetros)
+### ✅ V0.4 — Hecho (Optimización e Hiperparámetros con Optuna)
 
-**Objetivo:** incorporar búsqueda automática eficiente dentro de un experimento manteniendo separada la decisión estratégica de qué experimentar y la optimización numérica de un modelo.
+- [x] Dominio: `ParameterSpec`, `ParameterType`, `SearchSpace` declarativo (`domain/optimization/search_space.py`)
+- [x] Dominio: `OptimizationBudget` (`domain/optimization/budget.py`)
+- [x] Dominio: `OptimizerPort` protocol en `domain/ports.py` (`suggest/observe/should_stop/best_score/best_parameters`)
+- [x] Engine: `EarlyStoppingPolicy` con soporte minimización/maximización (`engine/optimization/early_stopping.py`)
+- [x] Engine: `RandomSearchOptimizer` con muestreo estocástico (`engine/optimization/random_search.py`)
+- [x] Engine: `SearchSpaceBuilder` para modelos supervisados y no supervisados (`engine/optimization/search_space_builder.py`)
+- [x] Engine: `TrialFactory` (`engine/optimization/trial_factory.py`)
+- [x] Plugins: `OptunaOptimizer` adaptador ask-and-tell con TPESampler (`plugins/optimizers/optuna_optimizer.py`)
+- [x] Plugins: Inyección de parámetros e instanciación condicional en `plugins/models/sklearn_models.py`
+- [x] Application: `OptimizeExperimentCommand`, `GetBestTrialQuery`, `GetExperimentTrialsQuery`
+- [x] Application: Orquestación en `workspace.optimize_experiment()`, `get_best_trial()`, `get_experiment_trials()`
+- [x] CLI: Subcomando `automl optimize`
+- [x] Benchmark: Escenario `optuna_optimization_v04` (+10.3% mejora de ROC AUC sobre baseline)
+- [x] Test suite: `tests/test_v04_optimizer.py` (44 tests totales, 86% coverage)
 
-| Pieza | Dónde implementar | Port / clase |
-|-------|-------------------|--------------|
-| OptimizerPort | `domain/ports.py` | `suggest/observe/should_stop` |
-| RandomSearchOptimizer | `engine/optimization/` | Baseline de optimización |
-| OptunaOptimizer | `plugins/optimizers/` | Adaptador a Optuna |
-| SearchSpace & ParameterSpec | `domain/optimization/` | Definición declarativa de hiperparámetros |
-| EarlyStoppingPolicy | `engine/optimization/` | Criterios para detener un trial |
-| LeaderboardService | `application/services/` | Normaliza y rankea mejores trials |
+### ⏳ V0.5 — Siguiente (Feature Discovery & Selection)
 
+**Objetivo:** generación y filtrado inteligente de features mediante técnicas estadísticas y de explicabilidad, validando siempre mediante hipótesis experimentales.
 
-### 📋 V0.5 — Feature Discovery & Selection
-
-Subsistema documentado en arquitectura §12.1 y §V0.5:
-
-```text
-domain/features/selection/   → SHAP, MI, L1, RFE
-domain/features/reduction/   → PCA
-domain/features/experiments/   → ablation, subset comparison
-```
-
-**Principio:** proponer ≠ aceptar — todo se valida con Experiment.
+| Pieza | Dónde implementar | Propósito |
+|-------|-------------------|-----------|
+| FeatureDiscoveryPort | `domain/ports.py` | Protocolo para proponer transformaciones |
+| MutualInfoSelector | `engine/features/` | Selección univariada no lineal |
+| ImportanceFeatureSelector | `engine/features/` | Selección basada en tree-importance / SHAP |
+| AblationPlanner | `engine/planning/` | Proponer experimentos de ablación de features |
+| FeatureSetPromotion | `application/services/` | Promover subconjuntos evaluados a FeatureSet curado |
 
 ---
 
