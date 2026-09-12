@@ -13,43 +13,51 @@ def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None =
     is_clustering = task_type == "clustering"
 
     if is_clustering:
-        clustering = {
-            "kmeans": KMeans(
+        if model_id == "kmeans":
+            return KMeans(
                 n_clusters=int(params.get("n_clusters", 3)),
                 random_state=int(params.get("random_state", 42)),
                 n_init=int(params.get("n_init", 10)),
-            ),
-            "agglomerative": AgglomerativeClustering(
+            )
+        elif model_id == "agglomerative":
+            return AgglomerativeClustering(
                 n_clusters=int(params.get("n_clusters", 3)),
-            ),
-            "dbscan": DBSCAN(
+            )
+        elif model_id == "dbscan":
+            return DBSCAN(
                 eps=float(params.get("eps", 0.5)),
                 min_samples=int(params.get("min_samples", 5)),
-            ),
-        }
-        if model_id not in clustering:
+            )
+        else:
             raise ValueError(f"Unknown clustering model: {model_id}")
-        return clustering[model_id]
 
-    supervised = {
-        "logistic_regression": LogisticRegression(max_iter=1000, random_state=42),
-        "random_forest": (
-            RandomForestRegressor(n_estimators=100, random_state=42)
+    if model_id == "logistic_regression":
+        lr_params = {"max_iter": 1000, "random_state": 42}
+        lr_params.update(params)
+        return LogisticRegression(**lr_params)
+    elif model_id == "random_forest":
+        rf_params = {"n_estimators": 100, "random_state": 42}
+        rf_params.update(params)
+        return (
+            RandomForestRegressor(**rf_params)
             if is_regression
-            else RandomForestClassifier(n_estimators=100, random_state=42)
-        ),
-        "svc": (
-            SVR()
-            if is_regression
-            else CalibratedClassifierCV(SVC(random_state=42), method="sigmoid", cv=3)
-        ),
-        "ridge": Ridge(alpha=1.0),
-        "svr": SVR(),
-    }
-
-    if model_id not in supervised:
-        raise ValueError(f"Unknown model plugin: {model_id}")
-    return supervised[model_id]
+            else RandomForestClassifier(**rf_params)
+        )
+    elif model_id in {"svc", "svr"}:
+        if is_regression or model_id == "svr":
+            svr_params = {}
+            svr_params.update(params)
+            return SVR(**svr_params)
+        else:
+            svc_params = {"random_state": 42}
+            svc_params.update(params)
+            return CalibratedClassifierCV(SVC(**svc_params), method="sigmoid", cv=3)
+    elif model_id == "ridge":
+        ridge_params = {"alpha": 1.0}
+        ridge_params.update(params)
+        return Ridge(**ridge_params)
+    else:
+        raise ValueError(f"Unknown supervised model: {model_id}")
 
 
 def default_model_specs():
