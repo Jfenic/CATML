@@ -9,7 +9,9 @@ from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, Trial, TrialResult
 from automl.domain.features.registry import FeatureRegistry
 from automl.domain.models.registry import ModelRegistry
+from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.runs.run import AutoMLRun
+
 
 
 @dataclass
@@ -63,7 +65,11 @@ class ExperimentRepositoryPort(Protocol):
     def save_trial(self, trial: Trial) -> None:
         ...
 
+    def get_trial(self, trial_id: str) -> Trial | None:
+        ...
+
     def save_trial_result(self, result: TrialResult) -> None:
+
         ...
 
     def list_trial_results(self, experiment_id: str) -> list[TrialResult]:
@@ -94,3 +100,27 @@ class PriorityScorerPort(Protocol):
         user_priority: ExperimentPriority | str | None = None,
     ) -> Priority:
         ...
+
+
+class OptimizerPort(Protocol):
+    def suggest(self, trial_number: int, search_space: SearchSpace) -> dict[str, Any]:
+        ...
+
+    def observe(
+        self,
+        trial_number: int,
+        parameters: dict[str, Any],
+        score: float,
+        succeeded: bool = True,
+    ) -> None:
+        ...
+
+    def should_stop(self) -> bool:
+        ...
+
+    def best_parameters(self) -> dict[str, Any]:
+        ...
+
+    def best_score(self) -> float:
+        ...
+
