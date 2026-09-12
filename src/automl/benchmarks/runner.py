@@ -10,10 +10,12 @@ from automl.application.commands.workspace_commands import (
     CreateFeatureSetCommand,
     ExcludeFeatureCommand,
     ExcludeModelCommand,
+    PlanExperimentsCommand,
     PrioritizeFeatureCommand,
     RunExperimentCommand,
 )
 from automl.application.services.workspace import PLATFORM_VERSION, AutoMLWorkspace
+
 from automl.domain.experiments.trial import TrialResult
 
 
@@ -72,7 +74,14 @@ class BenchmarkRunner:
                 description="Exclude ID + financial FeatureSet + curated models + priorities",
                 setup=self._setup_full_pipeline,
             ),
+            BenchmarkScenario(
+                id="automated_planning_v03",
+                version="0.3",
+                description="RuleBasedExperimentPlanner + Priority Engine + Scheduler — V0.3",
+                setup=self._setup_automated_v03,
+            ),
         ]
+
 
     def _register_base(self, ws: AutoMLWorkspace):
         dataset = ws.register_dataset(
@@ -155,6 +164,27 @@ class BenchmarkRunner:
             priority="high",
         )
         return run.id, exp.id
+
+    def _setup_automated_v03(self, ws, cmd, qry):
+        dataset, run = self._register_base(ws)
+        cmd.dispatch(ExcludeFeatureCommand(dataset.id, "customer_id", run_id=run.id))
+        cmd.dispatch(PrioritizeFeatureCommand(dataset.id, "salary", score=1.0, run_id=run.id))
+        cmd.dispatch(PrioritizeFeatureCommand(dataset.id, "debt", score=0.9, run_id=run.id))
+        cmd.dispatch(ExcludeModelCommand(run.id, "svc"))
+        cmd.dispatch(PlanExperimentsCommand(run_id=run.id))
+        queue = ws.get_experiment_queue(run.id)
+        best_cand = queue.pop_next()
+        exp = ws.create_experiment(
+            run=run,
+            name=best_cand.name,
+            feature_names=best_cand.feature_names,
+            feature_set_id=best_cand.feature_set_id,
+            model_ids=best_cand.model_ids,
+            hypothesis=best_cand.hypothesis,
+            priority=best_cand.priority.level.value if best_cand.priority else "normal",
+        )
+        return run.id, exp.id
+
 
     def run_all(self, scenario_filter: str | None = None) -> list[dict]:
         import time
