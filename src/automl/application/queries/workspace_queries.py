@@ -53,3 +53,14 @@ class GetExperimentQueueQuery:
 class ListCandidatesQuery:
     run_id: str
 
+
+@dataclass(frozen=True)
+class GetBestTrialQuery:
+    experiment_id: str
+
+
+@dataclass(frozen=True)
+class GetExperimentTrialsQuery:
+    experiment_id: str
+
+

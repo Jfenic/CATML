@@ -7,7 +7,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from automl.domain.datasets.profile import ColumnProfile, Dataset, DatasetProfile
-from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult
+from automl.domain.experiments.trial import (
+    Experiment,
+    ExperimentStatus,
+    Trial,
+    TrialResult,
+    TrialStatus,
+)
 from automl.domain.features.feature import Feature, FeatureStatus
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.runs.run import AutoMLRun, RunConfig
@@ -454,7 +460,22 @@ class SQLiteExperimentRepository:
                 ),
             )
 
+    def get_trial(self, trial_id: str) -> Trial | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM trials WHERE id = ?", (trial_id,)).fetchone()
+        if row is None:
+            return None
+        return Trial(
+            id=row["id"],
+            experiment_id=row["experiment_id"],
+            model_id=row["model_id"],
+            parameters=json.loads(row["parameters_json"] or "{}"),
+            seed=row["seed"],
+            status=TrialStatus(row["status"]),
+        )
+
     def save_trial_result(self, result: TrialResult) -> None:
+
         with self._connect() as conn:
             conn.execute(
                 """

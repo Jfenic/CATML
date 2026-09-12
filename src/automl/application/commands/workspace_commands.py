@@ -107,3 +107,16 @@ class RunScheduledExperimentsCommand:
     max_trials: int | None = None
     budget: BudgetPolicy | None = None
 
+
+@dataclass(frozen=True)
+class OptimizeExperimentCommand:
+    run_id: str
+    experiment_id: str
+    model_id: str | None = None
+    optimizer: str = "optuna"
+    n_trials: int = 10
+    timeout_seconds: float | None = None
+    patience: int = 5
+    min_delta: float = 0.0001
+
+

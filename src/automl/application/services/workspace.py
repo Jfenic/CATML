@@ -12,12 +12,23 @@ from automl.domain.features.feature import Feature
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.features.registry import FeatureRegistry
 from automl.domain.models.registry import ModelRegistry
+from automl.domain.optimization.budget import OptimizationBudget
+from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.policies.budget import BudgetPolicy
-from automl.domain.ports import ExperimentPlannerPort, PriorityScorerPort, TrialExecution
+from automl.domain.ports import (
+    ExperimentPlannerPort,
+    OptimizerPort,
+    PriorityScorerPort,
+    TrialExecution,
+)
 from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.domain.tasks.problem_definition import ProblemDefinition
 from automl.domain.tasks.task_type import TASK_CATALOG, TaskType, default_metric_for
+from automl.engine.optimization.early_stopping import EarlyStoppingPolicy
+from automl.engine.optimization.random_search import RandomSearchOptimizer
+from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
+from automl.engine.optimization.trial_factory import TrialFactory
 from automl.engine.planning.experiment_planner import RuleBasedExperimentPlanner
 from automl.engine.planning.task_planner import plan_from_dataframe
 from automl.engine.priority.scheduler import ExperimentQueue, Scheduler
@@ -26,8 +37,10 @@ from automl.engine.profiling.dataset_profiler import infer_task_type, load_dataf
 from automl.engine.training.sklearn_trainer import SklearnTrainer
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
 from automl.plugins.models.sklearn_models import default_model_specs
+from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
-PLATFORM_VERSION = "0.3.0"
+PLATFORM_VERSION = "0.4.0"
+
 
 
 @dataclass
@@ -753,4 +766,188 @@ class AutoMLWorkspace:
             )
 
         return executed
+
+    # --- V0.4 Model & Hyperparameter Optimization ---
+
+    def optimize_experiment(
+        self,
+        run_id: str,
+        experiment_id: str,
+        model_id: str | None = None,
+        optimizer: str = "optuna",
+        n_trials: int = 10,
+        timeout_seconds: float | None = None,
+        patience: int = 5,
+        min_delta: float = 0.0001,
+    ) -> dict:
+        import time
+
+        run = self._get_run(run_id)
+        if run.status in {RunStatus.PAUSED, RunStatus.CANCELLED}:
+            raise RuntimeError(f"Cannot optimize experiment: Run {run_id} is {run.status.value}")
+
+        experiment = self.repository.get_experiment(experiment_id)
+        if experiment is None:
+            raise KeyError(f"Experiment not found: {experiment_id}")
+        if experiment.run_id != run.id:
+            raise ValueError(f"Experiment {experiment_id} does not belong to run {run_id}")
+
+        dataset = self._get_dataset(run.dataset_id)
+        target_model = model_id or experiment.model_ids[0]
+        if target_model not in experiment.model_ids:
+            raise ValueError(f"Model {target_model} is not part of experiment {experiment_id}")
+
+        experiment.status = ExperimentStatus.RUNNING
+        self.repository.save_experiment(experiment)
+        run.transition_to(RunStatus.OPTIMIZING, RunPhase.OPTIMIZATION)
+        self.repository.save_run(run)
+
+        space = SearchSpaceBuilder.build(target_model, run.config.task_type)
+        direction = "minimize" if run.config.metric in {"mae", "rmse"} else "maximize"
+
+        opt: OptimizerPort
+        if optimizer.lower() == "optuna":
+            opt = OptunaOptimizer(
+                seed=run.config.random_seed,
+                direction=direction,
+                patience=patience,
+                min_delta=min_delta,
+            )
+        else:
+            opt = RandomSearchOptimizer(
+                seed=run.config.random_seed,
+                patience=patience,
+                min_delta=min_delta,
+                mode="max" if direction == "maximize" else "min",
+            )
+
+        trainer = SklearnTrainer()
+        results: list[TrialResult] = []
+        started_at = time.time()
+
+        for trial_idx in range(n_trials):
+            if timeout_seconds and (time.time() - started_at) > timeout_seconds:
+                break
+            if opt.should_stop():
+                break
+
+            params = opt.suggest(trial_idx, space)
+            trial = TrialFactory.create(
+                experiment_id=experiment.id,
+                model_id=target_model,
+                parameters=params,
+                seed=run.config.random_seed + trial_idx,
+            )
+            self.repository.save_trial(trial)
+
+            execution = TrialExecution(
+                trial=trial,
+                experiment=experiment,
+                run=run,
+                feature_names=experiment.feature_names,
+                dataset_path=dataset.path,
+                target_column=dataset.target_column,
+                task_type=dataset.task_type,
+                metric=experiment.metric,
+                validation_strategy=experiment.validation_strategy,
+                test_size=run.config.test_size,
+                cv_folds=run.config.cv_folds,
+                random_seed=run.config.random_seed + trial_idx,
+            )
+            result = trainer.run(execution)
+            self.repository.save_trial(trial)
+            self.repository.save_trial_result(result)
+            opt.observe(trial_idx, params, result.primary_score, result.succeeded)
+            results.append(result)
+
+            self._emit(
+                "TrialCompleted" if result.succeeded else "TrialFailed",
+                {
+                    "trial_id": trial.id,
+                    "model_id": target_model,
+                    "score": result.primary_score,
+                    "parameters": params,
+                },
+                run_id=run.id,
+            )
+
+        experiment.status = ExperimentStatus.COMPLETED
+        self.repository.save_experiment(experiment)
+        run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
+        self.repository.save_run(run)
+
+        best_score = opt.best_score()
+        best_params = opt.best_parameters()
+
+        self._emit(
+            "ExperimentOptimized",
+            {
+                "experiment_id": experiment.id,
+                "model_id": target_model,
+                "trials_executed": len(results),
+                "best_score": round(best_score, 4),
+                "best_params": best_params,
+                "optimizer": optimizer,
+            },
+            run_id=run.id,
+        )
+
+        return {
+            "experiment_id": experiment.id,
+            "model_id": target_model,
+            "optimizer": optimizer,
+            "trials_executed": len(results),
+            "best_score": round(best_score, 4),
+            "best_params": best_params,
+            "trials": [
+                {
+                    "trial_id": r.trial_id,
+                    "score": round(r.primary_score, 4),
+                    "training_time_s": round(r.training_time_seconds, 3),
+                    "succeeded": r.succeeded,
+                }
+                for r in results
+            ],
+        }
+
+    def get_best_trial(self, experiment_id: str) -> dict | None:
+        results = self.repository.list_trial_results(experiment_id)
+        if not results:
+            return None
+        valid = [r for r in results if r.succeeded]
+        if not valid:
+            return None
+
+        is_minimize = valid[0].primary_metric in {"mae", "rmse"}
+        best = min(valid, key=lambda r: r.primary_score) if is_minimize else max(valid, key=lambda r: r.primary_score)
+
+        trial = self.repository.get_trial(best.trial_id)
+        params = trial.parameters if trial else {}
+
+        return {
+            "trial_id": best.trial_id,
+            "experiment_id": best.experiment_id,
+            "model_id": best.model_id,
+            "metric": best.primary_metric,
+            "best_score": round(best.primary_score, 4),
+            "parameters": params,
+            "training_time_seconds": round(best.training_time_seconds, 3),
+        }
+
+    def get_experiment_trials(self, experiment_id: str) -> list[dict]:
+        results = self.repository.list_trial_results(experiment_id)
+        return [
+            {
+                "trial_id": r.trial_id,
+                "experiment_id": r.experiment_id,
+                "model_id": r.model_id,
+                "metric": r.primary_metric,
+                "score": round(r.primary_score, 4),
+                "training_time_s": round(r.training_time_seconds, 3),
+                "succeeded": r.succeeded,
+                "failure_reason": r.failure_reason,
+            }
+            for r in results
+        ]
+
 

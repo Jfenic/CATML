@@ -18,11 +18,14 @@ from automl.application.commands.workspace_commands import (
     ResumeRunCommand,
     RunExperimentCommand,
     RunScheduledExperimentsCommand,
+    OptimizeExperimentCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
+    GetBestTrialQuery,
     GetDatasetProfileQuery,
     GetExperimentQueueQuery,
+    GetExperimentTrialsQuery,
     GetLeaderboardQuery,
     GetTaskPlanQuery,
     ListCandidatesQuery,
@@ -126,6 +129,19 @@ def register_handlers(
             budget=cmd.budget,
         ),
     )
+    command_bus.register(
+        OptimizeExperimentCommand,
+        lambda cmd: workspace.optimize_experiment(
+            run_id=cmd.run_id,
+            experiment_id=cmd.experiment_id,
+            model_id=cmd.model_id,
+            optimizer=cmd.optimizer,
+            n_trials=cmd.n_trials,
+            timeout_seconds=cmd.timeout_seconds,
+            patience=cmd.patience,
+            min_delta=cmd.min_delta,
+        ),
+    )
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(
@@ -154,6 +170,14 @@ def register_handlers(
     query_bus.register(
         ListCandidatesQuery,
         lambda q: workspace.list_candidates(q.run_id),
+    )
+    query_bus.register(
+        GetBestTrialQuery,
+        lambda q: workspace.get_best_trial(q.experiment_id),
+    )
+    query_bus.register(
+        GetExperimentTrialsQuery,
+        lambda q: workspace.get_experiment_trials(q.experiment_id),
     )
 
 
