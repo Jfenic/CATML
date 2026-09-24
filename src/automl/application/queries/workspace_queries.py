@@ -87,5 +87,10 @@ class ListPluginsQuery:
     task_type: str | None = None
 
 
-
-
+@dataclass(frozen=True)
+class PredictDatasetQuery:
+    run_id: str
+    test_dataset_path: str
+    experiment_id: str | None = None
+    trial_id: str | None = None
+    predict_proba: bool = False

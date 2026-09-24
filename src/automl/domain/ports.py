@@ -41,6 +41,18 @@ class TrainerPort(Protocol):
     def run(self, execution: TrialExecution) -> TrialResult:
         ...
 
+    def fit_and_predict(
+        self,
+        X_train: Any,
+        y_train: Any,
+        X_test: Any,
+        model_id: str,
+        task_type: str = "binary_classification",
+        parameters: dict[str, Any] | None = None,
+        predict_proba: bool = False,
+    ) -> Any:
+        ...
+
 
 class EvaluatorPort(Protocol):
     def evaluate(self, execution: TrialExecution, predictions: Any, y_true: Any) -> dict[str, float]:

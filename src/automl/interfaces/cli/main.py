@@ -17,6 +17,7 @@ from automl.application.commands.workspace_commands import (
     RunScheduledExperimentsCommand,
     SelectFeaturesCommand,
     PlanAblationExperimentsCommand,
+    GenerateSubmissionCommand,
 )
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
@@ -393,6 +394,61 @@ def list_plugins_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def predict_cli(args: argparse.Namespace) -> int:
+    ws, cmd, qry = build_application(root_dir=args.workspace)
+    run_id = args.run_id
+
+    if not run_id:
+        if not args.dataset:
+            print("Error: Either --run-id or --dataset must be specified.", file=sys.stderr)
+            return 1
+        dataset_path = Path(args.dataset)
+        dataset = ws.register_dataset(
+            name="predict_train_ds",
+            path=dataset_path,
+            target=args.target,
+        )
+        runs = [r for r in ws._runs.values() if r.dataset_id == dataset.id]
+        if runs:
+            run_id = runs[-1].id
+        else:
+            print("Error: No existing runs found for dataset. Please run experiments first.", file=sys.stderr)
+            return 1
+
+    test_path = Path(args.test_dataset)
+    if not test_path.exists():
+        print(f"Error: Test dataset '{test_path}' does not exist.", file=sys.stderr)
+        return 1
+
+    out_path = args.output or "submission.csv"
+
+    res = cmd.dispatch(
+        GenerateSubmissionCommand(
+            run_id=run_id,
+            test_dataset_path=str(test_path),
+            output_path=out_path,
+            id_column=args.id_column,
+            experiment_id=args.experiment_id,
+            predict_proba=args.proba,
+        )
+    )
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+        return 0
+
+    print("\nSubmission Generated Successfully!")
+    print("---------------------------------")
+    print(f"  Run ID:        {run_id}")
+    print(f"  Test Dataset:  {test_path}")
+    print(f"  Output CSV:    {res['output_path']}")
+    print(f"  Row Count:     {res['row_count']}")
+    print(f"  ID Column:     {res['id_column']}")
+    print(f"  Target Column: {res['target_column']}")
+    print(f"  Probabilities: {res['predict_proba']}\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="automl", description=f"AutoML Platform CLI (V{PLATFORM_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -489,6 +545,19 @@ def main(argv: list[str] | None = None) -> int:
     plugin_list.add_argument("--task-type", default=None, help="Filter by supported task type")
     plugin_list.add_argument("--json", action="store_true")
     plugin_list.set_defaults(func=list_plugins_cli)
+
+    pred_parser = sub.add_parser("predict", help="Generate predictions and Kaggle-ready submission file")
+    pred_parser.add_argument("--workspace")
+    pred_parser.add_argument("--run-id", help="Run ID to use trained model from")
+    pred_parser.add_argument("--dataset", help="Optional path to train dataset to look up runs")
+    pred_parser.add_argument("--target", default="churn", help="Target column name")
+    pred_parser.add_argument("--test-dataset", required=True, help="Path to test CSV file")
+    pred_parser.add_argument("--output", default="submission.csv", help="Output submission CSV path (default: submission.csv)")
+    pred_parser.add_argument("--id-column", help="ID column name (e.g. id, PassengerId, customer_id)")
+    pred_parser.add_argument("--experiment-id", help="Optional specific experiment ID to use")
+    pred_parser.add_argument("--proba", action="store_true", help="Output probabilities instead of binary labels")
+    pred_parser.add_argument("--json", action="store_true")
+    pred_parser.set_defaults(func=predict_cli)
 
     args = parser.parse_args(argv)
     return args.func(args)

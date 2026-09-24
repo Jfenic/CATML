@@ -205,6 +205,37 @@ class SklearnTrainer(TrainerPort):
             training_time_seconds=elapsed,
         )
 
+    def fit_and_predict(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series | np.ndarray,
+        X_test: pd.DataFrame,
+        model_id: str,
+        task_type: str = "binary_classification",
+        parameters: dict[str, Any] | None = None,
+        predict_proba: bool = False,
+    ) -> np.ndarray:
+        if self.plugin_registry and self.plugin_registry.has(model_id):
+            model_plugin = self.plugin_registry.get_model_plugin(model_id)
+            if model_plugin:
+                self.plugin_registry.validate_plugin_for_task(model_id, task_type)
+                model = model_plugin.build_estimator(parameters=parameters, task_type=task_type)
+            else:
+                model = build_sklearn_model(model_id, task_type, parameters=parameters)
+        else:
+            model = build_sklearn_model(model_id, task_type, parameters=parameters)
+
+        pipeline = _build_pipeline(X_train, model)
+        pipeline.fit(X_train, y_train)
+
+        if predict_proba and hasattr(pipeline, "predict_proba"):
+            probs = pipeline.predict_proba(X_test)
+            if task_type == "binary_classification" and probs.ndim == 2 and probs.shape[1] == 2:
+                return probs[:, 1]
+            return probs
+
+        return pipeline.predict(X_test)
+
 
 def _build_pipeline(X: pd.DataFrame, model: Any) -> Pipeline:
     numeric_cols = [c for c in X.columns if pd.api.types.is_numeric_dtype(X[c])]

@@ -12,8 +12,7 @@
 - [ ] V0.8: Meta-learning & knowledge base for warm-start policies
 - [ ] V0.9–V1.0: LLM Agent tools (`AgentTool` wrappers) and autonomous experiment agent
 
-## Completed
-
+- [x] Feature: Kaggle-ready inference & submission generator (`GenerateSubmissionCommand`, `PredictDatasetQuery`, CLI `automl predict`)
 - [x] V0.6 Phase: Plugin architecture contracts (`PluginPort`, `ModelPluginPort`, `MetricPluginPort`, `PreprocessorPluginPort`)
 - [x] V0.6 Phase: `PluginRegistry` in application layer and `CompatibilityValidator` in engine
 - [x] V0.6 Phase: `LightGBMPlugin` and `XGBoostPlugin` with transparent fallback to scikit-learn HistGradientBoosting

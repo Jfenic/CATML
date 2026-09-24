@@ -22,6 +22,7 @@ from automl.application.commands.workspace_commands import (
     SelectFeaturesCommand,
     PlanAblationExperimentsCommand,
     PromoteCandidateFeatureSetCommand,
+    GenerateSubmissionCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
@@ -40,6 +41,7 @@ from automl.application.queries.workspace_queries import (
     ListCandidateFeatureSetsQuery,
     GetFeatureRankingQuery,
     ListPluginsQuery,
+    PredictDatasetQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 
@@ -171,6 +173,18 @@ def register_handlers(
             new_name=cmd.new_name,
         ),
     )
+    command_bus.register(
+        GenerateSubmissionCommand,
+        lambda cmd: workspace.generate_submission(
+            run_id=cmd.run_id,
+            test_dataset_path=cmd.test_dataset_path,
+            output_path=cmd.output_path,
+            id_column=cmd.id_column,
+            experiment_id=cmd.experiment_id,
+            trial_id=cmd.trial_id,
+            predict_proba=cmd.predict_proba,
+        ),
+    )
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(
@@ -223,6 +237,16 @@ def register_handlers(
     query_bus.register(
         ListPluginsQuery,
         lambda q: workspace.list_plugins(plugin_type=q.plugin_type, task_type=q.task_type),
+    )
+    query_bus.register(
+        PredictDatasetQuery,
+        lambda q: workspace.predict(
+            run_id=q.run_id,
+            test_dataset_path=q.test_dataset_path,
+            experiment_id=q.experiment_id,
+            trial_id=q.trial_id,
+            predict_proba=q.predict_proba,
+        ),
     )
 
 

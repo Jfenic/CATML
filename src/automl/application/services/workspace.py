@@ -1275,6 +1275,144 @@ class AutoMLWorkspace:
             },
         )
 
+    def predict(
+        self,
+        run_id: str,
+        test_dataset_path: str | Path,
+        experiment_id: str | None = None,
+        trial_id: str | None = None,
+        predict_proba: bool = False,
+    ) -> list[Any]:
+        run = self._get_run(run_id)
+        dataset = self._get_dataset(run.dataset_id)
 
+        target_trial_id = trial_id
+        target_experiment_id = experiment_id
+        target_model_id = None
+        parameters: dict[str, Any] = {}
 
+        if target_trial_id:
+            trial = self.repository.get_trial(target_trial_id)
+            if trial is None:
+                raise KeyError(f"Trial '{target_trial_id}' not found.")
+            target_experiment_id = trial.experiment_id
+            target_model_id = trial.model_id
+            parameters = dict(trial.parameters or {})
+        elif target_experiment_id:
+            experiment = self.repository.get_experiment(target_experiment_id)
+            if experiment is None:
+                raise KeyError(f"Experiment '{target_experiment_id}' not found.")
+            lb = self.repository.get_leaderboard(run.id)
+            exp_results = [r for r in lb if r.experiment_id == target_experiment_id]
+            if exp_results:
+                best = exp_results[0]
+                target_model_id = best.model_id
+                t = self.repository.get_trial(best.trial_id)
+                parameters = dict(t.parameters or {}) if t else {}
+            else:
+                target_model_id = experiment.model_ids[0] if experiment.model_ids else "random_forest"
+        else:
+            lb = self.repository.get_leaderboard(run.id)
+            if not lb:
+                raise ValueError(f"Run '{run_id}' has no completed trials in its leaderboard to predict with.")
+            best = lb[0]
+            target_experiment_id = best.experiment_id
+            target_model_id = best.model_id
+            t = self.repository.get_trial(best.trial_id)
+            parameters = dict(t.parameters or {}) if t else {}
+
+        experiment = self.repository.get_experiment(target_experiment_id)
+        if experiment is None:
+            raise KeyError(f"Experiment '{target_experiment_id}' not found.")
+
+        feature_names = experiment.feature_names
+        from automl.engine.profiling.dataset_profiler import load_dataframe
+
+        train_df = load_dataframe(dataset.path)
+        X_train = train_df[feature_names]
+        y_train = train_df[dataset.target_column]
+
+        test_df = load_dataframe(test_dataset_path)
+        missing_features = [f for f in feature_names if f not in test_df.columns]
+        if missing_features:
+            raise ValueError(f"Test dataset is missing required features: {missing_features}")
+        X_test = test_df[feature_names]
+
+        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
+        preds = trainer.fit_and_predict(
+            X_train=X_train,
+            y_train=y_train,
+            X_test=X_test,
+            model_id=target_model_id,
+            task_type=dataset.task_type,
+            parameters=parameters,
+            predict_proba=predict_proba,
+        )
+        return preds.tolist() if hasattr(preds, "tolist") else list(preds)
+
+    def generate_submission(
+        self,
+        run_id: str,
+        test_dataset_path: str | Path,
+        output_path: str | Path,
+        id_column: str | None = None,
+        experiment_id: str | None = None,
+        trial_id: str | None = None,
+        predict_proba: bool = False,
+    ) -> dict[str, Any]:
+        preds = self.predict(
+            run_id=run_id,
+            test_dataset_path=test_dataset_path,
+            experiment_id=experiment_id,
+            trial_id=trial_id,
+            predict_proba=predict_proba,
+        )
+        run = self._get_run(run_id)
+        dataset = self._get_dataset(run.dataset_id)
+
+        from automl.engine.profiling.dataset_profiler import load_dataframe
+        import pandas as pd
+        test_df = load_dataframe(test_dataset_path)
+
+        if id_column:
+            if id_column not in test_df.columns:
+                raise ValueError(f"ID column '{id_column}' not found in test dataset.")
+            ids = test_df[id_column]
+            actual_id_col = id_column
+        else:
+            candidate_id = next((c for c in ["id", "Id", "ID", "PassengerId", "customer_id"] if c in test_df.columns), None)
+            if candidate_id:
+                ids = test_df[candidate_id]
+                actual_id_col = candidate_id
+            else:
+                ids = pd.Series(range(len(test_df)), name="id")
+                actual_id_col = "id"
+
+        target_col = dataset.target_column or "prediction"
+        submission_df = pd.DataFrame({
+            actual_id_col: ids,
+            target_col: preds,
+        })
+
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        submission_df.to_csv(out, index=False)
+
+        self._emit(
+            "SubmissionGenerated",
+            {
+                "run_id": run_id,
+                "output_path": str(out.resolve()),
+                "row_count": len(submission_df),
+            },
+            run_id=run_id,
+        )
+
+        return {
+            "output_path": str(out.resolve()),
+            "row_count": len(submission_df),
+            "id_column": actual_id_col,
+            "target_column": target_col,
+            "predict_proba": predict_proba,
+        }
 
