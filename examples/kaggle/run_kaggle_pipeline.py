@@ -114,7 +114,27 @@ def run_kaggle_pipeline() -> Path:
     print("  -----------------------------------------")
     for _, row in sub_df.head(5).iterrows():
         print(f"    {row['customer_id']}  ->  {row['churn']:.5f}")
-    print()
+
+    # Evaluate against original ground truth if available (Simulating Kaggle Private Leaderboard)
+    orig_csv = root / "examples" / "data" / "customers_churn.csv"
+    if orig_csv.exists():
+        from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+        orig_df = pd.read_csv(orig_csv)
+        y_true = orig_df.iloc[400:]["churn"].values
+        y_probs = sub_df["churn"].values
+        y_pred = (y_probs >= 0.5).astype(int)
+
+        acc = accuracy_score(y_true, y_pred)
+        roc = roc_auc_score(y_true, y_probs)
+        f1 = f1_score(y_true, y_pred)
+
+        print("\n================================================================")
+        print("  Kaggle Private Leaderboard Simulation (Out-of-Sample Test)")
+        print("================================================================")
+        print(f"  Test Accuracy: {acc:.4f} ({acc * 100:.2f}%)")
+        print(f"  Test ROC-AUC:  {roc:.4f}")
+        print(f"  Test F1-Score: {f1:.4f}")
+        print("================================================================\n")
 
     return submission_csv
 
