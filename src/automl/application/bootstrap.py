@@ -19,6 +19,9 @@ from automl.application.commands.workspace_commands import (
     RunExperimentCommand,
     RunScheduledExperimentsCommand,
     OptimizeExperimentCommand,
+    SelectFeaturesCommand,
+    PlanAblationExperimentsCommand,
+    PromoteCandidateFeatureSetCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
@@ -33,6 +36,10 @@ from automl.application.queries.workspace_queries import (
     ListFeatureSetsQuery,
     ListModelsQuery,
     ListTaskTypesQuery,
+    GetFeatureEvidenceQuery,
+    ListCandidateFeatureSetsQuery,
+    GetFeatureRankingQuery,
+    ListPluginsQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 
@@ -142,6 +149,28 @@ def register_handlers(
             min_delta=cmd.min_delta,
         ),
     )
+    command_bus.register(
+        SelectFeaturesCommand,
+        lambda cmd: workspace.select_features(cmd.run_id, strategy=cmd.strategy),
+    )
+    command_bus.register(
+        PlanAblationExperimentsCommand,
+        lambda cmd: workspace.plan_ablation_experiments(
+            cmd.run_id,
+            base_feature_names=cmd.base_feature_names,
+            model_ids=cmd.model_ids,
+            max_features=cmd.max_features,
+            auto_enqueue=cmd.auto_enqueue,
+        ),
+    )
+    command_bus.register(
+        PromoteCandidateFeatureSetCommand,
+        lambda cmd: workspace.promote_candidate_feature_set(
+            cmd.run_id,
+            cmd.candidate_id,
+            new_name=cmd.new_name,
+        ),
+    )
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(
@@ -178,6 +207,22 @@ def register_handlers(
     query_bus.register(
         GetExperimentTrialsQuery,
         lambda q: workspace.get_experiment_trials(q.experiment_id),
+    )
+    query_bus.register(
+        GetFeatureEvidenceQuery,
+        lambda q: workspace.get_feature_evidence(q.run_id, q.feature_id),
+    )
+    query_bus.register(
+        ListCandidateFeatureSetsQuery,
+        lambda q: workspace.list_candidate_feature_sets(q.run_id),
+    )
+    query_bus.register(
+        GetFeatureRankingQuery,
+        lambda q: workspace.get_feature_ranking(q.run_id, method=q.method),
+    )
+    query_bus.register(
+        ListPluginsQuery,
+        lambda q: workspace.list_plugins(plugin_type=q.plugin_type, task_type=q.task_type),
     )
 
 

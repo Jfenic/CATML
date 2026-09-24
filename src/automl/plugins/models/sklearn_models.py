@@ -80,6 +80,8 @@ def default_model_specs():
         "kmeans": "K-Means",
         "agglomerative": "Agglomerative Clustering",
         "dbscan": "DBSCAN",
+        "lightgbm": "LightGBM",
+        "xgboost": "XGBoost",
     }
 
     for model_id, task_types in sorted(seen.items()):

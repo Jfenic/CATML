@@ -7,9 +7,16 @@ from automl.domain.datasets.profile import DatasetProfile
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, Trial, TrialResult
+from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionEvidence
 from automl.domain.features.registry import FeatureRegistry
+from automl.domain.features.selection_strategy import (
+    FeatureRank,
+    FeatureSelectionStrategy,
+    FeatureSetCandidate,
+)
 from automl.domain.models.registry import ModelRegistry
 from automl.domain.optimization.search_space import SearchSpace
+from automl.domain.plugins.plugin import PluginCapability, PluginType
 from automl.domain.runs.run import AutoMLRun
 
 
@@ -123,4 +130,93 @@ class OptimizerPort(Protocol):
 
     def best_score(self) -> float:
         ...
+
+
+@dataclass
+class FeatureAnalysisContext:
+    dataset_path: str
+    target_column: str
+    task_type: str
+    active_feature_names: list[str]
+    random_seed: int = 42
+
+
+class FeatureSelectorPort(Protocol):
+    method_id: str
+    selector_type: str  # "filter" | "wrapper" | "embedded"
+
+    def fit(self, context: FeatureAnalysisContext) -> None:
+        ...
+
+    def rank_features(self) -> list[FeatureRank]:
+        ...
+
+    def select(self, k: int) -> FeatureSetCandidate:
+        ...
+
+
+class DimensionalityReducerPort(Protocol):
+    method_id: str
+
+    def fit(self, context: FeatureAnalysisContext, n_components: int | float | None = None) -> None:
+        ...
+
+    def transform(self, data: Any) -> Any:
+        ...
+
+    def n_components(self) -> int:
+        ...
+
+    def explained_variance_ratio(self) -> list[float]:
+        ...
+
+
+class FeatureEvidenceRepositoryPort(Protocol):
+    def save_feature_evidence(self, run_id: str, evidence: FeatureEvidence) -> None:
+        ...
+
+    def get_feature_evidence(self, run_id: str, feature_id: str) -> FeatureEvidence | None:
+        ...
+
+    def list_feature_evidence(self, run_id: str) -> list[FeatureEvidence]:
+        ...
+
+    def save_interaction_evidence(self, run_id: str, evidence: FeatureInteractionEvidence) -> None:
+        ...
+
+    def list_interaction_evidence(self, run_id: str) -> list[FeatureInteractionEvidence]:
+        ...
+
+
+class PluginPort(Protocol):
+    plugin_id: str
+    name: str
+    version: str
+    plugin_type: PluginType
+    capabilities: PluginCapability
+
+
+class ModelPluginPort(PluginPort, Protocol):
+    def build_estimator(self, parameters: dict[str, Any] | None = None) -> Any:
+        ...
+
+    def get_search_space(self, task_type: str) -> SearchSpace:
+        ...
+
+
+class MetricPluginPort(PluginPort, Protocol):
+    greater_is_better: bool
+
+    def compute(self, y_true: Any, y_pred: Any, y_prob: Any | None = None) -> float:
+        ...
+
+
+class PreprocessorPluginPort(PluginPort, Protocol):
+    def fit_transform(self, X: Any, y: Any | None = None) -> Any:
+        ...
+
+    def transform(self, X: Any) -> Any:
+        ...
+
+
 

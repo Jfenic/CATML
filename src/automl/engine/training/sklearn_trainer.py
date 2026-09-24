@@ -27,6 +27,9 @@ from automl.plugins.models.sklearn_models import build_sklearn_model
 
 
 class SklearnTrainer(TrainerPort):
+    def __init__(self, plugin_registry: Any = None) -> None:
+        self.plugin_registry = plugin_registry
+
     def run(self, execution: TrialExecution) -> TrialResult:
         import time
 
@@ -42,13 +45,31 @@ class SklearnTrainer(TrainerPort):
                 return self._run_clustering(execution, X, started)
 
             y = df[execution.target_column]
-            model = build_sklearn_model(
-                execution.trial.model_id,
-                execution.task_type,
-                parameters=execution.trial.parameters,
-            )
-            pipeline = _build_pipeline(X, model)
 
+            if self.plugin_registry and self.plugin_registry.has(execution.trial.model_id):
+                model_plugin = self.plugin_registry.get_model_plugin(execution.trial.model_id)
+                if model_plugin:
+                    self.plugin_registry.validate_plugin_for_task(
+                        execution.trial.model_id,
+                        execution.task_type,
+                    )
+                    model = model_plugin.build_estimator(
+                        parameters=execution.trial.parameters,
+                        task_type=execution.task_type,
+                    )
+                else:
+                    model = build_sklearn_model(
+                        execution.trial.model_id,
+                        execution.task_type,
+                        parameters=execution.trial.parameters,
+                    )
+            else:
+                model = build_sklearn_model(
+                    execution.trial.model_id,
+                    execution.task_type,
+                    parameters=execution.trial.parameters,
+                )
+            pipeline = _build_pipeline(X, model)
 
             metric_name = execution.metric
             if execution.validation_strategy == "cross_validation":
@@ -72,14 +93,36 @@ class SklearnTrainer(TrainerPort):
                 )
                 pipeline.fit(X_train, y_train)
                 predictions = pipeline.predict(X_test)
-                secondary = _compute_metrics(
-                    y_test,
-                    predictions,
-                    pipeline,
-                    X_test,
-                    execution.task_type,
-                )
-                primary_score = secondary.get(metric_name, secondary.get("accuracy", 0.0))
+
+                if self.plugin_registry and self.plugin_registry.has(metric_name):
+                    metric_plugin = self.plugin_registry.get_metric_plugin(metric_name)
+                    if metric_plugin:
+                        prob = None
+                        if hasattr(pipeline, "predict_proba"):
+                            try:
+                                prob = pipeline.predict_proba(X_test)
+                            except Exception:
+                                prob = None
+                        primary_score = float(metric_plugin.compute(y_test, predictions, prob))
+                        secondary = {metric_name: primary_score}
+                    else:
+                        secondary = _compute_metrics(
+                            y_test,
+                            predictions,
+                            pipeline,
+                            X_test,
+                            execution.task_type,
+                        )
+                        primary_score = secondary.get(metric_name, secondary.get("accuracy", 0.0))
+                else:
+                    secondary = _compute_metrics(
+                        y_test,
+                        predictions,
+                        pipeline,
+                        X_test,
+                        execution.task_type,
+                    )
+                    primary_score = secondary.get(metric_name, secondary.get("accuracy", 0.0))
 
             elapsed = time.perf_counter() - started
             trial.status = TrialStatus.COMPLETED

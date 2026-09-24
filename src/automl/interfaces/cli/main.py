@@ -15,14 +15,19 @@ from automl.application.commands.workspace_commands import (
     PrioritizeFeatureCommand,
     RunExperimentCommand,
     RunScheduledExperimentsCommand,
+    SelectFeaturesCommand,
+    PlanAblationExperimentsCommand,
 )
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
+    GetFeatureRankingQuery,
     GetLeaderboardQuery,
     GetTaskPlanQuery,
     ListCandidatesQuery,
     ListTaskTypesQuery,
+    ListPluginsQuery,
 )
+from automl.domain.features.selection_strategy import FeatureSelectionStrategy
 from automl.application.services.workspace import PLATFORM_VERSION
 from automl.benchmarks.runner import BenchmarkRunner
 
@@ -280,6 +285,114 @@ def plan_task(args: argparse.Namespace) -> int:
     return 0
 
 
+def features_select_cli(args: argparse.Namespace) -> int:
+    dataset_path = Path(args.dataset) if args.dataset else _default_dataset()
+    workspace_dir = Path(args.workspace) if args.workspace else _project_root() / ".automl" / "features_demo"
+
+    ws, cmd, qry = build_application(root_dir=str(workspace_dir))
+    dataset = ws.register_dataset(
+        name="features_dataset",
+        path=dataset_path,
+        target=args.target,
+    )
+    run = ws.create_run(dataset)
+
+    methods = [m.strip() for m in args.methods.split(",") if m.strip()]
+    top_k = [int(k.strip()) for k in args.top_k.split(",") if k.strip()]
+    strat = FeatureSelectionStrategy(
+        methods=methods,
+        top_k=top_k,
+        combine_method=args.combine_method,
+    )
+
+    candidates = cmd.dispatch(SelectFeaturesCommand(run_id=run.id, strategy=strat))
+    rankings = qry.dispatch(GetFeatureRankingQuery(run_id=run.id))
+
+    if args.json:
+        payload = {
+            "run_id": run.id,
+            "candidates": [c.to_dict() for c in candidates],
+            "rankings": rankings,
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    print(f"\nFeature Selection for run: {run.id}")
+    print("Top Feature Rankings:")
+    print("---------------------")
+    for r in rankings[:10]:
+        print(f"  Rank {r['rank']:2d}: {r['feature_name']:20s} score={r['score']:.4f} (method={r['method']})")
+
+    print("\nGenerated FeatureSet Candidates:")
+    print("--------------------------------")
+    for c in candidates:
+        print(f"  Candidate: {c.name:20s} ({c.k} features): {', '.join(c.feature_names)}")
+
+    return 0
+
+
+def features_ablation_cli(args: argparse.Namespace) -> int:
+    dataset_path = Path(args.dataset) if args.dataset else _default_dataset()
+    workspace_dir = Path(args.workspace) if args.workspace else _project_root() / ".automl" / "ablation_demo"
+
+    ws, cmd, qry = build_application(root_dir=str(workspace_dir))
+    dataset = ws.register_dataset(
+        name="ablation_dataset",
+        path=dataset_path,
+        target=args.target,
+    )
+    run = ws.create_run(dataset)
+
+    cmd.dispatch(SelectFeaturesCommand(run_id=run.id))
+
+    candidates = cmd.dispatch(
+        PlanAblationExperimentsCommand(
+            run_id=run.id,
+            max_features=args.max_features,
+            auto_enqueue=args.auto_run,
+        )
+    )
+
+    if args.auto_run:
+        print(f"\nRunning {len(candidates)} scheduled ablation experiments...")
+        cmd.dispatch(RunScheduledExperimentsCommand(run_id=run.id, max_experiments=len(candidates)))
+        lb = qry.dispatch(GetLeaderboardQuery(run.id))
+        print("\nAblation Experiment Results:")
+        print("----------------------------")
+        for entry in lb:
+            print(f"  {entry['experiment_id']:20s} {entry['model_id']:18s} {entry['metric']}={entry['score']:.4f}")
+    else:
+        print(f"\nPlanned {len(candidates)} Ablation Experiments:")
+        print("---------------------------------------")
+        for c in candidates:
+            print(f"  Candidate: {c.name:30s} hypothesis={c.hypothesis}")
+
+    return 0
+
+
+def list_plugins_cli(args: argparse.Namespace) -> int:
+    _, _, qry = build_application(root_dir=args.workspace)
+    plugins = qry.dispatch(
+        ListPluginsQuery(
+            plugin_type=args.type if hasattr(args, "type") else None,
+            task_type=args.task_type if hasattr(args, "task_type") else None,
+        )
+    )
+    if getattr(args, "json", False):
+        print(json.dumps(plugins, indent=2))
+        return 0
+
+    print(f"\nRegistered Plugins (Platform V{PLATFORM_VERSION})\n")
+    print(f"  {'ID':24s} {'Name':26s} {'Type':12s} {'Version':8s} {'Supported Tasks'}")
+    print("  " + "-" * 85)
+    for p in plugins:
+        caps = p.get("capabilities", {})
+        tasks = ", ".join(caps.get("supported_tasks", [])) or "all"
+        print(f"  {p['plugin_id']:24s} {p['name']:26s} {p['plugin_type']:12s} {p['version']:8s} {tasks}")
+    print()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="automl", description=f"AutoML Platform CLI (V{PLATFORM_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -344,6 +457,38 @@ def main(argv: list[str] | None = None) -> int:
     task_plan.add_argument("--task-type", help="Force: binary_classification, multiclass_classification, regression, clustering")
     task_plan.add_argument("--workspace")
     task_plan.set_defaults(func=plan_task)
+
+    feat_parser = sub.add_parser("features", help="Feature discovery, selection, and ablation")
+    feat_sub = feat_parser.add_subparsers(dest="feat_cmd", required=True)
+
+    feat_sel = feat_sub.add_parser("select", help="Run statistical and ML feature selection")
+    feat_sel.add_argument("--dataset")
+    feat_sel.add_argument("--workspace")
+    feat_sel.add_argument("--target", default="churn")
+    feat_sel.add_argument("--methods", default="mutual_information,importance", help="Comma-separated: mutual_information, importance, correlation, variance")
+    feat_sel.add_argument("--top-k", default="3,5", help="Comma-separated top-k values")
+    feat_sel.add_argument("--combine-method", default="weighted_rank", choices=["weighted_rank", "borda"])
+    feat_sel.add_argument("--json", action="store_true")
+    feat_sel.set_defaults(func=features_select_cli)
+
+    feat_abl = feat_sub.add_parser("ablation", help="Plan and execute feature ablation experiments")
+    feat_abl.add_argument("--dataset")
+    feat_abl.add_argument("--workspace")
+    feat_abl.add_argument("--target", default="churn")
+    feat_abl.add_argument("--max-features", type=int, default=3)
+    feat_abl.add_argument("--auto-run", action="store_true", help="Execute planned ablation experiments immediately")
+    feat_abl.add_argument("--json", action="store_true")
+    feat_abl.set_defaults(func=features_ablation_cli)
+
+    plugin_parser = sub.add_parser("plugin", help="Plugin ecosystem management")
+    plugin_sub = plugin_parser.add_subparsers(dest="plugin_cmd", required=True)
+
+    plugin_list = plugin_sub.add_parser("list", help="List registered plugins")
+    plugin_list.add_argument("--workspace")
+    plugin_list.add_argument("--type", choices=["model", "metric", "preprocessor", "optimizer"], default=None, help="Filter by plugin type")
+    plugin_list.add_argument("--task-type", default=None, help="Filter by supported task type")
+    plugin_list.add_argument("--json", action="store_true")
+    plugin_list.set_defaults(func=list_plugins_cli)
 
     args = parser.parse_args(argv)
     return args.func(args)

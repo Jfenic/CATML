@@ -107,6 +107,26 @@ class SearchSpaceBuilder:
                     default=10,
                 )
             )
+        elif model_id == "lightgbm":
+            space.add(
+                ParameterSpec.int("n_estimators", 20, 200, step=10, default=100)
+            )
+            space.add(
+                ParameterSpec.float("learning_rate", 0.01, 0.3, log=True, default=0.1)
+            )
+            space.add(
+                ParameterSpec.int("num_leaves", 15, 63, step=4, default=31)
+            )
+        elif model_id == "xgboost":
+            space.add(
+                ParameterSpec.int("n_estimators", 20, 200, step=10, default=100)
+            )
+            space.add(
+                ParameterSpec.float("learning_rate", 0.01, 0.3, log=True, default=0.1)
+            )
+            space.add(
+                ParameterSpec.int("max_depth", 3, 10, default=6)
+            )
         else:
             raise ValueError(f"No default search space for model: {model_id}")
 

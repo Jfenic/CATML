@@ -14,6 +14,7 @@ from automl.domain.experiments.trial import (
     TrialResult,
     TrialStatus,
 )
+from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionEvidence
 from automl.domain.features.feature import Feature, FeatureStatus
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.runs.run import AutoMLRun, RunConfig
@@ -131,6 +132,26 @@ class SQLiteExperimentRepository:
                 CREATE TABLE IF NOT EXISTS problem_definitions (
                     dataset_id TEXT PRIMARY KEY,
                     definition_json TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS feature_evidence (
+                    run_id TEXT NOT NULL,
+                    feature_id TEXT NOT NULL,
+                    mutual_information REAL,
+                    shap_importance REAL,
+                    permutation_importance REAL,
+                    linear_coefficient REAL,
+                    ablation_impact REAL,
+                    experiment_count INTEGER DEFAULT 0,
+                    confidence REAL DEFAULT 0.0,
+                    PRIMARY KEY (run_id, feature_id)
+                );
+                CREATE TABLE IF NOT EXISTS feature_interaction_evidence (
+                    run_id TEXT NOT NULL,
+                    features_json TEXT NOT NULL,
+                    interaction_score REAL DEFAULT 0.0,
+                    experimental_gain REAL DEFAULT 0.0,
+                    confidence REAL DEFAULT 0.0,
+                    PRIMARY KEY (run_id, features_json)
                 );
                 """
             )
@@ -673,6 +694,115 @@ class SQLiteExperimentRepository:
                 "details": json.loads(r["details_json"]),
             }
             for r in rows
+        ]
+
+    # --- feature evidence ---
+
+    def save_feature_evidence(self, run_id: str, evidence: FeatureEvidence) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO feature_evidence (
+                    run_id, feature_id, mutual_information, shap_importance,
+                    permutation_importance, linear_coefficient, ablation_impact,
+                    experiment_count, confidence
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(run_id, feature_id) DO UPDATE SET
+                    mutual_information = COALESCE(excluded.mutual_information, feature_evidence.mutual_information),
+                    shap_importance = COALESCE(excluded.shap_importance, feature_evidence.shap_importance),
+                    permutation_importance = COALESCE(excluded.permutation_importance, feature_evidence.permutation_importance),
+                    linear_coefficient = COALESCE(excluded.linear_coefficient, feature_evidence.linear_coefficient),
+                    ablation_impact = COALESCE(excluded.ablation_impact, feature_evidence.ablation_impact),
+                    experiment_count = excluded.experiment_count,
+                    confidence = excluded.confidence
+                """,
+                (
+                    run_id,
+                    evidence.feature_id,
+                    evidence.mutual_information,
+                    evidence.shap_importance,
+                    evidence.permutation_importance,
+                    evidence.linear_coefficient,
+                    evidence.ablation_impact,
+                    evidence.experiment_count,
+                    evidence.confidence,
+                ),
+            )
+
+    def get_feature_evidence(self, run_id: str, feature_id: str) -> FeatureEvidence | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM feature_evidence WHERE run_id = ? AND feature_id = ?",
+                (run_id, feature_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return FeatureEvidence(
+            feature_id=row["feature_id"],
+            mutual_information=row["mutual_information"],
+            shap_importance=row["shap_importance"],
+            permutation_importance=row["permutation_importance"],
+            linear_coefficient=row["linear_coefficient"],
+            ablation_impact=row["ablation_impact"],
+            experiment_count=row["experiment_count"],
+            confidence=row["confidence"],
+        )
+
+    def list_feature_evidence(self, run_id: str) -> list[FeatureEvidence]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM feature_evidence WHERE run_id = ?",
+                (run_id,),
+            ).fetchall()
+        return [
+            FeatureEvidence(
+                feature_id=row["feature_id"],
+                mutual_information=row["mutual_information"],
+                shap_importance=row["shap_importance"],
+                permutation_importance=row["permutation_importance"],
+                linear_coefficient=row["linear_coefficient"],
+                ablation_impact=row["ablation_impact"],
+                experiment_count=row["experiment_count"],
+                confidence=row["confidence"],
+            )
+            for row in rows
+        ]
+
+    def save_interaction_evidence(self, run_id: str, evidence: FeatureInteractionEvidence) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO feature_interaction_evidence (
+                    run_id, features_json, interaction_score, experimental_gain, confidence
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(run_id, features_json) DO UPDATE SET
+                    interaction_score = excluded.interaction_score,
+                    experimental_gain = excluded.experimental_gain,
+                    confidence = excluded.confidence
+                """,
+                (
+                    run_id,
+                    json.dumps(list(evidence.features)),
+                    evidence.interaction_score,
+                    evidence.experimental_gain,
+                    evidence.confidence,
+                ),
+            )
+
+    def list_interaction_evidence(self, run_id: str) -> list[FeatureInteractionEvidence]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM feature_interaction_evidence WHERE run_id = ?",
+                (run_id,),
+            ).fetchall()
+        return [
+            FeatureInteractionEvidence(
+                features=tuple(json.loads(row["features_json"])),
+                interaction_score=row["interaction_score"],
+                experimental_gain=row["experimental_gain"],
+                confidence=row["confidence"],
+            )
+            for row in rows
         ]
 
 

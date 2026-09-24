@@ -8,15 +8,23 @@ from automl.domain.datasets.profile import Dataset
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult, TrialStatus
+from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionEvidence
 from automl.domain.features.feature import Feature
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.features.registry import FeatureRegistry
+from automl.domain.features.selection_strategy import (
+    FeatureRank,
+    FeatureSelectionStrategy,
+    FeatureSetCandidate,
+)
 from automl.domain.models.registry import ModelRegistry
 from automl.domain.optimization.budget import OptimizationBudget
 from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.policies.budget import BudgetPolicy
 from automl.domain.ports import (
     ExperimentPlannerPort,
+    FeatureAnalysisContext,
+    FeatureSelectorPort,
     OptimizerPort,
     PriorityScorerPort,
     TrialExecution,
@@ -25,22 +33,41 @@ from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.domain.tasks.problem_definition import ProblemDefinition
 from automl.domain.tasks.task_type import TASK_CATALOG, TaskType, default_metric_for
+from automl.engine.features.reduction.pca import PCAReducer
+from automl.engine.features.selection.correlation import CorrelationSelector
+from automl.engine.features.selection.ensemble import EnsembleRankSelector
+from automl.engine.features.selection.importance import TreeImportanceSelector
+from automl.engine.features.selection.mutual_information import MutualInformationSelector
+from automl.engine.features.selection.variance import VarianceSelector
 from automl.engine.optimization.early_stopping import EarlyStoppingPolicy
 from automl.engine.optimization.random_search import RandomSearchOptimizer
 from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
 from automl.engine.optimization.trial_factory import TrialFactory
+from automl.engine.planning.ablation_planner import AblationPlanner
 from automl.engine.planning.experiment_planner import RuleBasedExperimentPlanner
 from automl.engine.planning.task_planner import plan_from_dataframe
 from automl.engine.priority.scheduler import ExperimentQueue, Scheduler
+from automl.application.plugins.registry import PluginRegistry
 from automl.engine.priority.scorer import RuleBasedPriorityScorer
 from automl.engine.profiling.dataset_profiler import infer_task_type, load_dataframe, profile_dataset
 from automl.engine.training.sklearn_trainer import SklearnTrainer
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
+from automl.plugins.metrics.business_metrics import CostSensitiveMetricPlugin, WeightedF1MetricPlugin
+from automl.plugins.models.gradient_boosting import LightGBMPlugin, XGBoostPlugin
 from automl.plugins.models.sklearn_models import default_model_specs
+from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
 from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
-PLATFORM_VERSION = "0.4.0"
+PLATFORM_VERSION = "0.6.0"
 
+
+def _init_default_plugins(workspace: AutoMLWorkspace) -> None:
+    for p in create_default_sklearn_plugins():
+        workspace.plugin_registry.register(p)
+    workspace.plugin_registry.register(LightGBMPlugin())
+    workspace.plugin_registry.register(XGBoostPlugin())
+    workspace.plugin_registry.register(CostSensitiveMetricPlugin())
+    workspace.plugin_registry.register(WeightedF1MetricPlugin())
 
 
 @dataclass
@@ -52,10 +79,13 @@ class AutoMLWorkspace:
     planner: ExperimentPlannerPort = field(default_factory=RuleBasedExperimentPlanner)
     scorer: PriorityScorerPort = field(default_factory=RuleBasedPriorityScorer)
     scheduler: Scheduler = field(default_factory=Scheduler)
+    plugin_registry: PluginRegistry = field(default_factory=PluginRegistry)
     _runs: dict[str, AutoMLRun] = field(default_factory=dict)
     _datasets: dict[str, Dataset] = field(default_factory=dict)
     _feature_registries: dict[str, FeatureRegistry] = field(default_factory=dict)
     _queues: dict[str, ExperimentQueue] = field(default_factory=dict)
+    _candidate_feature_sets: dict[str, list[FeatureSetCandidate]] = field(default_factory=dict)
+    _feature_ranks: dict[str, list[FeatureRank]] = field(default_factory=dict)
 
     @classmethod
     def create(cls, name: str, root_dir: str | Path | None = None) -> AutoMLWorkspace:
@@ -66,6 +96,7 @@ class AutoMLWorkspace:
         workspace = cls(id=workspace_id, root_dir=base, repository=repo)
         for spec in default_model_specs():
             workspace.model_registry.register(spec)
+        _init_default_plugins(workspace)
         return workspace
 
     @classmethod
@@ -82,6 +113,7 @@ class AutoMLWorkspace:
         workspace = cls(id=workspace_id, root_dir=base, repository=repo)
         for spec in default_model_specs():
             workspace.model_registry.register(spec)
+        _init_default_plugins(workspace)
         for dataset in repo.list_datasets(workspace_id):
             workspace._datasets[dataset.id] = dataset
             workspace._hydrate_feature_registry(dataset.id)
@@ -318,7 +350,7 @@ class AutoMLWorkspace:
         run.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
         self.repository.save_run(run)
 
-        trainer = SklearnTrainer()
+        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         results: list[TrialResult] = []
         model_ids = experiment.model_ids
 
@@ -803,7 +835,11 @@ class AutoMLWorkspace:
         self.repository.save_run(run)
 
         space = SearchSpaceBuilder.build(target_model, run.config.task_type)
-        direction = "minimize" if run.config.metric in {"mae", "rmse"} else "maximize"
+        metric_plugin = self.plugin_registry.get_metric_plugin(run.config.metric)
+        if metric_plugin is not None:
+            direction = "maximize" if metric_plugin.greater_is_better else "minimize"
+        else:
+            direction = "minimize" if run.config.metric in {"mae", "rmse"} else "maximize"
 
         opt: OptimizerPort
         if optimizer.lower() == "optuna":
@@ -821,7 +857,7 @@ class AutoMLWorkspace:
                 mode="max" if direction == "maximize" else "min",
             )
 
-        trainer = SklearnTrainer()
+        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         results: list[TrialResult] = []
         started_at = time.time()
 
@@ -949,5 +985,296 @@ class AutoMLWorkspace:
             }
             for r in results
         ]
+
+    # --- V0.5 Feature Discovery & Selection ---
+
+    def select_features(
+        self,
+        run_id: str,
+        strategy: FeatureSelectionStrategy | None = None,
+    ) -> list[FeatureSetCandidate]:
+        run = self._get_run(run_id)
+        if run.status == RunStatus.CANCELLED:
+            raise RuntimeError(f"Run {run_id} is cancelled")
+
+        strat = strategy or FeatureSelectionStrategy()
+        dataset = self._get_dataset(run.dataset_id)
+        feature_registry = self.get_feature_registry(run.dataset_id)
+        active_features = feature_registry.active_feature_names(run.config.target)
+
+        task_type_str = (
+            run.config.task_type.value
+            if hasattr(run.config.task_type, "value")
+            else str(run.config.task_type)
+        )
+        context = FeatureAnalysisContext(
+            dataset_path=dataset.path,
+            target_column=dataset.target_column,
+            task_type=task_type_str,
+            active_feature_names=active_features,
+            random_seed=run.config.random_seed,
+        )
+
+        selectors: list[FeatureSelectorPort] = []
+        for method in strat.methods:
+            if method == "mutual_information":
+                selectors.append(MutualInformationSelector())
+            elif method in ("importance", "tree_importance"):
+                selectors.append(TreeImportanceSelector())
+            elif method == "correlation":
+                selectors.append(CorrelationSelector())
+            elif method == "variance":
+                selectors.append(VarianceSelector())
+
+        if not selectors:
+            selectors = [MutualInformationSelector(), TreeImportanceSelector()]
+
+        all_ranks: dict[str, list[FeatureRank]] = {}
+        for sel in selectors:
+            sel.fit(context)
+            all_ranks[sel.method_id] = sel.rank_features()
+
+        for feature_name in active_features:
+            evidence = (
+                self.repository.get_feature_evidence(run.id, feature_name)
+                or FeatureEvidence(feature_id=feature_name)
+            )
+            if "mutual_information" in all_ranks:
+                for r in all_ranks["mutual_information"]:
+                    if r.feature_name == feature_name:
+                        evidence.mutual_information = r.score
+            if "importance" in all_ranks:
+                for r in all_ranks["importance"]:
+                    if r.feature_name == feature_name:
+                        evidence.shap_importance = r.score
+            evidence.confidence = 0.8
+            self.repository.save_feature_evidence(run.id, evidence)
+
+        if len(selectors) > 1:
+            ensemble_sel = EnsembleRankSelector(
+                selectors=selectors,
+                combine_method=strat.combine_method,
+            )
+            combined_ranks = ensemble_sel.combine_rankings(
+                all_ranks, combine_method=strat.combine_method
+            )
+        else:
+            combined_ranks = all_ranks[selectors[0].method_id]
+
+        self._feature_ranks[run.id] = combined_ranks
+
+        candidates: list[FeatureSetCandidate] = []
+        for k in strat.top_k:
+            if k <= len(combined_ranks):
+                selected_names = [r.feature_name for r in combined_ranks[:k]]
+                candidates.append(
+                    FeatureSetCandidate.create(
+                        name=f"selected_top_{k}",
+                        feature_names=selected_names,
+                        method=strat.combine_method if len(selectors) > 1 else selectors[0].method_id,
+                        k=k,
+                        metadata={
+                            "strategy": strat.to_dict(),
+                            "features": selected_names,
+                        },
+                    )
+                )
+
+        if strat.include_reduction:
+            pca = PCAReducer()
+            for var in strat.reduction_variances:
+                try:
+                    pca.fit(context, n_components=var)
+                    candidates.append(
+                        FeatureSetCandidate.create(
+                            name=f"pca_var_{int(var*100)}",
+                            feature_names=[f"PC{i+1}" for i in range(pca.n_components())],
+                            method="pca",
+                            k=pca.n_components(),
+                            metadata={
+                                "variance_threshold": var,
+                                "explained_variance": pca.explained_variance_ratio(),
+                            },
+                        )
+                    )
+                except Exception:
+                    pass
+
+        self._candidate_feature_sets[run.id] = candidates
+
+        self._emit(
+            "FeaturesSelected",
+            {
+                "run_id": run_id,
+                "strategy": strat.to_dict(),
+                "candidates": [c.name for c in candidates],
+                "top_features": [r.feature_name for r in combined_ranks[:5]],
+            },
+            run_id=run.id,
+        )
+        return candidates
+
+    def plan_ablation_experiments(
+        self,
+        run_id: str,
+        base_feature_names: list[str] | None = None,
+        model_ids: list[str] | None = None,
+        max_features: int = 5,
+        auto_enqueue: bool = True,
+    ) -> list[ExperimentCandidate]:
+        run = self._get_run(run_id)
+        if run.status == RunStatus.CANCELLED:
+            raise RuntimeError(f"Run {run_id} is cancelled")
+
+        feature_registry = self.get_feature_registry(run.dataset_id)
+        all_active = feature_registry.active_feature_names(run.config.target)
+
+        features_base = base_feature_names or all_active
+        if not features_base:
+            return []
+
+        ranked = self._feature_ranks.get(run.id, [])
+        if ranked:
+            ranked_names = [r.feature_name for r in ranked if r.feature_name in features_base]
+            targets = ranked_names[:max_features]
+        else:
+            targets = features_base[:max_features]
+
+        chosen_model = (
+            model_ids[0]
+            if model_ids
+            else (run.config.models_include[0] if run.config.models_include else None)
+        )
+
+        ablation_planner = AblationPlanner()
+        candidates = ablation_planner.propose_ablation(
+            run=run,
+            base_feature_names=features_base,
+            features_to_ablate=targets,
+            model_id=chosen_model,
+        )
+
+        profile = self.repository.get_dataset_profile(run.dataset_id)
+        if profile is None:
+            dataset = self._get_dataset(run.dataset_id)
+            profile = profile_dataset(dataset)
+            self.repository.save_dataset_profile(profile)
+
+        for candidate in candidates:
+            score = self.scorer.score(
+                candidate=candidate,
+                run=run,
+                profile=profile,
+            )
+            candidate.priority = score
+
+        if auto_enqueue:
+            queue = self.get_experiment_queue(run.id)
+            queue.enqueue_all(candidates)
+
+        self._emit(
+            "AblationExperimentsPlanned",
+            {
+                "run_id": run_id,
+                "candidate_count": len(candidates),
+                "ablated_features": targets,
+            },
+            run_id=run.id,
+        )
+        return candidates
+
+    def promote_candidate_feature_set(
+        self,
+        run_id: str,
+        candidate_id: str,
+        new_name: str | None = None,
+    ) -> FeatureSet:
+        run = self._get_run(run_id)
+        candidates = self._candidate_feature_sets.get(run.id, [])
+        candidate = next(
+            (c for c in candidates if c.id == candidate_id or c.name == candidate_id),
+            None,
+        )
+        if candidate is None:
+            raise KeyError(f"Candidate feature set not found: {candidate_id}")
+
+        feature_set_name = new_name or candidate.name
+        feature_set = self.create_feature_set(
+            dataset_id=run.dataset_id,
+            name=feature_set_name,
+            feature_names=candidate.feature_names,
+            lineage=f"promoted_from_{candidate.method}_{candidate.id}",
+        )
+        self._emit(
+            "FeatureSetPromoted",
+            {
+                "run_id": run.id,
+                "candidate_id": candidate.id,
+                "feature_set_id": feature_set.id,
+                "feature_names": feature_set.feature_names,
+            },
+            run_id=run.id,
+        )
+        return feature_set
+
+    def get_feature_evidence(
+        self,
+        run_id: str,
+        feature_id: str | None = None,
+    ) -> FeatureEvidence | list[FeatureEvidence] | None:
+        if feature_id:
+            return self.repository.get_feature_evidence(run_id, feature_id)
+        return self.repository.list_feature_evidence(run_id)
+
+    def list_candidate_feature_sets(self, run_id: str) -> list[dict]:
+        candidates = self._candidate_feature_sets.get(run_id, [])
+        return [c.to_dict() for c in candidates]
+
+    def get_feature_ranking(self, run_id: str, method: str | None = None) -> list[dict]:
+        ranks = self._feature_ranks.get(run_id, [])
+        if method:
+            ranks = [r for r in ranks if r.method == method]
+        return [r.to_dict() for r in ranks]
+
+    # --- V0.6 Plugin System ---
+
+    def list_plugins(
+        self,
+        plugin_type: str | None = None,
+        task_type: str | None = None,
+    ) -> list[dict]:
+        plugins = self.plugin_registry.list(plugin_type=plugin_type, task_type=task_type)
+        return [
+            {
+                "plugin_id": p.plugin_id,
+                "name": p.name,
+                "version": p.version,
+                "plugin_type": p.plugin_type.value if hasattr(p.plugin_type, "value") else str(p.plugin_type),
+                "capabilities": p.capabilities.to_dict(),
+            }
+            for p in plugins
+        ]
+
+    def register_plugin(self, plugin: Any) -> None:
+        from automl.domain.plugins.plugin import PluginType
+        self.plugin_registry.register(plugin)
+        if getattr(plugin, "plugin_type", None) == PluginType.MODEL:
+            from automl.domain.models.model_spec import ModelSpec
+            self.model_registry.register(
+                ModelSpec(
+                    id=plugin.plugin_id,
+                    name=plugin.name,
+                    task_types=list(plugin.capabilities.supported_tasks),
+                )
+            )
+        self._emit(
+            "PluginRegistered",
+            {
+                "plugin_id": plugin.plugin_id,
+                "plugin_type": str(getattr(plugin, "plugin_type", "unknown")),
+            },
+        )
+
+
 
 

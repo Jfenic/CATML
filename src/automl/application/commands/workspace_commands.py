@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from automl.domain.features.selection_strategy import FeatureSelectionStrategy
     from automl.domain.policies.budget import BudgetPolicy
 
 
@@ -118,5 +119,28 @@ class OptimizeExperimentCommand:
     timeout_seconds: float | None = None
     patience: int = 5
     min_delta: float = 0.0001
+
+
+@dataclass(frozen=True)
+class SelectFeaturesCommand:
+    run_id: str
+    strategy: FeatureSelectionStrategy | None = None
+
+
+@dataclass(frozen=True)
+class PlanAblationExperimentsCommand:
+    run_id: str
+    base_feature_names: list[str] | None = None
+    model_ids: list[str] | None = None
+    max_features: int = 5
+    auto_enqueue: bool = True
+
+
+@dataclass(frozen=True)
+class PromoteCandidateFeatureSetCommand:
+    run_id: str
+    candidate_id: str
+    new_name: str | None = None
+
 
 

@@ -64,3 +64,28 @@ class GetExperimentTrialsQuery:
     experiment_id: str
 
 
+@dataclass(frozen=True)
+class GetFeatureEvidenceQuery:
+    run_id: str
+    feature_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ListCandidateFeatureSetsQuery:
+    run_id: str
+
+
+@dataclass(frozen=True)
+class GetFeatureRankingQuery:
+    run_id: str
+    method: str | None = None
+
+
+@dataclass(frozen=True)
+class ListPluginsQuery:
+    plugin_type: str | None = None
+    task_type: str | None = None
+
+
+
+
