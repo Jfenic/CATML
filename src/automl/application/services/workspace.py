@@ -208,6 +208,7 @@ class AutoMLWorkspace:
                 dataset_id=dataset_id,
                 name=column.name,
                 physical_dtype=column.dtype,
+                semantic_type="identifier" if column.is_identifier else "unknown",
             )
             registry.register(feature)
             self.repository.save_feature(feature)
@@ -575,6 +576,20 @@ class AutoMLWorkspace:
                 run.config.features_excluded.append(name)
             self.repository.save_run(run)
         self._emit("FeatureExcluded", {"dataset_id": dataset_id, "feature": name}, run_id=run_id)
+
+    def exclude_identifiers(self, dataset_id: str, run_id: str | None = None) -> list[str]:
+        profile = self.repository.get_dataset_profile(dataset_id)
+        if profile is None:
+            dataset = self._get_dataset(dataset_id)
+            profile = profile_dataset(dataset)
+            self.repository.save_dataset_profile(profile)
+
+        excluded: list[str] = []
+        for name in profile.identifier_column_names:
+            if name != profile.target_column:
+                self.exclude_feature(dataset_id, name, run_id=run_id)
+                excluded.append(name)
+        return excluded
 
     def prioritize_feature(
         self,

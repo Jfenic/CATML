@@ -37,6 +37,13 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
         if not active_features:
             return []
 
+        # Exclude non-predictive identifier columns from automated candidate proposals
+        if profile and hasattr(profile, "identifier_column_names"):
+            identifiers = set(profile.identifier_column_names)
+            non_identifiers = [f for f in active_features if f not in identifiers]
+            if non_identifiers:
+                active_features = non_identifiers
+
         active_models = model_registry.resolve_active(
             include=run.config.models_include,
             exclude=run.config.models_exclude,
