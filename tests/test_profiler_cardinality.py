@@ -185,3 +185,85 @@ def test_workspace_exclude_identifiers_and_planner_candidate_exclusion(tmp_path:
     excluded = ws.exclude_identifiers(dataset.id, run_id=run.id)
     assert "CustomerId" in excluded
     assert "CustomerId" in run.config.features_excluded
+
+
+def test_semantic_type_persists_in_sqlite_and_survives_workspace_reload(tmp_path: Path):
+    from automl.application.services.workspace import AutoMLWorkspace
+
+    csv_file = tmp_path / "reload_sample.csv"
+    df = pd.DataFrame(
+        {
+            "user_id": [f"U_{i}" for i in range(100)],
+            "score": [float(i * 1.5) for i in range(100)],
+            "target": [i % 2 for i in range(100)],
+        }
+    )
+    df.to_csv(csv_file, index=False)
+
+    ws_dir = tmp_path / "ws_persist"
+    ws = AutoMLWorkspace.create("persist_test", root_dir=ws_dir)
+    dataset = ws.register_dataset("users", str(csv_file), target="target")
+
+    # Verify in memory
+    feature_before = ws.get_feature_registry(dataset.id).get("user_id")
+    assert feature_before is not None
+    assert feature_before.semantic_type == "identifier"
+
+    # Reload from disk
+    ws_reloaded = AutoMLWorkspace.load(ws_dir)
+    feature_after = ws_reloaded.get_feature_registry(dataset.id).get("user_id")
+    assert feature_after is not None
+    # Crucial test: semantic_type must not revert to "unknown"
+    assert feature_after.semantic_type == "identifier"
+
+
+def test_sqlite_migration_adds_semantic_type_column(tmp_path: Path):
+    import sqlite3
+    from automl.domain.features.feature import Feature, FeatureStatus
+    from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
+
+    db_path = tmp_path / "legacy.db"
+
+    # Create a legacy features table without semantic_type column
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE features (
+                id TEXT PRIMARY KEY,
+                dataset_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                physical_dtype TEXT,
+                status TEXT NOT NULL,
+                user_priority REAL DEFAULT 0
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO features (id, dataset_id, name, physical_dtype, status, user_priority)
+            VALUES ('feat_legacy', 'ds_1', 'legacy_col', 'int64', 'ACTIVE', 0)
+            """
+        )
+
+    # Initializing repository should automatically run _migrate() and add semantic_type
+    repo = SQLiteExperimentRepository(db_path)
+
+    # Load legacy feature - should default to "unknown" without error
+    features = repo.list_features("ds_1")
+    assert len(features) == 1
+    assert features[0].name == "legacy_col"
+    assert features[0].semantic_type == "unknown"
+
+    # Save a feature with semantic_type="identifier"
+    new_feat = Feature(
+        id="feat_new",
+        dataset_id="ds_1",
+        name="new_id_col",
+        semantic_type="identifier",
+        status=FeatureStatus.ACTIVE,
+    )
+    repo.save_feature(new_feat)
+
+    reloaded_feat = next(f for f in repo.list_features("ds_1") if f.name == "new_id_col")
+    assert reloaded_feat.semantic_type == "identifier"
+

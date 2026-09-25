@@ -62,7 +62,8 @@ class SQLiteExperimentRepository:
                     name TEXT NOT NULL,
                     physical_dtype TEXT,
                     status TEXT NOT NULL,
-                    user_priority REAL DEFAULT 0
+                    user_priority REAL DEFAULT 0,
+                    semantic_type TEXT DEFAULT 'unknown'
                 );
                 CREATE TABLE IF NOT EXISTS feature_sets (
                     id TEXT PRIMARY KEY,
@@ -194,6 +195,10 @@ class SQLiteExperimentRepository:
         experiment_cols = {row[1] for row in conn.execute("PRAGMA table_info(experiments)").fetchall()}
         if "feature_set_id" not in experiment_cols:
             conn.execute("ALTER TABLE experiments ADD COLUMN feature_set_id TEXT")
+
+        feature_cols = {row[1] for row in conn.execute("PRAGMA table_info(features)").fetchall()}
+        if "semantic_type" not in feature_cols:
+            conn.execute("ALTER TABLE features ADD COLUMN semantic_type TEXT DEFAULT 'unknown'")
 
     # --- datasets ---
 
@@ -343,8 +348,8 @@ class SQLiteExperimentRepository:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO features
-                (id, dataset_id, name, physical_dtype, status, user_priority)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (id, dataset_id, name, physical_dtype, status, user_priority, semantic_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     feature.id,
@@ -353,6 +358,7 @@ class SQLiteExperimentRepository:
                     feature.physical_dtype,
                     feature.status.value,
                     feature.user_priority,
+                    feature.semantic_type,
                 ),
             )
 
@@ -807,6 +813,9 @@ class SQLiteExperimentRepository:
 
 
 def _row_to_feature(row: sqlite3.Row) -> Feature:
+    semantic_type = "unknown"
+    if "semantic_type" in row.keys() and row["semantic_type"]:
+        semantic_type = row["semantic_type"]
     return Feature(
         id=row["id"],
         dataset_id=row["dataset_id"],
@@ -814,6 +823,7 @@ def _row_to_feature(row: sqlite3.Row) -> Feature:
         physical_dtype=row["physical_dtype"] or "unknown",
         status=FeatureStatus(row["status"]),
         user_priority=float(row["user_priority"] or 0),
+        semantic_type=semantic_type,
     )
 
 

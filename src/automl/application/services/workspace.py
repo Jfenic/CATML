@@ -147,6 +147,7 @@ class AutoMLWorkspace:
                         dataset_id=dataset_id,
                         name=column.name,
                         physical_dtype=column.dtype,
+                        semantic_type="identifier" if column.is_identifier else "unknown",
                     )
                 )
         self._feature_registries[dataset_id] = registry
