@@ -11,3 +11,5 @@ build/
 .automl/
 .DS_Store
 *.Zone.Identifier
+/competitions/
+/data/
