@@ -7,10 +7,24 @@
 - [ ] V0.7 Phase: Early and late fusion multimodal architectures in `engine/fusion/`
 - [ ] V0.7 Phase: Multi-modal dataset registration & validation pipeline
 
-## Next
+## Next (Roadmap Phases)
 
-- [ ] V0.8: Meta-learning & knowledge base for warm-start policies
-- [ ] V0.9–V1.0: LLM Agent tools (`AgentTool` wrappers) and autonomous experiment agent
+- [ ] V0.7 Phase: Multi-modal data representations (`TabularData`, `ImageData`, `TextData`) in `domain/`
+- [ ] V0.7 Phase: Feature extractors for unstructured data (ResNet/ViT for images, TF-IDF/embeddings for text)
+- [ ] V0.7 Phase: Early and late fusion multimodal architectures in `engine/fusion/`
+- [ ] V0.7 Phase: Multi-modal dataset registration & validation pipeline
+- [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (dataset meta-features, historical memory)
+- [ ] V0.9 Phase: LLM Agent tools (`AgentTool` wrappers) and permission-controlled bus interface
+- [ ] V1.0 Phase: Autonomous Experiment Agent (Planner, Critic, Orchestrator for hypothesis-driven exploration)
+
+## Backlog — Mejoras Tabulares Identificadas (Kaggle Benchmarking)
+
+- [ ] Heurística automática de alta cardinalidad en `DatasetProfiler` (excluir IDs y texto masivo > 0.7 ratio de unicidad)
+- [ ] Mapeo automático de plantilla de sumisión (`--template sample_submission.csv`) en `GenerateSubmissionCommand`
+- [ ] Plugin de Ensamble y Blending (`VotingEnsemblePlugin` / `StackingPlugin`) promediando el Top K de modelos
+- [ ] Generación automática de variables de interacción (ratios numéricos y target encoding)
+
+## Completed
 
 - [x] Feature: Kaggle-ready inference & submission generator (`GenerateSubmissionCommand`, `PredictDatasetQuery`, CLI `automl predict`)
 - [x] V0.6 Phase: Plugin architecture contracts (`PluginPort`, `ModelPluginPort`, `MetricPluginPort`, `PreprocessorPluginPort`)

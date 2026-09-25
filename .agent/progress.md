@@ -18,7 +18,11 @@ Phase V0.6 Plugin Architecture & Extensible Ecosystem completed and verified.
   - Integration into `SklearnTrainer`, `SearchSpaceBuilder`, and `AutoMLWorkspace`.
   - CQRS query `ListPluginsQuery` registered in `bootstrap.py`.
   - CLI subcommand `automl plugin list` (table and JSON formats).
-  - Test suite `tests/test_v06_plugins.py` with 8/8 tests passing (60/60 total tests).
+- Implemented and verified Kaggle inference and submission generator:
+  - `fit_and_predict` in `TrainerPort` and `SklearnTrainer`.
+  - `GenerateSubmissionCommand` and `PredictDatasetQuery` via CQRS buses.
+  - CLI `automl predict` and Kaggle benchmark test suite `tests/test_kaggle_prediction.py` (64/64 total tests passing, 86% coverage).
+  - Validated on Kaggle Playground S4E1 achieving **0.8858 Public / 0.8882 Private ROC-AUC** in 1.04s.
  
 ## Blocked
  
@@ -26,8 +30,11 @@ Phase V0.6 Plugin Architecture & Extensible Ecosystem completed and verified.
  
 ## Next
  
-1. Create feature specification and plan for V0.7 (Multimodal Pipelines & Data Fusion) in `docs/features/multimodal/`.
-2. Implement multimodal domain abstractions and data structures.
+1. Tabular Backlog Improvements (identified via Kaggle validation):
+   - Auto-exclude identifiers and high cardinality text in `DatasetProfiler`.
+   - Template-based submission matching (`--template sample_submission.csv`).
+   - Model ensembling/blending plugin (`VotingEnsemblePlugin`).
+2. Phase V0.7: Multimodal Pipelines & Data Fusion (specs in `docs/features/multimodal/`).
 
 ## Relevant files
 
