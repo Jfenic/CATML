@@ -2,9 +2,10 @@
 
 Documento orientado a que otro programador pueda **continuar el proyecto de forma modular**, sin reescribir el núcleo.
 
-**Versión de plataforma:** `0.4.0`  
-**Última fase completada:** V0.4  
-**Siguiente fase recomendada:** V0.5 (Feature Discovery & Selection — SHAP, MI, Ablation)
+**Versión de plataforma:** `0.6.0`  
+**Última fase completada:** V0.6 (Plugin Architecture & Kaggle Inference)  
+**Siguiente fase recomendada:** Backlog Tabular & V0.7 (Multimodal)  
+**Guía de colaboración y ramas:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---
 
@@ -12,12 +13,13 @@ Documento orientado a que otro programador pueda **continuar el proyecto de form
 
 ```bash
 pip install -e ".[dev]"
-pytest                          # 44 tests — debe pasar todo con >= 85% coverage
+pytest                          # 64 tests — debe pasar todo con >= 85% coverage
 automl task list                # catálogo tarea → modelos
+automl plugin list              # plugins registrados (modelos, métricas)
 automl run-demo --auto          # flujo automático con planner y scheduler
 automl plan-experiments        # inspeccionar candidatos y explicabilidad
 automl optimize --model logistic_regression --optimizer optuna --trials 10  # tuning bayesiano
-automl benchmark run            # comparar escenarios V0.1 a V0.4
+automl benchmark run            # comparar escenarios de regresión
 ```
 
 
@@ -162,17 +164,27 @@ Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
 - [x] Benchmark: Escenario `optuna_optimization_v04` (+10.3% mejora de ROC AUC sobre baseline)
 - [x] Test suite: `tests/test_v04_optimizer.py` (44 tests totales, 86% coverage)
 
-### ⏳ V0.5 — Siguiente (Feature Discovery & Selection)
+### ✅ V0.5 — Hecho (Feature Discovery & Selection)
 
-**Objetivo:** generación y filtrado inteligente de features mediante técnicas estadísticas y de explicabilidad, validando siempre mediante hipótesis experimentales.
+- [x] Ports: `FeatureSelectorPort`, `FeatureEvidenceRepositoryPort` en `src/automl/domain/ports.py`
+- [x] Selectores estadísticos y ML (`MutualInfoSelector`, `TreeImportanceSelector`, `L1Selector`, `CorrelationSelector`, `VarianceSelector`, `EnsembleRankSelector`, `PCAReducer`) en `engine/features/`
+- [x] `AblationPlanner` en `engine/planning/`
+- [x] CQRS: `SelectFeaturesCommand`, `PlanAblationExperimentsCommand`, `PromoteCandidateFeatureSetCommand`
+- [x] Persistencia de evidencia en SQLite y CLI `automl features select|ablation`
+- [x] Test suite: `tests/test_v05_features.py` (52 tests, coverage >= 85%)
 
-| Pieza | Dónde implementar | Propósito |
-|-------|-------------------|-----------|
-| FeatureDiscoveryPort | `domain/ports.py` | Protocolo para proponer transformaciones |
-| MutualInfoSelector | `engine/features/` | Selección univariada no lineal |
-| ImportanceFeatureSelector | `engine/features/` | Selección basada en tree-importance / SHAP |
-| AblationPlanner | `engine/planning/` | Proponer experimentos de ablación de features |
-| FeatureSetPromotion | `application/services/` | Promover subconjuntos evaluados a FeatureSet curado |
+### ✅ V0.6 — Hecho (Plugin Architecture & Extensible Ecosystem)
+
+- [x] Contratos: `PluginPort`, `ModelPluginPort`, `MetricPluginPort`, `PreprocessorPluginPort`
+- [x] Application: `PluginRegistry` y `CompatibilityValidator` en engine
+- [x] Adaptadores: `LightGBMPlugin` y `XGBoostPlugin` con fallback a scikit-learn
+- [x] Métricas de negocio: `CostSensitiveMetricPlugin`, `WeightedF1MetricPlugin`
+- [x] CLI `automl plugin list` y test suite `tests/test_v06_plugins.py`
+- [x] Inferencia Kaggle: `GenerateSubmissionCommand`, `PredictDatasetQuery`, CLI `automl predict` (`tests/test_kaggle_prediction.py`)
+
+### ⏳ Siguiente: Backlog Tabular & V0.7 (Multimodalidad)
+
+Ver especificaciones de tareas para colaboradores en [`CONTRIBUTING.md`](CONTRIBUTING.md) y roadmap general en [`TASKS.md`](TASKS.md).
 
 ---
 

@@ -112,6 +112,7 @@ pytest --cov=src/automl
 
 ## Deeper Documentation
 
+- **Contributing & Parallel Teamwork:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - **Agent Instructions & Rules:** [`AGENTS.md`](AGENTS.md)
 - **System Architecture & Boundaries:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - **Active Tasks & Operational Roadmap:** [`TASKS.md`](TASKS.md)

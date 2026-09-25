@@ -23,6 +23,7 @@ Phase V0.6 Plugin Architecture & Extensible Ecosystem completed and verified.
   - `GenerateSubmissionCommand` and `PredictDatasetQuery` via CQRS buses.
   - CLI `automl predict` and Kaggle benchmark test suite `tests/test_kaggle_prediction.py` (64/64 total tests passing, 86% coverage).
   - Validated on Kaggle Playground S4E1 achieving **0.8858 Public / 0.8882 Private ROC-AUC** in 1.04s.
+- Created `CONTRIBUTING.md` defining the zero-conflict git collaboration workflow and detailed specifications for ready-to-develop tasks (Profiler high cardinality, Voting ensemble plugin, Kaggle submission template). Synchronized `README.md`, `DEVELOPER_GUIDE.md` and `TASKS.md`.
  
 ## Blocked
  
