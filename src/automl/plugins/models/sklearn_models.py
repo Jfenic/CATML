@@ -57,10 +57,29 @@ def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None =
         ridge_params.update(params)
         return Ridge(**ridge_params)
     elif model_id == "voting_ensemble":
-        from automl.plugins.models.ensemble import VotingEnsembleEstimator
-        return VotingEnsembleEstimator(task_type=task_type, **params)
+        from automl.engine.ensemble.voting import VotingEnsembleEstimator
+        factory = lambda tt: default_ensemble_factory(tt)
+        return VotingEnsembleEstimator(
+            task_type=task_type,
+            default_estimator_factory=factory,
+            **params,
+        )
     else:
         raise ValueError(f"Unknown supervised model: {model_id}")
+
+
+def default_ensemble_factory(task_type: str) -> list[tuple[str, Any]]:
+    """Central factory for default base models of an ensemble."""
+    is_regression = task_type == "regression"
+    if is_regression:
+        return [
+            ("ridge", build_sklearn_model("ridge", task_type)),
+            ("random_forest", build_sklearn_model("random_forest", task_type)),
+        ]
+    return [
+        ("logistic_regression", build_sklearn_model("logistic_regression", task_type)),
+        ("random_forest", build_sklearn_model("random_forest", task_type)),
+    ]
 
 
 def default_model_specs():

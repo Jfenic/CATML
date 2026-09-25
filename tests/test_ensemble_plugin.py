@@ -241,3 +241,54 @@ def test_voting_ensemble_workspace_and_trainer_integration(tmp_path) -> None:
     )
     assert len(preds) == 2
 
+
+def test_pre_fitted_validation_fails_on_unfitted_models() -> None:
+    rf_unfitted = RandomForestClassifier()
+    with pytest.raises(ValueError, match="is not fitted"):
+        VotingEnsembleEstimator(
+            estimators=[rf_unfitted],
+            task_type="binary_classification",
+            refit=False,
+        ).fit([[1, 2]], [0])
+
+    class NoPredictModel:
+        classes_ = [0, 1]
+
+    with pytest.raises(TypeError, match="does not implement a callable 'predict'"):
+        VotingEnsembleEstimator(
+            estimators=[NoPredictModel()],
+            task_type="binary_classification",
+            refit=False,
+        ).fit([[1, 2]], [0])
+
+
+def test_task_catalog_single_source_of_truth() -> None:
+    from automl.domain.tasks.task_type import TaskType, models_for_task
+    from automl.plugins.models.sklearn_models import default_model_specs
+
+    # Verify task catalog defines voting_ensemble for appropriate tasks
+    assert "voting_ensemble" in models_for_task(TaskType.BINARY_CLASSIFICATION)
+    assert "voting_ensemble" in models_for_task(TaskType.MULTICLASS_CLASSIFICATION)
+    assert "voting_ensemble" in models_for_task(TaskType.REGRESSION)
+    assert "voting_ensemble" not in models_for_task(TaskType.CLUSTERING)
+
+    # Verify default_model_specs reflects this automatically
+    specs = {spec.id: spec for spec in default_model_specs()}
+    assert "voting_ensemble" in specs
+    assert specs["voting_ensemble"].name == "Voting Ensemble & Blending"
+    assert "binary_classification" in specs["voting_ensemble"].task_types
+    assert "regression" in specs["voting_ensemble"].task_types
+
+
+def test_default_ensemble_factory() -> None:
+    from automl.plugins.models.sklearn_models import default_ensemble_factory
+
+    clf_models = default_ensemble_factory("binary_classification")
+    assert len(clf_models) >= 2
+    assert any(name == "random_forest" for name, _ in clf_models)
+
+    reg_models = default_ensemble_factory("regression")
+    assert len(reg_models) >= 2
+    assert any(name == "ridge" for name, _ in reg_models)
+
+
