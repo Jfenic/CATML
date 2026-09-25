@@ -199,6 +199,23 @@ class SQLiteExperimentRepository:
         feature_cols = {row[1] for row in conn.execute("PRAGMA table_info(features)").fetchall()}
         if "semantic_type" not in feature_cols:
             conn.execute("ALTER TABLE features ADD COLUMN semantic_type TEXT DEFAULT 'unknown'")
+            # Backfill semantic_type for pre-existing features using persisted dataset profiles
+            try:
+                tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+                if "dataset_profiles" in tables:
+                    profile_rows = conn.execute("SELECT dataset_id, profile_json FROM dataset_profiles").fetchall()
+                    for p_row in profile_rows:
+                        d_id = p_row["dataset_id"] if hasattr(p_row, "keys") else p_row[0]
+                        p_json = p_row["profile_json"] if hasattr(p_row, "keys") else p_row[1]
+                        profile_data = json.loads(p_json)
+                        for col in profile_data.get("columns", []):
+                            if col.get("is_identifier"):
+                                conn.execute(
+                                    "UPDATE features SET semantic_type = 'identifier' WHERE dataset_id = ? AND name = ?",
+                                    (d_id, col["name"]),
+                                )
+            except Exception:
+                pass
 
     # --- datasets ---
 

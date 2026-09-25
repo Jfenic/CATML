@@ -131,7 +131,14 @@ class AutoMLWorkspace:
 
     def _hydrate_feature_registry(self, dataset_id: str) -> None:
         features = self.repository.list_features(dataset_id)
+        profile = self.repository.get_dataset_profile(dataset_id)
         if features:
+            if profile:
+                id_names = set(profile.identifier_column_names)
+                for f in features:
+                    if f.semantic_type == "unknown" and f.name in id_names:
+                        f.semantic_type = "identifier"
+                        self.repository.save_feature(f)
             registry = FeatureRegistry(features)
         else:
             profile = self.repository.get_dataset_profile(dataset_id)
