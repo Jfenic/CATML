@@ -23,13 +23,13 @@
 
 - [x] Heurística automática de alta cardinalidad en `DatasetProfiler` (excluir IDs y texto masivo > 0.7 ratio de unicidad) — *Ver Tarea A en CONTRIBUTING.md*
 - [ ] Mapeo automático de plantilla de sumisión (`--template sample_submission.csv`) en `GenerateSubmissionCommand` — *Ver Tarea C en CONTRIBUTING.md*
-- [ ] Plugin de Ensamble y Blending (`VotingEnsemblePlugin` / `StackingPlugin`) promediando el Top K de modelos — *Ver Tarea B en CONTRIBUTING.md*
+- [x] Plugin de Ensamble y Blending (`VotingEnsemblePlugin` / `StackingPlugin`) promediando el Top K de modelos — *Ver Tarea B en CONTRIBUTING.md*
 - [ ] Generación automática de variables de interacción (ratios numéricos y target encoding)
 
 ## Completed
 
+- [x] Feature: Model plugin for voting ensemble & blending (`VotingEnsemblePlugin`, `VotingEnsembleEstimator`, soft voting and weighted predictions)
 - [x] Feature: Heurística de alta cardinalidad e identificadores en `DatasetProfiler` (`detect_column_cardinality_and_role`, `is_identifier`, `is_high_cardinality`, `exclude_identifiers`, 9 tests passing en `tests/test_profiler_cardinality.py`)
-
 - [x] Feature: Kaggle-ready inference & submission generator (`GenerateSubmissionCommand`, `PredictDatasetQuery`, CLI `automl predict`)
 - [x] V0.6 Phase: Plugin architecture contracts (`PluginPort`, `ModelPluginPort`, `MetricPluginPort`, `PreprocessorPluginPort`)
 - [x] V0.6 Phase: `PluginRegistry` in application layer and `CompatibilityValidator` in engine

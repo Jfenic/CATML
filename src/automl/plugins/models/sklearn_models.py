@@ -56,6 +56,9 @@ def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None =
         ridge_params = {"alpha": 1.0}
         ridge_params.update(params)
         return Ridge(**ridge_params)
+    elif model_id == "voting_ensemble":
+        from automl.plugins.models.ensemble import VotingEnsembleEstimator
+        return VotingEnsembleEstimator(task_type=task_type, **params)
     else:
         raise ValueError(f"Unknown supervised model: {model_id}")
 
@@ -82,6 +85,7 @@ def default_model_specs():
         "dbscan": "DBSCAN",
         "lightgbm": "LightGBM",
         "xgboost": "XGBoost",
+        "voting_ensemble": "Voting Ensemble & Blending",
     }
 
     for model_id, task_types in sorted(seen.items()):
