@@ -165,9 +165,9 @@ export class KaggleView {
 
         const res = await api.generateSubmission({
           run_id: activeRun.id,
-          test_dataset_path: "competitions/playground-series-s6e9/test.csv",
+          test_dataset_path: "competitions/playground-series-s6e9/data/test.csv",
           output_path: "competitions/playground-series-s6e9/submission_workbench.csv",
-          template_path: "competitions/playground-series-s6e9/sample_submission.csv",
+          template_path: "competitions/playground-series-s6e9/data/sample_submission.csv",
           predict_proba: true,
         });
 

@@ -31,8 +31,12 @@ export class DatasetsView {
   async fetchData() {
     try {
       const state = store.getState();
-      const datasetId = state.activeDatasetId || "ds_s6e9";
-      this.profile = await api.getDatasetProfile(datasetId).catch(() => null);
+      const datasetId = state.activeDatasetId
+        || (state.runs && state.runs[0] ? state.runs[0].dataset_id : null)
+        || (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0] ? state.overview.recent_datasets[0].id : null);
+      if (datasetId) {
+        this.profile = await api.getDatasetProfile(datasetId).catch(() => null);
+      }
     } catch (_) {}
   }
 
