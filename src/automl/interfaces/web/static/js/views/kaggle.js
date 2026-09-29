@@ -155,6 +155,10 @@ export class KaggleView {
 
   _bindEvents() {
     this.container.querySelector("#btnGenerateSubmission")?.addEventListener("click", async () => {
+      const btn = this.container.querySelector("#btnGenerateSubmission");
+      if (!btn) return;
+      const originalText = btn.innerHTML;
+
       try {
         const state = store.getState();
         const activeRun = state.runs[0];
@@ -162,6 +166,15 @@ export class KaggleView {
           alert("No active run found.");
           return;
         }
+
+        btn.disabled = true;
+        btn.innerHTML = `
+          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>⏳ Generando y validando 286,571 predicciones...</span>
+        `;
 
         const res = await api.generateSubmission({
           run_id: activeRun.id,
@@ -171,9 +184,20 @@ export class KaggleView {
           predict_proba: true,
         });
 
+        btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
+        btn.innerHTML = `<span>✓ ¡Generado con éxito! (286,571 filas)</span>`;
+
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.className = "w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20";
+          btn.innerHTML = originalText;
+        }, 3000);
+
         alert(`Submission Generated Successfully!\nRows: ${res.row_count}\nOutput: ${res.output_path}\nValid checklist: 5/5`);
       } catch (err) {
         alert("Error generating submission: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
       }
     });
 

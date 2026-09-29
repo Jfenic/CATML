@@ -103,8 +103,9 @@ export class OverviewView {
                     <h3 class="text-base font-bold text-slate-100 uppercase tracking-wide">${activeRun.dataset_name || "EV PURCHASES"}</h3>
                     <p class="text-xs text-slate-400">AutoML • Binary Classification • ROC-AUC</p>
                   </div>
-                  <span class="badge-sys text-xs px-2.5 py-1 rounded-full font-mono uppercase tracking-wider font-semibold">
-                    ● ${activeRun.status || "RUNNING"}
+                  <span class="badge-sys text-xs px-2.5 py-1 rounded-full font-mono uppercase tracking-wider font-semibold flex items-center space-x-1.5">
+                    <svg class="animate-spin h-3 w-3 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>● ${activeRun.status || "RUNNING"}</span>
                   </span>
                 </div>
 
@@ -134,8 +135,8 @@ export class OverviewView {
                     <span>Optimization Progress</span>
                     <span>68%</span>
                   </div>
-                  <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                    <div class="bg-indigo-500 h-2 rounded-full" style="width: 68%"></div>
+                  <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-indigo-500 h-2.5 rounded-full progress-striped" style="width: 68%"></div>
                   </div>
                 </div>
 
