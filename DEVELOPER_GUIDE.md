@@ -13,7 +13,7 @@ Documento orientado a que otro programador pueda **continuar el proyecto de form
 
 ```bash
 pip install -e ".[dev]"
-pytest                          # 64 tests — debe pasar todo con >= 85% coverage
+pytest                          # 101 tests — debe pasar todo con >= 85% coverage
 automl task list                # catálogo tarea → modelos
 automl plugin list              # plugins registrados (modelos, métricas)
 automl run-demo --auto          # flujo automático con planner y scheduler
@@ -42,7 +42,7 @@ application/ (CommandBus, QueryBus, handlers, workspace)
       ↓
 domain/      (Python puro — SIN sklearn, SIN SQLite)
       ↑
-engine/      (profiling, planning, training)
+engine/      (profiling, planning, training, ensemble)
 plugins/     (modelos concretos)
 infrastructure/ (SQLite, storage)
 ```
@@ -62,9 +62,11 @@ infrastructure/ (SQLite, storage)
 | **Dominio — Models** | `domain/models/` | ModelSpec, ModelRegistry | Validación por tarea |
 | **Application — CQRS** | `application/commands/`, `queries/`, `bus/` | Comandos y consultas | 1 comando = 1 handler en bootstrap |
 | **Application — Workspace** | `application/services/workspace.py` | Orquestación | Nuevos casos de uso delegando aquí |
+| **Engine — Profiling** | `engine/profiling/dataset_profiler.py` | Perfilado, tipos semánticos y detección de IDs | Nuevas heurísticas de cardinalidad |
 | **Engine — Planning** | `engine/planning/task_planner.py` | Inferir tarea desde dataset | RuleBasedExperimentPlanner (V0.3) |
+| **Engine — Ensemble** | `engine/ensemble/blender.py`, `voting.py` | Promediado soft/hard voting y blending | Stacking, rank averaging |
 | **Engine — Training** | `engine/training/sklearn_trainer.py` | Ejecutar Trial | Nuevas ramas por task_type |
-| **Plugins — Models** | `plugins/models/sklearn_models.py` | build_sklearn_model, specs | LightGBM, XGBoost (V0.4) |
+| **Plugins — Models** | `plugins/models/sklearn_models.py`, `ensemble.py` | build_sklearn_model, VotingEnsemblePlugin | LightGBM, XGBoost (V0.4, V0.6) |
 | **Infrastructure** | `infrastructure/database/` | SQLite, eventos, benchmark | Postgres adapter |
 | **Benchmarks** | `benchmarks/runner.py` | Escenarios de regresión de calidad | Nuevos escenarios por versión |
 | **CLI** | `interfaces/cli/` | Subcomandos | API REST reutilizando buses |
@@ -182,7 +184,16 @@ Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
 - [x] CLI `automl plugin list` y test suite `tests/test_v06_plugins.py`
 - [x] Inferencia Kaggle: `GenerateSubmissionCommand`, `PredictDatasetQuery`, CLI `automl predict` (`tests/test_kaggle_prediction.py`)
 
-### ⏳ Siguiente: Backlog Tabular & V0.7 (Multimodalidad)
+### ✅ Mejoras Tabulares Post-Kaggle (Integradas en main)
+
+- [x] Heurística de alta cardinalidad e identificadores (`dataset_profiler.py`, `tests/test_profiler_cardinality.py` — 12 tests)
+- [x] Plugin de ensamble y blending (`VotingEnsemblePlugin`, `engine/ensemble/`, `tests/test_ensemble_plugin.py` — 14 tests)
+- [x] Mapeo automático de plantilla de sumisión Kaggle (`--template sample_submission.csv`, `tests/test_submission_template.py` — 5 tests)
+
+### ⏳ Siguiente: Backlog Tabular Restante & V0.7 (Multimodalidad)
+
+- [ ] Generación automática de variables de interacción (ratios numéricos y target encoding)
+- [ ] Fase V0.7: Representaciones multimodales y fusión tabular + texto + imagen (ver [`TASKS.md`](TASKS.md) y [`docs/features/`](docs/features/))
 
 Ver especificaciones de tareas para colaboradores en [`CONTRIBUTING.md`](CONTRIBUTING.md) y roadmap general en [`TASKS.md`](TASKS.md).
 

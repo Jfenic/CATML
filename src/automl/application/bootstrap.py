@@ -180,6 +180,7 @@ def register_handlers(
             test_dataset_path=cmd.test_dataset_path,
             output_path=cmd.output_path,
             id_column=cmd.id_column,
+            template_path=cmd.template_path,
             experiment_id=cmd.experiment_id,
             trial_id=cmd.trial_id,
             predict_proba=cmd.predict_proba,
@@ -246,6 +247,8 @@ def register_handlers(
             experiment_id=q.experiment_id,
             trial_id=q.trial_id,
             predict_proba=q.predict_proba,
+            template_path=q.template_path,
+            id_column=q.id_column,
         ),
     )
 

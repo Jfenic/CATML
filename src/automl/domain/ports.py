@@ -14,6 +14,7 @@ from automl.domain.features.selection_strategy import (
     FeatureSelectionStrategy,
     FeatureSetCandidate,
 )
+from automl.domain.modalities.modality import DataSource, Modality
 from automl.domain.models.registry import ModelRegistry
 from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.plugins.plugin import PluginCapability, PluginType
@@ -229,6 +230,17 @@ class PreprocessorPluginPort(PluginPort, Protocol):
 
     def transform(self, X: Any) -> Any:
         ...
+
+
+class ModalityPluginPort(PluginPort, Protocol):
+    modality: Modality
+
+    def validate_source(self, source: DataSource) -> bool:
+        ...
+
+    def load_data(self, source: DataSource) -> Any:
+        ...
+
 
 
 

@@ -26,14 +26,14 @@ Run from repository root with the project virtual environment:
 .venv/bin/pytest --cov=src/automl
 
 # Run a specific test suite
-.venv/bin/pytest tests/test_v04_optimizer.py
+.venv/bin/pytest tests/test_v06_plugins.py
 
 # Verify CLI entry point
 .venv/bin/automl --help
 .venv/bin/automl task list
 ```
 
-All 44 existing tests must pass before completing any task. Test coverage must remain >= 85%.
+All 101 existing tests must pass before completing any task. Test coverage must remain >= 85%.
 
 ---
 

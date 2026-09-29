@@ -428,6 +428,7 @@ def predict_cli(args: argparse.Namespace) -> int:
             test_dataset_path=str(test_path),
             output_path=out_path,
             id_column=args.id_column,
+            template_path=getattr(args, "template", None),
             experiment_id=args.experiment_id,
             predict_proba=args.proba,
         )
@@ -445,7 +446,11 @@ def predict_cli(args: argparse.Namespace) -> int:
     print(f"  Row Count:     {res['row_count']}")
     print(f"  ID Column:     {res['id_column']}")
     print(f"  Target Column: {res['target_column']}")
-    print(f"  Probabilities: {res['predict_proba']}\n")
+    print(f"  Probabilities: {res['predict_proba']}")
+    if res.get("template_used"):
+        print(f"  Template:      {res['template_used']}\n")
+    else:
+        print()
     return 0
 
 
@@ -554,6 +559,7 @@ def main(argv: list[str] | None = None) -> int:
     pred_parser.add_argument("--test-dataset", required=True, help="Path to test CSV file")
     pred_parser.add_argument("--output", default="submission.csv", help="Output submission CSV path (default: submission.csv)")
     pred_parser.add_argument("--id-column", help="ID column name (e.g. id, PassengerId, customer_id)")
+    pred_parser.add_argument("--template", help="Path to sample submission CSV to match column names and row ID ordering exactly")
     pred_parser.add_argument("--experiment-id", help="Optional specific experiment ID to use")
     pred_parser.add_argument("--proba", action="store_true", help="Output probabilities instead of binary labels")
     pred_parser.add_argument("--json", action="store_true")

@@ -61,7 +61,13 @@ automl optimize --dataset examples/data/customers_churn.csv --target churn --mod
 # 5. Run end-to-end demo
 automl run-demo --auto
 
-# 6. Run regression benchmark suite
+# 6. View registered model, metric, and optimizer plugins
+automl plugin list
+
+# 7. Generate Kaggle-ready submission matching exact template IDs and columns
+automl predict --run-id <RUN_ID> --test-dataset data/test.csv --template data/sample_submission.csv --proba --output submission.csv
+
+# 8. Run regression benchmark suite
 automl benchmark run
 ```
 

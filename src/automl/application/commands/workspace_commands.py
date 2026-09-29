@@ -149,6 +149,7 @@ class GenerateSubmissionCommand:
     test_dataset_path: str
     output_path: str
     id_column: str | None = None
+    template_path: str | None = None
     experiment_id: str | None = None
     trial_id: str | None = None
     predict_proba: bool = False

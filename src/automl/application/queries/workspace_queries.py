@@ -94,3 +94,5 @@ class PredictDatasetQuery:
     experiment_id: str | None = None
     trial_id: str | None = None
     predict_proba: bool = False
+    template_path: str | None = None
+    id_column: str | None = None

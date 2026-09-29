@@ -2,7 +2,10 @@
 
 ## Current
  
-Phase V0.6 Plugin Architecture & Extensible Ecosystem completed and verified.
+Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) initiated on `main`.
+Paso 0 (Base Domain Contracts) completed: `Modality`, `DataSource`, `PipelineNode`, `PipelineGraph`, `ModalityPluginPort`.
+Full suite: 101/101 tests passing, 86% coverage.
+Ready for Dev 1 and Dev 2 to branch concurrently.
  
 ## Completed
  
@@ -18,12 +21,12 @@ Phase V0.6 Plugin Architecture & Extensible Ecosystem completed and verified.
   - Integration into `SklearnTrainer`, `SearchSpaceBuilder`, and `AutoMLWorkspace`.
   - CQRS query `ListPluginsQuery` registered in `bootstrap.py`.
   - CLI subcommand `automl plugin list` (table and JSON formats).
-- Implemented and verified Kaggle inference and submission generator:
-  - `fit_and_predict` in `TrainerPort` and `SklearnTrainer`.
-  - `GenerateSubmissionCommand` and `PredictDatasetQuery` via CQRS buses.
-  - CLI `automl predict` and Kaggle benchmark test suite `tests/test_kaggle_prediction.py` (64/64 total tests passing, 86% coverage).
-  - Validated on Kaggle Playground S4E1 achieving **0.8858 Public / 0.8882 Private ROC-AUC** in 1.04s.
-- Created `CONTRIBUTING.md` defining the zero-conflict git collaboration workflow and detailed specifications for ready-to-develop tasks (Profiler high cardinality, Voting ensemble plugin, Kaggle submission template). Synchronized `README.md`, `DEVELOPER_GUIDE.md` and `TASKS.md`.
+- Implemented and verified Kaggle tabular improvements:
+  - **Tarea A:** Heurística de alta cardinalidad e identificadores en `DatasetProfiler` (`tests/test_profiler_cardinality.py`, 12 tests).
+  - **Tarea B:** `VotingEnsemblePlugin` y motor de blending `VotingBlender` con soft voting y pesos (`tests/test_ensemble_plugin.py`, 14 tests).
+  - **Tarea C:** Mapeo automático de plantilla de sumisión Kaggle con `--template sample_submission.csv` en `GenerateSubmissionCommand`, `PredictDatasetQuery` y CLI `automl predict` (`tests/test_submission_template.py`, 5 tests).
+- Total suite: 95 tests passing with 86% coverage.
+- Synchronized all documentation files (`AGENTS.md`, `CONTRIBUTING.md`, `DEVELOPER_GUIDE.md`, `TASKS.md`, `README.md`).
  
 ## Blocked
  
@@ -31,11 +34,11 @@ Phase V0.6 Plugin Architecture & Extensible Ecosystem completed and verified.
  
 ## Next
  
-1. Tabular Backlog Improvements (identified via Kaggle validation):
-   - Auto-exclude identifiers and high cardinality text in `DatasetProfiler`.
-   - Template-based submission matching (`--template sample_submission.csv`).
-   - Model ensembling/blending plugin (`VotingEnsemblePlugin`).
-2. Phase V0.7: Multimodal Pipelines & Data Fusion (specs in `docs/features/multimodal/`).
+1. Phase V0.7: Multimodal Pipelines & Data Fusion (specs in `AutoML_Arquitectura_Tecnica.md` §V0.7 and `docs/features/multimodal/`):
+   - Domain `Modality` enum and `DataSource` abstraction.
+   - Generalize `PipelineGraph` (DAG of typed processing nodes) and `GraphValidator`.
+   - `ImageModalityPlugin`, `ImageEncoderNode`, and `FeatureFusionNode` (early/late fusion).
+   - Hypothesis-driven multimodal comparison experiments (tabular vs. image vs. tabular+image).
 
 ## Relevant files
 

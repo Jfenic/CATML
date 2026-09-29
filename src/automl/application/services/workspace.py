@@ -1307,6 +1307,8 @@ class AutoMLWorkspace:
         experiment_id: str | None = None,
         trial_id: str | None = None,
         predict_proba: bool = False,
+        template_path: str | Path | None = None,
+        id_column: str | None = None,
     ) -> list[Any]:
         run = self._get_run(run_id)
         dataset = self._get_dataset(run.dataset_id)
@@ -1373,7 +1375,50 @@ class AutoMLWorkspace:
             parameters=parameters,
             predict_proba=predict_proba,
         )
-        return preds.tolist() if hasattr(preds, "tolist") else list(preds)
+        raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)
+
+        if template_path is not None:
+            import pandas as pd
+            try:
+                template_df = load_dataframe(template_path)
+            except Exception as e:
+                raise ValueError(f"Template CSV is empty or invalid: {e}") from e
+            if template_df.empty:
+                raise ValueError("Template CSV is empty.")
+            if id_column:
+                if id_column not in template_df.columns:
+                    raise ValueError(f"Specified ID column '{id_column}' not found in template CSV.")
+                if id_column not in test_df.columns:
+                    raise ValueError(f"Specified ID column '{id_column}' not found in test dataset.")
+                actual_id_col = id_column
+            else:
+                candidate_id = next(
+                    (c for c in template_df.columns if c in test_df.columns and (
+                        c.lower() in {"id", "passengerid", "customer_id", "guid"} or c.lower().endswith("_id")
+                    )),
+                    None,
+                )
+                if candidate_id is None:
+                    first_col = template_df.columns[0]
+                    if first_col in test_df.columns:
+                        candidate_id = first_col
+                    else:
+                        raise ValueError(
+                            f"Could not automatically detect matching ID column between template {list(template_df.columns)} and test dataset {list(test_df.columns)}. Please specify id_column."
+                        )
+                actual_id_col = candidate_id
+
+            test_preds_series = pd.Series(raw_preds, index=test_df[actual_id_col].values)
+            aligned_preds = template_df[actual_id_col].map(test_preds_series)
+            if aligned_preds.isna().any():
+                missing_mask = aligned_preds.isna()
+                missing_sample = template_df[actual_id_col][missing_mask].head(5).tolist()
+                raise ValueError(
+                    f"Template contains {missing_mask.sum()} IDs not found in the test dataset predictions (e.g. {missing_sample})."
+                )
+            return aligned_preds.tolist()
+
+        return raw_preds
 
     def generate_submission(
         self,
@@ -1381,6 +1426,7 @@ class AutoMLWorkspace:
         test_dataset_path: str | Path,
         output_path: str | Path,
         id_column: str | None = None,
+        template_path: str | Path | None = None,
         experiment_id: str | None = None,
         trial_id: str | None = None,
         predict_proba: bool = False,
@@ -1399,25 +1445,76 @@ class AutoMLWorkspace:
         import pandas as pd
         test_df = load_dataframe(test_dataset_path)
 
-        if id_column:
-            if id_column not in test_df.columns:
-                raise ValueError(f"ID column '{id_column}' not found in test dataset.")
-            ids = test_df[id_column]
-            actual_id_col = id_column
-        else:
-            candidate_id = next((c for c in ["id", "Id", "ID", "PassengerId", "customer_id"] if c in test_df.columns), None)
-            if candidate_id:
-                ids = test_df[candidate_id]
-                actual_id_col = candidate_id
-            else:
-                ids = pd.Series(range(len(test_df)), name="id")
-                actual_id_col = "id"
+        template_used = None
+        if template_path is not None:
+            try:
+                template_df = load_dataframe(template_path)
+            except Exception as e:
+                raise ValueError(f"Template CSV is empty or invalid: {e}") from e
+            if template_df.empty:
+                raise ValueError("Template CSV is empty.")
 
-        target_col = dataset.target_column or "prediction"
-        submission_df = pd.DataFrame({
-            actual_id_col: ids,
-            target_col: preds,
-        })
+            if id_column:
+                if id_column not in template_df.columns:
+                    raise ValueError(f"Specified ID column '{id_column}' not found in template CSV.")
+                if id_column not in test_df.columns:
+                    raise ValueError(f"Specified ID column '{id_column}' not found in test dataset.")
+                actual_id_col = id_column
+            else:
+                candidate_id = next(
+                    (c for c in template_df.columns if c in test_df.columns and (
+                        c.lower() in {"id", "passengerid", "customer_id", "guid"} or c.lower().endswith("_id")
+                    )),
+                    None,
+                )
+                if candidate_id is None:
+                    first_col = template_df.columns[0]
+                    if first_col in test_df.columns:
+                        candidate_id = first_col
+                    else:
+                        raise ValueError(
+                            f"Could not automatically detect matching ID column between template {list(template_df.columns)} and test dataset {list(test_df.columns)}. Please pass id_column explicitly."
+                        )
+                actual_id_col = candidate_id
+
+            target_cols = [c for c in template_df.columns if c != actual_id_col]
+            if not target_cols:
+                raise ValueError("Template CSV must contain at least one target column in addition to the ID column.")
+
+            test_preds_series = pd.Series(preds, index=test_df[actual_id_col].values)
+            aligned_preds = template_df[actual_id_col].map(test_preds_series)
+            if aligned_preds.isna().any():
+                missing_mask = aligned_preds.isna()
+                missing_sample = template_df[actual_id_col][missing_mask].head(5).tolist()
+                raise ValueError(
+                    f"Template contains {missing_mask.sum()} IDs not found in the test dataset predictions (e.g. {missing_sample})."
+                )
+
+            submission_df = template_df.copy()
+            target_col = target_cols[0]
+            submission_df[target_col] = aligned_preds.values
+            submission_df = submission_df[template_df.columns]
+            template_used = str(Path(template_path).resolve())
+        else:
+            if id_column:
+                if id_column not in test_df.columns:
+                    raise ValueError(f"ID column '{id_column}' not found in test dataset.")
+                ids = test_df[id_column]
+                actual_id_col = id_column
+            else:
+                candidate_id = next((c for c in ["id", "Id", "ID", "PassengerId", "customer_id"] if c in test_df.columns), None)
+                if candidate_id:
+                    ids = test_df[candidate_id]
+                    actual_id_col = candidate_id
+                else:
+                    ids = pd.Series(range(len(test_df)), name="id")
+                    actual_id_col = "id"
+
+            target_col = dataset.target_column or "prediction"
+            submission_df = pd.DataFrame({
+                actual_id_col: ids,
+                target_col: preds,
+            })
 
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -1439,5 +1536,6 @@ class AutoMLWorkspace:
             "id_column": actual_id_col,
             "target_column": target_col,
             "predict_proba": predict_proba,
+            "template_used": template_used,
         }
 
