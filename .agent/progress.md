@@ -2,11 +2,18 @@
 
 ## Current
  
+ 
+ 
+
+Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) in progress.
+Track Dev 2 (`feat/v07-image-plugin`): Completed `ImageModalityPlugin` and `ImageEncoderNode` with 17 dedicated tests (90% coverage) and zero regressions (118/118 tests passing across the entire platform).
+
 Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG):
 - Paso 0 (Base Domain Contracts) completed on `main`.
 - Track Dev 1 (`feat/v07-pipeline-graph-engine`): Completed `GraphValidator` (cycle detection, connectivity, modal typing, Kahn's topological sort) and `FeatureFusionNode` (horizontal tabular/dense concatenation with disambiguation).
 - Full suite: 118/118 tests passing, 87% coverage.
 - Next: Dev 2 completing Track Dev 2 (`feat/v07-image-plugin`), followed by integration step.
+
  
 ## Completed
  
