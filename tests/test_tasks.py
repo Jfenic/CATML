@@ -95,3 +95,16 @@ def test_clustering_task_plan_and_run(tmp_path: Path, sample_dataset_path: Path)
 def test_svc_classifier_exposes_calibrated_probabilities() -> None:
     model = build_sklearn_model("svc", "binary_classification")
     assert hasattr(model, "predict_proba")
+
+
+def test_infer_task_type_string_series() -> None:
+    import pandas as pd
+    from automl.engine.planning.task_planner import infer_task_type
+
+    # Pandas string Series (e.g. ['No', 'Yes'])
+    s_binary = pd.Series(["No", "Yes", "No", "Yes"])
+    assert infer_task_type(s_binary) == TaskType.BINARY_CLASSIFICATION
+
+    s_multi = pd.Series(["cat", "dog", "bird", "fish"])
+    assert infer_task_type(s_multi) == TaskType.MULTICLASS_CLASSIFICATION
+

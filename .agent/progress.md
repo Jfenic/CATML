@@ -8,12 +8,14 @@ Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) — Tracks Dev 1 
 - Track Dev 2: `ImageModalityPlugin` (image format detection, batch loading) and `ImageEncoderNode` (deterministic feature extraction, caching, deep learning support) (20 tests passing).
 - Both tracks fully integrated into `main`.
 - Final Integration: Connected in `workspace.py`, registered in `bootstrap.py`, full suite end-to-end (8 tests passing in `tests/test_v07_multimodal_e2e.py`).
-- Total suite: 146 tests passing, >=87% coverage.
-- Next: Visual UI (interactive dashboard) and Context-Aware Feature Engineering.
+- Total suite: 158 tests passing, >=87% coverage.
+- Next: 5-Fold OOF Blending and Auto-Ensemble.
 
  
 ## Completed
  
+- Completed Tarea D (Interaction Feature Generation): Implemented `InteractionFeatureGenerator` in `src/automl/engine/features/generation/` with numerical ratios, products, and smoothed target encoding (6 tests passing in `tests/test_feature_interactions.py`).
+- Implemented `TargetAdapter` in `src/automl/engine/training/target_adapter.py` and integrated into `SklearnTrainer`, resolving Issue #8 for XGBoost string target compatibility (5 tests passing in `tests/test_target_adapter.py`).
 - Completed full Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG):
   - Domain contracts: `Modality` enum, `DataSource`, `PipelineNode`, `PipelineGraph`, and `@runtime_checkable` `ModalityPluginPort`.
   - DAG engine: `GraphValidator` (DFS cycle detection with back-edge path reconstruction, modal typing compatibility, Kahn's topological sort).

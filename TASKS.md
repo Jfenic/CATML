@@ -22,10 +22,12 @@
 - [x] Heurística automática de alta cardinalidad en `DatasetProfiler` (excluir IDs y texto masivo > 0.7 ratio de unicidad) — *Ver Tarea A en CONTRIBUTING.md*
 - [x] Plugin de Ensamble y Blending (`VotingEnsemblePlugin` / `StackingPlugin`) promediando el Top K de modelos — *Ver Tarea B en CONTRIBUTING.md*
 - [x] Mapeo automático de plantilla de sumisión (`--template sample_submission.csv`) en `GenerateSubmissionCommand` — *Ver Tarea C en CONTRIBUTING.md*
-- [ ] Generación automática de variables de interacción (ratios numéricos y target encoding) — *Ver Tarea D en CONTRIBUTING.md*
+- [x] Generación automática de variables de interacción (ratios numéricos y target encoding) — *Ver Tarea D en CONTRIBUTING.md*
 
 ## Completed
 
+- [x] Feature (Tarea D): Generación automática de variables de interacción (`InteractionFeatureGenerator`, ratios numéricos, productos, target encoding out-of-fold, 6 tests passing en `tests/test_feature_interactions.py`)
+- [x] Feature: `TargetAdapter` universal para compatibilidad con XGBoost/CatBoost y targets discretos textuales (`TargetAdapter`, `tests/test_target_adapter.py`, Issue #8 resuelto)
 - [x] Phase V0.7: Multimodal Pipelines & Directed Acyclic Graph (`PipelineGraph`, `GraphValidator`, `FeatureFusionNode`, `ImageModalityPlugin`, `ImageEncoderNode`, `AutoMLWorkspace.build_multimodal_pipeline`, `fit_predict_multimodal`, 51 tests passing across `tests/test_v07_*.py`)
 - [x] Track Dev 2: Image modality plugin & deterministic image encoder node (`ImageModalityPlugin`, `ImageEncoderNode`, unit & batch embeddings, 20 tests passing en `tests/test_v07_image_plugin.py`)
 - [x] Feature: Mapeo automático de plantilla de sumisión Kaggle (`GenerateSubmissionCommand`, `PredictDatasetQuery`, `--template sample_submission.csv`, 5 tests passing en `tests/test_submission_template.py`)

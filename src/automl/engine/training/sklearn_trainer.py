@@ -45,6 +45,10 @@ class SklearnTrainer(TrainerPort):
                 return self._run_clustering(execution, X, started)
 
             y = df[execution.target_column]
+            from automl.engine.training.target_adapter import TargetAdapter
+
+            adapter = TargetAdapter()
+            y_adapted = adapter.fit_transform(y, execution.task_type)
 
             if self.plugin_registry and self.plugin_registry.has(execution.trial.model_id):
                 model_plugin = self.plugin_registry.get_model_plugin(execution.trial.model_id)
@@ -76,7 +80,7 @@ class SklearnTrainer(TrainerPort):
                 scores = cross_val_score(
                     pipeline,
                     X,
-                    y,
+                    y_adapted,
                     cv=execution.cv_folds,
                     scoring=_sklearn_scoring(metric_name, execution.task_type),
                     n_jobs=1,
@@ -86,10 +90,10 @@ class SklearnTrainer(TrainerPort):
             else:
                 X_train, X_test, y_train, y_test = train_test_split(
                     X,
-                    y,
+                    y_adapted,
                     test_size=execution.test_size,
                     random_state=execution.random_seed,
-                    stratify=y if execution.task_type != "regression" else None,
+                    stratify=y_adapted if execution.task_type != "regression" else None,
                 )
                 pipeline.fit(X_train, y_train)
                 predictions = pipeline.predict(X_test)
@@ -225,8 +229,13 @@ class SklearnTrainer(TrainerPort):
         else:
             model = build_sklearn_model(model_id, task_type, parameters=parameters)
 
+        from automl.engine.training.target_adapter import TargetAdapter
+
+        adapter = TargetAdapter()
+        y_train_adapted = adapter.fit_transform(y_train, task_type)
+
         pipeline = _build_pipeline(X_train, model)
-        pipeline.fit(X_train, y_train)
+        pipeline.fit(X_train, y_train_adapted)
 
         if predict_proba and hasattr(pipeline, "predict_proba"):
             probs = pipeline.predict_proba(X_test)
@@ -234,7 +243,8 @@ class SklearnTrainer(TrainerPort):
                 return probs[:, 1]
             return probs
 
-        return pipeline.predict(X_test)
+        preds = pipeline.predict(X_test)
+        return adapter.inverse_transform(preds)
 
 
 def _build_pipeline(X: pd.DataFrame, model: Any) -> Pipeline:

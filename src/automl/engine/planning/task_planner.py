@@ -9,8 +9,14 @@ from automl.domain.tasks.task_type import TaskType
 
 def infer_task_type(target_series: pd.Series) -> TaskType:
     unique = target_series.nunique(dropna=True)
-    dtype = str(target_series.dtype)
-    is_discrete = dtype in {"object", "bool", "category", "int64", "int32", "int8", "uint8"}
+    dtype = str(target_series.dtype).lower()
+    kind = getattr(target_series.dtype, "kind", "")
+    is_discrete = (
+        kind in {"O", "b", "i", "u", "S", "U"}
+        or dtype in {"object", "str", "string", "bool", "category"}
+        or "int" in dtype
+        or "str" in dtype
+    )
 
     if is_discrete and unique <= 20:
         if unique == 2:
