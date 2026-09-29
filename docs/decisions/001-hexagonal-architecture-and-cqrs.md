@@ -1,5 +1,7 @@
 # Decision: Hexagonal Architecture and CQRS for Parity between Human and AI Agents
 
+Estado: aceptada. Revisada: 2026-09-30. Alcance: decisión arquitectónica; el estado de implementación se mantiene en [TASKS.md](../../TASKS.md) y las limitaciones en [el mapa de capacidades](../README.md).
+
 ## Context
 
 Most AutoML frameworks (e.g. auto-sklearn, TPOT, AutoGluon) implement monolithic routines like `AutoML.fit(X, y)` that perform data profiling, preprocessing, feature selection, model search, tuning, and ensembling in an opaque pipeline. 

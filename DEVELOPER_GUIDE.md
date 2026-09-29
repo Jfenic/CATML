@@ -2,10 +2,10 @@
 
 Documento orientado a que otro programador pueda **continuar el proyecto de forma modular**, sin reescribir el núcleo.
 
-**Versión de plataforma:** `0.6.0`  
-**Última fase completada:** V0.6 (Plugin Architecture & Kaggle Inference)  
-**Siguiente fase recomendada:** Backlog Tabular & V0.7 (Multimodal)  
-**Guía de colaboración y ramas:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
+**Versión de plataforma:** `0.7.0` (fuente: [`src/automl/__init__.py`](src/automl/__init__.py)).
+**Estado y siguiente trabajo:** [`TASKS.md`](TASKS.md).
+**Guía de colaboración:** [`CONTRIBUTING.md`](CONTRIBUTING.md).
+**Capacidades y limitaciones:** [`docs/README.md`](docs/README.md).
 
 ---
 
@@ -13,7 +13,7 @@ Documento orientado a que otro programador pueda **continuar el proyecto de form
 
 ```bash
 pip install -e ".[dev]"
-pytest                          # 101 tests — debe pasar todo con >= 85% coverage
+pytest --cov=src/automl --cov-fail-under=85  # suite completa
 automl task list                # catálogo tarea → modelos
 automl plugin list              # plugins registrados (modelos, métricas)
 automl run-demo --auto          # flujo automático con planner y scheduler
@@ -36,7 +36,7 @@ src/automl/interfaces/cli/main.py   → CLI
 ## 2. Arquitectura en capas (regla de dependencias)
 
 ```text
-interfaces/  (CLI, futura API, futuros LLM tools)
+interfaces/  (CLI, Workbench HTTP, futuros LLM tools)
       ↓
 application/ (CommandBus, QueryBus, handlers, workspace)
       ↓
@@ -66,10 +66,10 @@ infrastructure/ (SQLite, storage)
 | **Engine — Planning** | `engine/planning/task_planner.py` | Inferir tarea desde dataset | RuleBasedExperimentPlanner (V0.3) |
 | **Engine — Ensemble** | `engine/ensemble/blender.py`, `voting.py` | Promediado soft/hard voting y blending | Stacking, rank averaging |
 | **Engine — Training** | `engine/training/sklearn_trainer.py` | Ejecutar Trial | Nuevas ramas por task_type |
-| **Plugins — Models** | `plugins/models/sklearn_models.py`, `ensemble.py` | build_sklearn_model, VotingEnsemblePlugin | LightGBM, XGBoost (V0.4, V0.6) |
+| **Plugins — Models** | `plugins/models/` | Adaptadores sklearn, gradient boosting y voting | Nuevos `ModelPluginPort` |
 | **Infrastructure** | `infrastructure/database/` | SQLite, eventos, benchmark | Postgres adapter |
 | **Benchmarks** | `benchmarks/runner.py` | Escenarios de regresión de calidad | Nuevos escenarios por versión |
-| **CLI** | `interfaces/cli/` | Subcomandos | API REST reutilizando buses |
+| **CLI** | `interfaces/cli/` | Subcomandos | Workbench HTTP reutilizando la aplicación |
 
 ---
 
@@ -77,12 +77,23 @@ infrastructure/ (SQLite, storage)
 
 ### A) Añadir un modelo nuevo
 
-1. Añadir `model_id` en `TASK_CATALOG` (`domain/tasks/task_type.py`) para las tareas compatibles.
-2. Implementar en `plugins/models/sklearn_models.py` → `build_sklearn_model()`.
-3. El `ModelRegistry` se puebla solo vía `default_model_specs()`.
-4. Test: experimento con el nuevo modelo + validación de incompatibilidad.
+1. Implementar `ModelPluginPort` en `plugins/models/`, o reutilizar `SklearnModelPlugin` con una fábrica de estimadores y capacidades explícitas.
+2. Registrar el plugin con `workspace.register_plugin()` al componer la aplicación. Esto actualiza los registros de plugins y modelos y emite `PluginRegistered`.
+3. Para un identificador personalizado, implementar `get_search_space()` si se necesita HPO; la fábrica de espacios integrada solo conoce los modelos incorporados.
+4. Ejecutar los experimentos mediante `CreateExperimentCommand` y `RunExperimentCommand`; leer resultados mediante queries.
+5. Verificar registro, tarea incompatible y entrenamiento real con un test dedicado.
 
-**No tocar** `domain/` salvo el catálogo de tareas.
+Ejemplo completo: [`examples/plugins/custom_model.py`](examples/plugins/custom_model.py).
+Desde la raíz del repositorio:
+
+```bash
+.venv/bin/python examples/plugins/custom_model.py --workspace .automl/custom-plugin-demo
+.venv/bin/pytest tests/test_plugin_registration.py
+```
+
+El ejemplo registra `custom_logistic`, declara sus tareas y espacio de búsqueda y ejecuta un experimento sobre el CSV incluido. La salida contiene una fila de leaderboard con `failed: False`; la métrica exacta depende del entorno.
+
+El registro personalizado vive en memoria: volver a registrar el plugin al abrir otro proceso. La CLI y el servidor crean su propia aplicación y no descubren automáticamente los plugins del script. Incorporar un plugin por defecto requiere registrarlo en la composición de `workspace.py`; la carga por entry points sigue pendiente. El catálogo de tareas enumera modelos incorporados y no necesita cambiar para un plugin registrado explícitamente.
 
 ### B) Añadir un Command (acción de usuario/agente)
 
@@ -112,90 +123,11 @@ infrastructure/ (SQLite, storage)
 
 ---
 
-## 5. Roadmap — qué hacer en cada fase
+## 5. Estado, especificaciones y roadmap
 
-Referencia completa: `AutoML_Arquitectura_Tecnica.md` §8 y Anexo A.
+El estado operativo se mantiene exclusivamente en [`TASKS.md`](TASKS.md). La correspondencia entre funcionalidades, implementación y pruebas está en [`docs/README.md`](docs/README.md).
 
-### ✅ V0.1 — Hecho
-
-- [x] Dominio: Run, Dataset, Feature, Experiment, Trial
-- [x] Trainer sklearn + SQLite
-- [x] Demo básico
-
-### ✅ V0.2 — Hecho
-
-- [x] CommandBus / QueryBus
-- [x] FeatureSet, persistencia de features
-- [x] Pause / Resume / Cancel / Clone
-- [x] CompareExperiments, event log
-- [x] Catálogo TaskType → modelos por tarea
-- [x] ProblemDefinition + task planner
-- [x] Benchmark harness (5 escenarios)
-- [x] Validación de pertenencia Run → Experiment y Dataset → FeatureSet
-- [x] CI en Python 3.10/3.12 con cobertura mínima del 85%
-
-### ✅ V0.3 — Hecho
-
-- [x] `ExperimentCandidate` (`domain/experiments/candidate.py`)
-- [x] `Priority` y `PriorityScoreBreakdown` con scoring explicable (`domain/experiments/priority.py`)
-- [x] `BudgetPolicy` (`domain/policies/budget.py`)
-- [x] Ports: `ExperimentPlannerPort`, `PriorityScorerPort` (`domain/ports.py`)
-- [x] `RuleBasedExperimentPlanner` (`engine/planning/experiment_planner.py`)
-- [x] `RuleBasedPriorityScorer` (`engine/priority/scorer.py`)
-- [x] `ExperimentQueue` y `Scheduler` con ordenamiento por `effective_score` y `pinned` (`engine/priority/scheduler.py`)
-- [x] CQRS: `PlanExperimentsCommand`, `PrioritizeCandidateCommand`, `ExecuteNextExperimentCommand`, `RunScheduledExperimentsCommand`
-- [x] Queries: `GetExperimentQueueQuery`, `ListCandidatesQuery`
-- [x] CLI `plan-experiments` y soporte `--auto` en `run-demo`
-- [x] Escenario de benchmark V0.3 (`automated_planning_v03`)
-- [x] Test suite `tests/test_v03_planner.py` (31 tests totales, 89% coverage)
-
-### ✅ V0.4 — Hecho (Optimización e Hiperparámetros con Optuna)
-
-- [x] Dominio: `ParameterSpec`, `ParameterType`, `SearchSpace` declarativo (`domain/optimization/search_space.py`)
-- [x] Dominio: `OptimizationBudget` (`domain/optimization/budget.py`)
-- [x] Dominio: `OptimizerPort` protocol en `domain/ports.py` (`suggest/observe/should_stop/best_score/best_parameters`)
-- [x] Engine: `EarlyStoppingPolicy` con soporte minimización/maximización (`engine/optimization/early_stopping.py`)
-- [x] Engine: `RandomSearchOptimizer` con muestreo estocástico (`engine/optimization/random_search.py`)
-- [x] Engine: `SearchSpaceBuilder` para modelos supervisados y no supervisados (`engine/optimization/search_space_builder.py`)
-- [x] Engine: `TrialFactory` (`engine/optimization/trial_factory.py`)
-- [x] Plugins: `OptunaOptimizer` adaptador ask-and-tell con TPESampler (`plugins/optimizers/optuna_optimizer.py`)
-- [x] Plugins: Inyección de parámetros e instanciación condicional en `plugins/models/sklearn_models.py`
-- [x] Application: `OptimizeExperimentCommand`, `GetBestTrialQuery`, `GetExperimentTrialsQuery`
-- [x] Application: Orquestación en `workspace.optimize_experiment()`, `get_best_trial()`, `get_experiment_trials()`
-- [x] CLI: Subcomando `automl optimize`
-- [x] Benchmark: Escenario `optuna_optimization_v04` (+10.3% mejora de ROC AUC sobre baseline)
-- [x] Test suite: `tests/test_v04_optimizer.py` (44 tests totales, 86% coverage)
-
-### ✅ V0.5 — Hecho (Feature Discovery & Selection)
-
-- [x] Ports: `FeatureSelectorPort`, `FeatureEvidenceRepositoryPort` en `src/automl/domain/ports.py`
-- [x] Selectores estadísticos y ML (`MutualInfoSelector`, `TreeImportanceSelector`, `L1Selector`, `CorrelationSelector`, `VarianceSelector`, `EnsembleRankSelector`, `PCAReducer`) en `engine/features/`
-- [x] `AblationPlanner` en `engine/planning/`
-- [x] CQRS: `SelectFeaturesCommand`, `PlanAblationExperimentsCommand`, `PromoteCandidateFeatureSetCommand`
-- [x] Persistencia de evidencia en SQLite y CLI `automl features select|ablation`
-- [x] Test suite: `tests/test_v05_features.py` (52 tests, coverage >= 85%)
-
-### ✅ V0.6 — Hecho (Plugin Architecture & Extensible Ecosystem)
-
-- [x] Contratos: `PluginPort`, `ModelPluginPort`, `MetricPluginPort`, `PreprocessorPluginPort`
-- [x] Application: `PluginRegistry` y `CompatibilityValidator` en engine
-- [x] Adaptadores: `LightGBMPlugin` y `XGBoostPlugin` con fallback a scikit-learn
-- [x] Métricas de negocio: `CostSensitiveMetricPlugin`, `WeightedF1MetricPlugin`
-- [x] CLI `automl plugin list` y test suite `tests/test_v06_plugins.py`
-- [x] Inferencia Kaggle: `GenerateSubmissionCommand`, `PredictDatasetQuery`, CLI `automl predict` (`tests/test_kaggle_prediction.py`)
-
-### ✅ Mejoras Tabulares Post-Kaggle (Integradas en main)
-
-- [x] Heurística de alta cardinalidad e identificadores (`dataset_profiler.py`, `tests/test_profiler_cardinality.py` — 12 tests)
-- [x] Plugin de ensamble y blending (`VotingEnsemblePlugin`, `engine/ensemble/`, `tests/test_ensemble_plugin.py` — 14 tests)
-- [x] Mapeo automático de plantilla de sumisión Kaggle (`--template sample_submission.csv`, `tests/test_submission_template.py` — 5 tests)
-
-### ⏳ Siguiente: Backlog Tabular Restante & V0.7 (Multimodalidad)
-
-- [ ] Generación automática de variables de interacción (ratios numéricos y target encoding)
-- [ ] Fase V0.7: Representaciones multimodales y fusión tabular + texto + imagen (ver [`TASKS.md`](TASKS.md) y [`docs/features/`](docs/features/))
-
-Ver especificaciones de tareas para colaboradores en [`CONTRIBUTING.md`](CONTRIBUTING.md) y roadmap general en [`TASKS.md`](TASKS.md).
+Los planes V0.5–V0.7 describen la secuencia histórica de implementación. La arquitectura objetivo y las fases V0.8–V1.0 están en [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md); no implican que esas capacidades estén disponibles.
 
 ---
 
@@ -207,7 +139,7 @@ Quiero…                              → Empieza aquí
 Entender el flujo completo             → workspace.py + bootstrap.py
 Añadir tipo de tarea                   → domain/tasks/task_type.py
 Cambiar inferencia de tarea            → engine/planning/task_planner.py
-Añadir modelo sklearn                  → plugins/models/sklearn_models.py
+Añadir modelo                          → plugins/models/ + workspace.register_plugin()
 Cambiar métricas de evaluación         → engine/training/sklearn_trainer.py
 Nuevo comando usuario/LLM              → commands/ + bootstrap.py
 Nueva consulta UI/LLM                  → queries/ + bootstrap.py
@@ -224,8 +156,8 @@ Documentación formal                   → AutoML_Arquitectura_Tecnica.md
 2. **Commands mutan, Queries leen.** Sin efectos secundarios en queries.
 3. **Modelos incompatibles con la tarea → ValueError** en `create_experiment`.
 4. **Eventos** en toda mutación relevante (`repository.append_event`).
-5. **Tests:** un archivo por fase (`test_v01`, `test_v02`, `test_tasks`, `test_benchmark`).
-6. **Versión:** actualizar `PLATFORM_VERSION` en `workspace.py` y `pyproject.toml`.
+5. **Tests:** agrupar por funcionalidad; añadir pruebas de regresión en la suite relevante.
+6. **Versión:** actualizar `automl.__version__` en `src/automl/__init__.py`; empaquetado, CLI y Workbench comparten esa fuente. Actualizar las referencias de versión en la documentación.
 
 ---
 
@@ -267,12 +199,12 @@ No crear lógica nueva en la capa de agentes; solo wrappers con schema JSON.
 
 ## 11. Ejemplo de división de trabajo en paralelo
 
-Tres desarrolladores pueden trabajar en paralelo sin conflictos:
+Ejemplo histórico de reparto de módulos entre tres desarrolladores; coordinar contratos e integración para reducir conflictos:
 
 | Dev A | Dev B | Dev C |
 |-------|-------|-------|
 | V0.3 Planner | V0.4 Optuna plugin | V0.5 MI selector |
-| `engine/planning/` | `plugins/optimizers/` | `domain/features/selection/` |
+| `engine/planning/` | `plugins/optimizers/` | `engine/features/selection/` |
 | Sin tocar trainer | Sin tocar planner | Sin tocar optimizer |
 
 Punto de integración común: **`workspace.run_experiment()`** y **`bootstrap.register_handlers()`**.
