@@ -2,17 +2,13 @@
 
 ## Current
  
- 
- 
-
-Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) in progress.
-Track Dev 2 (`feat/v07-image-plugin`): Completed `ImageModalityPlugin` and `ImageEncoderNode` with 17 dedicated tests (90% coverage) and zero regressions (118/118 tests passing across the entire platform).
-
-Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG):
-- Paso 0 (Base Domain Contracts) completed on `main`.
-- Track Dev 1 (`feat/v07-pipeline-graph-engine`): Completed `GraphValidator` (cycle detection, connectivity, modal typing, Kahn's topological sort) and `FeatureFusionNode` (horizontal tabular/dense concatenation with disambiguation).
-- Full suite: 118/118 tests passing, 87% coverage.
-- Next: Dev 2 completing Track Dev 2 (`feat/v07-image-plugin`), followed by integration step.
+Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) — Tracks Dev 1 & Dev 2 completed and merged on `main`:
+- Paso 0 (Base Domain Contracts): `Modality`, `DataSource`, `PipelineNode`, `PipelineGraph`, `ModalityPluginPort` (6 tests passing).
+- Track Dev 1: `GraphValidator` (DAG validation, cycle detection, topological sort) and `FeatureFusionNode` (early fusion, index alignment) (17 tests passing).
+- Track Dev 2: `ImageModalityPlugin` (image format detection, batch loading) and `ImageEncoderNode` (deterministic feature extraction, caching, deep learning support) (20 tests passing).
+- Both tracks fully integrated into `main`.
+- Total suite: 138 tests passing, >=87% coverage.
+- Next: Final V0.7 integration step (orchestration in `workspace.py`, `bootstrap.py` registration, end-to-end multimodal tests).
 
  
 ## Completed

@@ -33,7 +33,7 @@ Run from repository root with the project virtual environment:
 .venv/bin/automl task list
 ```
 
-All 101 existing tests must pass before completing any task. Test coverage must remain >= 85%.
+All 138 existing tests must pass before completing any task. Test coverage must remain >= 85%.
 
 ---
 
