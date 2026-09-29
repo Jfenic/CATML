@@ -1,13 +1,15 @@
 # Tasks
 
-## Now (Active Phase V0.7 — Parallel Tracks)
+## Now (Active Phase — AutoML Workbench & Kaggle Playground Series S6E9)
 
-> *Especificaciones completas en [`docs/features/multimodal/spec.md`](docs/features/multimodal/spec.md), plan en [`docs/features/multimodal/plan.md`](docs/features/multimodal/plan.md) y asignaciones en [`CONTRIBUTING.md`](CONTRIBUTING.md).*
-
-- [x] Paso 0 (Base Común en main): Contratos puros en `domain/modalities/` (`Modality`, `DataSource`), `domain/pipelines/` (`PipelineNode`, `PipelineGraph`) y `ModalityPluginPort` (6 tests passing en `tests/test_v07_domain.py`).
-- [x] Track Dev 2 (`feat/v07-image-plugin`): `ImageModalityPlugin` y `ImageEncoderNode` en `plugins/modalities/` y `engine/vision/` (20 tests passing en `tests/test_v07_image_plugin.py`, *Ver Tarea V0.7-B en CONTRIBUTING.md*).
-- [x] Track Dev 1 (`feat/v07-pipeline-graph-engine`): `GraphValidator` y `FeatureFusionNode` en `engine/pipeline/` (17 tests passing en `tests/test_v07_pipeline_graph.py`).
-- [x] Integración V0.7: Orquestación en `workspace.py`, registro en `bootstrap.py` y suite end-to-end (8 tests passing en `tests/test_v07_multimodal_e2e.py`).
+- [x] Feature: CATML AutoML Workbench Server (`src/automl/interfaces/web/server.py`): Hexagonal interface adapter with zero external dependencies (`ThreadingHTTPServer`), exposing REST endpoints via `CommandBus`, `QueryBus`, and `AutoMLWorkspace` for Mission Control, run lifecycle controls (`pause`, `resume`, `cancel`, `clone`), dataset inspection, planner explicability, meta-learning knowledge, agent hypotheses, and Kaggle validation checklist.
+- [x] Feature: Frontend Modular Architecture & Design Patterns (`src/automl/interfaces/web/static/`):
+  - Architecture: EventBus (PubSub), WorkbenchStore (Observable/State pattern), CATMLApiClient (Adapter/Repository), Modular View Controllers.
+  - Design System (`workbench.css`): Dense technical dark theme with semantic color system (🔵 system, 🟢 proven gain, 🟠 warning, 🔴 error/stop, 🟣 intelligence).
+  - Views: Overview (Mission Control), Dataset Inspector ("¿Qué entendió CATML?"), Experiment Studio (explicable planner "Why this?", HPO, controls), Compare View (multi-select, metrics table, diff inspector), Visual Pipeline DAG (interactive execution nodes), Knowledge (V0.8 meta-learning preview), Lateral Agent Drawer (V1.0 hypothesis engine "Proponer ≠ Aceptar"), Kaggle S6E9 Center.
+- [x] Feature: CLI integration `automl ui [--port PORT] [--workspace WORKSPACE]` in `src/automl/interfaces/cli/main.py`.
+- [x] Testing: Comprehensive web test suite in `tests/test_web_dashboard.py` verifying static asset serving, dataset registration, profiling, experiment execution, pause/resume, and submission generation.
+- [ ] Next: Stratified 5-Fold Out-of-Fold (OOF) Prediction Blending (`--folds 5`) to elevate Kaggle S6E9 score past 0.945+.
 
 ## Next (Roadmap Phases)
 

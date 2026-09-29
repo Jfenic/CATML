@@ -454,6 +454,21 @@ def predict_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def launch_ui_cli(args: argparse.Namespace) -> int:
+    from automl.interfaces.web.server import run_web_dashboard
+
+    if args.workspace:
+        ws_dir = str(Path(args.workspace))
+    else:
+        s6e9_ws = _project_root() / ".automl" / "s6e9_automl"
+        demo_ws = _project_root() / ".automl" / "demo"
+        ws_dir = str(s6e9_ws if s6e9_ws.exists() else demo_ws)
+
+    port = args.port or 8080
+    run_web_dashboard(port=port, workspace_dir=ws_dir)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="automl", description=f"AutoML Platform CLI (V{PLATFORM_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -564,6 +579,11 @@ def main(argv: list[str] | None = None) -> int:
     pred_parser.add_argument("--proba", action="store_true", help="Output probabilities instead of binary labels")
     pred_parser.add_argument("--json", action="store_true")
     pred_parser.set_defaults(func=predict_cli)
+
+    ui_parser = sub.add_parser("ui", help="Launch interactive web dashboard")
+    ui_parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
+    ui_parser.add_argument("--workspace", help="Connected workspace directory (default: auto)")
+    ui_parser.set_defaults(func=launch_ui_cli)
 
     args = parser.parse_args(argv)
     return args.func(args)
