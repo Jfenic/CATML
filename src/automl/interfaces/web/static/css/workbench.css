@@ -1,0 +1,160 @@
+/* ==========================================================================
+   CATML AutoML Workbench — Design System & Custom Styles
+   Clean, dense, technical UI for explainable and controllable AutoML
+   ========================================================================== */
+
+:root {
+  --color-bg-base: #030712;
+  --color-bg-panel: #0b1329;
+  --color-bg-card: #111c38;
+  --color-border: #1e293b;
+  --color-border-hover: #334155;
+
+  /* Semantic Color Guidelines:
+     🔵 System / Execution: Sky / Indigo
+     🟢 Proven Improvement: Emerald
+     🟠 Warning / Pending: Amber
+     🔴 Error / Destructive: Rose
+     🟣 CATML Intelligence: Violet (Planner, Knowledge, Agent)
+  */
+  --catml-sys: #6366f1;
+  --catml-sys-light: #818cf8;
+  --catml-gain: #10b981;
+  --catml-warn: #f59e0b;
+  --catml-err: #f43f5e;
+  --catml-intel: #a855f7;
+}
+
+/* Custom Scrollbar for dense technical panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Base typography */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--color-bg-base);
+  color: #f1f5f9;
+  overflow-x: hidden;
+}
+
+/* Monospace data elements */
+.font-mono-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Card and Panel Utilities */
+.workbench-card {
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.workbench-card:hover {
+  border-color: var(--color-border-hover);
+}
+
+.workbench-panel-header {
+  background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.75rem 1rem;
+}
+
+/* Semantic Badges */
+.badge-intel {
+  background-color: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #c084fc;
+}
+
+.badge-gain {
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.badge-sys {
+  background-color: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.badge-warn {
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.badge-err {
+  background-color: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+}
+
+/* Lateral Agent Drawer Animation */
+#agentDrawer {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#agentDrawer.translate-x-full {
+  transform: translateX(100%);
+}
+
+#agentDrawer.translate-x-0 {
+  transform: translateX(0);
+}
+
+/* Pipeline DAG Nodes & Connectors */
+.dag-node {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  min-width: 140px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dag-node:hover, .dag-node.active {
+  border-color: #818cf8;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+  transform: translateY(-1px);
+}
+
+.dag-node-connector {
+  width: 2px;
+  background-color: #334155;
+}
+
+/* Table styles */
+.wb-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wb-table td {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+  font-size: 0.8125rem;
+}
+
+.wb-table tr:hover td {
+  background-color: rgba(30, 41, 59, 0.35);
+}

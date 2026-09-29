@@ -2,18 +2,17 @@
 
 ## Current
  
-Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) — Tracks Dev 1 & Dev 2 completed and merged on `main`:
-- Paso 0 (Base Domain Contracts): `Modality`, `DataSource`, `PipelineNode`, `PipelineGraph`, `ModalityPluginPort` (6 tests passing).
-- Track Dev 1: `GraphValidator` (DAG validation, cycle detection, topological sort) and `FeatureFusionNode` (early fusion, index alignment) (17 tests passing).
-- Track Dev 2: `ImageModalityPlugin` (image format detection, batch loading) and `ImageEncoderNode` (deterministic feature extraction, caching, deep learning support) (20 tests passing).
-- Both tracks fully integrated into `main`.
-- Final Integration: Connected in `workspace.py`, registered in `bootstrap.py`, full suite end-to-end (8 tests passing in `tests/test_v07_multimodal_e2e.py`).
-- Total suite: 158 tests passing, >=87% coverage.
-- Next: 5-Fold OOF Blending and Auto-Ensemble.
-
+Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
+- Web Interface Hexagonal Adapter (`src/automl/interfaces/web/server.py`): Zero-dependency standard library `ThreadingHTTPServer` mapped exclusively to `CommandBus`, `QueryBus`, and `AutoMLWorkspace`. Endpoints for overview, runs, lifecycle controls (`pause`, `resume`, `cancel`, `clone`), experiments, leaderboard, dataset profiling, planner explicability (`/api/plan`), meta-learning knowledge preview (`/api/knowledge`), agent hypotheses (`/api/agent/hypotheses`, `Proponer ≠ Aceptar`), and Kaggle checklist (`/api/kaggle/status`, `/api/predict`).
+- Frontend Modular Architecture (`src/automl/interfaces/web/static/`): Clean code design patterns including `EventBus` (PubSub), `WorkbenchStore` (State/Observable), `CATMLApiClient` (Adapter/Repository), and independent View Controllers (`overview.js`, `studio.js`, `datasets.js`, `compare.js`, `pipeline.js`, `knowledge.js`, `kaggle.js`, `agent.js`, `new_experiment.js`).
+- Design System (`css/workbench.css`): Dense technical dark theme with semantic color system (🔵 system/execution, 🟢 proven gain, 🟠 warning/waiting, 🔴 error/stop, 🟣 CATML intelligence).
+- CLI Command: `automl ui [--port PORT] [--workspace WORKSPACE]`.
+- Test Suite: 161 tests passing, >=85% test coverage (`tests/test_web_dashboard.py`).
+- Next: Stratified 5-Fold OOF Predictor (`--folds 5`) to blend fold predictions and surpass 0.945+ in Kaggle S6E9.
  
 ## Completed
  
+- Completed Feature: CATML AutoML Workbench (Web Interface, Server, and Frontend modular architecture with complete design patterns).
 - Completed Tarea D (Interaction Feature Generation): Implemented `InteractionFeatureGenerator` in `src/automl/engine/features/generation/` with numerical ratios, products, and smoothed target encoding (6 tests passing in `tests/test_feature_interactions.py`).
 - Implemented `TargetAdapter` in `src/automl/engine/training/target_adapter.py` and integrated into `SklearnTrainer`, resolving Issue #8 for XGBoost string target compatibility (5 tests passing in `tests/test_target_adapter.py`).
 - Completed full Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG):
