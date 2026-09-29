@@ -1295,7 +1295,7 @@ class AutoMLWorkspace:
         from automl.domain.plugins.plugin import PluginType
         self.plugin_registry.register(plugin)
         if getattr(plugin, "plugin_type", None) == PluginType.MODEL:
-            from automl.domain.models.model_spec import ModelSpec
+            from automl.domain.models.registry import ModelSpec
             self.model_registry.register(
                 ModelSpec(
                     id=plugin.plugin_id,
