@@ -6,7 +6,7 @@
 
 - [x] Paso 0 (Base Común en main): Contratos puros en `domain/modalities/` (`Modality`, `DataSource`), `domain/pipelines/` (`PipelineNode`, `PipelineGraph`) y `ModalityPluginPort` (6 tests passing en `tests/test_v07_domain.py`).
 - [ ] Track Dev 1 (`feat/v07-pipeline-graph-engine`): `GraphValidator` y `FeatureFusionNode` en `engine/pipeline/` (*Ver Tarea V0.7-A en CONTRIBUTING.md*).
-- [ ] Track Dev 2 (`feat/v07-image-plugin`): `ImageModalityPlugin` y `ImageEncoderNode` en `plugins/modalities/` y `engine/vision/` (*Ver Tarea V0.7-B en CONTRIBUTING.md*).
+- [x] Track Dev 2 (`feat/v07-image-plugin`): `ImageModalityPlugin` y `ImageEncoderNode` en `plugins/modalities/` y `engine/vision/` (17 tests passing en `tests/test_v07_image_plugin.py`, *Ver Tarea V0.7-B en CONTRIBUTING.md*).
 - [ ] Integración V0.7: Orquestación en `workspace.py`, registro en `bootstrap.py` y suite end-to-end `tests/test_v07_multimodal_e2e.py`.
 
 ## Next (Roadmap Phases)
@@ -26,6 +26,7 @@
 
 ## Completed
 
+- [x] Track Dev 2: Image modality plugin & deterministic image encoder node (`ImageModalityPlugin`, `ImageEncoderNode`, unit & batch embeddings, 17 tests passing en `tests/test_v07_image_plugin.py`)
 - [x] Feature: Mapeo automático de plantilla de sumisión Kaggle (`GenerateSubmissionCommand`, `PredictDatasetQuery`, `--template sample_submission.csv`, 5 tests passing en `tests/test_submission_template.py`)
 - [x] Feature: Model plugin for voting ensemble & blending (`VotingEnsemblePlugin`, `VotingBlender`, soft voting and weighted predictions, 14 tests passing en `tests/test_ensemble_plugin.py`)
 - [x] Feature: Heurística de alta cardinalidad e identificadores en `DatasetProfiler` (`detect_column_cardinality_and_role`, `is_identifier`, `is_high_cardinality`, `exclude_identifiers`, 12 tests passing en `tests/test_profiler_cardinality.py`)

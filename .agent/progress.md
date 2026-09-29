@@ -2,10 +2,9 @@
 
 ## Current
  
-Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) initiated on `main`.
-Paso 0 (Base Domain Contracts) completed: `Modality`, `DataSource`, `PipelineNode`, `PipelineGraph`, `ModalityPluginPort`.
-Full suite: 101/101 tests passing, 86% coverage.
-Ready for Dev 1 and Dev 2 to branch concurrently.
+Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) in progress.
+Track Dev 2 (`feat/v07-image-plugin`): Completed `ImageModalityPlugin` and `ImageEncoderNode` with 17 dedicated tests (90% coverage) and zero regressions (118/118 tests passing across the entire platform).
+Ready to push branch and open Pull Request for Track Dev 2.
  
 ## Completed
  
