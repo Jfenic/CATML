@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from automl import __version__
 from automl.domain.datasets.profile import Dataset
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
@@ -69,7 +70,7 @@ from automl.plugins.models.sklearn_models import default_model_specs
 from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
 from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
-PLATFORM_VERSION = "0.7.0"
+PLATFORM_VERSION = __version__
 
 
 def _init_default_plugins(workspace: AutoMLWorkspace) -> None:

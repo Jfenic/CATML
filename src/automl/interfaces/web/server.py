@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from automl import __version__
 from automl.application.bootstrap import build_application
 from automl.application.commands.workspace_commands import (
     CancelRunCommand,
@@ -741,7 +742,7 @@ def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo") -> 
     AutoMLWebHandler.workspace_dir = workspace_dir
     server = ThreadingHTTPServer(("0.0.0.0", port), AutoMLWebHandler)
     print("=" * 65)
-    print(f"  CATML AutoML Workbench (Platform V0.7.0)")
+    print(f"  CATML AutoML Workbench (Platform V{__version__})")
     print(f"  Running locally at: http://localhost:{port}")
     print(f"  Connected Workspace: {workspace_dir}")
     print("  Hexagonal UI Adapter • CQRS • Observability & Control")
