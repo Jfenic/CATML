@@ -65,10 +65,10 @@ export class NewExperimentModal {
             <div class="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 space-y-3 text-xs">
               <div class="font-semibold text-slate-200">Guided Constraints:</div>
               <div class="grid grid-cols-2 gap-2 text-slate-300">
-                <label class="flex items-center space-x-2"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>LightGBM</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>CatBoost</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>XGBoost</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" class="rounded text-indigo-600 bg-slate-800"> <span>Neural Network</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" checked value="lightgbm" class="model-check rounded text-indigo-600 bg-slate-800"> <span>LightGBM</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" checked value="xgboost" class="model-check rounded text-indigo-600 bg-slate-800"> <span>XGBoost</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" value="random_forest" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Random Forest</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" value="logistic_regression" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Logistic Regression</span></label>
               </div>
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px]">
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Feature engineering</span></label>
@@ -141,11 +141,21 @@ export class NewExperimentModal {
         const state = store.getState();
         const activeRun = state.runs[0] || { id: "run_ev_s6e9" };
 
+        let selectedModels = ["lightgbm"];
+        if (this.mode === "guided" || this.mode === "manual") {
+          const checked = Array.from(this.container.querySelectorAll(".model-check:checked")).map(c => c.value);
+          if (checked.length > 0) {
+            selectedModels = checked;
+          }
+        } else {
+          selectedModels = ["lightgbm", "xgboost"];
+        }
+
         await api.createAndRunExperiment({
           run_id: activeRun.id,
           mode: this.mode,
           budget: this.budget,
-          models: ["lightgbm", "catboost"],
+          models: selectedModels,
         });
 
         alert(`AutoML experiment started in ${this.mode.toUpperCase()} mode!`);
