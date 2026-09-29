@@ -2,10 +2,11 @@
 
 ## Current
  
-Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) initiated on `main`.
-Paso 0 (Base Domain Contracts) completed: `Modality`, `DataSource`, `PipelineNode`, `PipelineGraph`, `ModalityPluginPort`.
-Full suite: 101/101 tests passing, 86% coverage.
-Ready for Dev 1 and Dev 2 to branch concurrently.
+Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG):
+- Paso 0 (Base Domain Contracts) completed on `main`.
+- Track Dev 1 (`feat/v07-pipeline-graph-engine`): Completed `GraphValidator` (cycle detection, connectivity, modal typing, Kahn's topological sort) and `FeatureFusionNode` (horizontal tabular/dense concatenation with disambiguation).
+- Full suite: 118/118 tests passing, 87% coverage.
+- Next: Dev 2 completing Track Dev 2 (`feat/v07-image-plugin`), followed by integration step.
  
 ## Completed
  
