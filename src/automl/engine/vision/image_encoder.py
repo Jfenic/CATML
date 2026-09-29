@@ -28,6 +28,9 @@ class ImageEncoderNode:
         random_seed: int = 42,
         handle_missing: str = "raise",
         batch_size: int = 32,
+        base_dir: str | Path | None = None,
+        use_cache: bool = True,
+        cache_dir: str | Path | None = None,
     ) -> None:
         """Initializes the image encoder node.
 
@@ -39,6 +42,9 @@ class ImageEncoderNode:
             random_seed: Reproducibility seed for deterministic projections.
             handle_missing: Policy for missing files: 'raise' or 'zero'.
             batch_size: Default chunk size for batch processing.
+            base_dir: Optional base directory to prepend to relative image paths.
+            use_cache: Whether to cache extracted embeddings to accelerate repeated runs.
+            cache_dir: Optional directory for persistent disk caching of embeddings.
         """
         if node is not None:
             self.node_id = node.node_id
@@ -48,6 +54,9 @@ class ImageEncoderNode:
             self.random_seed = int(params.get("random_seed", random_seed))
             self.handle_missing = str(params.get("handle_missing", handle_missing))
             self.batch_size = int(params.get("batch_size", batch_size))
+            self.base_dir = params.get("base_dir", base_dir)
+            self.use_cache = bool(params.get("use_cache", use_cache))
+            self.cache_dir = params.get("cache_dir", cache_dir)
         else:
             self.node_id = node_id
             self.output_dim = output_dim
@@ -55,6 +64,9 @@ class ImageEncoderNode:
             self.random_seed = random_seed
             self.handle_missing = handle_missing
             self.batch_size = batch_size
+            self.base_dir = base_dir
+            self.use_cache = use_cache
+            self.cache_dir = cache_dir
 
         if self.output_dim <= 0:
             raise ValueError(f"output_dim must be strictly positive, got {self.output_dim}")
@@ -62,6 +74,7 @@ class ImageEncoderNode:
         self.input_modalities = (Modality.IMAGE,)
         self.output_modality = Modality.TABULAR
         self.is_fitted_ = False
+        self._memory_cache: dict[str, np.ndarray] = {}
 
     @classmethod
     def from_pipeline_node(cls, node: PipelineNode) -> ImageEncoderNode:
@@ -82,6 +95,9 @@ class ImageEncoderNode:
                 "random_seed": self.random_seed,
                 "handle_missing": self.handle_missing,
                 "batch_size": self.batch_size,
+                "base_dir": str(self.base_dir) if self.base_dir else None,
+                "use_cache": self.use_cache,
+                "cache_dir": str(self.cache_dir) if self.cache_dir else None,
             },
         )
 
@@ -102,7 +118,6 @@ class ImageEncoderNode:
     def execute(self, inputs: Any) -> np.ndarray:
         """Executes node logic within a Pipeline DAG runner."""
         if isinstance(inputs, dict):
-            # Extract first data entry or 'data' key
             data = inputs.get("data")
             if data is None:
                 for k, v in inputs.items():
@@ -110,6 +125,13 @@ class ImageEncoderNode:
                     break
             return self.encode(data)
         return self.encode(inputs)
+
+    def _resolve_path(self, item: str | Path) -> Path:
+        """Resolves an image path, prepending base_dir if the path is relative."""
+        p = Path(item)
+        if not p.is_absolute() and self.base_dir is not None:
+            p = Path(self.base_dir) / p
+        return p
 
     def encode(self, image_paths: Sequence[str | Path | bytes] | Any) -> np.ndarray:
         """Encodes an iterable of image paths or image items into a 2D numpy array of shape (N, output_dim).
@@ -136,19 +158,19 @@ class ImageEncoderNode:
         if n_samples == 0:
             return np.empty((0, self.output_dim), dtype=np.float32)
 
-        # Pre-allocate output matrix
-        embeddings = np.zeros((n_samples, self.output_dim), dtype=np.float32)
-
         # Check for deep learning model preference
-        use_deep_learning = self.model_name in ("resnet18", "resnet50", "vit", "timm")
+        use_deep_learning = self.model_name in ("resnet18", "resnet50", "vit", "mobilenet_v3_small", "timm")
         if use_deep_learning:
             embeddings_dl = self._try_deep_learning_encode(paths)
             if embeddings_dl is not None:
                 return embeddings_dl
 
-        # Fast and deterministic embedding computation
+        # Pre-allocate output matrix
+        embeddings = np.zeros((n_samples, self.output_dim), dtype=np.float32)
+
+        # Fast and deterministic embedding computation with caching
         for i, item in enumerate(paths):
-            embeddings[i] = self._encode_single(item)
+            embeddings[i] = self._encode_single_with_cache(item)
 
         return embeddings
 
@@ -179,12 +201,58 @@ class ImageEncoderNode:
         encoded_chunks = [self.encode(b) for b in batches]
         return np.vstack(encoded_chunks)
 
+    def _get_cache_key(self, item: str | Path | bytes) -> str:
+        """Generates a unique cache key for an image item."""
+        if isinstance(item, (bytes, bytearray)):
+            digest = hashlib.sha256(item).hexdigest()[:16]
+            return f"raw:{digest}:{self.output_dim}:{self.model_name}:{self.random_seed}"
+        p = self._resolve_path(item)
+        return f"file:{p.resolve()}:{self.output_dim}:{self.model_name}:{self.random_seed}"
+
+    def _encode_single_with_cache(self, item: str | Path | bytes) -> np.ndarray:
+        """Retrieves or computes an embedding vector using the multi-level cache."""
+        if not self.use_cache:
+            return self._encode_single(item)
+
+        cache_key = self._get_cache_key(item)
+
+        # 1. Memory cache check
+        if cache_key in self._memory_cache:
+            return self._memory_cache[cache_key]
+
+        # 2. Disk cache check
+        disk_path: Path | None = None
+        if self.cache_dir is not None:
+            cache_hash = hashlib.sha256(cache_key.encode("utf-8")).hexdigest()
+            disk_path = Path(self.cache_dir) / f"{cache_hash}.npy"
+            if disk_path.is_file():
+                try:
+                    vec = np.load(disk_path).astype(np.float32)
+                    self._memory_cache[cache_key] = vec
+                    return vec
+                except Exception:
+                    pass
+
+        # 3. Compute vector
+        vector = self._encode_single(item)
+        self._memory_cache[cache_key] = vector
+
+        # Save to disk cache if configured
+        if disk_path is not None:
+            try:
+                disk_path.parent.mkdir(parents=True, exist_ok=True)
+                np.save(disk_path, vector)
+            except Exception:
+                pass
+
+        return vector
+
     def _encode_single(self, item: str | Path | bytes) -> np.ndarray:
         """Computes a normalized embedding vector for a single image item."""
         if isinstance(item, (bytes, bytearray)):
             content_bytes = bytes(item)
         else:
-            path = Path(item)
+            path = self._resolve_path(item)
             if not path.is_file():
                 if self.handle_missing == "raise":
                     raise FileNotFoundError(f"Image path does not exist: {path}")
@@ -223,19 +291,97 @@ class ImageEncoderNode:
         """Attempts to encode using torch/torchvision if available; falls back gracefully if not."""
         try:
             import torch  # type: ignore[import-untyped]
-            import torchvision.models as models  # type: ignore[import-untyped]
-
-            # In unit tests or environments without model checkpoints, fall back
+            import torchvision.models as tv_models  # type: ignore[import-untyped]
+            import torchvision.transforms as T  # type: ignore[import-untyped]
+            from PIL import Image  # type: ignore[import-untyped]
+        except ImportError:
             warnings.warn(
-                f"Vision model '{self.model_name}' requested. "
-                "Falling back to built-in deterministic projection for fast CPU execution.",
+                "Vision framework PyTorch/torchvision or Pillow is not installed. "
+                "Falling back transparently to lightweight deterministic embedding.",
                 UserWarning,
                 stacklevel=3,
             )
             return None
-        except ImportError:
+
+        try:
+            transform = T.Compose([
+                T.Resize(256),
+                T.CenterCrop(224),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+
+            model_name = self.model_name.lower().replace("-", "_")
+            if not hasattr(tv_models, model_name):
+                return None
+
+            model_fn = getattr(tv_models, model_name)
+            try:
+                weights_attr = f"{model_name.title().replace('_', '')}_Weights"
+                if hasattr(tv_models, weights_attr):
+                    weights = getattr(tv_models, weights_attr).DEFAULT
+                    model = model_fn(weights=weights)
+                else:
+                    model = model_fn(pretrained=True)
+            except Exception:
+                model = model_fn()
+
+            if hasattr(model, "fc"):
+                model.fc = torch.nn.Identity()
+            elif hasattr(model, "classifier"):
+                model.classifier = torch.nn.Identity()
+            elif hasattr(model, "heads"):
+                model.heads = torch.nn.Identity()
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = model.to(device)
+            model.eval()
+
+            all_feats: list[np.ndarray] = []
+            with torch.no_grad():
+                for i in range(0, len(paths), self.batch_size):
+                    batch_paths = paths[i : i + self.batch_size]
+                    batch_tensors: list[torch.Tensor] = []
+                    for p in batch_paths:
+                        resolved = self._resolve_path(p)
+                        if not resolved.is_file():
+                            if self.handle_missing == "raise":
+                                raise FileNotFoundError(f"Image path does not exist: {resolved}")
+                            batch_tensors.append(torch.zeros(3, 224, 224))
+                        else:
+                            with Image.open(resolved) as img:
+                                tensor = transform(img.convert("RGB"))
+                                batch_tensors.append(tensor)
+
+                    if not batch_tensors:
+                        continue
+
+                    stacked = torch.stack(batch_tensors).to(device)
+                    feats = model(stacked)
+                    if feats.dim() > 2:
+                        feats = torch.flatten(feats, 1)
+
+                    feats_np = feats.cpu().numpy().astype(np.float32)
+
+                    if feats_np.shape[1] != self.output_dim:
+                        if feats_np.shape[1] > self.output_dim:
+                            feats_np = feats_np[:, : self.output_dim]
+                        else:
+                            pad = np.zeros((feats_np.shape[0], self.output_dim - feats_np.shape[1]), dtype=np.float32)
+                            feats_np = np.hstack([feats_np, pad])
+
+                    norms = np.linalg.norm(feats_np, axis=1, keepdims=True)
+                    norms[norms == 0] = 1.0
+                    feats_np /= norms
+                    all_feats.append(feats_np)
+
+            if not all_feats:
+                return np.empty((0, self.output_dim), dtype=np.float32)
+            return np.vstack(all_feats)
+
+        except Exception as e:
             warnings.warn(
-                f"Vision framework PyTorch/torchvision is not installed. "
+                f"Vision model '{self.model_name}' inference encountered an issue ({e}). "
                 f"Falling back transparently to lightweight deterministic embedding.",
                 UserWarning,
                 stacklevel=3,

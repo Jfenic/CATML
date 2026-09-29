@@ -401,3 +401,132 @@ def test_image_encoder_invalid_handle_missing(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Unknown handle_missing policy"):
         bad_encoder.encode([str(tmp_path / "not_there.png")])
 
+
+def test_image_encoder_base_dir_resolution(tmp_path: Path) -> None:
+    sub_dir = tmp_path / "dataset" / "images"
+    sub_dir.mkdir(parents=True)
+    img_file = create_test_png(sub_dir / "cat.png")
+
+    # Relative path resolution
+    encoder = ImageEncoderNode(output_dim=24, base_dir=tmp_path)
+    res = encoder.encode(["dataset/images/cat.png"])
+    assert res.shape == (1, 24)
+
+    # PipelineNode serialization preserves base_dir
+    p_node = encoder.to_pipeline_node()
+    assert p_node.parameters["base_dir"] == str(tmp_path)
+    restored = ImageEncoderNode.from_pipeline_node(p_node)
+    assert str(restored.base_dir) == str(tmp_path)
+
+
+def test_image_encoder_caching_memory_and_disk(tmp_path: Path) -> None:
+    cache_dir = tmp_path / "embeddings_cache"
+    img_file = create_test_png(tmp_path / "cached_img.png")
+
+    encoder = ImageEncoderNode(
+        output_dim=32,
+        use_cache=True,
+        cache_dir=cache_dir,
+    )
+
+    # First encode: computes and populates memory and disk cache
+    v1 = encoder.encode([str(img_file)])
+    assert v1.shape == (1, 32)
+    assert len(list(cache_dir.glob("*.npy"))) == 1
+
+    # Second encode: retrieved from memory cache
+    v2 = encoder.encode([str(img_file)])
+    assert np.allclose(v1, v2)
+
+    # New encoder instance pointing to same cache_dir retrieves from disk cache
+    encoder2 = ImageEncoderNode(
+        output_dim=32,
+        use_cache=True,
+        cache_dir=cache_dir,
+    )
+    v3 = encoder2.encode([str(img_file)])
+    assert np.allclose(v1, v3)
+
+    # Cache disabled test
+    no_cache_encoder = ImageEncoderNode(output_dim=16, use_cache=False)
+    no_cache_encoder.encode([str(img_file)])
+    assert len(no_cache_encoder._memory_cache) == 0
+
+
+def test_image_encoder_deep_learning_mocked_execution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import types
+
+    class NoGradContext:
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            pass
+
+    class MockTensor:
+        def __init__(self, data: np.ndarray):
+            self.data = data
+        def to(self, device):
+            return self
+        def dim(self):
+            return 2
+        def cpu(self):
+            return self
+        def numpy(self):
+            return self.data
+
+    torch_mock = types.ModuleType("torch")
+    torch_mock.device = lambda d: d
+    torch_mock.cuda = types.SimpleNamespace(is_available=lambda: False)
+    torch_mock.no_grad = lambda: NoGradContext()
+    torch_mock.stack = lambda tensors: MockTensor(np.zeros((len(tensors), 3, 224, 224)))
+    torch_mock.flatten = lambda t, dim=1: t
+    torch_mock.zeros = lambda *shape: MockTensor(np.zeros(shape))
+    torch_mock.nn = types.SimpleNamespace(Identity=lambda: None)
+
+    class MockModel:
+        fc = None
+        def to(self, device):
+            return self
+        def eval(self):
+            return self
+        def __call__(self, batch):
+            n = batch.data.shape[0] if hasattr(batch, "data") else 1
+            return MockTensor(np.ones((n, 512), dtype=np.float32))
+
+    torchvision_mock = types.ModuleType("torchvision")
+    tv_models_mock = types.ModuleType("torchvision.models")
+    tv_models_mock.resnet18 = lambda *a, **kw: MockModel()
+    tv_transforms_mock = types.ModuleType("torchvision.transforms")
+    tv_transforms_mock.Compose = lambda funcs: lambda x: MockTensor(np.zeros((3, 224, 224)))
+    tv_transforms_mock.Resize = lambda s: None
+    tv_transforms_mock.CenterCrop = lambda s: None
+    tv_transforms_mock.ToTensor = lambda: None
+    tv_transforms_mock.Normalize = lambda **kw: None
+
+    pil_mock = types.ModuleType("PIL")
+    pil_image_mock = types.ModuleType("PIL.Image")
+    class DummyPILImg:
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            pass
+        def convert(self, mode):
+            return self
+    pil_image_mock.open = lambda p: DummyPILImg()
+    pil_mock.Image = pil_image_mock
+
+    monkeypatch.setitem(sys.modules, "torch", torch_mock)
+    monkeypatch.setitem(sys.modules, "torchvision", torchvision_mock)
+    monkeypatch.setitem(sys.modules, "torchvision.models", tv_models_mock)
+    monkeypatch.setitem(sys.modules, "torchvision.transforms", tv_transforms_mock)
+    monkeypatch.setitem(sys.modules, "PIL", pil_mock)
+    monkeypatch.setitem(sys.modules, "PIL.Image", pil_image_mock)
+
+    img_file = create_test_png(tmp_path / "deep_test.png")
+    encoder = ImageEncoderNode(output_dim=64, model_name="resnet18")
+    embeddings = encoder.encode([str(img_file)])
+    assert embeddings.shape == (1, 64)
+    assert np.isclose(float(np.linalg.norm(embeddings[0])), 1.0, atol=1e-5)
+
+
