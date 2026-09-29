@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from automl.domain.datasets.profile import DatasetProfile
 from automl.domain.experiments.candidate import ExperimentCandidate
@@ -201,6 +201,7 @@ class FeatureEvidenceRepositoryPort(Protocol):
         ...
 
 
+@runtime_checkable
 class PluginPort(Protocol):
     plugin_id: str
     name: str
@@ -209,6 +210,7 @@ class PluginPort(Protocol):
     capabilities: PluginCapability
 
 
+@runtime_checkable
 class ModelPluginPort(PluginPort, Protocol):
     def build_estimator(self, parameters: dict[str, Any] | None = None) -> Any:
         ...
@@ -217,6 +219,7 @@ class ModelPluginPort(PluginPort, Protocol):
         ...
 
 
+@runtime_checkable
 class MetricPluginPort(PluginPort, Protocol):
     greater_is_better: bool
 
@@ -224,6 +227,7 @@ class MetricPluginPort(PluginPort, Protocol):
         ...
 
 
+@runtime_checkable
 class PreprocessorPluginPort(PluginPort, Protocol):
     def fit_transform(self, X: Any, y: Any | None = None) -> Any:
         ...
@@ -232,6 +236,7 @@ class PreprocessorPluginPort(PluginPort, Protocol):
         ...
 
 
+@runtime_checkable
 class ModalityPluginPort(PluginPort, Protocol):
     modality: Modality
 
@@ -240,6 +245,7 @@ class ModalityPluginPort(PluginPort, Protocol):
 
     def load_data(self, source: DataSource) -> Any:
         ...
+
 
 
 

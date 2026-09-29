@@ -7,12 +7,20 @@ Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG) — Tracks Dev 1 
 - Track Dev 1: `GraphValidator` (DAG validation, cycle detection, topological sort) and `FeatureFusionNode` (early fusion, index alignment) (17 tests passing).
 - Track Dev 2: `ImageModalityPlugin` (image format detection, batch loading) and `ImageEncoderNode` (deterministic feature extraction, caching, deep learning support) (20 tests passing).
 - Both tracks fully integrated into `main`.
-- Total suite: 138 tests passing, >=87% coverage.
-- Next: Final V0.7 integration step (orchestration in `workspace.py`, `bootstrap.py` registration, end-to-end multimodal tests).
+- Final Integration: Connected in `workspace.py`, registered in `bootstrap.py`, full suite end-to-end (8 tests passing in `tests/test_v07_multimodal_e2e.py`).
+- Total suite: 146 tests passing, >=87% coverage.
+- Next: Visual UI (interactive dashboard) and Context-Aware Feature Engineering.
 
  
 ## Completed
  
+- Completed full Phase V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG):
+  - Domain contracts: `Modality` enum, `DataSource`, `PipelineNode`, `PipelineGraph`, and `@runtime_checkable` `ModalityPluginPort`.
+  - DAG engine: `GraphValidator` (DFS cycle detection with back-edge path reconstruction, modal typing compatibility, Kahn's topological sort).
+  - Feature fusion: `FeatureFusionNode` (horizontal concatenation of tabular features and dense embedding arrays with row-alignment and column disambiguation).
+  - Vision plugin & encoder: `ImageModalityPlugin` (header validation, directory/file loading) and `ImageEncoderNode` (deterministic embedding generation, caching, deep learning support).
+  - Integration: `AutoMLWorkspace.build_multimodal_pipeline`, `execute_pipeline`, `fit_predict_multimodal`, `ExecutePipelineCommand`, `ValidatePipelineGraphQuery`, `GetPipelineExecutionOrderQuery`.
+  - Full test coverage: 51 tests across 4 suites (`test_v07_domain.py`, `test_v07_pipeline_graph.py`, `test_v07_image_plugin.py`, `test_v07_multimodal_e2e.py`).
 - Completed repository documentation bootstrap according to layered Markdown standard.
 - Implemented and verified full V0.5 Feature Discovery & Selection subsystem.
 - Implemented and verified full V0.6 Plugin Architecture:

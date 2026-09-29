@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from automl.domain.plugins.plugin import PluginType
 from automl.domain.ports import (
     MetricPluginPort,
+    ModalityPluginPort,
     ModelPluginPort,
     PluginPort,
     PreprocessorPluginPort,
@@ -55,6 +56,17 @@ class PluginRegistry:
         if plugin.plugin_type != PluginType.METRIC:
             raise TypeError(f"Plugin '{metric_id}' is not a MetricPluginPort (found {plugin.plugin_type})")
         return plugin  # type: ignore[return-value]
+
+    def get_modality_plugin(self, modality: Any) -> ModalityPluginPort | None:
+        mod_val = modality.value if hasattr(modality, "value") else str(modality).lower()
+        for p in self._plugins.values():
+            if hasattr(p, "validate_source") and hasattr(p, "load_data"):
+                if getattr(p, "modality", None) == modality or str(getattr(p, "modality", "")).lower() == mod_val:
+                    return p  # type: ignore[return-value]
+                caps = getattr(p, "capabilities", None)
+                if caps and caps.is_compatible_with_modality(mod_val):
+                    return p  # type: ignore[return-value]
+        return None
 
     def list(
         self,

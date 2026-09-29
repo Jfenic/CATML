@@ -23,6 +23,7 @@ from automl.application.commands.workspace_commands import (
     PlanAblationExperimentsCommand,
     PromoteCandidateFeatureSetCommand,
     GenerateSubmissionCommand,
+    ExecutePipelineCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
@@ -42,6 +43,8 @@ from automl.application.queries.workspace_queries import (
     GetFeatureRankingQuery,
     ListPluginsQuery,
     PredictDatasetQuery,
+    ValidatePipelineGraphQuery,
+    GetPipelineExecutionOrderQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 
@@ -186,6 +189,10 @@ def register_handlers(
             predict_proba=cmd.predict_proba,
         ),
     )
+    command_bus.register(
+        ExecutePipelineCommand,
+        lambda cmd: workspace.execute_pipeline(cmd.graph, cmd.inputs),
+    )
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(
@@ -251,6 +258,15 @@ def register_handlers(
             id_column=q.id_column,
         ),
     )
+    query_bus.register(
+        ValidatePipelineGraphQuery,
+        lambda q: workspace.validate_pipeline_graph(q.graph),
+    )
+    query_bus.register(
+        GetPipelineExecutionOrderQuery,
+        lambda q: workspace.get_pipeline_execution_order(q.graph),
+    )
+
 
 
 
