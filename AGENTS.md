@@ -58,3 +58,12 @@ All 138 existing tests must pass before completing any task. Test coverage must 
 6. **Task & Progress Updates:**
    - Check `TASKS.md` and `.agent/progress.md` before starting.
    - Update `TASKS.md` and `.agent/progress.md` upon completion or when pausing work.
+7. **Cross-Agent Communication & Out-of-Scope Blackboard (GitHub Issues):**
+   - **Pre-flight review:** Before starting any new task, run `gh issue list --label blackboard --state open` to inspect recent warnings, discovered edge cases, or alerts left by other developers or agents.
+   - **Out-of-Scope Reporting Protocol:** If during your work you identify a bug, code smell, design limitation, performance bottleneck, or potential improvement that is **outside your assigned task**:
+     - **NEVER** edit unrelated files on the spot (strictly obey Rule 5: Scoped Changes).
+     - **Report it immediately to the blackboard** using the GitHub CLI:
+       ```bash
+       gh issue create --title "[FINDING/IMPROVEMENT] Short title" --body "### Context\n...\n### Finding / Limitation\n...\n### Affected Modules\n...\n### Suggested Resolution\n..." --label "blackboard"
+       ```
+   - When an issue on the blackboard is addressed, close it via `gh issue close <id> --comment "Addressed in commit/PR <ref>"`.
