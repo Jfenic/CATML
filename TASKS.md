@@ -5,8 +5,8 @@
 > *Especificaciones completas en [`docs/features/multimodal/spec.md`](docs/features/multimodal/spec.md), plan en [`docs/features/multimodal/plan.md`](docs/features/multimodal/plan.md) y asignaciones en [`CONTRIBUTING.md`](CONTRIBUTING.md).*
 
 - [x] Paso 0 (Base Común en main): Contratos puros en `domain/modalities/` (`Modality`, `DataSource`), `domain/pipelines/` (`PipelineNode`, `PipelineGraph`) y `ModalityPluginPort` (6 tests passing en `tests/test_v07_domain.py`).
-- [ ] Track Dev 1 (`feat/v07-pipeline-graph-engine`): `GraphValidator` y `FeatureFusionNode` en `engine/pipeline/` (*Ver Tarea V0.7-A en CONTRIBUTING.md*).
 - [x] Track Dev 2 (`feat/v07-image-plugin`): `ImageModalityPlugin` y `ImageEncoderNode` en `plugins/modalities/` y `engine/vision/` (17 tests passing en `tests/test_v07_image_plugin.py`, *Ver Tarea V0.7-B en CONTRIBUTING.md*).
+- [x] Track Dev 1 (`feat/v07-pipeline-graph-engine`): `GraphValidator` y `FeatureFusionNode` en `engine/pipeline/` (17 tests passing en `tests/test_v07_pipeline_graph.py`).
 - [ ] Integración V0.7: Orquestación en `workspace.py`, registro en `bootstrap.py` y suite end-to-end `tests/test_v07_multimodal_e2e.py`.
 
 ## Next (Roadmap Phases)
