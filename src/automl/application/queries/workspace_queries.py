@@ -96,3 +96,14 @@ class PredictDatasetQuery:
     predict_proba: bool = False
     template_path: str | None = None
     id_column: str | None = None
+
+
+@dataclass(frozen=True)
+class ValidatePipelineGraphQuery:
+    graph: Any
+
+
+@dataclass(frozen=True)
+class GetPipelineExecutionOrderQuery:
+    graph: Any
+

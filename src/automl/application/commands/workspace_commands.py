@@ -153,3 +153,10 @@ class GenerateSubmissionCommand:
     experiment_id: str | None = None
     trial_id: str | None = None
     predict_proba: bool = False
+
+
+@dataclass(frozen=True)
+class ExecutePipelineCommand:
+    graph: Any
+    inputs: dict[str, Any]
+

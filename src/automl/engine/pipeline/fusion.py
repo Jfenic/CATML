@@ -4,19 +4,50 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from automl.domain.modalities.modality import Modality
+from automl.domain.pipelines.graph import NodeType, PipelineNode
+
 
 class FeatureFusionNode:
     """Combines heterogeneous representations (tabular columns + dense embeddings) into a unified matrix."""
 
     def __init__(
         self,
+        node: PipelineNode | None = None,
         node_id: str = "feature_fusion",
         strategy: str = "concat",
         default_prefix: str = "emb",
     ) -> None:
-        self.node_id = node_id
-        self.strategy = strategy
-        self.default_prefix = default_prefix
+        if node is not None:
+            self.node_id = node.node_id
+            params = dict(node.parameters)
+            self.strategy = str(params.get("strategy", strategy))
+            self.default_prefix = str(params.get("default_prefix", default_prefix))
+        else:
+            self.node_id = node_id
+            self.strategy = strategy
+            self.default_prefix = default_prefix
+
+    @classmethod
+    def from_pipeline_node(cls, node: PipelineNode) -> FeatureFusionNode:
+        return cls(node=node)
+
+    def to_pipeline_node(self) -> PipelineNode:
+        return PipelineNode(
+            node_id=self.node_id,
+            node_type=NodeType.FUSION,
+            input_modalities=(Modality.TABULAR,),
+            output_modality=Modality.TABULAR,
+            name=f"FeatureFusion({self.strategy})",
+            parameters={
+                "strategy": self.strategy,
+                "default_prefix": self.default_prefix,
+            },
+        )
+
+    def execute(self, inputs: Any) -> pd.DataFrame:
+        """Executes node logic within a Pipeline DAG runner."""
+        return self.fuse(inputs)
 
     def fuse(
         self,
