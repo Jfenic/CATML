@@ -183,10 +183,11 @@ Antes de enviar cualquier cambio, verifica estas 3 reglas fundamentales:
 
 - [ ] Has creado tu propia rama desde `main` (`git checkout -b feat/...`).
 - [ ] Tu funcionalidad tiene un archivo de test dedicado en `tests/`.
-- [ ] Has corrido toda la suite y los 101+ tests pasan:
+- [ ] Has corrido toda la suite y los 138+ tests pasan:
   ```bash
   .venv/bin/pytest
   ```
 - [ ] Has sincronizado con `main` (`git pull origin main` o `git rebase origin/main`) asegurando historial limpio.
 - [ ] No hay imports indebidos en `domain/`.
 - [ ] Has actualizado `TASKS.md` indicando la tarea completada.
+- [ ] Has revisado si hay avisos abiertos en la pizarra (`gh issue list --label blackboard`).
