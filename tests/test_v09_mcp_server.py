@@ -46,6 +46,7 @@ def temp_workspace(tmp_path: Path, sample_dataset_path: Path):
     return ws, cb, qb, dataset, run
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_server_initialization_and_tool_listing(temp_workspace):
     """Verify MCP server exposes all canonical H1 query tools with valid schemas."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -73,6 +74,7 @@ def test_mcp_server_initialization_and_tool_listing(temp_workspace):
             assert t.input_schema["type"] == "object"
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_tool_list_models(temp_workspace):
     """Verify list_models tool returns registered models through MCP."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -89,6 +91,7 @@ def test_mcp_tool_list_models(temp_workspace):
     assert "random_forest" in model_ids
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_tool_list_plugins(temp_workspace):
     """Verify list_plugins tool returns registered plugins through MCP."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -102,6 +105,7 @@ def test_mcp_tool_list_plugins(temp_workspace):
     assert len(plugins) > 0
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_tool_get_dataset_profile(temp_workspace):
     """Verify get_dataset_profile returns profile or NOT_FOUND error."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -119,6 +123,7 @@ def test_mcp_tool_get_dataset_profile(temp_workspace):
     assert "n_rows" in profile_data or "shape" in profile_data or "columns" in profile_data
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_tool_experiments_and_leaderboard(temp_workspace):
     """Verify list_experiments and get_leaderboard tools."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -145,6 +150,7 @@ def test_mcp_tool_experiments_and_leaderboard(temp_workspace):
     assert "NOT_FOUND" in res_unknown.content[0].text
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_tool_feature_evidence_and_ranking(temp_workspace):
     """Verify feature evidence and ranking queries."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -162,6 +168,7 @@ def test_mcp_tool_feature_evidence_and_ranking(temp_workspace):
     assert "NOT_FOUND" in res_ev.content[0].text
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_resources(temp_workspace):
     """Verify MCP resource endpoints for live leaderboards and dataset profiles."""
     ws, cb, qb, dataset, run = temp_workspace
@@ -197,6 +204,7 @@ def test_mcp_cli_missing_dependency():
             assert "pip install '.[mcp]'" in stderr_buf.getvalue()
 
 
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_cli_subprocess_stdio_handshake(tmp_path: Path):
     """Verify real subprocess stdio lifecycle: stdout contains only pure JSON-RPC and logs go to stderr."""
     import subprocess

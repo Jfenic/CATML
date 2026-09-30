@@ -24,12 +24,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Documentar entrada para colaboradores, orden de lectura, elección A/B y primeras entregas en la guía del sistema agéntico.
 - [x] Revisar y ampliar el plan agéntico: límites modulares, contratos propuestos, presupuesto/aprobación, recuperación, propiedad de integración e hitos H0–H5 documentados en `docs/features/agentic-system/plan.md`.
 - [x] Concretar ejecución entre dos personas en [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md): paquetes A0–A5/B0–B5, dependencias, archivos/tests propios, handoff y revisión cruzada; primera entrega conjunta H2.
-- [x] Paquete A0 (Persona A): Contratos de dominio/aplicación, DTOs (`ToolDefinition`, `ToolCallContext`, `ToolInvocation`, `ToolResult`, `ToolError`, `PolicyDecision`, `ApprovalRequest`, `OperationRecord`, `AgentContext`, `AgentSessionState`), schemas JSON canónicos con validador puro, evaluador de políticas con defaults finitos, ledger transaccional SQLite (`SqliteAgentLedger`), fixtures compartidas en `tests/fixtures/agentic/` y suite de tests con 100% de cobertura (11 tests passing).
-- [x] Paquete B0 (Persona B): ADR 004, dependencias opcionales en `pyproject.toml`, tests de consumidor en `tests/test_v09_agent_consumers.py` (7 tests passing) y documento de revisión cruzada H0.
-- [x] H0 — Preparar V0.9: Contratos acordados, defaults finitos, ADR 004 integrado y commit base compartido en `main`.
+- [x] H0 — Preparar V0.9: Contratos acordados y fusionados (PR #22 para B0 y PR #23 para A0 integrados en main).
+- [x] Paquete A1 (Persona A): Catálogo y ejecutor de consultas seguras (`ToolRegistry`, `ToolExecutor`, `create_read_only_tool_registry`), blindaje de scope (prevención de issue #14 del blackboard), normalización a DTOs tipados vía `QueryBus` sin mutaciones, y suite de tests `tests/test_v09_agent_tools.py` con 100% de cobertura (5 tests passing).
 - [x] Paquete B1 (Persona B): Servidor MCP stdio en `src/automl/interfaces/mcp/`, subcomando CLI `automl mcp`, tools de consulta (`list_models`, `get_dataset_profile`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`), resources (`catml://runs/...`, `catml://datasets/...`) y lifecycle subprocess con stdout limpio (10 tests passing en `tests/test_v09_mcp_server.py`).
-- [ ] H1 — Consultas y MCP stdio verificables: Persona B completó B1; pendiente integración con A1 para cierre conjunto.
-- [ ] H1–H3 — V0.9 incremental: consultas y MCP stdio → mutaciones autorizadas/idempotentes → HPO y operaciones largas; Streamable HTTP si entra en alcance.
+- [x] H1 — V0.9 Consultas y MCP stdio: Catálogo de consultas A1 integrado con servidor MCP stdio B1.
+- [ ] H2 — V0.9 Mutaciones autorizadas e integración (primera entrega conjunta local).
+- [ ] H3 — V0.9 Operaciones largas, HPO y cancelación cooperativa.
 - [ ] H4–H5 — V1.0 incremental: ciclo determinista con proveedor falso → LangGraph opcional con checkpoints y recuperación probada.
 - [ ] V0.9 Phase: LLM Agent Tools & MCP Server (`AgentTool` wrappers, JSON-Schema tool registry, permission policies, MCP Server adapter) — *Ver plan detallado para 2 personas en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*
 - [ ] V1.0 Phase: Autonomous Experiment Agent con LangGraph (Planner, Critic, Feature Advisor y Orchestrator cíclico "Proponer ≠ Aceptar") — *Ver plan detallado en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*

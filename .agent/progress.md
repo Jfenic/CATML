@@ -1,20 +1,27 @@
 # Progress
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H1 / Paquete B1)**:
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H1 / Paquete B1 Integrado)**:
 - Rol: **Persona B** (Interfaces, Integración y Orquestación).
 - Rama: `feat/agentic-b1-mcp`.
 - Entregable B1 completado:
-  - Servidor MCP stdio implementado en `src/automl/interfaces/mcp/server.py` utilizando el SDK oficial `mcp` (MCPServer).
+  - Servidor MCP stdio implementado en `src/automl/interfaces/mcp/server.py` utilizando el SDK oficial `mcp` (MCPServer) y consumiendo las capacidades de A1.
   - Tools de consulta expuestas: `get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`.
   - Resources expuestos: `catml://runs/{run_id}/leaderboard`, `catml://datasets/{dataset_id}/profile`.
-  - Subcomando CLI `automl mcp [--workspace PATH]` implementado en `src/automl/interfaces/cli/mcp_cli.py` y registrado en `main.py` de forma diferida (sin obligar a importar `mcp` para otros comandos).
+  - Subcomando CLI `automl mcp [--workspace PATH]` implementado en `src/automl/interfaces/cli/mcp_cli.py` y registrado en `main.py` de forma diferida.
   - Logging estructurado exclusivamente por `sys.stderr` garantizando `stdout` 100% puro para JSON-RPC.
   - Suite de tests completa en `tests/test_v09_mcp_server.py` (10 tests pasando, incluyendo handshake de subprocess stdio).
-- Validación global: 259 tests pasados, cobertura total 87.47% (>= 85%).
-- Handoff H1: A la espera de la integración de A1 por Persona A para cierre del hito H1 e inicio de B2 (mutaciones y aprobaciones).
+- Hito H1 cerrado: A1 y B1 integrados. Preparado para H2 (mutaciones, aprobación humana y ledger).
  
 ## Completed
  
+- Paquete A1 completado (Persona A, 2026-09-30):
+  - Catálogo de herramientas y ejecutor de consultas seguras en `src/automl/application/agents/`:
+    - `ToolRegistry`: registro y consulta tipada de `ToolDefinition` con schemas canónicos (`TOOL_SCHEMAS`).
+    - `ToolExecutor`: ejecución desacoplada con validación previa de esquema, control de aislamiento y despacho por `QueryBus`.
+    - `create_read_only_tool_registry(query_bus)`: factoría canónica que expone 7 tools de solo lectura (`get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`).
+    - Prevención estricta de fuga cruzada (Issue #14): rechaza llamadas donde `arguments['run_id'] != context.run_id` con `PERMISSION_DENIED`.
+    - Pruebas en `tests/test_v09_agent_tools.py` (5 tests pasando, 100% cobertura en componentes nuevos).
+
 - Paquete A0 completado (Persona A, 2026-09-30):
   - Definición de contratos de dominio en `src/automl/domain/agents/`: `AgentBudget`, `Hypothesis`, `ToolEffect`, `AgentPermission`, `PolicyDecisionType`, `ApprovalStatus`, `OperationStatus`, `ToolErrorCode`. Hexagonalmente puro, sin librerías externas.
   - DTOs de aplicación en `src/automl/application/agents/contracts.py`: `ToolDefinition`, `ToolCallContext`, `ToolInvocation`, `ToolResult`, `ToolError`, `PolicyDecision`, `ApprovalRequest`, `OperationRecord`, `AgentContext`, `AgentSessionState`.
