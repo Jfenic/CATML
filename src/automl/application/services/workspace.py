@@ -64,9 +64,10 @@ from automl.engine.pipeline.graph_validator import GraphValidator
 from automl.engine.vision.image_encoder import ImageEncoderNode
 from automl.plugins.metrics.business_metrics import CostSensitiveMetricPlugin, WeightedF1MetricPlugin
 from automl.plugins.modalities.image_plugin import ImageModalityPlugin
+from automl.plugins.models.catboost_plugin import CatBoostPlugin
 from automl.plugins.models.ensemble import VotingEnsemblePlugin
 from automl.plugins.models.gradient_boosting import LightGBMPlugin, XGBoostPlugin
-from automl.plugins.models.sklearn_models import default_model_specs
+from automl.plugins.models.sklearn_models import ExtraTreesPlugin, MLPPlugin, default_model_specs
 from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
 from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
@@ -78,6 +79,9 @@ def _init_default_plugins(workspace: AutoMLWorkspace) -> None:
         workspace.plugin_registry.register(p)
     workspace.plugin_registry.register(LightGBMPlugin())
     workspace.plugin_registry.register(XGBoostPlugin())
+    workspace.plugin_registry.register(CatBoostPlugin())
+    workspace.plugin_registry.register(ExtraTreesPlugin())
+    workspace.plugin_registry.register(MLPPlugin())
     workspace.plugin_registry.register(VotingEnsemblePlugin())
     workspace.plugin_registry.register(CostSensitiveMetricPlugin())
     workspace.plugin_registry.register(WeightedF1MetricPlugin())

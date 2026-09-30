@@ -32,6 +32,14 @@ agents = [
     "langgraph>=0.2.0",
     "langgraph-checkpoint>=2.0.0",
 ]
+models = [
+    "catboost>=1.2",
+    "lightgbm>=4.0",
+    "xgboost>=2.0",
+]
+full = [
+    "catboost>=1.2",
+]
 
 [project.scripts]
 automl = "automl.interfaces.cli.main:main"

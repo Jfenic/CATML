@@ -1,16 +1,22 @@
 # Progress
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Hito H2 / Paquete A2)**:
-- Rol: **Persona A** (Contratos, Catálogo de Herramientas, Persistencia y Dominio Agéntico).
-- Rama: `feat/agentic-a2-mutations`.
-- Entregable A2 completado:
-  - Extensión de `ToolExecutor` (`src/automl/application/agents/executor.py`) con resolución y verificación de solicitudes de aprobación (`approval_id`), protección anti-tampering por hash determinista, deduplicación atómica ("Duplicados no repiten efectos") e intención duradera antes de mutar.
-  - Factoría completa `create_full_tool_registry` registrando tools mutantes (`create_experiment`, `prioritize_feature`, `run_experiment`) conectadas a `CommandBus`.
-  - Soporte de `approval_id` en DTOs `ToolInvocation` y `ToolCallContext` (`src/automl/application/agents/contracts.py`).
-  - Suite de pruebas exhaustiva en `tests/test_v09_agent_operations.py` (16 tests pasando, 97% de cobertura en módulos agénticos, 272 tests globales pasando, 86.65% cobertura).
-- Handoff H2: Listo para que Persona B integre el manejo de tools mutantes (`PENDING_APPROVAL`), comandos CLI de aprobación (`automl agent approve/reject/status`) y flujo E2E en el Paquete B2.
- 
+Active Track: **Blackboard Issue #12 — Support for CatBoost and additional tabular models in Plugin System**:
+- Rama: `feat/catboost-and-tabular-models`.
+- Entregable completado:
+  - Implementación de `CatBoostPlugin` en `src/automl/plugins/models/catboost_plugin.py` y re-exportación en `src/automl/plugins/models/gradient_boosting.py` con detección elegante de dependencia opcional (`is_available`), fallback a `HistGradientBoosting` y definición de espacio de búsqueda (`iterations`, `learning_rate`, `depth`).
+  - Implementación de `ExtraTreesPlugin` y `MLPPlugin` en `src/automl/plugins/models/sklearn_models.py` con sus respectivos estimadores y espacios de búsqueda en `SearchSpaceBuilder`.
+  - Actualización de `TASK_CATALOG` (`src/automl/domain/tasks/task_type.py`) para `binary_classification`, `multiclass_classification` y `regression`.
+  - Registro de plugins en `_init_default_plugins` en `src/automl/application/services/workspace.py` y en `default_model_specs()`.
+  - Configuración de dependencias opcionales `models` y `full` (`catboost>=1.2`) en `pyproject.toml`.
+  - Corrección de cálculo de RMSE en `sklearn_trainer.py` compatible con todas las versiones de scikit-learn.
+  - Suite exhaustiva de pruebas en `tests/test_catboost_and_models_plugin.py` (11 tests pasando, 283 tests globales pasando, 86.84% cobertura).
+
 ## Completed
+
+- Blackboard Issue #12 completado (2026-09-30):
+  - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML.
+  - Fallback automático para CatBoost cuando la librería nativa no está presente.
+  - Soporte completo en optimizador de hiperparámetros y ejecución de experimentos E2E.
  
 - Resolved Blackboard Issue #14 (2026-09-30):
   - Enforced strict run ownership validation in `AutoMLWorkspace.predict()` (`src/automl/application/services/workspace.py`):
