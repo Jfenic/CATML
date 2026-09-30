@@ -1,15 +1,22 @@
 # Progress
 
-Active Track: **Blackboard Issue #12 — Support for CatBoost and additional tabular models in Plugin System**:
-- Rama: `feat/catboost-and-tabular-models`.
+Active Track: **Frontend Dynamic Binding & Dataset Neutrality (Workbench UI)**:
+- Rama: `feat/frontend-dynamic-binding`.
 - Entregable completado:
-  - Implementación de `CatBoostPlugin` en `src/automl/plugins/models/catboost_plugin.py` y re-exportación en `src/automl/plugins/models/gradient_boosting.py` con detección elegante de dependencia opcional (`is_available`), fallback a `HistGradientBoosting` y definición de espacio de búsqueda (`iterations`, `learning_rate`, `depth`).
-  - Implementación de `ExtraTreesPlugin` y `MLPPlugin` en `src/automl/plugins/models/sklearn_models.py` con sus respectivos estimadores y espacios de búsqueda en `SearchSpaceBuilder`.
-  - Actualización de `TASK_CATALOG` (`src/automl/domain/tasks/task_type.py`) para `binary_classification`, `multiclass_classification` y `regression`.
-  - Registro de plugins en `_init_default_plugins` en `src/automl/application/services/workspace.py` y en `default_model_specs()`.
-  - Configuración de dependencias opcionales `models` y `full` (`catboost>=1.2`) en `pyproject.toml`.
-  - Corrección de cálculo de RMSE en `sklearn_trainer.py` compatible con todas las versiones de scikit-learn.
-  - Suite exhaustiva de pruebas en `tests/test_catboost_and_models_plugin.py` (11 tests pasando, 283 tests globales pasando, 86.84% cobertura).
+  - Eliminación absoluta de datos y cadenas hardcodeadas ("EV Purchases", "S6E9", "Will_Buy_EV", "competitions/playground-series-s6e9", métricas y conteos estáticos).
+  - Enlace dinámico de todas las vistas del Workbench:
+    - `index.html`: encabezado con IDs dinámicos para proyecto, workspace y badge de Kaggle.
+    - `app.js`: actualización en tiempo de ejecución del proyecto, workspace y badges de estado del motor.
+    - `overview.js`: 4 zonas dinámicas (Active Run con empty state si no hay runs, Best Results por tabla de runs reales, Recent Datasets desde repositorio, CATML Activity feed).
+    - `datasets.js`: selector desplegable entre datasets registrados, renderizado de perfil estadístico real, y formulario de registro dinámico ("Register & Profile Dataset").
+    - `new_experiment.js`: enlace al dataset/run activo, selección multimodelo con todas las familias algorítmicas soportadas (LightGBM, XGBoost, CatBoost, Extra Trees, MLP, Random Forest, Logistic/Ridge, Voting Ensemble).
+    - `studio.js`: plan dinámico desde `/api/plan` con explicabilidad en modal ("Why this?"), tabla de modelos desde `/api/leaderboard`, hiperparámetros óptimos en tab HPO, y gráfica de progreso basada en trials reales.
+    - `compare.js`: selector dinámico con checkboxes de experimentos del run activo, tabla comparativa multidimensional, gráfica evolutiva e inspector de diferencias.
+    - `pipeline.js`: DAG visual con conteos reales de features, tipos y modelos principales del leaderboard.
+    - `kaggle.js`: estado real desde `/api/kaggle/status`, campos configurables para test dataset, output path y template, y generación dinámica de inferencias.
+    - `knowledge.js`: huella estadística del dataset y recomendaciones meta-learning desde `/api/knowledge`.
+    - `server.py`: endpoint `GET /api/datasets` agregado para listado completo de datasets y perfiles en el workspace.
+  - Validación completa: 283 tests pasando, 8 skipped, 86.72% de cobertura de código, tests JS pasando (`node --test tests/js/jobs.test.mjs`).
 
 ## Completed
 

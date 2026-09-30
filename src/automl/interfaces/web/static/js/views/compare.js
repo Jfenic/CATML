@@ -4,20 +4,76 @@
  */
 import { store } from "../store.js";
 import { bus } from "../bus.js";
+import { api } from "../api.js";
 
 export class CompareView {
   constructor() {
     this.container = null;
     this.chart = null;
-    this.selected = ["exp_34", "exp_38", "exp_42"];
+    this.experiments = [];
+    this.selected = [];
+    this.activeRun = null;
   }
 
-  mount(container) {
+  async mount(container) {
     this.container = container;
+    this.renderLoading();
+    await this.fetchData();
     this.render();
   }
 
+  renderLoading() {
+    this.container.innerHTML = `
+      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
+        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
+        <div class="text-sm font-medium">Cargando experimentos para comparación...</div>
+      </div>
+    `;
+  }
+
+  async fetchData() {
+    try {
+      const state = store.getState();
+      const runs = state.runs || [];
+      this.activeRun = runs.find(r => r.id === state.activeRunId)
+        || runs.find(r => r.status === "RUNNING")
+        || runs[0]
+        || null;
+
+      if (this.activeRun) {
+        this.experiments = await api.getExperiments(this.activeRun.id).catch(() => []);
+        if (this.experiments.length > 0) {
+          this.selected = this.experiments.slice(0, 3).map(e => e.id);
+        }
+      }
+    } catch (e) {
+      console.warn("CompareView fetchData error:", e);
+    }
+  }
+
   render() {
+    if (!this.activeRun || this.experiments.length === 0) {
+      this.container.innerHTML = `
+        <div class="space-y-6">
+          <div class="workbench-card p-12 text-center space-y-4">
+            <span class="text-4xl text-slate-600 block">⇄</span>
+            <h3 class="text-base font-bold text-slate-200">No Experiments Found to Compare</h3>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto">You need at least 2 completed or active experiments in the workspace to perform side-by-side comparison.</p>
+            <button id="btnNewExpCompareEmpty" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-600/20">
+              + Create First Experiment
+            </button>
+          </div>
+        </div>
+      `;
+      this.container.querySelector("#btnNewExpCompareEmpty")?.addEventListener("click", () => {
+        bus.emit("modal:new-experiment");
+      });
+      return;
+    }
+
+    const selectedExps = this.experiments.filter(e => this.selected.includes(e.id));
+    const metricName = this.activeRun.metric || "CV Score";
+
     this.container.innerHTML = `
       <div class="space-y-6">
         <!-- Top Selector Row -->
@@ -31,19 +87,13 @@ export class CompareView {
           </div>
 
           <!-- Experiment Checkboxes -->
-          <div class="flex items-center space-x-3 text-xs">
-            <label class="flex items-center space-x-1.5 cursor-pointer bg-slate-950 px-3 py-1.5 rounded border border-slate-800">
-              <input type="checkbox" checked class="rounded text-indigo-600 focus:ring-0 bg-slate-800" data-exp="exp_34">
-              <span class="font-mono text-slate-300">#34 (LGBM Base)</span>
-            </label>
-            <label class="flex items-center space-x-1.5 cursor-pointer bg-slate-950 px-3 py-1.5 rounded border border-slate-800">
-              <input type="checkbox" checked class="rounded text-indigo-600 focus:ring-0 bg-slate-800" data-exp="exp_38">
-              <span class="font-mono text-slate-300">#38 (CatBoost HPO)</span>
-            </label>
-            <label class="flex items-center space-x-1.5 cursor-pointer bg-slate-950 px-3 py-1.5 rounded border border-indigo-600/40">
-              <input type="checkbox" checked class="rounded text-indigo-600 focus:ring-0 bg-slate-800" data-exp="exp_42">
-              <span class="font-mono text-emerald-400 font-bold">#42 (Ensemble)</span>
-            </label>
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            ${this.experiments.map(exp => `
+              <label class="flex items-center space-x-1.5 cursor-pointer bg-slate-950 px-3 py-1.5 rounded border ${this.selected.includes(exp.id) ? 'border-indigo-600/60 text-indigo-300' : 'border-slate-800 text-slate-400'}">
+                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded text-indigo-600 focus:ring-0 bg-slate-800" data-exp-id="${exp.id}">
+                <span class="font-mono">${exp.name || exp.id}</span>
+              </label>
+            `).join("")}
           </div>
         </div>
 
@@ -51,7 +101,7 @@ export class CompareView {
         <div class="workbench-card overflow-hidden">
           <div class="workbench-panel-header flex items-center justify-between">
             <span class="text-sm font-semibold text-slate-200">Side-by-Side Metrics & Architectures</span>
-            <span class="text-xs text-slate-400">Metric: 5-Fold Stratified ROC-AUC</span>
+            <span class="text-xs text-slate-400">Metric: ${metricName}</span>
           </div>
 
           <div class="overflow-x-auto">
@@ -59,70 +109,71 @@ export class CompareView {
               <thead>
                 <tr>
                   <th class="w-48">Dimension</th>
-                  <th class="font-mono">#34 Baseline</th>
-                  <th class="font-mono">#38 CatBoost HPO</th>
-                  <th class="font-mono text-emerald-400">#42 Ensemble Best</th>
+                  ${selectedExps.map(e => `
+                    <th class="font-mono text-slate-200">${e.name || e.id}</th>
+                  `).join("")}
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td class="font-medium text-slate-300">CV ROC-AUC</td>
-                  <td class="font-mono text-slate-300">0.94210</td>
-                  <td class="font-mono text-slate-300">0.94470</td>
-                  <td class="font-mono font-bold text-emerald-400">0.94621 <span class="badge-gain text-[10px] px-1 py-0.5 rounded font-normal ml-1">+0.00151</span></td>
+                  <td class="font-medium text-slate-300">Validation Score</td>
+                  ${selectedExps.map(e => `
+                    <td class="font-mono font-bold text-emerald-400">
+                      ${e.best_score != null ? Number(e.best_score).toFixed(5) : "—"}
+                    </td>
+                  `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">CV std</td>
-                  <td class="font-mono text-slate-400">±0.0019</td>
-                  <td class="font-mono text-slate-400">±0.0014</td>
-                  <td class="font-mono font-medium text-indigo-300">±0.0012 (Menor varianza)</td>
+                  <td class="font-medium text-slate-300">Models / Family</td>
+                  ${selectedExps.map(e => `
+                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs uppercase">${(e.model_ids || []).join(", ") || "N/A"}</span></td>
+                  `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Algorithm / Family</td>
-                  <td><span class="badge-sys px-2 py-0.5 rounded text-xs">LightGBM</span></td>
-                  <td><span class="badge-sys px-2 py-0.5 rounded text-xs">CatBoost</span></td>
-                  <td><span class="badge-intel px-2 py-0.5 rounded text-xs font-bold">Weighted Blender Ensemble</span></td>
-                </tr>
-                <tr>
-                  <td class="font-medium text-slate-300">Active Features</td>
-                  <td class="font-mono text-slate-300">13 features</td>
-                  <td class="font-mono text-slate-300">18 features</td>
-                  <td class="font-mono text-slate-300">18 features (+2 interactions)</td>
+                  <td class="font-medium text-slate-300">Features Count</td>
+                  ${selectedExps.map(e => `
+                    <td class="font-mono text-slate-300">${e.features_count || (e.feature_names ? e.feature_names.length : 0)} features</td>
+                  `).join("")}
                 </tr>
                 <tr>
                   <td class="font-medium text-slate-300">Optimization Trials</td>
-                  <td class="font-mono text-slate-300">1 trial</td>
-                  <td class="font-mono text-slate-300">60 trials</td>
-                  <td class="font-mono text-slate-300">88 trials total</td>
+                  ${selectedExps.map(e => `
+                    <td class="font-mono text-slate-300">${e.trials_count != null ? e.trials_count : (e.trials ? e.trials.length : 0)} trials</td>
+                  `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Total Runtime</td>
-                  <td class="font-mono text-slate-300">5.03s</td>
-                  <td class="font-mono text-slate-300">21m 14s</td>
-                  <td class="font-mono text-slate-300">34m 02s</td>
+                  <td class="font-medium text-slate-300">Execution Status</td>
+                  ${selectedExps.map(e => `
+                    <td><span class="${e.status === 'COMPLETED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${e.status}</span></td>
+                  `).join("")}
+                </tr>
+                <tr>
+                  <td class="font-medium text-slate-300">Hypothesis / Rationale</td>
+                  ${selectedExps.map(e => `
+                    <td class="text-xs text-slate-400 max-w-xs truncate">${e.hypothesis || "Baseline model training"}</td>
+                  `).join("")}
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Progression Chart & Show Differences Inspector -->
+        <!-- Progression Chart & Differences Inspector -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Progression Chart -->
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
-              <span class="text-sm font-semibold text-slate-200">Performance Over Evolution Phases</span>
-              <span class="text-xs font-mono text-emerald-400">Step Progression</span>
+              <span class="text-sm font-semibold text-slate-200">Evolution Progression</span>
+              <span class="text-xs font-mono text-emerald-400">${metricName}</span>
             </div>
             <div class="p-4 flex-1 flex flex-col justify-between">
               <div class="h-64 w-full relative">
                 <canvas id="compareEvolutionChart"></canvas>
               </div>
               <div class="mt-3 flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
-                <span>Phase 1: Baseline</span>
-                <span>Phase 2: HPO</span>
-                <span>Phase 3: Features</span>
-                <span>Phase 4: Ensemble</span>
+                ${selectedExps.map((e, idx) => `
+                  <span>#${idx + 1}: ${e.name || e.id}</span>
+                `).join("")}
               </div>
             </div>
           </div>
@@ -132,48 +183,58 @@ export class CompareView {
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
                 <span class="text-amber-400">🔍</span>
-                <span class="text-sm font-semibold text-slate-200">Show Differences: #38 ➔ #42</span>
+                <span class="text-sm font-semibold text-slate-200">Differences Inspector</span>
               </div>
-              <span class="badge-gain text-xs px-2 py-0.5 rounded font-mono font-bold">+0.00153 ROC-AUC</span>
+              ${selectedExps.length >= 2 && selectedExps[0].best_score != null && selectedExps[1].best_score != null ? `
+                <span class="badge-gain text-xs px-2 py-0.5 rounded font-mono font-bold">
+                  Δ: ${(selectedExps[1].best_score - selectedExps[0].best_score >= 0 ? '+' : '') + (selectedExps[1].best_score - selectedExps[0].best_score).toFixed(5)}
+                </span>
+              ` : ''}
             </div>
             <div class="p-5 space-y-4 flex-1 text-xs">
-              <!-- Added features -->
-              <div class="space-y-1.5">
-                <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Feature Engineering (Added)</div>
-                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-emerald-400">
-                  <div>+ Income × Age interaction (captura etapa de vida)</div>
-                  <div>+ Home_Ownership × Region (geografía y patrimonio)</div>
+              ${selectedExps.length >= 2 ? `
+                <div class="space-y-1.5">
+                  <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Model Architecture Differences</div>
+                  <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-slate-300">
+                    <div>Exp 1: <span class="text-indigo-400 font-bold">${selectedExps[0].name}</span> (${(selectedExps[0].model_ids || []).join(", ")})</div>
+                    <div>Exp 2: <span class="text-purple-400 font-bold">${selectedExps[1].name}</span> (${(selectedExps[1].model_ids || []).join(", ")})</div>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Changed Hyperparameters -->
-              <div class="space-y-1.5">
-                <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Hyperparameters Tuned (Changed)</div>
-                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-slate-300">
-                  <div>CatBoost depth: <span class="text-slate-400 line-through">7</span> ➔ <span class="text-indigo-400 font-bold">8</span></div>
-                  <div>learning_rate:  <span class="text-slate-400 line-through">0.040</span> ➔ <span class="text-indigo-400 font-bold">0.031</span></div>
-                  <div>l2_leaf_reg:    <span class="text-slate-400 line-through">3.0</span> ➔ <span class="text-indigo-400 font-bold">4.2</span></div>
+                <div class="space-y-1.5">
+                  <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Hypothesis Evaluation</div>
+                  <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-slate-300">
+                    <div>${selectedExps[1].hypothesis || "Optuna Bayesian hyperparameter search exploration"}</div>
+                  </div>
                 </div>
-              </div>
-
-              <!-- Added to ensemble -->
-              <div class="space-y-1.5">
-                <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Ensemble Blend Composition</div>
-                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-purple-300">
-                  <div>• LightGBM #34 (Weight: 0.35)</div>
-                  <div>• CatBoost #38 (Weight: 0.65)</div>
-                </div>
-              </div>
+              ` : `
+                <div class="text-center text-slate-500 py-12">Select at least 2 experiments above to inspect differences.</div>
+              `}
             </div>
           </div>
         </div>
       </div>
     `;
 
-    this._initChart();
+    this._bindEvents();
+    this._initChart(selectedExps);
   }
 
-  _initChart() {
+  _bindEvents() {
+    this.container.querySelectorAll(".exp-compare-chk").forEach(chk => {
+      chk.addEventListener("change", e => {
+        const id = chk.getAttribute("data-exp-id");
+        if (e.target.checked) {
+          if (!this.selected.includes(id)) this.selected.push(id);
+        } else {
+          this.selected = this.selected.filter(x => x !== id);
+        }
+        this.render();
+      });
+    });
+  }
+
+  _initChart(selectedExps) {
     const canvas = this.container.querySelector("#compareEvolutionChart");
     if (!canvas || !window.Chart) return;
 
@@ -181,14 +242,21 @@ export class CompareView {
       this.chart.destroy();
     }
 
+    const labels = selectedExps.map(e => e.name || e.id);
+    const data = selectedExps.map(e => e.best_score || 0.0);
+
+    const minScore = Math.min(...data.filter(d => d > 0));
+    const maxScore = Math.max(...data);
+    const pad = (maxScore - minScore) * 0.1 || 0.01;
+
     this.chart = new window.Chart(canvas, {
       type: "line",
       data: {
-        labels: ["Baseline #34", "CatBoost HPO #38", "Feature Eng", "Ensemble #42"],
+        labels: labels,
         datasets: [
           {
-            label: "ROC-AUC Progression",
-            data: [0.94210, 0.94470, 0.94520, 0.94621],
+            label: `${this.activeRun ? this.activeRun.metric : 'Score'} Progression`,
+            data: data,
             borderColor: "#6366f1",
             backgroundColor: "rgba(99, 102, 241, 0.15)",
             pointBackgroundColor: ["#94a3b8", "#6366f1", "#a855f7", "#10b981"],
@@ -206,7 +274,7 @@ export class CompareView {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `Score: ${ctx.raw.toFixed(5)} ROC-AUC`,
+              label: (ctx) => `Score: ${ctx.raw.toFixed(5)}`,
             },
           },
         },
@@ -216,8 +284,8 @@ export class CompareView {
             ticks: { color: "#94a3b8", font: { size: 10 } },
           },
           y: {
-            min: 0.94,
-            max: 0.948,
+            min: Math.max(0, minScore - pad),
+            max: Math.min(1.0, maxScore + pad),
             grid: { color: "rgba(51, 65, 85, 0.2)" },
             ticks: { color: "#94a3b8", font: { size: 10 } },
           },

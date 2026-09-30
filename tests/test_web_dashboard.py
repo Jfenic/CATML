@@ -110,6 +110,13 @@ def test_web_dashboard_dataset_and_experiment_flow(running_web_server):
         assert dataset_id is not None
         assert run_id is not None
 
+    # 1b. List Datasets via GET
+    with urlopen(f"{base}/api/datasets") as resp:
+        assert resp.status == 200
+        datasets = json.loads(resp.read().decode("utf-8"))
+        assert len(datasets) >= 1
+        assert any(d["id"] == dataset_id for d in datasets)
+
     # 2. Get Profile via GET
     with urlopen(f"{base}/api/dataset/profile?dataset_id={dataset_id}") as resp:
         assert resp.status == 200
