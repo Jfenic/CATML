@@ -25,6 +25,7 @@ class ToolCallContext:
     correlation_id: str
     deadline: float | None = None
     permission: AgentPermission = AgentPermission.READ_ONLY
+    approval_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -41,6 +42,7 @@ class ToolCallContext:
             correlation_id=data["correlation_id"],
             deadline=data.get("deadline"),
             permission=perm,
+            approval_id=data.get("approval_id"),
         )
 
 
@@ -84,6 +86,7 @@ class ToolInvocation:
     context: ToolCallContext
     version: str = "1.0.0"
     idempotency_key: str | None = None
+    approval_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +94,7 @@ class ToolInvocation:
             "version": self.version,
             "arguments": self.arguments,
             "idempotency_key": self.idempotency_key,
+            "approval_id": self.approval_id,
             "context": self.context.to_dict(),
         }
 
@@ -101,6 +105,7 @@ class ToolInvocation:
             version=data.get("version", "1.0.0"),
             arguments=data.get("arguments", {}),
             idempotency_key=data.get("idempotency_key"),
+            approval_id=data.get("approval_id"),
             context=ToolCallContext.from_dict(data["context"]),
         )
 

@@ -1,20 +1,24 @@
 """Tool executor dispatching invocations through policy checks, scope isolation, and QueryBus."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+import json
 import time
+from typing import Any, Callable
 import uuid
-from typing import Any
 
 from automl.domain.agents.entities import (
     AgentBudget,
     AgentPermission,
     ApprovalStatus,
+    OperationStatus,
     PolicyDecisionType,
     ToolEffect,
     ToolErrorCode,
 )
 from automl.application.agents.contracts import (
     ApprovalRequest,
+    OperationRecord,
     ToolCallContext,
     ToolDefinition,
     ToolError,
@@ -31,7 +35,13 @@ from automl.application.agents.schemas import (
     TOOL_SCHEMAS,
     validate_arguments,
 )
+from automl.application.bus.command_bus import CommandBus
 from automl.application.bus.query_bus import QueryBus
+from automl.application.commands.workspace_commands import (
+    CreateExperimentCommand,
+    PrioritizeFeatureCommand,
+    RunExperimentCommand,
+)
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
     GetFeatureEvidenceQuery,
@@ -63,7 +73,7 @@ class ToolExecutor:
         invocation: ToolInvocation,
         budget: AgentBudget | None = None,
     ) -> ToolResult:
-        """Execute a tool invocation adhering to CQRS and security rules."""
+        """Execute a tool invocation adhering to CQRS, authorization, and idempotency rules."""
         start_time = time.perf_counter()
         req_id = invocation.idempotency_key or str(uuid.uuid4())
         active_budget = budget or self.default_budget
@@ -114,7 +124,148 @@ class ToolExecutor:
                     execution_time_seconds=time.perf_counter() - start_time,
                 )
 
-        # 3. Policy evaluation
+        # 3. Scope Isolation (Prevent issue #14: run cross-contamination)
+        target_run_id = invocation.arguments.get("run_id")
+        if target_run_id and invocation.context.run_id:
+            if target_run_id != invocation.context.run_id:
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    error=ToolError(
+                        code=ToolErrorCode.SCOPE_VIOLATION,
+                        message=f"Scope violation: cannot access run_id '{target_run_id}' from context authorized for '{invocation.context.run_id}'",
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+
+        # 4. Check for pre-existing approval
+        approval_id = (
+            invocation.approval_id
+            or getattr(invocation.context, "approval_id", None)
+            or invocation.arguments.get("approval_id")
+        )
+        pre_approved = False
+        if approval_id:
+            if not self.ledger:
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    approval_id=approval_id,
+                    error=ToolError(
+                        code=ToolErrorCode.DEPENDENCY_UNAVAILABLE,
+                        message="Ledger is required to verify approval requests",
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+            approval_record = self.ledger.get_approval(approval_id)
+            if not approval_record:
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    approval_id=approval_id,
+                    error=ToolError(
+                        code=ToolErrorCode.NOT_FOUND,
+                        message=f"Approval request '{approval_id}' not found",
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+
+            # Check expiration
+            if approval_record.expires_at:
+                try:
+                    exp_dt = datetime.fromisoformat(approval_record.expires_at.replace("Z", "+00:00"))
+                    if datetime.now(timezone.utc) > exp_dt:
+                        self.ledger.update_approval_status(approval_id, ApprovalStatus.EXPIRED)
+                        return ToolResult(
+                            request_id=req_id,
+                            tool_name=invocation.tool_name,
+                            success=False,
+                            approval_id=approval_id,
+                            error=ToolError(
+                                code=ToolErrorCode.PERMISSION_DENIED,
+                                message=f"Approval request '{approval_id}' has expired",
+                                correlation_id=invocation.context.correlation_id,
+                            ),
+                            execution_time_seconds=time.perf_counter() - start_time,
+                        )
+                except Exception:
+                    pass
+
+            if approval_record.status == ApprovalStatus.PENDING:
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    approval_id=approval_id,
+                    error=ToolError(
+                        code=ToolErrorCode.APPROVAL_REQUIRED,
+                        message=f"Approval request '{approval_id}' is still pending reviewer resolution",
+                        details={"approval_id": approval_id, "status": "pending"},
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+            elif approval_record.status == ApprovalStatus.REJECTED:
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    approval_id=approval_id,
+                    error=ToolError(
+                        code=ToolErrorCode.PERMISSION_DENIED,
+                        message=f"Approval request '{approval_id}' was rejected by reviewer '{approval_record.reviewer}'",
+                        details={"approval_id": approval_id, "status": "rejected"},
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+            elif approval_record.status == ApprovalStatus.REVOKED:
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    approval_id=approval_id,
+                    error=ToolError(
+                        code=ToolErrorCode.PERMISSION_DENIED,
+                        message=f"Approval request '{approval_id}' was revoked",
+                        details={"approval_id": approval_id, "status": "revoked"},
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+            elif approval_record.status == ApprovalStatus.APPROVED:
+                # Anti-tampering check: verify that arguments match approved payload
+                expected_hash = compute_arguments_hash(
+                    action=invocation.tool_name,
+                    actor=approval_record.actor,
+                    run_id=approval_record.run_id,
+                    arguments=invocation.arguments,
+                    policy_version=approval_record.policy_version,
+                    max_cost=approval_record.max_cost,
+                )
+                if expected_hash != approval_record.arguments_hash:
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        approval_id=approval_id,
+                        error=ToolError(
+                            code=ToolErrorCode.PERMISSION_DENIED,
+                            message="Approval validation failed: invocation arguments do not match approved request",
+                            details={"approval_id": approval_id},
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+                pre_approved = True
+
+        # 5. Policy evaluation
         decision = self.policy_evaluator.evaluate(
             tool_def,
             invocation.context,
@@ -142,8 +293,7 @@ class ToolExecutor:
                 execution_time_seconds=time.perf_counter() - start_time,
             )
 
-        if decision.decision == PolicyDecisionType.REQUIRE_APPROVAL:
-            # Deterministic approval request generation
+        if decision.decision == PolicyDecisionType.REQUIRE_APPROVAL and not pre_approved:
             arg_hash = compute_arguments_hash(
                 action=invocation.tool_name,
                 actor=invocation.context.actor,
@@ -152,10 +302,10 @@ class ToolExecutor:
                 policy_version=decision.policy_version,
                 max_cost=tool_def.cost_estimate,
             )
-            approval_id = f"appr-{arg_hash[:16]}"
+            appr_id = f"appr-{arg_hash[:16]}"
             if self.ledger:
                 approval_req = ApprovalRequest(
-                    approval_id=approval_id,
+                    approval_id=appr_id,
                     action=invocation.tool_name,
                     actor=invocation.context.actor,
                     run_id=invocation.context.run_id,
@@ -172,89 +322,243 @@ class ToolExecutor:
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=False,
-                approval_id=approval_id,
+                approval_id=appr_id,
                 error=ToolError(
                     code=ToolErrorCode.APPROVAL_REQUIRED,
                     message=decision.reason,
-                    details={**decision.to_dict(), "approval_id": approval_id},
+                    details={**decision.to_dict(), "approval_id": appr_id},
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
 
-        # 4. Scope Isolation (Prevent issue #14: run cross-contamination)
-        target_run_id = invocation.arguments.get("run_id")
-        if target_run_id and invocation.context.run_id:
-            if target_run_id != invocation.context.run_id:
+        # 6. Idempotency & Deduplication
+        idempotency_key = invocation.idempotency_key
+        is_mutating = tool_def.effect in (ToolEffect.PROPOSE, ToolEffect.MUTATE)
+        if is_mutating and not idempotency_key:
+            idempotency_key = f"auto-{req_id}"
+
+        operation_id: str | None = None
+        current_arg_hash = compute_arguments_hash(
+            action=invocation.tool_name,
+            actor=invocation.context.actor,
+            run_id=invocation.context.run_id,
+            arguments=invocation.arguments,
+            policy_version=decision.policy_version,
+            max_cost=tool_def.cost_estimate,
+        )
+
+        if self.ledger and idempotency_key:
+            existing_op = self.ledger.get_operation_by_idempotency_key(
+                run_id=invocation.context.run_id,
+                action=invocation.tool_name,
+                idempotency_key=idempotency_key,
+            )
+            if existing_op is not None:
+                # Check for argument mismatch -> CONFLICT
+                if existing_op.arguments_hash != current_arg_hash:
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=existing_op.operation_id,
+                        error=ToolError(
+                            code=ToolErrorCode.CONFLICT,
+                            message=(
+                                f"Idempotency key '{idempotency_key}' was already used with "
+                                f"different arguments for action '{invocation.tool_name}'"
+                            ),
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+
+                # Matching arguments: deduplication ("Duplicados no repiten efectos")
+                if existing_op.status == OperationStatus.SUCCEEDED:
+                    cached_data = None
+                    if existing_op.result_ref:
+                        try:
+                            cached_data = json.loads(existing_op.result_ref)
+                        except Exception:
+                            cached_data = {"result_ref": existing_op.result_ref}
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=True,
+                        data=cached_data,
+                        operation_id=existing_op.operation_id,
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+                elif existing_op.status in (OperationStatus.RUNNING, OperationStatus.PENDING):
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=existing_op.operation_id,
+                        error=ToolError(
+                            code=ToolErrorCode.CONFLICT,
+                            message=f"Operation '{existing_op.operation_id}' is already in progress with status '{existing_op.status.value}'",
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+                elif existing_op.status == OperationStatus.FAILED:
+                    err_code = ToolErrorCode.INTERNAL_ERROR
+                    if existing_op.error_code:
+                        try:
+                            err_code = ToolErrorCode(existing_op.error_code)
+                        except Exception:
+                            pass
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=existing_op.operation_id,
+                        error=ToolError(
+                            code=err_code,
+                            message=existing_op.error_message or "Operation previously failed",
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+
+        # 7. Durable intention before mutating ("Intención duradera antes de mutar")
+        if self.ledger and is_mutating:
+            operation_id = f"op-{uuid.uuid4().hex[:12]}"
+            op_record = OperationRecord(
+                operation_id=operation_id,
+                run_id=invocation.context.run_id,
+                actor=invocation.context.actor,
+                idempotency_key=idempotency_key or operation_id,
+                action=invocation.tool_name,
+                arguments_hash=current_arg_hash,
+                arguments=invocation.arguments,
+                status=OperationStatus.RUNNING,
+                reserved_budget=tool_def.cost_estimate or {},
+                consumed_budget={},
+            )
+            try:
+                self.ledger.record_operation(op_record)
+            except Exception as exc:
                 return ToolResult(
                     request_id=req_id,
                     tool_name=invocation.tool_name,
                     success=False,
                     error=ToolError(
-                        code=ToolErrorCode.SCOPE_VIOLATION,
-                        message=f"Scope violation: cannot access run_id '{target_run_id}' from context authorized for '{invocation.context.run_id}'",
+                        code=ToolErrorCode.INTERNAL_ERROR,
+                        message=f"Failed to record operation intention in ledger: {str(exc)}",
                         correlation_id=invocation.context.correlation_id,
                     ),
                     execution_time_seconds=time.perf_counter() - start_time,
                 )
 
-        # 5. Execute Handler
+        # 8. Execute Handler
         try:
             raw_data = handler(invocation.arguments, invocation.context)
             if tool_def.cost_estimate:
                 active_budget.consume(tool_def.cost_estimate)
+
+            if self.ledger and operation_id:
+                result_ref_str = (
+                    json.dumps(raw_data)
+                    if isinstance(raw_data, (dict, list))
+                    else str(raw_data)
+                )
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.SUCCEEDED,
+                    consumed=tool_def.cost_estimate,
+                    result_ref=result_ref_str,
+                )
 
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=True,
                 data=raw_data,
+                operation_id=operation_id,
                 execution_time_seconds=time.perf_counter() - start_time,
             )
         except KeyError as exc:
+            err_msg = str(exc).strip("'")
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.FAILED,
+                    error_code=ToolErrorCode.NOT_FOUND.value,
+                    error_message=err_msg,
+                )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=False,
+                operation_id=operation_id,
                 error=ToolError(
                     code=ToolErrorCode.NOT_FOUND,
-                    message=str(exc).strip("'"),
+                    message=err_msg,
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
         except ValueError as exc:
+            err_msg = str(exc)
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.FAILED,
+                    error_code=ToolErrorCode.INVALID_ARGUMENT.value,
+                    error_message=err_msg,
+                )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=False,
+                operation_id=operation_id,
                 error=ToolError(
                     code=ToolErrorCode.INVALID_ARGUMENT,
-                    message=str(exc),
+                    message=err_msg,
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
         except PermissionError as exc:
+            err_msg = str(exc)
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.FAILED,
+                    error_code=ToolErrorCode.PERMISSION_DENIED.value,
+                    error_message=err_msg,
+                )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=False,
+                operation_id=operation_id,
                 error=ToolError(
                     code=ToolErrorCode.PERMISSION_DENIED,
-                    message=str(exc),
+                    message=err_msg,
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
         except Exception as exc:
+            err_msg = f"Internal error executing '{invocation.tool_name}': {str(exc)}"
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.FAILED,
+                    error_code=ToolErrorCode.INTERNAL_ERROR.value,
+                    error_message=err_msg,
+                )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=False,
+                operation_id=operation_id,
                 error=ToolError(
                     code=ToolErrorCode.INTERNAL_ERROR,
-                    message=f"Internal error executing '{invocation.tool_name}': {str(exc)}",
+                    message=err_msg,
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
@@ -470,6 +774,132 @@ def create_read_only_tool_registry(query_bus: QueryBus) -> ToolRegistry:
             output_schema=TOOL_SCHEMAS["get_feature_ranking"]["output"],
         ),
         _handle_get_feature_ranking,
+    )
+
+    return registry
+
+
+def create_full_tool_registry(
+    query_bus: QueryBus,
+    command_bus: CommandBus,
+    workspace: Any = None,
+    run_dataset_resolver: Callable[[str], str] | None = None,
+) -> ToolRegistry:
+    """Build ToolRegistry with both safe query tools and authorized mutating tools."""
+    registry = create_read_only_tool_registry(query_bus)
+
+    # 8. create_experiment
+    def _handle_create_experiment(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+        run_id = args["run_id"]
+        model_name = args["model_name"]
+        feature_names = args.get("feature_names")
+
+        cmd = CreateExperimentCommand(
+            run_id=run_id,
+            name=f"exp_{model_name}_{uuid.uuid4().hex[:6]}",
+            model_ids=[model_name],
+            feature_names=feature_names,
+            hypothesis=f"Agent candidate experiment with model {model_name}",
+        )
+        res = command_bus.dispatch(cmd)
+        exp_id = getattr(res, "id", None)
+        if not exp_id:
+            if isinstance(res, dict):
+                exp_id = res.get("experiment_id") or res.get("id")
+            elif isinstance(res, str):
+                exp_id = res
+            else:
+                exp_id = str(res)
+        return {"experiment_id": str(exp_id)}
+
+    registry.register(
+        ToolDefinition(
+            name="create_experiment",
+            version="1.0.0",
+            description="Propose and create an experiment candidate with specified model and features",
+            effect=ToolEffect.MUTATE,
+            permission_required=AgentPermission.EXECUTE_WITHIN_BUDGET,
+            cost_estimate={"experiments": 1},
+            input_schema=TOOL_SCHEMAS["create_experiment"]["input"],
+            output_schema=TOOL_SCHEMAS["create_experiment"]["output"],
+        ),
+        _handle_create_experiment,
+    )
+
+    # 9. prioritize_feature
+    def _handle_prioritize_feature(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+        run_id = args["run_id"]
+        feature_name = args["feature_name"]
+        priority = args["priority"]
+        score_map = {"high": 2.0, "medium": 1.0, "low": 0.5}
+        score = score_map.get(priority, 1.0)
+
+        dataset_id = ""
+        if run_dataset_resolver:
+            dataset_id = run_dataset_resolver(run_id)
+        elif workspace and hasattr(workspace, "_get_run"):
+            run = workspace._get_run(run_id)
+            dataset_id = getattr(run, "dataset_id", run_id)
+        else:
+            dataset_id = args.get("dataset_id") or run_id
+
+        cmd = PrioritizeFeatureCommand(
+            dataset_id=dataset_id,
+            feature_name=feature_name,
+            score=score,
+            run_id=run_id,
+        )
+        command_bus.dispatch(cmd)
+        return {"feature_name": feature_name, "priority": priority}
+
+    registry.register(
+        ToolDefinition(
+            name="prioritize_feature",
+            version="1.0.0",
+            description="Prioritize a specific feature to adjust its weight in candidate selection",
+            effect=ToolEffect.MUTATE,
+            permission_required=AgentPermission.EXECUTE_WITHIN_BUDGET,
+            cost_estimate={},
+            input_schema=TOOL_SCHEMAS["prioritize_feature"]["input"],
+            output_schema=TOOL_SCHEMAS["prioritize_feature"]["output"],
+        ),
+        _handle_prioritize_feature,
+    )
+
+    # 10. run_experiment
+    def _handle_run_experiment(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+        run_id = args["run_id"]
+        experiment_id = args["experiment_id"]
+
+        cmd = RunExperimentCommand(
+            run_id=run_id,
+            experiment_id=experiment_id,
+        )
+        trials = command_bus.dispatch(cmd)
+        if not trials:
+            raise ValueError(f"Experiment '{experiment_id}' did not produce any trial results")
+
+        best_trial = trials[-1] if isinstance(trials, list) else trials
+        trial_id = getattr(best_trial, "trial_id", getattr(best_trial, "id", str(best_trial)))
+        score = getattr(best_trial, "primary_score", getattr(best_trial, "score", 0.0))
+
+        return {
+            "trial_id": str(trial_id),
+            "metric_value": float(score),
+        }
+
+    registry.register(
+        ToolDefinition(
+            name="run_experiment",
+            version="1.0.0",
+            description="Execute training and validation for a configured experiment candidate",
+            effect=ToolEffect.MUTATE,
+            permission_required=AgentPermission.EXECUTE_WITHIN_BUDGET,
+            cost_estimate={"trials": 1, "fits": 1},
+            input_schema=TOOL_SCHEMAS["run_experiment"]["input"],
+            output_schema=TOOL_SCHEMAS["run_experiment"]["output"],
+        ),
+        _handle_run_experiment,
     )
 
     return registry

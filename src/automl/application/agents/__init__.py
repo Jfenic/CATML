@@ -34,6 +34,7 @@ from automl.application.agents.schemas import (
 from automl.application.agents.registry import ToolRegistry
 from automl.application.agents.executor import (
     ToolExecutor,
+    create_full_tool_registry,
     create_read_only_tool_registry,
 )
 
@@ -63,6 +64,7 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "compute_arguments_hash",
+    "create_full_tool_registry",
     "create_read_only_tool_registry",
     "validate_arguments",
 ]

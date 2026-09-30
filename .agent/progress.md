@@ -1,18 +1,24 @@
 # Progress
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H1 / Paquete B1 Integrado)**:
-- Rol: **Persona B** (Interfaces, Integración y Orquestación).
-- Rama: `feat/agentic-b1-mcp`.
-- Entregable B1 completado:
-  - Servidor MCP stdio implementado en `src/automl/interfaces/mcp/server.py` utilizando el SDK oficial `mcp` (MCPServer) y consumiendo las capacidades de A1.
-  - Tools de consulta expuestas: `get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`.
-  - Resources expuestos: `catml://runs/{run_id}/leaderboard`, `catml://datasets/{dataset_id}/profile`.
-  - Subcomando CLI `automl mcp [--workspace PATH]` implementado en `src/automl/interfaces/cli/mcp_cli.py` y registrado en `main.py` de forma diferida.
-  - Logging estructurado exclusivamente por `sys.stderr` garantizando `stdout` 100% puro para JSON-RPC.
-  - Suite de tests completa en `tests/test_v09_mcp_server.py` (10 tests pasando, incluyendo handshake de subprocess stdio).
-- Hito H1 cerrado: A1 y B1 integrados. Preparado para H2 (mutaciones, aprobación humana y ledger).
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Hito H2 / Paquete A2)**:
+- Rol: **Persona A** (Contratos, Catálogo de Herramientas, Persistencia y Dominio Agéntico).
+- Rama: `feat/agentic-a2-mutations`.
+- Entregable A2 completado:
+  - Extensión de `ToolExecutor` (`src/automl/application/agents/executor.py`) con resolución y verificación de solicitudes de aprobación (`approval_id`), protección anti-tampering por hash determinista, deduplicación atómica ("Duplicados no repiten efectos") e intención duradera antes de mutar.
+  - Factoría completa `create_full_tool_registry` registrando tools mutantes (`create_experiment`, `prioritize_feature`, `run_experiment`) conectadas a `CommandBus`.
+  - Soporte de `approval_id` en DTOs `ToolInvocation` y `ToolCallContext` (`src/automl/application/agents/contracts.py`).
+  - Suite de pruebas exhaustiva en `tests/test_v09_agent_operations.py` (16 tests pasando, 97% de cobertura en módulos agénticos, 272 tests globales pasando, 86.65% cobertura).
+- Handoff H2: Listo para que Persona B integre el manejo de tools mutantes (`PENDING_APPROVAL`), comandos CLI de aprobación (`automl agent approve/reject/status`) y flujo E2E en el Paquete B2.
  
 ## Completed
+ 
+- Paquete A2 completado (Persona A, 2026-09-30):
+  - Tools mutantes y ejecución autorizada en `src/automl/application/agents/`:
+    - `ToolExecutor`: integración con `SqliteAgentLedger` para auditoría y deduplicación atómica de idempotencia.
+    - Resolución de aprobaciones pendientes y verificación criptográfica anti-tampering (`expected_hash == approval.arguments_hash`).
+    - Intención duradera antes de mutar ("si falla el ledger, no ejecutar").
+    - Factoría `create_full_tool_registry(query_bus, command_bus, workspace)` con 10 tools iniciales (7 queries + `create_experiment`, `prioritize_feature`, `run_experiment`).
+    - Suite en `tests/test_v09_agent_operations.py` (16 tests pasando, 97% cobertura en componentes agénticos).
  
 - Paquete A1 completado (Persona A, 2026-09-30):
   - Catálogo de herramientas y ejecutor de consultas seguras en `src/automl/application/agents/`:
