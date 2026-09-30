@@ -1,5 +1,7 @@
 # Implementation Plan: V0.6 Plugin Architecture & Extensible Ecosystem
 
+> Plan histórico de la fase implementada. La secuencia y asignaciones originales se conservan como referencia; no constituyen trabajo pendiente. Estado operativo: [TASKS.md](../../../TASKS.md).
+
 > Sequence and roadmap for implementing the modular plugin architecture.
 
 ## 1. Implementation Approach
@@ -60,4 +62,4 @@
 ## 5. Validation Strategy
 
 - Run tests: `.venv/bin/pytest tests/test_v06_plugins.py`
-- Full test suite: `.venv/bin/pytest --cov=src/automl` (ensuring 0 regressions and >= 85% coverage).
+- Full test suite: `.venv/bin/pytest --cov=src/automl --cov-fail-under=85` (ensuring 0 regressions and >= 85% coverage).

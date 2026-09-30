@@ -23,6 +23,7 @@ from automl.application.commands.workspace_commands import (
     PlanAblationExperimentsCommand,
     PromoteCandidateFeatureSetCommand,
     GenerateSubmissionCommand,
+    GenerateOOFSubmissionCommand,
     ExecutePipelineCommand,
 )
 from automl.application.queries.workspace_queries import (
@@ -45,8 +46,13 @@ from automl.application.queries.workspace_queries import (
     PredictDatasetQuery,
     ValidatePipelineGraphQuery,
     GetPipelineExecutionOrderQuery,
+    GetOOFResultQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
+from automl.application.services.jobs import JobService
+from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
+from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
+from automl.infrastructure.database.sqlite_jobs import SQLiteJobRepository
 
 
 
@@ -65,6 +71,11 @@ def register_handlers(
     command_bus: CommandBus,
     query_bus: QueryBus,
 ) -> None:
+    jobs = JobService(workspace, SQLiteJobRepository(workspace.repository.db_path))
+    command_bus.register(SubmitJobCommand, jobs.submit)
+    command_bus.register(ControlJobCommand, jobs.control)
+    query_bus.register(GetJobQuery, lambda q: jobs.get(q.job_id))
+    query_bus.register(ListJobsQuery, lambda q: jobs.list(q.run_id))
     command_bus.register(AddModelCommand, lambda cmd: workspace.include_model(workspace._get_run(cmd.run_id), cmd.model_id))
     command_bus.register(
         ExcludeModelCommand,
@@ -193,6 +204,8 @@ def register_handlers(
         ExecutePipelineCommand,
         lambda cmd: workspace.execute_pipeline(cmd.graph, cmd.inputs),
     )
+    command_bus.register(GenerateOOFSubmissionCommand, workspace.generate_oof_submission)
+    query_bus.register(GetOOFResultQuery, lambda q: workspace.get_oof_result(q.run_id, q.experiment_id))
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(

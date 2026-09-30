@@ -137,6 +137,9 @@ export class KaggleView {
 
             <!-- Action Buttons -->
             <div class="space-y-2 pt-2 border-t border-slate-800">
+              <label class="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" id="useOOF" /> Promediar 5 folds (OOF)
+              </label>
               <button id="btnGenerateSubmission" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20">
                 <span>⚡ Generate & Validate submission.csv</span>
               </button>
@@ -173,7 +176,7 @@ export class KaggleView {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>⏳ Generando y validando 286,571 predicciones...</span>
+          <span>⏳ Trabajo en cola...</span>
         `;
 
         const res = await api.generateSubmission({
@@ -182,10 +185,13 @@ export class KaggleView {
           output_path: "competitions/playground-series-s6e9/submission_workbench.csv",
           template_path: "competitions/playground-series-s6e9/data/sample_submission.csv",
           predict_proba: true,
+          folds: this.container.querySelector("#useOOF")?.checked ? 5 : undefined,
+        }, job => {
+          btn.textContent = `${job.status}: ${job.completed}/${job.total || "?"} · ${job.message}`;
         });
 
         btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
-        btn.innerHTML = `<span>✓ ¡Generado con éxito! (286,571 filas)</span>`;
+        btn.innerHTML = `<span>✓ ¡Generado con éxito! (${res.row_count} filas)</span>`;
 
         setTimeout(() => {
           btn.disabled = false;
@@ -193,7 +199,8 @@ export class KaggleView {
           btn.innerHTML = originalText;
         }, 3000);
 
-        alert(`Submission Generated Successfully!\nRows: ${res.row_count}\nOutput: ${res.output_path}\nValid checklist: 5/5`);
+        const oofInfo = res.oof ? `\nOOF ROC-AUC: ${res.oof.score.toFixed(6)}\nDelta vs baseline: ${res.oof.delta.toFixed(6)}` : "";
+        alert(`Submission Generated Successfully!\nRows: ${res.row_count}\nOutput: ${res.output_path}${oofInfo}`);
       } catch (err) {
         alert("Error generating submission: " + err.message);
         btn.disabled = false;

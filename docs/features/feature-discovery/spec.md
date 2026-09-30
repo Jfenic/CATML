@@ -1,5 +1,7 @@
 # Feature Specification: V0.5 Feature Discovery & Selection
 
+> Especificación de referencia de una fase implementada; el alcance actual y las limitaciones están en [el mapa de capacidades](../../README.md). Estado operativo: [TASKS.md](../../../TASKS.md).
+
 > Specification for intelligent feature selection, interaction discovery, and experimental validation in CATML.
 
 ## Goal
@@ -55,3 +57,16 @@ Provide an explicit, modular subsystem for feature analysis, selection, and disc
 - Deep representation learning (autoencoders) or neural embeddings (deferred to V0.7).
 - Full exhaustive search of all $2^N$ feature combinations (prohibited; must use prioritized heuristic subsets).
 - LLM-based semantic feature engineering (deferred to V0.9/V1.0).
+
+## Evidencia y alcance de aceptación
+
+| Criterio / capacidad | Implementación y validación |
+| --- | --- |
+| Selectores, ranking y candidatos | [selectores](../../../src/automl/engine/features/selection/), [tests V0.5](../../../tests/test_v05_features.py) |
+| Ablación y evidencia | [planner](../../../src/automl/engine/planning/ablation_planner.py), [tests V0.5](../../../tests/test_v05_features.py) |
+| Commands y queries | [bootstrap](../../../src/automl/application/bootstrap.py), [tests V0.5](../../../tests/test_v05_features.py) |
+| Benchmark específico `feature_selection_v05` | Pendiente: el [runner](../../../src/automl/benchmarks/runner.py) tiene escenarios generales, pero aún no este escenario; ver [backlog](../../../TASKS.md) |
+
+La cobertura global se valida ejecutando toda la suite con `--cov-fail-under=85`; la presencia de tests no prueba una ejecución actual ni una mejora universal de calidad.
+
+Los archivos del plan son nombres de diseño: las implementaciones actuales residen en `engine/features/selection/` y `engine/features/reduction/`. `ImportanceFeatureSelector` se concretó como `TreeImportanceSelector`. Un benchmark puede detectar degradación; no se exige una mejora positiva para todos los datasets.

@@ -1,5 +1,7 @@
 # Implementation Plan: V0.5 Feature Discovery & Selection
 
+> Plan histórico de la fase implementada. La secuencia y asignaciones originales se conservan como referencia; no constituyen trabajo pendiente. Estado operativo: [TASKS.md](../../../TASKS.md).
+
 > Detailed roadmap and implementation sequence for phase V0.5.
 
 ## 1. Implementation Approach
@@ -78,5 +80,5 @@ V0.5 introduces an explicit feature analysis and selection pipeline that connect
 ## 6. Validation Strategy
 
 - Run unit tests: `.venv/bin/pytest tests/test_v05_features.py`
-- Run regression suite: `.venv/bin/pytest tests/` (all 44+ tests passing, coverage >= 85%)
+- Run regression suite: `.venv/bin/pytest tests/` (entire current suite passing, coverage >= 85%)
 - Run benchmark: `.venv/bin/automl benchmark run` ensuring `feature_selection_v05` records positive gain or reduced trial runtime.

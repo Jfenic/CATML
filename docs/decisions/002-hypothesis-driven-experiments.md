@@ -1,5 +1,7 @@
 # Decision: Hypothesis-Driven Experiments and "Propose ≠ Accept" Principle
 
+Estado: aceptada. Revisada: 2026-09-30. Alcance: decisión arquitectónica; el estado de implementación se mantiene en [TASKS.md](../../TASKS.md) y las limitaciones en [el mapa de capacidades](../README.md).
+
 ## Context
 
 In traditional AutoML systems, feature selection or model exploration algorithms directly modify the active training pipeline whenever a statistical score or heuristic suggests an improvement. 

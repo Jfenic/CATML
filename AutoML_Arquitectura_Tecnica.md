@@ -1,5 +1,20 @@
 # AutoML — Arquitectura Técnica
 
+> Diseño objetivo e histórico de planificación. Los ejemplos etiquetados como objetivo son pseudocódigo y no garantizan una API disponible. Estado operativo: [TASKS.md](TASKS.md). Implementación y limitaciones: [docs/README.md](docs/README.md). Versión del paquete: `automl.__version__`; la versión 0.1 de este documento corresponde al diseño inicial.
+
+## Navegación
+
+- [Principios de diseño](#4-principios-de-diseño)
+- [Arquitectura de alto nivel](#5-arquitectura-de-alto-nivel)
+- [Modelo de dominio](#6-modelo-de-dominio-base)
+- [Roadmap por fases](#8-roadmap-por-fases)
+- [Feature discovery](#v05--feature-discovery--selection): [spec y evidencia](docs/features/feature-discovery/spec.md)
+- [Plugins](#v06--arquitectura-de-plugins-estable): [spec y evidencia](docs/features/plugin-ecosystem/spec.md)
+- [Multimodalidad](#v07--imágenes-y-multimodalidad-inicial): [spec y evidencia](docs/features/multimodal/spec.md)
+- [Persistencia y reproducibilidad](#14-persistencia-y-reproducibilidad): [limitaciones actuales](docs/backends.md)
+- [Testing](#15-estrategia-de-testing)
+
+
 > Especificación técnica del proyecto AutoML modular, extensible, multimodal y preparado para integración futura con agentes LLM.
 
 AutoML Platform

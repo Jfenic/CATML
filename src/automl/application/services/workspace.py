@@ -3,11 +3,12 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
 
+from automl import __version__
 from automl.domain.datasets.profile import Dataset
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
@@ -69,7 +70,7 @@ from automl.plugins.models.sklearn_models import default_model_specs
 from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
 from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
-PLATFORM_VERSION = "0.7.0"
+PLATFORM_VERSION = __version__
 
 
 def _init_default_plugins(workspace: AutoMLWorkspace) -> None:
@@ -93,6 +94,8 @@ class AutoMLWorkspace:
     scorer: PriorityScorerPort = field(default_factory=RuleBasedPriorityScorer)
     scheduler: Scheduler = field(default_factory=Scheduler)
     plugin_registry: PluginRegistry = field(default_factory=PluginRegistry)
+    execution_check: Callable[[], None] | None = field(default=None, repr=False)
+    execution_progress: Callable[[int, int, str], None] | None = field(default=None, repr=False)
     _runs: dict[str, AutoMLRun] = field(default_factory=dict)
     _datasets: dict[str, Dataset] = field(default_factory=dict)
     _feature_registries: dict[str, FeatureRegistry] = field(default_factory=dict)
@@ -360,6 +363,7 @@ class AutoMLWorkspace:
         run: AutoMLRun,
         experiment: Experiment,
         start_index: int = 0,
+        skip_model_ids: set[str] | None = None,
     ) -> list[TrialResult]:
         if run.status == RunStatus.CANCELLED:
             raise RuntimeError(f"Run {run.id} is cancelled")
@@ -375,12 +379,20 @@ class AutoMLWorkspace:
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         results: list[TrialResult] = []
         model_ids = experiment.model_ids
+        if self.execution_progress:
+            self.execution_progress(start_index, len(model_ids), "Training models")
 
         for index, model_id in enumerate(model_ids):
             if index < start_index:
                 continue
 
-            refreshed = self._get_run(run.id)
+            if skip_model_ids and model_id in skip_model_ids:
+                if self.execution_progress:
+                    self.execution_progress(index + 1, len(model_ids), f"Reused {model_id}")
+                continue
+            if self.execution_check:
+                self.execution_check()
+            refreshed = self.repository.get_run(run.id)
             if refreshed.status == RunStatus.PAUSED:
                 self.repository.save_checkpoint(run.id, experiment.id, index)
                 experiment.status = ExperimentStatus.PAUSED
@@ -419,12 +431,17 @@ class AutoMLWorkspace:
             self.repository.save_trial(trial)
             self.repository.save_trial_result(result)
             results.append(result)
+            if self.execution_progress:
+                self.repository.save_checkpoint(run.id, experiment.id, index + 1)
+                self.execution_progress(index + 1, len(model_ids), f"Finished {model_id}")
             self._emit(
                 "TrialCompleted" if result.succeeded else "TrialFailed",
                 {"trial_id": trial.id, "model_id": model_id, "score": result.primary_score},
                 run_id=run.id,
             )
 
+        if self.execution_check:
+            self.execution_check()
         self.repository.clear_checkpoint(run.id)
         experiment.status = ExperimentStatus.COMPLETED
         self.repository.save_experiment(experiment)
@@ -1008,6 +1025,7 @@ class AutoMLWorkspace:
 
     def get_experiment_trials(self, experiment_id: str) -> list[dict]:
         results = self.repository.list_trial_results(experiment_id)
+        trials = {r.trial_id: self.repository.get_trial(r.trial_id) for r in results}
         return [
             {
                 "trial_id": r.trial_id,
@@ -1018,6 +1036,7 @@ class AutoMLWorkspace:
                 "training_time_s": round(r.training_time_seconds, 3),
                 "succeeded": r.succeeded,
                 "failure_reason": r.failure_reason,
+                "parameters": dict(trials[r.trial_id].parameters) if trials[r.trial_id] else {},
             }
             for r in results
         ]
@@ -1295,7 +1314,7 @@ class AutoMLWorkspace:
         from automl.domain.plugins.plugin import PluginType
         self.plugin_registry.register(plugin)
         if getattr(plugin, "plugin_type", None) == PluginType.MODEL:
-            from automl.domain.models.model_spec import ModelSpec
+            from automl.domain.models.registry import ModelSpec
             self.model_registry.register(
                 ModelSpec(
                     id=plugin.plugin_id,
@@ -1363,30 +1382,33 @@ class AutoMLWorkspace:
         if experiment is None:
             raise KeyError(f"Experiment '{target_experiment_id}' not found.")
 
-        feature_names = experiment.feature_names
-        from automl.engine.profiling.dataset_profiler import load_dataframe
-
-        train_df = load_dataframe(dataset.path)
-        X_train = train_df[feature_names]
-        y_train = train_df[dataset.target_column]
-
         test_df = load_dataframe(test_dataset_path)
-        missing_features = [f for f in feature_names if f not in test_df.columns]
-        if missing_features:
-            raise ValueError(f"Test dataset is missing required features: {missing_features}")
-        X_test = test_df[feature_names]
+        if experiment.validation_strategy == "oof":
+            from automl.application.services.oof_submission import cached_oof_predictions
+            raw_preds = cached_oof_predictions(self, run_id, experiment.id, test_dataset_path, predict_proba)
+        else:
+            feature_names = experiment.feature_names
 
-        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
-        preds = trainer.fit_and_predict(
-            X_train=X_train,
-            y_train=y_train,
-            X_test=X_test,
-            model_id=target_model_id,
-            task_type=dataset.task_type,
-            parameters=parameters,
-            predict_proba=predict_proba,
-        )
-        raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)
+            train_df = load_dataframe(dataset.path)
+            X_train = train_df[feature_names]
+            y_train = train_df[dataset.target_column]
+
+            missing_features = [f for f in feature_names if f not in test_df.columns]
+            if missing_features:
+                raise ValueError(f"Test dataset is missing required features: {missing_features}")
+            X_test = test_df[feature_names]
+
+            trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
+            preds = trainer.fit_and_predict(
+                X_train=X_train,
+                y_train=y_train,
+                X_test=X_test,
+                model_id=target_model_id,
+                task_type=dataset.task_type,
+                parameters=parameters,
+                predict_proba=predict_proba,
+            )
+            raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)
 
         if template_path is not None:
             import pandas as pd
@@ -1449,6 +1471,15 @@ class AutoMLWorkspace:
             trial_id=trial_id,
             predict_proba=predict_proba,
         )
+        return self._write_submission(run_id, test_dataset_path, output_path, preds,
+                                      id_column, template_path, predict_proba)
+
+    def _write_submission(
+        self, run_id, test_dataset_path, output_path, preds,
+        id_column=None, template_path=None, predict_proba=False,
+    ) -> dict[str, Any]:
+        if self.execution_check:
+            self.execution_check()
         run = self._get_run(run_id)
         dataset = self._get_dataset(run.dataset_id)
 
@@ -1549,6 +1580,14 @@ class AutoMLWorkspace:
             "predict_proba": predict_proba,
             "template_used": template_used,
         }
+
+    def generate_oof_submission(self, command) -> str:
+        from automl.application.services.oof_submission import generate_oof_submission
+        return generate_oof_submission(self, command)
+
+    def get_oof_result(self, run_id: str, experiment_id: str) -> dict:
+        from automl.application.services.oof_submission import get_oof_report
+        return get_oof_report(self, run_id, experiment_id)
 
     def validate_pipeline_graph(self, graph: PipelineGraph) -> None:
         """Validates that a pipeline graph is well-formed, acyclic, and modality-consistent."""

@@ -1,5 +1,7 @@
 # Implementation Plan: V0.7 Multimodal Pipelines & Parallel Team Division
 
+> Plan histórico de la fase implementada. La secuencia y asignaciones originales se conservan como referencia; no constituyen trabajo pendiente. Estado operativo: [TASKS.md](../../../TASKS.md).
+
 > Step-by-step roadmap and zero-conflict Git division for two developers working concurrently on Phase V0.7.
 
 ---
@@ -16,7 +18,7 @@ To eliminate merge conflicts and dependencies:
 ```mermaid
 flowchart TD
     Main0["main: Step 0 Base Contracts
-    (domain/modalities/ and domain/pipeline/)"]
+    (domain/modalities/ and domain/pipelines/)"]
     
     Main0 --> B1["Dev 1 Branch: feat/v07-pipeline-graph-engine"]
     Main0 --> B2["Dev 2 Branch: feat/v07-image-plugin"]
@@ -107,4 +109,4 @@ flowchart TD
 - Every branch must pass its dedicated test file:
   - Dev 1: `.venv/bin/pytest tests/test_v07_pipeline_graph.py`
   - Dev 2: `.venv/bin/pytest tests/test_v07_image_plugin.py`
-- Whole test suite before merging: `.venv/bin/pytest --cov=src/automl` (all 95+ tests green, coverage $\ge 85\%$).
+- Whole test suite before merging: `.venv/bin/pytest --cov=src/automl --cov-fail-under=85` (entire current suite passing, coverage $\ge 85\%$).

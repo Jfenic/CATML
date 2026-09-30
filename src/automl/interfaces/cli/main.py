@@ -18,6 +18,7 @@ from automl.application.commands.workspace_commands import (
     SelectFeaturesCommand,
     PlanAblationExperimentsCommand,
     GenerateSubmissionCommand,
+    GenerateOOFSubmissionCommand,
 )
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
@@ -27,6 +28,7 @@ from automl.application.queries.workspace_queries import (
     ListCandidatesQuery,
     ListTaskTypesQuery,
     ListPluginsQuery,
+    GetOOFResultQuery,
 )
 from automl.domain.features.selection_strategy import FeatureSelectionStrategy
 from automl.application.services.workspace import PLATFORM_VERSION
@@ -422,17 +424,34 @@ def predict_cli(args: argparse.Namespace) -> int:
 
     out_path = args.output or "submission.csv"
 
-    res = cmd.dispatch(
-        GenerateSubmissionCommand(
-            run_id=run_id,
-            test_dataset_path=str(test_path),
-            output_path=out_path,
-            id_column=args.id_column,
-            template_path=getattr(args, "template", None),
-            experiment_id=args.experiment_id,
-            predict_proba=args.proba,
+    if args.models is not None and args.folds is None:
+        print("Error: --models requires --folds.", file=sys.stderr)
+        return 1
+    if args.folds is not None:
+        try:
+            experiment_id = cmd.dispatch(GenerateOOFSubmissionCommand(
+                run_id=run_id, test_dataset_path=str(test_path), output_path=out_path,
+                id_column=args.id_column, template_path=args.template,
+                experiment_id=args.experiment_id, predict_proba=args.proba,
+                folds=args.folds, model_ids=[m.strip() for m in args.models.split(",")] if args.models is not None else None,
+                max_seconds=args.oof_timeout,
+            ))
+            res = qry.dispatch(GetOOFResultQuery(run_id=run_id, experiment_id=experiment_id))
+        except (ValueError, KeyError, RuntimeError, TimeoutError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+    else:
+        res = cmd.dispatch(
+            GenerateSubmissionCommand(
+                run_id=run_id,
+                test_dataset_path=str(test_path),
+                output_path=out_path,
+                id_column=args.id_column,
+                template_path=getattr(args, "template", None),
+                experiment_id=args.experiment_id,
+                predict_proba=args.proba,
+            )
         )
-    )
 
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2))
@@ -447,6 +466,9 @@ def predict_cli(args: argparse.Namespace) -> int:
     print(f"  ID Column:     {res['id_column']}")
     print(f"  Target Column: {res['target_column']}")
     print(f"  Probabilities: {res['predict_proba']}")
+    if res.get("folds"):
+        print(f"  OOF folds:     {res['folds']}")
+        print(f"  ROC-AUC:       {res['score']:.6f} (baseline {res['baseline_score']:.6f}; delta {res['delta']:+.6f})")
     if res.get("template_used"):
         print(f"  Template:      {res['template_used']}\n")
     else:
@@ -466,6 +488,36 @@ def launch_ui_cli(args: argparse.Namespace) -> int:
 
     port = args.port or 8080
     run_web_dashboard(port=port, workspace_dir=ws_dir)
+    return 0
+
+
+def jobs_cli(args) -> int:
+    from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
+    from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
+    if args.job_action == "worker":
+        from automl.infrastructure.jobs.worker import JobWorker
+        worker = JobWorker(args.workspace).start(background=False)
+        try:
+            while True:
+                if not worker.run_once():
+                    import time
+                    time.sleep(0.25)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            worker.close()
+        return 0
+    _, commands, queries = build_application(args.workspace)
+    if args.job_action == "submit":
+        result = {"job_id": commands.dispatch(SubmitJobCommand(args.operation, args.run_id,
+                  json.loads(args.payload), args.key))}
+    elif args.job_action == "list":
+        result = queries.dispatch(ListJobsQuery(args.run_id))
+    elif args.job_action == "show":
+        result = queries.dispatch(GetJobQuery(args.job_id))
+    else:
+        result = {"job_id": commands.dispatch(ControlJobCommand(args.job_id, args.job_action))}
+    print(json.dumps(result, indent=2))
     return 0
 
 
@@ -577,6 +629,9 @@ def main(argv: list[str] | None = None) -> int:
     pred_parser.add_argument("--template", help="Path to sample submission CSV to match column names and row ID ordering exactly")
     pred_parser.add_argument("--experiment-id", help="Optional specific experiment ID to use")
     pred_parser.add_argument("--proba", action="store_true", help="Output probabilities instead of binary labels")
+    pred_parser.add_argument("--folds", type=int, help="OOF folds for binary classification; e.g. 5")
+    pred_parser.add_argument("--models", help="One or two comma-separated individual models for OOF")
+    pred_parser.add_argument("--oof-timeout", type=float, default=300.0, help="OOF time budget in seconds, checked between fits (default: 300)")
     pred_parser.add_argument("--json", action="store_true")
     pred_parser.set_defaults(func=predict_cli)
 
@@ -584,6 +639,21 @@ def main(argv: list[str] | None = None) -> int:
     ui_parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
     ui_parser.add_argument("--workspace", help="Connected workspace directory (default: auto)")
     ui_parser.set_defaults(func=launch_ui_cli)
+
+    job_parser = sub.add_parser("job", help="Persistent background jobs and worker")
+    job_sub = job_parser.add_subparsers(dest="job_action", required=True)
+    for action in ("submit", "list", "show", "pause", "resume", "cancel", "retry", "worker"):
+        action_parser = job_sub.add_parser(action)
+        action_parser.add_argument("--workspace", required=True)
+        action_parser.set_defaults(func=jobs_cli)
+        if action in {"show", "pause", "resume", "cancel", "retry"}:
+            action_parser.add_argument("--job-id", required=True)
+        if action in {"list", "submit"}:
+            action_parser.add_argument("--run-id", required=action == "submit")
+        if action == "submit":
+            action_parser.add_argument("--operation", choices=("experiment", "oof", "submission"), required=True)
+            action_parser.add_argument("--payload", required=True, help="JSON operation arguments")
+            action_parser.add_argument("--key", required=True, help="Stable idempotency key for this request")
 
     args = parser.parse_args(argv)
     return args.func(args)

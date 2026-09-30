@@ -1,5 +1,7 @@
 # Feature Specification: V0.7 Multimodal Pipelines & Directed Acyclic Graph (DAG)
 
+> Especificación de referencia de una fase implementada; el alcance actual y las limitaciones están en [el mapa de capacidades](../../README.md). Estado operativo: [TASKS.md](../../../TASKS.md).
+
 > Generalizing CATML to ingest, encode, and fuse multi-modal data (tabular + images) using a flexible DAG pipeline without altering existing tabular workflows.
 
 ---
@@ -71,4 +73,17 @@ Extend CATML's core capabilities beyond single-table datasets by:
 2. `GraphValidator` raises `ValueError` on cyclic connections or mismatched input/output modalities.
 3. `FeatureFusionNode` correctly aligns and concatenates tabular columns and embedding matrices.
 4. `ImageModalityPlugin` extracts consistent embedding vectors from image paths.
-5. All 95 existing tests pass without regressions, and new tests maintain global coverage $\ge 85\%$.
+5. The entire current suite passes without regressions, and new tests maintain global coverage $\ge 85\%$.
+
+## Evidencia y alcance de aceptación
+
+| Criterio / capacidad | Implementación y validación |
+| --- | --- |
+| Contratos de dominio | [pipelines](../../../src/automl/domain/pipelines/), [tests](../../../tests/test_v07_domain.py) |
+| Validación DAG y fusión | [motor](../../../src/automl/engine/pipeline/), [tests](../../../tests/test_v07_pipeline_graph.py) |
+| Imágenes y encoder | [encoder](../../../src/automl/engine/vision/image_encoder.py), [tests](../../../tests/test_v07_image_plugin.py) |
+| Integración de aplicación | [workspace](../../../src/automl/application/services/workspace.py), [tests E2E](../../../tests/test_v07_multimodal_e2e.py) |
+
+La cobertura global se valida ejecutando toda la suite con `--cov-fail-under=85`; la presencia de tests no prueba una ejecución actual ni una mejora universal de calidad.
+
+El núcleo DAG, imagen y fusión tabular está implementado. Late fusion, manejo general de modalidades ausentes y calidad de embeddings preentrenados requieren validación adicional; el encoder predeterminado es determinista. El límite de 45 segundos es un objetivo original, no una propiedad verificada de la suite actual.

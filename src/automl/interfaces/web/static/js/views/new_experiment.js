@@ -170,17 +170,17 @@ export class NewExperimentModal {
 
             <div class="space-y-2">
               <h3 id="trainingStatusTitle" class="text-base font-bold text-slate-100">Entrenando Pipeline AutoML...</h3>
-              <p id="trainingStatusDesc" class="text-xs text-indigo-300 font-mono">Iniciando preprocesadores y validación estratificada</p>
+              <p id="trainingStatusDesc" class="text-xs text-indigo-300 font-mono">Esperando al worker</p>
             </div>
 
             <!-- Animated Progress Bar -->
             <div class="space-y-1.5 max-w-md mx-auto">
               <div class="flex justify-between text-[11px] font-mono text-slate-400">
-                <span id="trainingPercentLabel">15%</span>
-                <span class="text-slate-500">Estimado: ~5s</span>
+                <span id="trainingPercentLabel">0%</span>
+                <span class="text-slate-500">Progreso verificado</span>
               </div>
               <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
-                <div id="trainingProgressBar" class="bg-indigo-500 h-2 rounded-full progress-striped transition-all duration-500 ease-out" style="width: 15%"></div>
+                <div id="trainingProgressBar" class="bg-indigo-500 h-2 rounded-full progress-striped transition-all duration-500 ease-out" style="width: 0%"></div>
               </div>
             </div>
 
@@ -194,34 +194,23 @@ export class NewExperimentModal {
         const percentLabel = modalBox.querySelector("#trainingPercentLabel");
         const statusDesc = modalBox.querySelector("#trainingStatusDesc");
 
-        // Progress simulation while training executes
-        const t1 = setTimeout(() => {
-          if (progressBar) progressBar.style.width = "45%";
-          if (percentLabel) percentLabel.textContent = "45%";
-          if (statusDesc) statusDesc.textContent = "Ajustando TargetAdapter y entrenando árboles gradient boosting...";
-        }, 1000);
-
-        const t2 = setTimeout(() => {
-          if (progressBar) progressBar.style.width = "80%";
-          if (percentLabel) percentLabel.textContent = "80%";
-          if (statusDesc) statusDesc.textContent = "Calculando métricas de validación cruzada (ROC-AUC)...";
-        }, 2200);
-
         const res = await api.createAndRunExperiment({
           run_id: activeRun.id,
           mode: this.mode,
           budget: this.budget,
           models: selectedModels,
+        }, job => {
+          const percent = job.total ? Math.round(job.completed * 100 / job.total) : 0;
+          if (progressBar) progressBar.style.width = `${percent}%`;
+          if (percentLabel) percentLabel.textContent = `${percent}%`;
+          if (statusDesc) statusDesc.textContent = `${job.status}: ${job.message}`;
         });
-
-        clearTimeout(t1);
-        clearTimeout(t2);
 
         if (progressBar) progressBar.style.width = "100%";
         if (percentLabel) percentLabel.textContent = "100%";
         if (statusDesc) {
           statusDesc.className = "text-xs text-emerald-400 font-mono font-bold";
-          statusDesc.textContent = `¡Completado con éxito! ROC-AUC: ${res.primary_score ? res.primary_score.toFixed(5) : "0.94110"}`;
+          statusDesc.textContent = `¡Completado! ${res.primary_metric}: ${res.primary_score.toFixed(5)}`;
         }
 
         setTimeout(() => {
