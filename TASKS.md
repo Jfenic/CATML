@@ -19,9 +19,17 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ## Next (Roadmap Phases)
 
-- [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (dataset meta-features, historical memory)
-- [ ] V0.9 Phase: LLM Agent tools (`AgentTool` wrappers) and permission-controlled bus interface
-- [ ] V1.0 Phase: Autonomous Experiment Agent (Planner, Critic, Orchestrator for hypothesis-driven exploration)
+> **Sistema agéntico — empieza aquí:** [`docs/features/agentic-system/README.md`](docs/features/agentic-system/README.md). Elige Persona A o B; prepara A0 o B0 y acuerda H0 antes de pasar a A1/B1.
+
+- [x] Documentar entrada para colaboradores, orden de lectura, elección A/B y primeras entregas en la guía del sistema agéntico.
+- [x] Revisar y ampliar el plan agéntico: límites modulares, contratos propuestos, presupuesto/aprobación, recuperación, propiedad de integración e hitos H0–H5 documentados en `docs/features/agentic-system/plan.md`.
+- [x] Concretar ejecución entre dos personas en [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md): paquetes A0–A5/B0–B5, dependencias, archivos/tests propios, handoff y revisión cruzada; primera entrega conjunta H2.
+- [ ] H0 — Preparar V0.9: acordar firmas/schemas, defaults finitos, ADR de alcance, compatibilidad de SDK/Python y modelo transaccional antes de implementar en paralelo.
+- [ ] H1–H3 — V0.9 incremental: consultas y MCP stdio → mutaciones autorizadas/idempotentes → HPO y operaciones largas; Streamable HTTP si entra en alcance.
+- [ ] H4–H5 — V1.0 incremental: ciclo determinista con proveedor falso → LangGraph opcional con checkpoints y recuperación probada.
+- [ ] V0.9 Phase: LLM Agent Tools & MCP Server (`AgentTool` wrappers, JSON-Schema tool registry, permission policies, MCP Server adapter) — *Ver plan detallado para 2 personas en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*
+- [ ] V1.0 Phase: Autonomous Experiment Agent con LangGraph (Planner, Critic, Feature Advisor y Orchestrator cíclico "Proponer ≠ Aceptar") — *Ver plan detallado en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*
+- [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
 
 - [ ] Stacking with a trained meta-estimator (distinct from voting/blending).
 - [ ] Persist backend class, plugin/library versions and dataset/config hashes per trial ([current limits](docs/backends.md)).
