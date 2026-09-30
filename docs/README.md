@@ -10,6 +10,7 @@ La versión del paquete se define en [`automl.__version__`](../src/automl/__init
 | Entender capas y dependencias | [Arquitectura actual](../ARCHITECTURE.md) |
 | Añadir modelos y casos de uso | [Guía de desarrollo](../DEVELOPER_GUIDE.md) |
 | Contribuir y validar cambios | [Contribución](../CONTRIBUTING.md) y [reglas de agentes](../AGENTS.md) |
+| Sistema agéntico, MCP y roles A/B | [Sistema agéntico](features/agentic-system/README.md) |
 | Gestionar trabajos, controles y recuperación | [Cola persistente](features/persistent-jobs/spec.md) |
 | Comprobar backend y reproducibilidad | [Backends](backends.md) |
 | Consultar diseño objetivo y fases futuras | [Especificación técnica](../AutoML_Arquitectura_Tecnica.md) |
