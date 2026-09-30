@@ -9,6 +9,8 @@ from urllib.parse import parse_qs, urlparse
 
 from automl import __version__
 from automl.application.bootstrap import build_application
+from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
+from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
 from automl.application.commands.workspace_commands import (
     CancelRunCommand,
     CloneRunCommand,
@@ -112,6 +114,17 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
         ws, cmd, qry = build_application(root_dir=self.workspace_dir)
+
+        if path == "/api/jobs" or path.startswith("/api/jobs/"):
+            try:
+                if path == "/api/jobs":
+                    result = qry.dispatch(ListJobsQuery(query_params.get("run_id", [None])[0]))
+                else:
+                    result = qry.dispatch(GetJobQuery(path.removeprefix("/api/jobs/")))
+                self._send_json(result)
+            except KeyError as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
+            return
 
         # 2. REST API endpoints
         if path == "/api/overview":
@@ -488,7 +501,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         ws, cmd, qry = build_application(root_dir=self.workspace_dir)
 
         try:
-            if path == "/api/dataset/register":
+            if path == "/api/jobs":
+                job_id = cmd.dispatch(SubmitJobCommand(**payload))
+                self._send_json({"job_id": job_id, "status_url": f"/api/jobs/{job_id}"}, HTTPStatus.ACCEPTED)
+                return
+            elif path.startswith("/api/jobs/"):
+                parts = path.removeprefix("/api/jobs/").split("/")
+                if len(parts) != 2:
+                    raise ValueError("Expected /api/jobs/{id}/{action}")
+                job_id = cmd.dispatch(ControlJobCommand(*parts))
+                self._send_json({"job_id": job_id})
+                return
+            elif path == "/api/dataset/register":
                 name = payload.get("name", "dataset")
                 data_path = payload.get("path")
                 target = payload.get("target")
@@ -518,6 +542,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if not run_id:
                     self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
                     return
+                jobs = [j for j in qry.dispatch(ListJobsQuery(run_id)) if j["status"] in {"queued", "running"}]
+                if jobs:
+                    for job in jobs:
+                        cmd.dispatch(ControlJobCommand(job["id"], "pause"))
+                    self._send_json({"status": "success", "run_id": run_id, "state": "PAUSE_REQUESTED"})
+                    return
                 cmd.dispatch(PauseRunCommand(run_id=run_id))
                 self._send_json({"status": "success", "run_id": run_id, "state": "PAUSED"})
                 return
@@ -526,6 +556,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 run_id = payload.get("run_id")
                 if not run_id:
                     self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                jobs = [j for j in qry.dispatch(ListJobsQuery(run_id)) if j["status"] == "paused"]
+                if jobs:
+                    for job in jobs:
+                        cmd.dispatch(ControlJobCommand(job["id"], "resume"))
+                    self._send_json({"status": "success", "run_id": run_id, "state": "QUEUED"})
                     return
                 try:
                     cmd.dispatch(ResumeRunCommand(run_id=run_id))
@@ -541,6 +577,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 run_id = payload.get("run_id")
                 if not run_id:
                     self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                jobs = [j for j in qry.dispatch(ListJobsQuery(run_id)) if j["status"] in {"queued", "running", "pause_requested", "paused", "interrupted", "failed"}]
+                if jobs:
+                    for job in jobs:
+                        cmd.dispatch(ControlJobCommand(job["id"], "cancel"))
+                    self._send_json({"status": "success", "run_id": run_id, "state": "CANCEL_REQUESTED"})
                     return
                 cmd.dispatch(CancelRunCommand(run_id=run_id))
                 self._send_json({"status": "success", "run_id": run_id, "state": "CANCELLED"})
@@ -750,6 +792,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
+        except (ValueError, TypeError) as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+        except KeyError as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
             self._send_json({"status": "error", "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -757,6 +803,13 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo") -> None:
     AutoMLWebHandler.workspace_dir = workspace_dir
     server = ThreadingHTTPServer(("0.0.0.0", port), AutoMLWebHandler)
+    from automl.infrastructure.jobs.worker import JobWorker
+    worker = JobWorker(workspace_dir)
+    try:
+        worker.start()
+    except Exception:
+        server.server_close()
+        raise
     print("=" * 65)
     print(f"  CATML AutoML Workbench (Platform V{__version__})")
     print(f"  Running locally at: http://localhost:{port}")
@@ -768,7 +821,9 @@ def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo") -> 
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nStopping dashboard server...")
+    finally:
         server.server_close()
+        worker.close(timeout=2)
 
 
 if __name__ == "__main__":

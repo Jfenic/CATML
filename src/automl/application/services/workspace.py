@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -94,6 +94,8 @@ class AutoMLWorkspace:
     scorer: PriorityScorerPort = field(default_factory=RuleBasedPriorityScorer)
     scheduler: Scheduler = field(default_factory=Scheduler)
     plugin_registry: PluginRegistry = field(default_factory=PluginRegistry)
+    execution_check: Callable[[], None] | None = field(default=None, repr=False)
+    execution_progress: Callable[[int, int, str], None] | None = field(default=None, repr=False)
     _runs: dict[str, AutoMLRun] = field(default_factory=dict)
     _datasets: dict[str, Dataset] = field(default_factory=dict)
     _feature_registries: dict[str, FeatureRegistry] = field(default_factory=dict)
@@ -361,6 +363,7 @@ class AutoMLWorkspace:
         run: AutoMLRun,
         experiment: Experiment,
         start_index: int = 0,
+        skip_model_ids: set[str] | None = None,
     ) -> list[TrialResult]:
         if run.status == RunStatus.CANCELLED:
             raise RuntimeError(f"Run {run.id} is cancelled")
@@ -376,12 +379,20 @@ class AutoMLWorkspace:
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         results: list[TrialResult] = []
         model_ids = experiment.model_ids
+        if self.execution_progress:
+            self.execution_progress(start_index, len(model_ids), "Training models")
 
         for index, model_id in enumerate(model_ids):
             if index < start_index:
                 continue
 
-            refreshed = self._get_run(run.id)
+            if skip_model_ids and model_id in skip_model_ids:
+                if self.execution_progress:
+                    self.execution_progress(index + 1, len(model_ids), f"Reused {model_id}")
+                continue
+            if self.execution_check:
+                self.execution_check()
+            refreshed = self.repository.get_run(run.id)
             if refreshed.status == RunStatus.PAUSED:
                 self.repository.save_checkpoint(run.id, experiment.id, index)
                 experiment.status = ExperimentStatus.PAUSED
@@ -420,12 +431,17 @@ class AutoMLWorkspace:
             self.repository.save_trial(trial)
             self.repository.save_trial_result(result)
             results.append(result)
+            if self.execution_progress:
+                self.repository.save_checkpoint(run.id, experiment.id, index + 1)
+                self.execution_progress(index + 1, len(model_ids), f"Finished {model_id}")
             self._emit(
                 "TrialCompleted" if result.succeeded else "TrialFailed",
                 {"trial_id": trial.id, "model_id": model_id, "score": result.primary_score},
                 run_id=run.id,
             )
 
+        if self.execution_check:
+            self.execution_check()
         self.repository.clear_checkpoint(run.id)
         experiment.status = ExperimentStatus.COMPLETED
         self.repository.save_experiment(experiment)
@@ -1462,6 +1478,8 @@ class AutoMLWorkspace:
         self, run_id, test_dataset_path, output_path, preds,
         id_column=None, template_path=None, predict_proba=False,
     ) -> dict[str, Any]:
+        if self.execution_check:
+            self.execution_check()
         run = self._get_run(run_id)
         dataset = self._get_dataset(run.dataset_id)
 

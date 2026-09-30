@@ -57,6 +57,8 @@ def generate_oof_submission(workspace, command) -> str:
         raise ValueError("OOF currently supports binary classification only")
 
     def check_allowed():
+        if workspace.execution_check:
+            workspace.execution_check()
         current = workspace.repository.get_run(run.id)
         if current.status in {RunStatus.CANCELLED, RunStatus.PAUSED}:
             raise RuntimeError(f"Run is {current.status.value.lower()}; restart OOF after resuming")
@@ -125,9 +127,10 @@ def generate_oof_submission(workspace, command) -> str:
         result = evaluate_oof(X, train_df[dataset.target_column], X_test,
                               {m: factory(m) for m in models}, folds=command.folds,
                               seed=run.config.random_seed, max_seconds=command.max_seconds,
-                              check_allowed=check_allowed)
+                              check_allowed=check_allowed, progress=workspace.execution_progress)
         if file_hash(dataset.path) != train_hash or file_hash(command.test_dataset_path) != test_hash:
             raise ValueError("Dataset changed during OOF evaluation; discard this run and retry")
+        check_allowed()
         artifact_dir = workspace.root_dir.resolve() / "oof" / experiment.id
         artifact_dir.mkdir(parents=True, exist_ok=True)
         oof_path, test_path, report_path = (artifact_dir / name for name in ("oof.csv", "test_predictions.csv", "report.json"))

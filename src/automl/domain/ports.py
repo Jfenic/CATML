@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
+from automl.domain.jobs.job import Job, JobStatus
+
 from automl.domain.datasets.profile import DatasetProfile
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
@@ -250,3 +252,14 @@ class ModalityPluginPort(PluginPort, Protocol):
 
 
 
+
+
+class JobRepositoryPort(Protocol):
+    """Atomic state transitions and claims for durable local jobs."""
+    def enqueue(self, job: "Job") -> str: ...
+    def get(self, job_id: str) -> "Job": ...
+    def list(self, run_id: str | None = None) -> list["Job"]: ...
+    def change(self, job_id: str, allowed: set["JobStatus"], **changes: Any) -> "Job": ...
+    def finish(self, job_id: str, status: "JobStatus", **changes: Any) -> "Job": ...
+    def claim(self) -> "Job | None": ...
+    def recover(self) -> None: ...

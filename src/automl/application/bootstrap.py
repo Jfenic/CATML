@@ -49,6 +49,10 @@ from automl.application.queries.workspace_queries import (
     GetOOFResultQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
+from automl.application.services.jobs import JobService
+from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
+from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
+from automl.infrastructure.database.sqlite_jobs import SQLiteJobRepository
 
 
 
@@ -67,6 +71,11 @@ def register_handlers(
     command_bus: CommandBus,
     query_bus: QueryBus,
 ) -> None:
+    jobs = JobService(workspace, SQLiteJobRepository(workspace.repository.db_path))
+    command_bus.register(SubmitJobCommand, jobs.submit)
+    command_bus.register(ControlJobCommand, jobs.control)
+    query_bus.register(GetJobQuery, lambda q: jobs.get(q.job_id))
+    query_bus.register(ListJobsQuery, lambda q: jobs.list(q.run_id))
     command_bus.register(AddModelCommand, lambda cmd: workspace.include_model(workspace._get_run(cmd.run_id), cmd.model_id))
     command_bus.register(
         ExcludeModelCommand,
