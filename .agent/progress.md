@@ -1,5 +1,6 @@
 # Progress
 
+
 Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado)**:
 - Rol: **Persona B** (Interfaces, Integración y Orquestación).
 - Rama: `feat/agentic-b2-approvals`.
@@ -13,6 +14,17 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 
   - Suite de pruebas de CLI (`tests/test_v09_agent_cli.py`): 7 tests pasando (100% de cobertura en subcomandos).
   - Suite global de pruebas: 289 tests pasando, 87.57% cobertura (superando el umbral de 85%).
 - Hito H2 cerrado: Primera entrega conjunta V0.9 local completada. Preparado para H3 (operaciones largas, HPO, leases y cancelación cooperativa).
+
+Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
+- Rama: `feat/ensemble-weight-optimization-and-pruning`.
+- Entregable completado:
+  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`): parametrización softmax no acotada $\vec{w} = \text{softmax}(\vec{\theta})$ garantizando pesos estrictamente no negativos y suma 1.0, con regularización suave de Brier para superar plateaus discretos en métricas de ranking (ROC-AUC) y clasificación.
+  - Rank-Averaging Blending (`rank_average_predictions` y `method="rank"` en `blend_predictions`): conversión a rangos percentiles fraccionarios libres de escala $(rank - 1)/(N - 1)$, eliminando distorsiones por descalibración probabilística entre modelos heterogéneos (GBDTs, redes neuronales, lineales).
+  - Integración en `VotingEnsembleEstimator`: soporte de `voting="rank"`, `optimize_weights=True` y `metric`, optimizando pesos automáticamente sobre datos de validación / OOF con `self.weights_` y `self.optimal_score_`.
+  - Exposición en `VotingEnsemblePlugin` y `SearchSpaceBuilder`: parámetros `voting` ("soft", "hard", "rank") y `optimize_weights` explorables en HPO.
+  - Multi-fidelity Early Pruning en `OptunaOptimizer`: integración de `optuna.pruners.MedianPruner` (startup 5, warmup 2), método `report_step(trial_number, step, value)` y registro de `TrialState.PRUNED` en `observe(..., pruned=True)`.
+  - Validación completa: 294 tests pasando (20 tests en `tests/test_ensemble_plugin.py`, 14 tests en `tests/test_v04_optimizer.py`), 8 skipped, 0 fallos, 86.40% cobertura de código (supera el umbral de 85%).
+
 
 ## Completed
 

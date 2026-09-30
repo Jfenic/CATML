@@ -346,3 +346,40 @@ def test_optimization_budget():
     d = b.to_dict()
     assert d["patience"] == 3
 
+
+def test_optuna_optimizer_pruning_and_reporting() -> None:
+    from optuna.pruners import MedianPruner
+    from optuna.trial import TrialState
+
+    space = SearchSpace()
+    space.add(ParameterSpec.float("lr", 0.01, 1.0))
+
+    # Configure MedianPruner with 2 startup trials and 0 warmup steps
+    pruner = MedianPruner(n_startup_trials=2, n_warmup_steps=0)
+    opt = OptunaOptimizer(seed=42, direction="maximize", pruner=pruner)
+
+    assert isinstance(opt.pruner, MedianPruner)
+    assert opt.report_step(999, step=0, value=0.5) is False  # Non-existent trial
+
+    # Trial 0: good baseline
+    p0 = opt.suggest(0, space)
+    opt.report_step(0, step=0, value=0.8)
+    opt.observe(0, p0, score=0.8, succeeded=True)
+
+    # Trial 1: good baseline
+    p1 = opt.suggest(1, space)
+    opt.report_step(1, step=0, value=0.85)
+    opt.observe(1, p1, score=0.85, succeeded=True)
+
+    # Trial 2: unpromising trial (score 0.1 < median 0.825) -> should prune
+    p2 = opt.suggest(2, space)
+    should_prune = opt.report_step(2, step=0, value=0.1)
+    assert should_prune is True
+    opt.observe(2, p2, score=0.1, succeeded=True, pruned=True)
+
+    assert len(opt.pruned_trials) == 1
+    assert opt.pruned_trials[0].state == TrialState.PRUNED
+    # Best score reflects successful trials, not pruned
+    assert opt.best_score() == pytest.approx(0.85)
+
+

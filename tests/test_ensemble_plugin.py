@@ -12,6 +12,8 @@ from automl.plugins.models.ensemble import (
     VotingEnsembleEstimator,
     VotingEnsemblePlugin,
     blend_predictions,
+    optimize_ensemble_weights,
+    rank_average_predictions,
 )
 
 
@@ -290,5 +292,132 @@ def test_default_ensemble_factory() -> None:
     reg_models = default_ensemble_factory("regression")
     assert len(reg_models) >= 2
     assert any(name == "ridge" for name, _ in reg_models)
+
+
+def test_rank_average_predictions_properties() -> None:
+    # 1D ranking
+    p1 = np.array([0.1, 0.9, 0.4])
+    p2 = np.array([0.05, 0.99, 0.5])
+    ranked = rank_average_predictions([p1, p2])
+    assert ranked.shape == (3,)
+    assert ranked.min() >= 0.0
+    assert ranked.max() <= 1.0
+    # Largest value in both should have highest rank
+    assert ranked[1] > ranked[2] > ranked[0]
+
+    # 2D probabilities
+    prob1 = np.array([[0.8, 0.2], [0.1, 0.9], [0.4, 0.6]])
+    prob2 = np.array([[0.95, 0.05], [0.05, 0.95], [0.3, 0.7]])
+    ranked_2d = rank_average_predictions([prob1, prob2])
+    assert ranked_2d.shape == (3, 2)
+    np.testing.assert_allclose(ranked_2d.sum(axis=1), 1.0)
+
+
+def test_optimize_ensemble_weights_classification() -> None:
+    from sklearn.metrics import roc_auc_score
+
+    np.random.seed(42)
+    y_true = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+    # Good model: high AUC
+    prob_good = np.zeros((10, 2))
+    prob_good[:, 1] = np.array([0.05, 0.1, 0.15, 0.2, 0.25, 0.75, 0.8, 0.85, 0.9, 0.95])
+    prob_good[:, 0] = 1.0 - prob_good[:, 1]
+
+    # Noisy / weak model
+    prob_weak = np.zeros((10, 2))
+    prob_weak[:, 1] = np.array([0.45, 0.55, 0.35, 0.65, 0.4, 0.6, 0.3, 0.7, 0.5, 0.8])
+    prob_weak[:, 0] = 1.0 - prob_weak[:, 1]
+
+    weights, score = optimize_ensemble_weights(
+        predictions=[prob_good, prob_weak],
+        y_true=y_true,
+        metric="roc_auc",
+        task_type="binary_classification",
+    )
+
+    assert len(weights) == 2
+    assert weights[0] >= 0.0 and weights[1] >= 0.0
+    assert weights.sum() == pytest.approx(1.0)
+    # The good model should receive higher weight than the weak model
+    assert weights[0] > weights[1]
+    assert score >= 0.9
+
+
+def test_optimize_ensemble_weights_regression() -> None:
+    np.random.seed(42)
+    y_true = np.linspace(10.0, 50.0, 20)
+    pred_good = y_true + np.random.normal(0, 0.1, size=20)
+    pred_poor = y_true + np.random.normal(0, 10.0, size=20)
+
+    weights, score = optimize_ensemble_weights(
+        predictions=[pred_good, pred_poor],
+        y_true=y_true,
+        metric="rmse",
+        task_type="regression",
+    )
+
+    assert len(weights) == 2
+    assert weights.sum() == pytest.approx(1.0)
+    assert weights[0] > weights[1]
+    assert score < 2.0
+
+
+def test_voting_ensemble_estimator_rank_voting() -> None:
+    X, y = make_classification(n_samples=120, n_features=5, random_state=42)
+    rf = RandomForestClassifier(n_estimators=15, random_state=42)
+    lr = LogisticRegression(random_state=42)
+
+    ensemble = VotingEnsembleEstimator(
+        estimators=[("rf", rf), ("lr", lr)],
+        task_type="binary_classification",
+        voting="rank",
+    )
+    ensemble.fit(X, y)
+    probs = ensemble.predict_proba(X)
+    assert probs.shape == (120, 2)
+    np.testing.assert_allclose(probs.sum(axis=1), 1.0)
+
+    preds = ensemble.predict(X)
+    assert len(preds) == 120
+    assert set(np.unique(preds)).issubset(set(ensemble.classes_))
+
+
+def test_voting_ensemble_estimator_weight_optimization() -> None:
+    X, y = make_classification(n_samples=150, n_features=6, random_state=42)
+    rf = RandomForestClassifier(n_estimators=20, random_state=42)
+    lr = LogisticRegression(random_state=42)
+
+    ensemble = VotingEnsembleEstimator(
+        estimators=[("rf", rf), ("lr", lr)],
+        task_type="binary_classification",
+        voting="soft",
+        optimize_weights=True,
+        metric="roc_auc",
+    )
+    ensemble.fit(X, y)
+    assert ensemble.is_fitted_ is True
+    assert ensemble.weights_ is not None
+    assert len(ensemble.weights_) == 2
+    assert ensemble.weights_.sum() == pytest.approx(1.0)
+    assert ensemble.optimal_score_ is not None
+    assert ensemble.optimal_score_ > 0.8
+
+    probs = ensemble.predict_proba(X)
+    assert probs.shape == (150, 2)
+
+
+def test_voting_ensemble_search_space_builder() -> None:
+    from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
+
+    clf_space = SearchSpaceBuilder.build("voting_ensemble", task_type="binary_classification")
+    assert "voting" in clf_space.parameters
+    assert clf_space.parameters["voting"].choices == ["soft", "rank"]
+    assert "optimize_weights" in clf_space.parameters
+
+    reg_space = SearchSpaceBuilder.build("voting_ensemble", task_type="regression")
+    assert "voting" not in reg_space.parameters
+    assert "optimize_weights" in reg_space.parameters
+
 
 

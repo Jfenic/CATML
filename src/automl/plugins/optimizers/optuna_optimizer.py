@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import optuna
+from optuna.pruners import BasePruner, MedianPruner, NopPruner
 from optuna.samplers import TPESampler
 from optuna.trial import TrialState
 
@@ -16,6 +17,7 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 class OptunaOptimizer(OptimizerPort):
     """
     Optuna-based bayesian optimizer implementing OptimizerPort via ask-and-tell interface.
+    Supports multi-fidelity intermediate trial pruning (MedianPruner).
     """
 
     def __init__(
@@ -24,10 +26,20 @@ class OptunaOptimizer(OptimizerPort):
         direction: str = "maximize",
         patience: int = 5,
         min_delta: float = 0.0001,
+        pruner: BasePruner | None = None,
+        enable_pruning: bool = True,
     ) -> None:
         self.direction = direction
         sampler = TPESampler(seed=seed)
-        self._study = optuna.create_study(direction=direction, sampler=sampler)
+        if pruner is None:
+            if enable_pruning:
+                self.pruner: BasePruner = MedianPruner(n_startup_trials=5, n_warmup_steps=2)
+            else:
+                self.pruner = NopPruner()
+        else:
+            self.pruner = pruner
+
+        self._study = optuna.create_study(direction=direction, sampler=sampler, pruner=self.pruner)
         self._active_trials: dict[int, optuna.trial.Trial] = {}
         self.early_stopping = EarlyStoppingPolicy(
             patience=patience,
@@ -69,15 +81,31 @@ class OptunaOptimizer(OptimizerPort):
         self._active_trials[trial_number] = optuna_trial
         return params
 
+    def report_step(self, trial_number: int, step: int, value: float) -> bool:
+        """Reports intermediate evaluation score at a specific step (e.g. CV fold or epoch).
+
+        Returns True if the trial should be pruned early based on the configured pruner.
+        """
+        optuna_trial = self._active_trials.get(trial_number)
+        if optuna_trial is None:
+            return False
+        optuna_trial.report(value, step=step)
+        return bool(optuna_trial.should_prune())
+
     def observe(
         self,
         trial_number: int,
         parameters: dict[str, Any],
         score: float,
         succeeded: bool = True,
+        pruned: bool = False,
     ) -> None:
         optuna_trial = self._active_trials.pop(trial_number, None)
         if optuna_trial is None:
+            return
+
+        if pruned:
+            self._study.tell(optuna_trial, state=TrialState.PRUNED)
             return
 
         if not succeeded:
@@ -101,3 +129,11 @@ class OptunaOptimizer(OptimizerPort):
             return float(self._study.best_value)
         except ValueError:
             return 0.0
+
+    @property
+    def study(self) -> optuna.Study:
+        return self._study
+
+    @property
+    def pruned_trials(self) -> list[optuna.trial.FrozenTrial]:
+        return [t for t in self._study.trials if t.state == TrialState.PRUNED]

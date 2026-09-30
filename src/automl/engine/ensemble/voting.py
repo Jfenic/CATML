@@ -6,12 +6,15 @@ import numpy as np
 from sklearn.base import BaseEstimator, clone
 from sklearn.exceptions import NotFittedError
 
-from automl.engine.ensemble.blender import blend_predictions, normalize_weights
+from automl.engine.ensemble.blender import (
+    blend_predictions,
+    normalize_weights,
+    optimize_ensemble_weights,
+)
 
 
 def _check_estimator_fitted(estimator: Any) -> bool:
     """Checks whether an estimator is fitted."""
-    # First try sklearn's check_is_fitted if available
     try:
         from sklearn.utils.validation import check_is_fitted
         check_is_fitted(estimator)
@@ -21,7 +24,6 @@ def _check_estimator_fitted(estimator: Any) -> bool:
     except Exception:
         pass
 
-    # Heuristic fallback for non-sklearn standard fitted attributes
     return any(
         hasattr(estimator, attr)
         for attr in ("classes_", "n_features_in_", "estimator_", "estimators_", "coef_")
@@ -29,9 +31,10 @@ def _check_estimator_fitted(estimator: Any) -> bool:
 
 
 class VotingEnsembleEstimator(BaseEstimator):
-    """Scikit-Learn compatible estimator for soft/hard voting ensembles and blending.
+    """Scikit-Learn compatible estimator for soft/hard/rank voting ensembles and blending.
 
-    Delegates blending mathematics to `blend_predictions` and model creation to an optional factory.
+    Supports Nelder-Mead simplex weight optimization across out-of-fold/validation predictions
+    and fractional rank-averaging for enhanced ranking metrics (ROC-AUC).
     """
 
     def __init__(
@@ -42,6 +45,8 @@ class VotingEnsembleEstimator(BaseEstimator):
         voting: str = "soft",
         refit: bool = True,
         default_estimator_factory: Callable[[str], list[Any] | list[tuple[str, Any]]] | None = None,
+        optimize_weights: bool = False,
+        metric: str = "roc_auc",
     ) -> None:
         self.estimators = estimators
         self.weights = weights
@@ -49,11 +54,15 @@ class VotingEnsembleEstimator(BaseEstimator):
         self.voting = voting
         self.refit = refit
         self.default_estimator_factory = default_estimator_factory
+        self.optimize_weights = optimize_weights
+        self.metric = metric
 
         # Fitted attributes
         self.fitted_estimators_: list[Any] = []
         self.classes_: np.ndarray | None = None
         self.is_fitted_: bool = False
+        self.weights_: np.ndarray | None = None
+        self.optimal_score_: float | None = None
 
     @property
     def is_regression(self) -> bool:
@@ -111,7 +120,6 @@ class VotingEnsembleEstimator(BaseEstimator):
                         f"Class mismatch between base estimator 0 ({ref_classes}) "
                         f"and estimator {idx} ({c}). Base models must predict compatible target classes."
                     )
-            # Use the most comprehensive set of classes
             all_unique = np.unique(np.concatenate(observed_classes))
             self.classes_ = all_unique
 
@@ -119,7 +127,6 @@ class VotingEnsembleEstimator(BaseEstimator):
         raw_estimators = self._resolve_estimators()
         n_estimators = len(raw_estimators)
 
-        # Validate weights matching estimator count
         normalize_weights(self.weights, n_estimators)
 
         if not self.is_regression:
@@ -137,6 +144,37 @@ class VotingEnsembleEstimator(BaseEstimator):
                 fitted.fit(X, y)
                 self.fitted_estimators_.append(fitted)
 
+        # Optimize mixing weights if requested and multiple models present
+        if self.optimize_weights and len(self.fitted_estimators_) > 1:
+            preds_for_opt: list[np.ndarray] = []
+            for est in self.fitted_estimators_:
+                if not self.is_regression:
+                    if hasattr(est, "predict_proba"):
+                        p = est.predict_proba(X)
+                    elif hasattr(est, "decision_function"):
+                        df = est.decision_function(X)
+                        p = 1.0 / (1.0 + np.exp(-df)) if df.ndim == 1 else np.exp(df) / np.sum(np.exp(df), axis=1, keepdims=True)
+                    else:
+                        pred_raw = est.predict(X)
+                        p = np.zeros((len(pred_raw), len(self.classes_)), dtype=float)
+                        for idx, c in enumerate(self.classes_):
+                            p[pred_raw == c, idx] = 1.0
+                    preds_for_opt.append(p)
+                else:
+                    preds_for_opt.append(est.predict(X))
+
+            opt_weights, opt_score = optimize_ensemble_weights(
+                predictions=preds_for_opt,
+                y_true=y,
+                metric=self.metric,
+                task_type=self.task_type,
+                method="rank" if self.voting == "rank" else "average",
+            )
+            self.weights_ = opt_weights
+            self.optimal_score_ = opt_score
+        else:
+            self.weights_ = normalize_weights(self.weights, len(self.fitted_estimators_))
+
         self.is_fitted_ = True
         return self
 
@@ -150,7 +188,6 @@ class VotingEnsembleEstimator(BaseEstimator):
         for estimator in self.fitted_estimators_:
             if hasattr(estimator, "predict_proba"):
                 prob = estimator.predict_proba(X)
-                # Align probabilities if estimator classes differ in order or size
                 if hasattr(estimator, "classes_") and not np.array_equal(estimator.classes_, self.classes_):
                     prob_aligned = np.zeros((prob.shape[0], len(self.classes_)), dtype=float)
                     for idx, c in enumerate(estimator.classes_):
@@ -174,25 +211,34 @@ class VotingEnsembleEstimator(BaseEstimator):
 
             probs_list.append(prob)
 
+        effective_weights = getattr(self, "weights_", None)
+        if effective_weights is None:
+            effective_weights = normalize_weights(self.weights, len(self.fitted_estimators_))
+
         return blend_predictions(
             predictions=probs_list,
-            weights=self.weights,
+            weights=effective_weights,
             task_type=self.task_type,
+            method="rank" if self.voting == "rank" else "average",
         )
 
     def predict(self, X: Any) -> np.ndarray:
         if not self.is_fitted_:
             raise ValueError("This VotingEnsembleEstimator is not fitted yet.")
 
+        effective_weights = getattr(self, "weights_", None)
+        if effective_weights is None:
+            effective_weights = normalize_weights(self.weights, len(self.fitted_estimators_))
+
         if self.is_regression:
             preds_list = [estimator.predict(X) for estimator in self.fitted_estimators_]
             return blend_predictions(
                 predictions=preds_list,
-                weights=self.weights,
+                weights=effective_weights,
                 task_type=self.task_type,
             )
 
-        if self.voting == "soft":
+        if self.voting in ("soft", "rank"):
             proba = self.predict_proba(X)
             class_indices = np.argmax(proba, axis=1)
             return self.classes_[class_indices]
@@ -200,14 +246,13 @@ class VotingEnsembleEstimator(BaseEstimator):
             # Hard majority voting
             preds_list = [estimator.predict(X) for estimator in self.fitted_estimators_]
             n_samples = len(preds_list[0])
-            weights = normalize_weights(self.weights, len(self.fitted_estimators_))
 
             final_preds = []
             for sample_idx in range(n_samples):
                 score_per_class: dict[Any, float] = {}
                 for m_idx, preds in enumerate(preds_list):
                     val = preds[sample_idx]
-                    score_per_class[val] = score_per_class.get(val, 0.0) + weights[m_idx]
+                    score_per_class[val] = score_per_class.get(val, 0.0) + effective_weights[m_idx]
                 best_class = max(score_per_class.items(), key=lambda x: x[1])[0]
                 final_preds.append(best_class)
             return np.asarray(final_preds)

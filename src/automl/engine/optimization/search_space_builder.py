@@ -176,6 +176,14 @@ class SearchSpaceBuilder:
             space.add(
                 ParameterSpec.int("max_iter", 100, 500, step=50, default=200)
             )
+        elif model_id == "voting_ensemble":
+            if task_type != "regression":
+                space.add(
+                    ParameterSpec.categorical("voting", ["soft", "rank"], default="soft")
+                )
+            space.add(
+                ParameterSpec.categorical("optimize_weights", [True, False], default=False)
+            )
         else:
             raise ValueError(f"No default search space for model: {model_id}")
 
