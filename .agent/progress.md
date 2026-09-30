@@ -12,6 +12,12 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Hito H2 / Paquete A2)
  
 ## Completed
  
+- Resolved Blackboard Issue #14 (2026-09-30):
+  - Enforced strict run ownership validation in `AutoMLWorkspace.predict()` (`src/automl/application/services/workspace.py`):
+    - Rejects foreign `experiment_id` when `experiment.run_id != run.id` with `ValueError`.
+    - Rejects foreign `trial_id` when the associated experiment does not belong to the requested run with `ValueError`.
+  - Added full regression test suite in `tests/test_prediction_ownership.py` (4 tests passing).
+ 
 - Paquete A2 completado (Persona A, 2026-09-30):
   - Tools mutantes y ejecución autorizada en `src/automl/application/agents/`:
     - `ToolExecutor`: integración con `SqliteAgentLedger` para auditoría y deduplicación atómica de idempotencia.
