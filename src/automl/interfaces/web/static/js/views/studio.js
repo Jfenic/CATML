@@ -714,6 +714,7 @@ export class StudioView {
         }
       });
     });
+  }
 
   _initChart() {
     const canvas = this.container.querySelector("#performanceChart");
