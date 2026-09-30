@@ -12,6 +12,8 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
  
 ## Completed
  
+
+- Dynamic Database Binding & Real Parity in Workbench UI: removed mockup placeholder strings ("Ensemble #7", 0.94621) from `studio.js`, `overview.js`, and `kaggle.js`, correctly displaying real SQLite metrics (best model `xgboost`, CV `0.94123`, 11 trials), live status badge in `app.js` and `index.html`, and marking the Ensemble Blender as candidate to be trained.
 - Guía de entrada (2026-09-30): `docs/features/agentic-system/README.md` explica elección A/B, orden de lectura, primera entrega A0/B0 y mensajes de asignación. Enlazada desde planes y TASKS; roles todavía sin personas asignadas y H0 pendiente.
 - Plan operativo para dos personas (2026-09-30): `docs/features/agentic-system/two-person-plan.md` asigna A a contratos/aplicación/persistencia/especialistas y B a MCP/CLI/CI/orquestación. Define paquetes A0–A5/B0–B5, integración por hito, propiedad de archivos/tests y primera entrega H2.
 - Revisión del plan agéntico (2026-09-30): diseño ampliado en `docs/features/agentic-system/plan.md` con separación dominio/aplicación/adaptadores, catálogo explícito, contratos versionados, límites estrictos, aprobación persistente, ledger/idempotencia, recuperación, MCP stdio/HTTP y hitos H0–H5 con propietarios y pruebas.
