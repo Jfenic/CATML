@@ -1,5 +1,7 @@
 # Feature Specification: V0.6 Plugin Architecture & Extensible Ecosystem
 
+> Especificación de referencia de una fase implementada; el alcance actual y las limitaciones están en [el mapa de capacidades](../../README.md). Estado operativo: [TASKS.md](../../../TASKS.md).
+
 > Formalizing extensibility so that adding a model, metric, preprocessor, or optimizer does not modify core domain or engine code.
 
 ## Goal
@@ -52,7 +54,7 @@ Provide a unified, contract-based plugin system (`PluginRegistry`, `ModelPlugin`
 
 - Pure domain boundary: `PluginPort`, `PluginCapability`, and `PluginType` in `domain/` must remain pure Python.
 - Concrete ML plugins (LightGBM, XGBoost, Scikit-learn) reside strictly in `src/automl/plugins/`.
-- Must not break existing 52 tests or existing CLI commands.
+- Must not break the current test suite or existing CLI commands.
 
 ---
 
@@ -70,3 +72,15 @@ Provide a unified, contract-based plugin system (`PluginRegistry`, `ModelPlugin`
 
 - Distributed plugin execution across multiple remote clusters (deferred to later versions).
 - Dynamic hot-reloading from arbitrary remote URLs at runtime without local installation.
+
+## Evidencia y alcance de aceptación
+
+| Criterio / capacidad | Implementación y validación |
+| --- | --- |
+| Contratos, registro y compatibilidad | [registro](../../../src/automl/application/plugins/registry.py), [tests V0.6](../../../tests/test_v06_plugins.py) |
+| Registro de modelo personalizado y entrenamiento | [ejemplo](../../../examples/plugins/custom_model.py), [tests de regresión](../../../tests/test_plugin_registration.py) |
+| Backends y métricas | [plugins](../../../src/automl/plugins/), [tests V0.6](../../../tests/test_v06_plugins.py), [limitaciones](../../backends.md) |
+
+La cobertura global se valida ejecutando toda la suite con `--cov-fail-under=85`; la presencia de tests no prueba una ejecución actual ni una mejora universal de calidad.
+
+El registro personalizado debe repetirse en cada proceso. El descubrimiento por entry points y el manifiesto de versiones/backend por trial siguen pendientes. `ModelPluginPort` construye estimadores; los métodos fit/predict son responsabilidad del estimador resultante.

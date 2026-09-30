@@ -7,8 +7,8 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
 - Frontend Modular Architecture (`src/automl/interfaces/web/static/`): Clean code design patterns including `EventBus` (PubSub), `WorkbenchStore` (State/Observable), `CATMLApiClient` (Adapter/Repository), and independent View Controllers (`overview.js`, `studio.js`, `datasets.js`, `compare.js`, `pipeline.js`, `knowledge.js`, `kaggle.js`, `agent.js`, `new_experiment.js`).
 - Design System (`css/workbench.css`): Dense technical dark theme with semantic color system (🔵 system/execution, 🟢 proven gain, 🟠 warning/waiting, 🔴 error/stop, 🟣 CATML intelligence).
 - CLI Command: `automl ui [--port PORT] [--workspace WORKSPACE]`.
-- Test Suite: 161 tests passing, >=85% test coverage (`tests/test_web_dashboard.py`).
-- Next: Stratified 5-Fold OOF Predictor (`--folds 5`) to blend fold predictions and surpass 0.945+ in Kaggle S6E9.
+- Validation results: see dated entries below; run the entire suite with `--cov-fail-under=85`.
+- Next: Stratified 5-Fold OOF Predictor (`--folds 5`) to compare fold blending against a fixed baseline under the documented evaluation protocol.
  
 ## Completed
  
@@ -38,7 +38,7 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
   - **Tarea A:** Heurística de alta cardinalidad e identificadores en `DatasetProfiler` (`tests/test_profiler_cardinality.py`, 12 tests).
   - **Tarea B:** `VotingEnsemblePlugin` y motor de blending `VotingBlender` con soft voting y pesos (`tests/test_ensemble_plugin.py`, 14 tests).
   - **Tarea C:** Mapeo automático de plantilla de sumisión Kaggle con `--template sample_submission.csv` en `GenerateSubmissionCommand`, `PredictDatasetQuery` y CLI `automl predict` (`tests/test_submission_template.py`, 5 tests).
-- Total suite: 95 tests passing with 86% coverage.
+- Historical validation before Workbench integration: 95 tests passed with 86% coverage.
 - Synchronized all documentation files (`AGENTS.md`, `CONTRIBUTING.md`, `DEVELOPER_GUIDE.md`, `TASKS.md`, `README.md`).
  
 ## Blocked
@@ -47,19 +47,38 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
  
 ## Next
  
-1. Phase V0.7: Multimodal Pipelines & Data Fusion (specs in `AutoML_Arquitectura_Tecnica.md` §V0.7 and `docs/features/multimodal/`):
-   - Domain `Modality` enum and `DataSource` abstraction.
-   - Generalize `PipelineGraph` (DAG of typed processing nodes) and `GraphValidator`.
-   - `ImageModalityPlugin`, `ImageEncoderNode`, and `FeatureFusionNode` (early/late fusion).
-   - Hypothesis-driven multimodal comparison experiments (tabular vs. image vs. tabular+image).
+1. OOF prediction blending: [protocol](../docs/features/oof-blending/spec.md).
+2. Remaining tabular plugins and V0.8–V1.0: [current backlog](../TASKS.md).
 
 ## Relevant files
 
-- [`src/automl/domain/ports.py`](file:///home/fenic/top_project/CATML/src/automl/domain/ports.py)
-- [`src/automl/domain/features/selection_strategy.py`](file:///home/fenic/top_project/CATML/src/automl/domain/features/selection_strategy.py)
-- [`src/automl/domain/features/evidence.py`](file:///home/fenic/top_project/CATML/src/automl/domain/features/evidence.py)
-- [`src/automl/engine/features/`](file:///home/fenic/top_project/CATML/src/automl/engine/features/)
-- [`src/automl/engine/planning/ablation_planner.py`](file:///home/fenic/top_project/CATML/src/automl/engine/planning/ablation_planner.py)
-- [`src/automl/application/services/workspace.py`](file:///home/fenic/top_project/CATML/src/automl/application/services/workspace.py)
-- [`src/automl/interfaces/cli/main.py`](file:///home/fenic/top_project/CATML/src/automl/interfaces/cli/main.py)
-- [`tests/test_v05_features.py`](file:///home/fenic/top_project/CATML/tests/test_v05_features.py)
+- [`src/automl/domain/ports.py`](../src/automl/domain/ports.py)
+- [`src/automl/domain/features/selection_strategy.py`](../src/automl/domain/features/selection_strategy.py)
+- [`src/automl/domain/features/evidence.py`](../src/automl/domain/features/evidence.py)
+- [`src/automl/engine/features/`](../src/automl/engine/features/)
+- [`src/automl/engine/planning/ablation_planner.py`](../src/automl/engine/planning/ablation_planner.py)
+- [`src/automl/application/services/workspace.py`](../src/automl/application/services/workspace.py)
+- [`src/automl/interfaces/cli/main.py`](../src/automl/interfaces/cli/main.py)
+- [`tests/test_v05_features.py`](../tests/test_v05_features.py)
+
+## Historical Review — 2026-09-30
+
+- User requested a project review focused on Markdown; reviewed documentation against source, CLI help, and task catalog. Existing working-tree changes were preserved.
+- Validation: 161 tests passed, coverage 85.14%, one sklearn deprecation warning. Web tests required permission to open local sockets outside the sandbox. Relative Markdown file links checked successfully; `file:///home/fenic/...` links remain nonportable.
+- Findings: conflicting package/CLI/guide versions; V0.7 and interaction-generation status conflicts; stale test counts; README/architecture omit existing web interface; extension guide needs plugin-based examples; roadmap/spec/history need clear ownership and traceability.
+- Reproduced `ModuleNotFoundError` in model `register_plugin()` caused by import of nonexistent `automl.domain.models.model_spec`; no implementation changes made. Follow-up recorded in TASKS.md.
+
+## Documentation and Plugin Fix — 2026-09-30
+
+- Fixed model plugin registration to import `ModelSpec` from `domain.models.registry`; added regression coverage for model discovery, task incompatibility, metric-only registration, and training the documented custom model.
+- Added `examples/plugins/custom_model.py`; executed it successfully through application buses with an independent temporary workspace.
+- Centralized version 0.7.0 in `automl.__version__`; setuptools metadata, CLI and Workbench share this source. Reinstalled editable package without changing runtime dependencies and confirmed metadata/CLI parity.
+- Updated README, architecture, developer/contribution guides, agent validation requirements and feature documents. Added docs index/capability evidence, native/fallback backend instructions and proposed OOF evaluation protocol. Replaced machine-specific links and clarified historical plans and preview UI responses.
+- TASKS.md owns current status. Stacking, OOF prediction, dedicated feature-selection benchmark and automatic backend/environment manifests remain explicitly pending; no new ML capabilities were claimed for those items.
+- Final validation: 164 tests passed, coverage 85.23%, one existing sklearn deprecation warning. Web tests ran with local socket access. Checked links/anchors in 19 Markdown files, CLI help/task catalog, installed version and `git diff --check`.
+- An intermediate coverage run was invalidated by moving an import during execution; the final full run used fixed source files. Existing frontend and gradient-boosting working-tree changes were preserved.
+
+## Git Organization — 2026-09-30
+
+- Branch `fix/docs-and-plugin-registration` starts from updated `origin/main`, which includes merged Workbench PR #11. Commits separate plugin registration, shared version and documentation.
+- Prior frontend/gradient-boosting edits and their operational notes remain in the original `feat/web-dashboard-ui` checkout; excluded from this PR.

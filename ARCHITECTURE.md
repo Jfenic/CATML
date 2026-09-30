@@ -11,7 +11,7 @@ CATML implements a **Hexagonal (Ports & Adapters)** architecture combined with *
 
 ```text
        ┌────────────────────────────────────────────────────────┐
-       │             Interfaces (CLI, Future API, LLM)          │
+       │      Interfaces (CLI, Workbench HTTP, future LLM)      │
        └───────────────────────────┬────────────────────────────┘
                                    │ (dispatches Commands & Queries)
                                    ▼
@@ -62,6 +62,8 @@ src/automl/
 │   ├── models/              # ModelSpec, ModelRegistry, capabilities
 │   ├── optimization/        # SearchSpace, ParameterSpec, OptimizationBudget
 │   ├── policies/            # BudgetPolicy, EarlyStoppingPolicy
+│   ├── modalities/          # Modality and DataSource
+│   ├── pipelines/           # Typed PipelineGraph domain contracts
 │   └── ports.py             # Interfaces/Protocols (OptimizerPort, ExperimentPlannerPort, etc.)
 │
 ├── application/             # Application coordination, CQRS, and service layer
@@ -77,10 +79,13 @@ src/automl/
 │   ├── optimization/        # SearchSpaceBuilder, RandomSearch, EarlyStopping
 │   ├── training/            # Sklearn execution engine for trials
 │   ├── profiling/           # Dataset profiling
-│   └── evaluation/          # Evaluation metric calculation
+│   ├── pipeline/            # DAG validation and feature fusion
+│   └── vision/              # Image encoding
 │
 ├── plugins/                 # Adapters for concrete external libraries
 │   ├── models/              # Scikit-learn model adapters (logistic_regression, random_forest, svc)
+│   ├── metrics/             # Business metric adapters
+│   ├── modalities/          # Image loading adapter
 │   └── optimizers/          # Optuna adapter (OptunaOptimizer with TPESampler)
 │
 ├── infrastructure/          # External persistence and logging
@@ -90,7 +95,8 @@ src/automl/
 │   └── runner.py            # Benchmark scenarios measuring Δ vs baseline
 │
 └── interfaces/              # Boundary entry points
-    └── cli/                 # Terminal commands (task, run-demo, plan-experiments, optimize, benchmark)
+    ├── cli/                 # Terminal commands
+    └── web/                 # HTTP adapter and modular static frontend
 ```
 
 ---
@@ -124,11 +130,15 @@ src/automl/
 - **No Monolithic `AutoML.fit()`:** CATML decomposes AutoML into explicit, auditable stages (registration, profiling, problem definition, feature configuration, experiment planning, trial execution, evaluation, optimization).
 - **Propose ≠ Accept:** Planners, optimizers, and feature selectors only propose candidates. Candidates must run through the execution engine and yield recorded metrics before being promoted.
 - **Human-Agent Parity:** Every operation accessible to a human via CLI or UI must be exposed through the exact same application command/query buses for future LLM agents.
-- **Auditability & Event Logging:** Every state change emits domain events persisted in SQLite, ensuring full reproducibility.
+- **Auditability & Event Logging:** Application mutations record events in SQLite. Full environment and backend provenance is a design goal; current limitations are documented in [backends.md](docs/backends.md).
 
 ---
 
-## 5. Deeper References
+## 5. Current scope
+
+The directory tree is a summary; [docs/README.md](docs/README.md) maps current capabilities to implementation and tests. The Workbench uses the application buses and workspace, with some read routes accessing repositories directly. Knowledge and agent responses include illustrative previews. [TASKS.md](TASKS.md) owns implementation status; the technical specification describes the target architecture.
+
+## 6. Deeper References
 
 - **Formal Technical Architecture & Roadmap (V0.1–V1.0):** [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md)
 - **Developer Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
