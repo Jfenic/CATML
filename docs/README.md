@@ -10,6 +10,7 @@ La versión del paquete se define en [`automl.__version__`](../src/automl/__init
 | Entender capas y dependencias | [Arquitectura actual](../ARCHITECTURE.md) |
 | Añadir modelos y casos de uso | [Guía de desarrollo](../DEVELOPER_GUIDE.md) |
 | Contribuir y validar cambios | [Contribución](../CONTRIBUTING.md) y [reglas de agentes](../AGENTS.md) |
+| Gestionar trabajos, controles y recuperación | [Cola persistente](features/persistent-jobs/spec.md) |
 | Comprobar backend y reproducibilidad | [Backends](backends.md) |
 | Consultar diseño objetivo y fases futuras | [Especificación técnica](../AutoML_Arquitectura_Tecnica.md) |
 | Entender decisiones | [ADRs](decisions/) |
@@ -29,6 +30,7 @@ Esta tabla describe el alcance comprobable; los criterios ampliados de una espec
 | Interacciones | Generador de ratios, productos y target encoding OOF; su existencia no implica incorporación automática al planner o CLI | [Generador](../src/automl/engine/features/generation/interaction_generator.py), [tests](../tests/test_feature_interactions.py) |
 | Multimodal | DAG, imágenes y fusión tabular; encoder determinista predeterminado; texto/audio y late fusion no acreditados como implementación completa | [Spec V0.7](features/multimodal/spec.md), [tests E2E](../tests/test_v07_multimodal_e2e.py) |
 | Workbench HTTP | Servicio local, ejecución y consulta de experimentos, datasets y submissions; sin autenticación | [Servidor](../src/automl/interfaces/web/server.py), [tests](../tests/test_web_dashboard.py) |
+| Trabajos persistentes | Experimentos, OOF y submissions con worker único, progreso real y controles; OOF parcial reinicia, HPO sigue síncrono | [Spec](features/persistent-jobs/spec.md), [tests](../tests/test_jobs.py), [ADR 003](decisions/003-persistent-local-jobs.md) |
 | Knowledge / agente | Vistas y respuestas ilustrativas de preview; no equivalen a meta-learning o agente autónomo operativo | [Servidor](../src/automl/interfaces/web/server.py), [backlog](../TASKS.md) |
 | Predicciones / submissions | Predicción con plantilla y OOF binario con pesos iguales (`--folds`); evaluación independiente para promoción pendiente | [Tests de plantilla](../tests/test_submission_template.py), [protocolo OOF](features/oof-blending/spec.md) |
 

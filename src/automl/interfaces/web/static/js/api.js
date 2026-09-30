@@ -94,7 +94,16 @@ export class CATMLApiClient {
     });
   }
 
+  async _controlRunJobs(runId, action, statuses) {
+    const jobs = (await this.getJobs(runId)).filter(job => statuses.includes(job.status));
+    if (!jobs.length) return null;
+    await Promise.all(jobs.map(job => this.controlJob(job.id, action)));
+    return { status: "success", run_id: runId };
+  }
+
   async pauseRun(runId) {
+    const jobs = await this._controlRunJobs(runId, "pause", ["queued", "running"]);
+    if (jobs) return jobs;
     return this._fetch("/api/run/pause", {
       method: "POST",
       body: JSON.stringify({ run_id: runId }),
@@ -102,6 +111,8 @@ export class CATMLApiClient {
   }
 
   async resumeRun(runId) {
+    const jobs = await this._controlRunJobs(runId, "resume", ["paused"]);
+    if (jobs) return jobs;
     return this._fetch("/api/run/resume", {
       method: "POST",
       body: JSON.stringify({ run_id: runId }),
@@ -109,6 +120,8 @@ export class CATMLApiClient {
   }
 
   async cancelRun(runId) {
+    const jobs = await this._controlRunJobs(runId, "cancel", ["queued", "running", "pause_requested", "paused", "failed", "interrupted"]);
+    if (jobs) return jobs;
     return this._fetch("/api/run/cancel", {
       method: "POST",
       body: JSON.stringify({ run_id: runId }),
@@ -122,18 +135,19 @@ export class CATMLApiClient {
     });
   }
 
-  async runExperiment(payload) {
-    return this._fetch("/api/experiment/run", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  async runExperiment(payload, onProgress) {
+    return this._runJob("experiment", payload.run_id, {
+      name: payload.name || `exp_${payload.model_id || "lightgbm"}`,
+      model_ids: [payload.model_id || "lightgbm"],
+      feature_names: payload.feature_names,
+    }, onProgress);
   }
 
-  async createAndRunExperiment(payload) {
-    return this._fetch("/api/experiment/create_and_run", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  async createAndRunExperiment(payload, onProgress) {
+    return this._runJob("experiment", payload.run_id, {
+      name: payload.name || "Workbench experiment",
+      model_ids: payload.models || ["lightgbm"],
+    }, onProgress);
   }
 
   async optimizeExperiment(payload) {
@@ -143,11 +157,42 @@ export class CATMLApiClient {
     });
   }
 
-  async generateSubmission(payload) {
-    return this._fetch("/api/predict", {
+  async generateSubmission(payload, onProgress) {
+    const { run_id, ...arguments_ } = payload;
+    if (arguments_.folds === undefined) delete arguments_.folds;
+    return this._runJob(arguments_.folds === undefined ? "submission" : "oof", run_id, arguments_, onProgress);
+  }
+
+  async getJobs(runId) {
+    return this._fetch(`/api/jobs${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`);
+  }
+
+  async getJob(jobId) {
+    return this._fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
+  }
+
+  async controlJob(jobId, action) {
+    return this._fetch(`/api/jobs/${encodeURIComponent(jobId)}/${action}`, { method: "POST", body: "{}" });
+  }
+
+  async submitJob(operation, runId, payload, key = crypto.randomUUID()) {
+    return this._fetch("/api/jobs", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ operation, run_id: runId, payload, idempotency_key: key }),
     });
+  }
+
+  async _runJob(operation, runId, payload, onProgress) {
+    const { job_id } = await this.submitJob(operation, runId, payload);
+    for (;;) {
+      const job = await this.getJob(job_id);
+      onProgress?.(job);
+      if (job.status === "completed") return job.result;
+      if (["failed", "cancelled", "interrupted"].includes(job.status)) {
+        throw new Error(`${job.id}: ${job.error || job.message}`);
+      }
+      await new Promise(resolve => setTimeout(resolve, 750));
+    }
   }
 
   async sendAgentAction(hypothesisId, action) {

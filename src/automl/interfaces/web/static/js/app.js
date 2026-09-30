@@ -5,6 +5,7 @@
 import { store } from "./store.js";
 import { bus } from "./bus.js";
 import { api } from "./api.js";
+import { JobsPanel } from "./views/jobs.js";
 
 import { OverviewView } from "./views/overview.js";
 import { StudioView } from "./views/studio.js";
@@ -28,6 +29,8 @@ class App {
   }
 
   async init() {
+    this.jobsPanel = new JobsPanel();
+    this.jobsPanel.mount();
     this._bindNavigation();
     this._bindGlobalEvents();
     this.agentDrawer.mount(this.agentDrawerContainer);

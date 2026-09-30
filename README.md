@@ -59,6 +59,8 @@ These packages are optional. If absent, `LightGBMPlugin` uses scikit-learn HistG
 automl ui --port 8080 --workspace .automl/demo
 ```
 
+El Workbench ejecuta experimentos y submissions mediante una cola SQLite y un worker local. El panel «Trabajos» conserva seguimiento tras recargar y ofrece pausa, cancelación y reintentos. Véase [cola persistente, CLI y API](docs/features/persistent-jobs/spec.md) para controles, recuperación y límites.
+
 Open <http://localhost:8080>. The workspace holds the SQLite history for runs, experiments and results; use the same path in CLI commands to inspect that history. Stop the server with Ctrl+C. Without `--workspace`, the CLI selects `.automl/s6e9_automl` if it exists, otherwise `.automl/demo`.
 
 The current server binds to `0.0.0.0` and has no authentication; it is intended for a trusted development environment. Overview, datasets, experiment execution, comparison and submission generation use application data. Knowledge and agent panels include illustrative preview responses; they do not establish a working meta-learning or autonomous-agent capability. See [capabilities and limitations](docs/README.md).

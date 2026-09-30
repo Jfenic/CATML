@@ -14,6 +14,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Binary OOF prediction blending (`--folds 5`) with fixed equal weights, application commands/queries, CLI and Workbench; [scope and evaluation protocol](docs/features/oof-blending/spec.md).
 - [ ] Validate OOF blending on an independent holdout and representative benchmark before promoting a candidate.
 
+- [x] Persistent local jobs for experiments, OOF and submissions: SQLite queue, single worker, idempotency, actual progress, cooperative controls, explicit recovery/retry, CLI/API and Workbench activity panel ([scope](docs/features/persistent-jobs/spec.md)).
+- [ ] Extend background jobs to HPO/benchmarks and verify fold-model persistence before claiming resumable partial OOF.
+
 ## Next (Roadmap Phases)
 
 - [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (dataset meta-features, historical memory)
@@ -78,3 +81,12 @@ Los hitos describen el núcleo implementado; consultar [alcance y limitaciones](
 - [x] Initial binary ROC-AUC implementation with fold-local preprocessing, original label mapping, template alignment, persisted predictions and backend/configuration manifests.
 - [x] Run/experiment ownership, probability validity, time budgets, pause/cancel and changed-input/artifact checks.
 - [x] Final validation: 196 tests passed, 86.01% coverage; CLI/task catalog, JavaScript syntax, Markdown links and diff checks passed. Changes prepared for a separate draft PR based on the unmerged documentation PR #13.
+
+
+## Persistent Jobs — 2026-09-30
+
+- [x] Continue on isolated `feat/persistent-job-queue` from `main` after merged PR #16; preserve unrelated working-tree edits.
+- [x] Add domain job states, repository port, ID-returning commands, snapshot queries, transactional SQLite queue and exclusive local worker.
+- [x] Integrate real model/fold progress, cooperative controls, durable errors/retries, background Workbench activity and CLI/HTTP parity.
+- [x] Document operation scope, Linux/macOS lease, checkpoint recovery and partial OOF restart in spec and ADR 003.
+- [x] Final validation: 229 Python tests passed, 86.31% coverage; 4 JavaScript adapter tests, CLI help/task catalog, 21 Markdown file-link checks and diff checks passed. Prepared for an independent draft PR against main.

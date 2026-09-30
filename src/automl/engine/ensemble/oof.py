@@ -39,6 +39,7 @@ def evaluate_oof(
     seed: int = 42,
     max_seconds: float = 300.0,
     check_allowed: Callable[[], None] | None = None,
+    progress: Callable[[int, int, str], None] | None = None,
 ) -> OOFResult:
     if isinstance(folds, bool) or not isinstance(folds, int) or folds < 2:
         raise ValueError("folds must be an integer >= 2")
@@ -84,6 +85,9 @@ def evaluate_oof(
             raise ValueError("Model probability columns must correspond to encoded classes 0 and 1")
         return values[:, int(np.flatnonzero(classes == 1)[0])]
 
+    completed = 0
+    if progress:
+        progress(0, folds * len(factories), "Evaluating OOF folds")
     for fold, (train_idx, valid_idx) in enumerate(splitter.split(X, target)):
         fold_ids[valid_idx] = fold
         validation_predictions = []
@@ -106,6 +110,9 @@ def evaluate_oof(
             test_folds[name].append(probabilities(pipeline, X_test))
             validation_predictions.append(valid_probs)
             fold_scores[name].append(float(roc_auc_score(target[valid_idx], valid_probs)))
+            completed += 1
+            if progress:
+                progress(completed, folds * len(factories), f"Fold {fold + 1}/{folds}: {name}")
         fold_scores["oof_blend"].append(float(roc_auc_score(
             target[valid_idx], blend_predictions(validation_predictions),
         )))

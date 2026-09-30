@@ -176,7 +176,7 @@ export class KaggleView {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>⏳ Generando y validando 286,571 predicciones...</span>
+          <span>⏳ Trabajo en cola...</span>
         `;
 
         const res = await api.generateSubmission({
@@ -186,10 +186,12 @@ export class KaggleView {
           template_path: "competitions/playground-series-s6e9/data/sample_submission.csv",
           predict_proba: true,
           folds: this.container.querySelector("#useOOF")?.checked ? 5 : undefined,
+        }, job => {
+          btn.textContent = `${job.status}: ${job.completed}/${job.total || "?"} · ${job.message}`;
         });
 
         btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
-        btn.innerHTML = `<span>✓ ¡Generado con éxito! (286,571 filas)</span>`;
+        btn.innerHTML = `<span>✓ ¡Generado con éxito! (${res.row_count} filas)</span>`;
 
         setTimeout(() => {
           btn.disabled = false;
