@@ -1,17 +1,17 @@
 # Progress
 
-Active Track: **Interactive Dataset Analysis & Smart Feature Selection (AutoML Workbench)**:
+Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
 - Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
 - Entregable completado:
-  - Extensión de contratos de dominio (`ColumnProfile`, `DatasetProfile` en `src/automl/domain/datasets/profile.py`): incorporación de campos estadísticos numéricos (`mean`, `std`, `min`, `max`, `median`, `q25`, `q75`, `skew`, `target_correlation`, `top_categories`), muestra de datos crudos (`preview_rows`) y recomendaciones automáticas (`recommendations`), preservando pureza hexagonal sin dependencias externas.
-  - Motor de perfilado (`dataset_profiler.py`): cálculo de estadísticas descriptivas, correlación de Pearson frente al target (numérico o texto adaptado), detección de multicolinealidad cruzada ($|r| > 0.88$), cálculo de frecuencias categóricas y generación de recomendaciones accionables ("exclude", "impute", "recommend", "collinear").
-  - Deserialización en persistencia (`sqlite_repository.py`): soporte transparente para los nuevos campos estadísticos y recomendaciones en SQLite.
+  - Extensión de contratos de dominio (`ColumnProfile`, `DatasetProfile` en `src/automl/domain/datasets/profile.py`): incorporación de campos estadísticos numéricos (`mean`, `std`, `min`, `max`, `median`, `q25`, `q75`, `skew`, `target_correlation`, `top_categories`), `histogram` (10 bins), `box_plot` (estadísticas globales y desglosadas por clases del target), `correlation_matrix` completa ($r \in [-1, 1]$), muestra de datos crudos (`preview_rows`) y recomendaciones automáticas (`recommendations`), preservando pureza hexagonal sin dependencias externas.
+  - Motor de perfilado (`dataset_profiler.py`): cálculo de estadísticas descriptivas, correlación de Pearson frente al target (numérico o texto adaptado), detección de multicolinealidad cruzada ($|r| > 0.88$), cálculo de frecuencias categóricas con tasa de propensión al target (`target_rate`), generación de cajas y bigotes desglosados por clase de objetivo, e histogramas bivariantes.
+  - Deserialización en persistencia (`sqlite_repository.py`): soporte transparente para los nuevos campos estadísticos, matriz de correlación y recomendaciones en SQLite, con filtrado seguro de atributos para garantizar retrocompatibilidad.
   - Vistas frontend interactivas:
-    - `datasets.js`: Grid de diagnósticos y banner de recomendaciones automáticas con aplicación en 1 clic; toolbar con filtros de tipo, búsqueda en vivo y selecciones batch (Todas, Ninguna, Top 5 Señal, Top 10 Señal); contador en vivo y botón primario "Lanzar Experimento con esta Selección"; explorador de 4 pestañas (Esquema & Selección con checkboxes, Estadísticas Descriptivas, Muestra Raw de Datos y Distribuciones Categóricas).
+    - `datasets.js`: Pestaña dedicada a la **Matriz de Correlación** (mapa de calor interactivo de Pearson entre todas las variables numéricas y el target, con detección visual de colinealidad); botones `[📊 Ver]` en cada fila de las tablas de Schema y Estadísticas Descriptivas; **Modal de Análisis Visual y Patrones de Variable** con 3 modos: Diagrama de Caja y Bigotes (Box Plot SVG comparativo por clase de target y métricas IQR/Mediana), Histograma de Distribución (10 bins con diagnóstico de asimetría/skewness), y Patrones frente a la Variable Objetivo (tasa de conversión % por categoría o comparativa de medias por clase).
     - `new_experiment.js`: Previsualización interactiva con badges y recuento de variables seleccionadas; propagación de `feature_names` en la creación de experimentos.
     - `studio.js`: Barra superior de lanzamiento rápido (LightGBM, XGBoost, CatBoost, Ensemble Blender), filtros por familia de modelos y modal para inspección de hiperparámetros de cada trial.
-    - `server.py`: Soporte de `feature_names` en `/api/experiment/create_and_run` y enriquecimiento semántico de acciones sugeridas por CATML.
-  - Pruebas y cobertura: 295 tests pasando (incluyendo `tests/test_web_dashboard.py` enriquecido), 8 skipped, 0 fallos, 86.59% cobertura global (superando el umbral de 85%). Pruebas JS (`node --test tests/js/jobs.test.mjs`) passing al 100%.
+    - `server.py`: Soporte de `feature_names` en `/api/experiment/create_and_run`, auto-enriquecimiento de datasets heredados al vuelo y cálculo optimizado con muestreo para datasets masivos.
+  - Pruebas y cobertura: 295 tests pasando (incluyendo `tests/test_web_dashboard.py` enriquecido con aserciones para `box_plot`, `histogram`, `target_rate` y `correlation_matrix`), 8 skipped, 0 fallos, 86.45% cobertura global (superando el umbral de 85%). Pruebas JS (`node --test tests/js/jobs.test.mjs`) passing al 100%.
 
 ## Completed
 

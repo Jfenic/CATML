@@ -15,9 +15,11 @@ export class DatasetsView {
     this.activeDatasetId = null;
     this.showRegisterForm = false;
     this.selectedFeatures = new Set();
-    this.activeTab = "schema"; // 'schema' | 'stats' | 'preview' | 'categories'
+    this.activeTab = "schema"; // 'schema' | 'stats' | 'preview' | 'categories' | 'correlation'
     this.filterType = "all"; // 'all' | 'numeric' | 'categorical' | 'selected' | 'excluded'
     this.searchQuery = "";
+    this.activeModalVar = null;
+    this.activeModalTab = "boxplot"; // 'boxplot' | 'histogram' | 'pattern'
   }
 
   async mount(container) {
@@ -258,18 +260,21 @@ export class DatasetsView {
 
         <!-- 4. Multi-Tab Exploration Card -->
         <div class="workbench-card overflow-hidden">
-          <div class="border-b border-slate-800 px-4 flex items-center space-x-6 text-xs font-medium bg-slate-950/40">
-            <button class="view-tab-btn py-3 border-b-2 ${this.activeTab === 'schema' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="schema">
+          <div class="border-b border-slate-800 px-4 flex items-center space-x-6 text-xs font-medium bg-slate-950/40 overflow-x-auto">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'schema' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="schema">
               ▦ Schema & Selección
             </button>
-            <button class="view-tab-btn py-3 border-b-2 ${this.activeTab === 'stats' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="stats">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'stats' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="stats">
               📊 Estadísticas Descriptivas
             </button>
-            <button class="view-tab-btn py-3 border-b-2 ${this.activeTab === 'preview' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="preview">
-              🔍 Muestra de Datos Reales (Raw)
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'preview' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="preview">
+              🔍 Muestra Raw
             </button>
-            <button class="view-tab-btn py-3 border-b-2 ${this.activeTab === 'categories' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="categories">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'categories' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="categories">
               🏷️ Distribución Categórica
+            </button>
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="correlation">
+              🔗 Matriz de Correlación
             </button>
           </div>
 
@@ -277,6 +282,9 @@ export class DatasetsView {
             ${this._renderActiveTabContent(p)}
           </div>
         </div>
+
+        <!-- Variable Visual Analytics Modal Container -->
+        <div id="variableModalContainer"></div>
       </div>
     `;
 
@@ -292,6 +300,8 @@ export class DatasetsView {
       return this._renderPreviewTab(p);
     } else if (this.activeTab === "categories") {
       return this._renderCategoriesTab(p);
+    } else if (this.activeTab === "correlation") {
+      return this._renderCorrelationTab(p);
     }
     return "";
   }
@@ -334,6 +344,7 @@ export class DatasetsView {
               <th>Correlación (r)</th>
               <th>Acción CATML</th>
               <th>Justificación del Motor</th>
+              <th class="text-center">Gráficos</th>
             </tr>
           </thead>
           <tbody>
@@ -383,6 +394,11 @@ export class DatasetsView {
                     }
                   </td>
                   <td class="text-xs text-slate-400">${c.action_reason || (isTarget ? "Variable objetivo a predecir" : "Característica predictiva")}</td>
+                  <td class="text-center">
+                    <button class="btn-visualize-var bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 hover:text-white px-2 py-1 rounded text-[11px] font-mono transition-colors" data-var="${c.name}">
+                      📊 Ver
+                    </button>
+                  </td>
                 </tr>
               `;
             }).join("")}
@@ -413,6 +429,7 @@ export class DatasetsView {
               <th>Máx</th>
               <th>Skewness</th>
               <th>Target r</th>
+              <th class="text-center">Gráficos</th>
             </tr>
           </thead>
           <tbody>
@@ -435,6 +452,11 @@ export class DatasetsView {
                   <td class="font-mono text-xs ${c.skew != null && Math.abs(c.skew) > 1.5 ? 'text-amber-400' : 'text-slate-400'}">${c.skew != null ? c.skew.toFixed(2) : '—'}</td>
                   <td class="font-mono text-xs ${c.target_correlation != null && Math.abs(c.target_correlation) >= 0.25 ? 'text-emerald-400 font-bold' : 'text-slate-500'}">
                     ${c.target_correlation != null ? (c.target_correlation > 0 ? '+' : '') + c.target_correlation.toFixed(3) : '—'}
+                  </td>
+                  <td class="text-center">
+                    <button class="btn-visualize-var bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 hover:text-white px-2 py-1 rounded text-[11px] font-mono transition-colors" data-var="${c.name}">
+                      📊 Ver
+                    </button>
                   </td>
                 </tr>
               `;
@@ -529,6 +551,530 @@ export class DatasetsView {
         `).join("")}
       </div>
     `;
+  }
+
+  _renderCorrelationTab(p) {
+    const cm = p.correlation_matrix;
+    if (!cm || !cm.columns || !cm.columns.length) {
+      return `
+        <div class="p-8 text-center text-slate-400 space-y-2">
+          <p class="text-sm font-semibold">No se computó matriz de correlación numérica.</p>
+          <p class="text-xs text-slate-500">Se requieren al menos 2 características numéricas en el dataset.</p>
+        </div>
+      `;
+    }
+
+    const cols = cm.columns;
+    const matrix = cm.matrix || [];
+
+    return `
+      <div class="p-4 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+          <div>
+            <span class="font-bold text-slate-200">Matriz de Correlación de Pearson ($r \\in [-1, 1]$)</span>
+            <p class="text-[11px] text-slate-400">Analiza patrones bivariantes, covarianza con la variable objetivo y detecta pares multicolineales.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono">
+            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-emerald-600 inline-block"></span><span>Positiva fuerte (&gt; 0.5)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-slate-800 border border-slate-700 inline-block"></span><span>Neutra (-0.2 a 0.2)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-rose-600 inline-block"></span><span>Negativa (&lt; -0.2)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded ring-1 ring-amber-400 bg-amber-950 inline-block"></span><span>Colinealidad (&gt; 0.88)</span></span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[580px] border border-slate-800 rounded-lg">
+          <table class="w-full text-center text-xs border-collapse">
+            <thead class="sticky top-0 bg-slate-950 z-10 border-b border-slate-800">
+              <tr>
+                <th class="p-2.5 text-left font-mono text-[11px] text-slate-400 bg-slate-950 sticky left-0 z-20 border-r border-slate-800 min-w-[130px]">Variable</th>
+                ${cols.map(c => `
+                  <th class="p-2 font-mono text-[11px] text-slate-300 min-w-[70px] max-w-[110px] truncate" title="${c}">
+                    ${c === p.target_column ? '🎯 ' + c : c}
+                  </th>
+                `).join("")}
+                <th class="p-2 font-mono text-[11px] text-slate-400">Análisis</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${cols.map((rowName, rIdx) => `
+                <tr class="border-b border-slate-900 hover:bg-slate-900/50">
+                  <td class="p-2 text-left font-mono font-medium text-slate-200 bg-slate-950/95 sticky left-0 z-10 border-r border-slate-800 truncate max-w-[150px]" title="${rowName}">
+                    ${rowName === p.target_column ? '🎯 ' + rowName : rowName}
+                  </td>
+                  ${cols.map((colName, cIdx) => {
+                    const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
+                    const isDiag = (rIdx === cIdx);
+                    let cellBg = "bg-slate-950 text-slate-400";
+                    let ringStyle = "";
+                    if (!isDiag) {
+                      if (val >= 0.70) cellBg = "bg-emerald-800 text-white font-bold";
+                      else if (val >= 0.40) cellBg = "bg-emerald-950 text-emerald-300 font-semibold";
+                      else if (val >= 0.15) cellBg = "bg-emerald-950/40 text-emerald-400";
+                      else if (val <= -0.50) cellBg = "bg-rose-900 text-white font-bold";
+                      else if (val <= -0.20) cellBg = "bg-rose-950 text-rose-300 font-semibold";
+                      else if (val <= -0.10) cellBg = "bg-amber-950/30 text-amber-400";
+                      if (Math.abs(val) >= 0.88) ringStyle = "ring-1 ring-amber-400 ring-inset";
+                    } else {
+                      cellBg = "bg-slate-900 text-slate-500 font-bold";
+                    }
+
+                    return `
+                      <td class="p-2 font-mono text-[11px] ${cellBg} ${ringStyle} transition-colors" title="${rowName} ↔ ${colName}: r = ${val}">
+                        ${isDiag ? '1.00' : (val > 0 ? '+' : '') + val.toFixed(2)}
+                      </td>
+                    `;
+                  }).join("")}
+                  <td class="p-1.5 bg-slate-950/60 text-center">
+                    <button class="btn-visualize-var bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-mono" data-var="${rowName}">
+                      📊 Ver
+                    </button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderVariableModal() {
+    if (!this.activeModalVar || !this.profile) return "";
+    const col = this.profile.columns.find(c => c.name === this.activeModalVar);
+    if (!col) return "";
+
+    const isNumeric = col.dtype && (col.dtype.includes("int") || col.dtype.includes("float"));
+    const isTarget = col.name === this.profile.target_column;
+
+    return `
+      <div id="variableVisualModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="workbench-card max-w-3xl w-full p-6 space-y-4 border-slate-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header -->
+          <div class="flex items-start justify-between border-b border-slate-800 pb-3">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="text-xs font-mono px-2 py-0.5 rounded font-bold ${isNumeric ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-purple-950 text-purple-300 border border-purple-800'}">
+                  ${isNumeric ? 'NUMÉRICA' : 'CATEGÓRICA'}
+                </span>
+                <h3 class="text-lg font-bold text-slate-100 font-mono">${col.name}</h3>
+                ${isTarget ? `<span class="badge-sys text-[10px] px-2 py-0.5 rounded font-bold">TARGET</span>` : ""}
+              </div>
+              <p class="text-xs text-slate-400 mt-1">
+                Tipo: <span class="font-mono text-slate-300">${col.dtype}</span> •
+                Nulos: <span class="font-mono ${col.null_count > 0 ? 'text-amber-400' : 'text-slate-300'}">${col.null_count} (${((col.null_count / (this.profile.row_count || 1)) * 100).toFixed(1)}%)</span> •
+                Únicos: <span class="font-mono text-slate-300">${col.unique_count != null ? col.unique_count.toLocaleString() : '—'}</span>
+                ${col.target_correlation != null ? ` • Correlación con Target: <span class="font-mono font-bold ${Math.abs(col.target_correlation) >= 0.25 ? 'text-emerald-400' : 'text-slate-300'}">${col.target_correlation > 0 ? '+' : ''}${col.target_correlation.toFixed(3)}</span>` : ""}
+              </p>
+            </div>
+            <button id="btnCloseVarModal" class="text-slate-400 hover:text-white p-1 text-lg leading-none">✕</button>
+          </div>
+
+          <!-- Modal Tabs -->
+          <div class="flex items-center space-x-2 border-b border-slate-800 pb-2 text-xs">
+            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'boxplot' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}" data-modal-tab="boxplot">
+              📦 Diagrama de Caja y Bigotes (Box Plot)
+            </button>
+            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'histogram' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}" data-modal-tab="histogram">
+              📊 Histograma & Distribución
+            </button>
+            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'pattern' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}" data-modal-tab="pattern">
+              🎯 Relación con el Target
+            </button>
+          </div>
+
+          <!-- Modal Tab Content -->
+          <div class="pt-2">
+            ${this._renderVarModalContent(col)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderVarModalContent(col) {
+    if (this.activeModalTab === "boxplot") {
+      return this._renderBoxPlotContent(col);
+    } else if (this.activeModalTab === "histogram") {
+      return this._renderHistogramContent(col);
+    } else if (this.activeModalTab === "pattern") {
+      return this._renderTargetPatternContent(col);
+    }
+    return "";
+  }
+
+  _renderBoxPlotContent(col) {
+    const bp = col.box_plot;
+    if (!bp || bp.min == null || bp.max == null) {
+      return `
+        <div class="p-8 text-center text-slate-400 space-y-2">
+          <span class="text-2xl text-slate-500 block">📦</span>
+          <p class="text-sm">El diagrama de caja y bigotes está diseñado para variables numéricas cuantitativas.</p>
+          <p class="text-xs text-slate-500">Para variables categóricas, consulta las pestañas de Histograma o Relación con Target.</p>
+        </div>
+      `;
+    }
+
+    const byTarget = bp.by_target || [];
+    const hasTargetSplit = byTarget.length >= 2;
+
+    const minVal = bp.min;
+    const maxVal = bp.max;
+    const range = (maxVal - minVal) || 1;
+
+    const svgWidth = 640;
+    const svgHeight = hasTargetSplit ? (60 + byTarget.length * 60) : 120;
+    const padL = 90;
+    const padR = 40;
+    const plotW = svgWidth - padL - padR;
+
+    const scaleX = val => padL + Math.max(0, Math.min(plotW, ((val - minVal) / range) * plotW));
+
+    let svgRows = "";
+    if (hasTargetSplit) {
+      byTarget.forEach((t, idx) => {
+        const yCenter = 45 + idx * 55;
+        const color = idx === 0 ? "#6366f1" : (idx === 1 ? "#10b981" : "#f59e0b");
+        const xMin = scaleX(t.min);
+        const xQ1 = scaleX(t.q25);
+        const xMed = scaleX(t.median);
+        const xQ3 = scaleX(t.q75);
+        const xMax = scaleX(t.max);
+        const xMean = t.mean != null ? scaleX(t.mean) : null;
+
+        svgRows += `
+          <text x="${padL - 10}" y="${yCenter + 4}" fill="${color}" font-size="11" font-weight="bold" font-family="monospace" text-anchor="end">
+            Clase ${t.class_label}
+          </text>
+          <line x1="${xMin}" y1="${yCenter}" x2="${xMax}" y2="${yCenter}" stroke="${color}" stroke-width="2" stroke-dasharray="3,2" />
+          <line x1="${xMin}" y1="${yCenter - 9}" x2="${xMin}" y2="${yCenter + 9}" stroke="${color}" stroke-width="2" />
+          <line x1="${xMax}" y1="${yCenter - 9}" x2="${xMax}" y2="${yCenter + 9}" stroke="${color}" stroke-width="2" />
+          <rect x="${xQ1}" y="${yCenter - 13}" width="${Math.max(2, xQ3 - xQ1)}" height="26" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2" rx="3" />
+          <line x1="${xMed}" y1="${yCenter - 13}" x2="${xMed}" y2="${yCenter + 13}" stroke="#ffffff" stroke-width="3" />
+          ${xMean != null ? `
+            <polygon points="${xMean},${yCenter - 6} ${xMean + 5},${yCenter} ${xMean},${yCenter + 6} ${xMean - 5},${yCenter}" fill="#fbbf24" stroke="#ffffff" stroke-width="1" />
+          ` : ""}
+        `;
+      });
+    } else {
+      const yCenter = 50;
+      const color = "#6366f1";
+      const xMin = scaleX(bp.min);
+      const xQ1 = scaleX(bp.q25);
+      const xMed = scaleX(bp.median);
+      const xQ3 = scaleX(bp.q75);
+      const xMax = scaleX(bp.max);
+      const xMean = bp.mean != null ? scaleX(bp.mean) : null;
+
+      svgRows = `
+        <text x="${padL - 10}" y="${yCenter + 4}" fill="${color}" font-size="11" font-weight="bold" font-family="monospace" text-anchor="end">
+          Distribución
+        </text>
+        <line x1="${xMin}" y1="${yCenter}" x2="${xMax}" y2="${yCenter}" stroke="${color}" stroke-width="2" stroke-dasharray="3,2" />
+        <line x1="${xMin}" y1="${yCenter - 12}" x2="${xMin}" y2="${yCenter + 12}" stroke="${color}" stroke-width="2" />
+        <line x1="${xMax}" y1="${yCenter - 12}" x2="${xMax}" y2="${yCenter + 12}" stroke="${color}" stroke-width="2" />
+        <rect x="${xQ1}" y="${yCenter - 16}" width="${Math.max(2, xQ3 - xQ1)}" height="32" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2" rx="3" />
+        <line x1="${xMed}" y1="${yCenter - 16}" x2="${xMed}" y2="${yCenter + 16}" stroke="#ffffff" stroke-width="3" />
+        ${xMean != null ? `
+          <polygon points="${xMean},${yCenter - 6} ${xMean + 5},${yCenter} ${xMean},${yCenter + 6} ${xMean - 5},${yCenter}" fill="#fbbf24" stroke="#ffffff" stroke-width="1" />
+        ` : ""}
+      `;
+    }
+
+    const yAxis = svgHeight - 20;
+    const ticks = [0, 0.25, 0.5, 0.75, 1.0].map(frac => {
+      const val = minVal + frac * range;
+      const x = padL + frac * plotW;
+      return `
+        <line x1="${x}" y1="${yAxis - 4}" x2="${x}" y2="${yAxis}" stroke="#64748b" stroke-width="1" />
+        <text x="${x}" y="${yAxis + 12}" fill="#94a3b8" font-size="9" font-family="monospace" text-anchor="middle">${val.toFixed(1)}</text>
+      `;
+    }).join("");
+
+    return `
+      <div class="space-y-4">
+        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 flex flex-col items-center">
+          <div class="w-full flex items-center justify-between text-[11px] text-slate-400 font-mono mb-2">
+            <span>Visualización Matemática de Dispersión (Tukey Boxplot)</span>
+            <div class="flex items-center space-x-3">
+              <span class="flex items-center space-x-1"><span class="w-2.5 h-0.5 bg-white inline-block"></span><span>Mediana</span></span>
+              <span class="flex items-center space-x-1"><span class="w-2 h-2 rotate-45 bg-amber-400 inline-block"></span><span>Media</span></span>
+              <span class="flex items-center space-x-1"><span class="w-3 h-2 bg-indigo-500/40 border border-indigo-400 inline-block"></span><span>Rango IQR</span></span>
+            </div>
+          </div>
+
+          <svg viewBox="0 0 ${svgWidth} ${svgHeight}" class="w-full max-w-2xl overflow-visible">
+            <line x1="${padL}" y1="${yAxis}" x2="${padL + plotW}" y2="${yAxis}" stroke="#475569" stroke-width="1" />
+            ${ticks}
+            ${svgRows}
+          </svg>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full wb-table text-left text-xs">
+            <thead>
+              <tr>
+                <th>Segmento / Clase</th>
+                <th>Mínimo</th>
+                <th>Q1 (25%)</th>
+                <th>Mediana (50%)</th>
+                <th>Q3 (75%)</th>
+                <th>Máximo</th>
+                <th>IQR</th>
+                <th>Media</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${hasTargetSplit ? byTarget.map(t => `
+                <tr>
+                  <td class="font-mono font-bold text-slate-200">${this.profile.target_column} = ${t.class_label}</td>
+                  <td class="font-mono text-slate-400">${t.min != null ? t.min.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${t.q25 != null ? t.q25.toFixed(2) : '—'}</td>
+                  <td class="font-mono font-bold text-indigo-300">${t.median != null ? t.median.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${t.q75 != null ? t.q75.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${t.max != null ? t.max.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${t.iqr != null ? t.iqr.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-amber-300">${t.mean != null ? t.mean.toFixed(2) : '—'}</td>
+                </tr>
+              `).join("") : `
+                <tr>
+                  <td class="font-mono font-bold text-slate-200">Global (${col.name})</td>
+                  <td class="font-mono text-slate-400">${bp.min != null ? bp.min.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${bp.q25 != null ? bp.q25.toFixed(2) : '—'}</td>
+                  <td class="font-mono font-bold text-indigo-300">${bp.median != null ? bp.median.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${bp.q75 != null ? bp.q75.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${bp.max != null ? bp.max.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-slate-400">${bp.iqr != null ? bp.iqr.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-amber-300">${bp.mean != null ? bp.mean.toFixed(2) : '—'}</td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+        </div>
+
+        ${hasTargetSplit && byTarget.length === 2 ? `
+          <div class="p-3 bg-indigo-950/30 border border-indigo-900/60 rounded-lg text-xs space-y-1">
+            <span class="font-bold text-indigo-300">💡 Interpretación Bivariante frente al Target:</span>
+            <p class="text-slate-300">
+              La diferencia de medianas entre clases es de <span class="font-mono font-bold text-emerald-400">${Math.abs(byTarget[1].median - byTarget[0].median).toFixed(2)}</span>
+              ${Math.abs(byTarget[1].median - byTarget[0].median) > (bp.iqr * 0.25) ?
+                '(fuerte desplazamiento de distribución, excelente poder separador para LightGBM/XGBoost).' :
+                '(distribuciones con solapamiento moderado; combinar con variables de interacción).'
+              }
+            </p>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  _renderHistogramContent(col) {
+    const isNumeric = col.dtype && (col.dtype.includes("int") || col.dtype.includes("float"));
+    if (isNumeric && col.histogram && col.histogram.bins && col.histogram.bins.length > 0) {
+      const h = col.histogram;
+      const maxCount = Math.max(...h.counts, 1);
+
+      return `
+        <div class="space-y-4">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300 font-medium">Histograma de Frecuencias (10 Bins Equidistantes)</span>
+            ${col.skew != null ? `
+              <span class="font-mono text-xs px-2 py-0.5 rounded font-bold ${Math.abs(col.skew) > 1.0 ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-900 text-slate-300 border border-slate-800'}">
+                Asimetría (Skewness): ${col.skew.toFixed(2)}
+              </span>
+            ` : ""}
+          </div>
+
+          <div class="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+            <div class="h-44 flex items-end justify-between gap-1.5 pt-6 pb-2 border-b border-slate-800">
+              ${h.bins.map((binLabel, i) => {
+                const count = h.counts[i];
+                const pct = h.percentages ? h.percentages[i] : ((count / (col.null_count + count)) * 100).toFixed(1);
+                const barHeight = Math.max(4, Math.round((count / maxCount) * 100));
+
+                return `
+                  <div class="flex-1 flex flex-col items-center h-full justify-end group relative">
+                    <span class="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5 text-[10px] font-mono text-indigo-300 bg-slate-900 px-1 rounded border border-slate-800 whitespace-nowrap z-10">
+                      ${count.toLocaleString()} (${pct}%)
+                    </span>
+                    <div style="height: ${barHeight}%;" class="w-full bg-indigo-600/70 hover:bg-indigo-500 rounded-t transition-all"></div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+
+            <div class="flex items-center justify-between text-[9px] text-slate-400 font-mono">
+              <span class="truncate max-w-[80px]">${h.bins[0]}</span>
+              <span class="truncate max-w-[80px]">${h.bins[Math.floor(h.bins.length / 2)]}</span>
+              <span class="truncate max-w-[80px]">${h.bins[h.bins.length - 1]}</span>
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-1">
+            <span class="font-bold text-slate-200">📐 Diagnóstico de Distribución y Asimetría:</span>
+            <p class="text-slate-400">
+              ${col.skew == null ? 'Distribución cuantitativa sin coeficiente de asimetría computado.' :
+                Math.abs(col.skew) <= 0.5 ? 'Distribución aproximadamente simétrica y acampanada. Óptima para modelos lineales y SVM sin transformación previa.' :
+                col.skew > 0.5 ? `Asimetría positiva acentuada (+${col.skew.toFixed(2)}). Concentración de valores a la izquierda con cola larga a la derecha. CATML sugiere transformación logarítmica log1p(x) para estabilizar la varianza.` :
+                `Asimetría negativa (${col.skew.toFixed(2)}). Cola larga a la izquierda. Se sugiere transformación de potencia o escalado robusto.`
+              }
+            </p>
+          </div>
+        </div>
+      `;
+    } else if (col.top_categories && col.top_categories.length > 0) {
+      return `
+        <div class="space-y-4">
+          <div class="text-xs text-slate-300 font-medium">Distribución de Frecuencia Categórica</div>
+          <div class="space-y-2.5 p-4 bg-slate-950 rounded-lg border border-slate-800">
+            ${col.top_categories.map(c => `
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-mono font-medium text-slate-200">${c.value}</span>
+                  <span class="font-mono text-slate-400">${c.count.toLocaleString()} (${c.pct}%)</span>
+                </div>
+                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-purple-500 rounded-full" style="width: ${c.pct}%;"></div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="p-6 text-center text-slate-400 text-xs">
+        No hay datos de distribución o frecuencias disponibles para esta característica.
+      </div>
+    `;
+  }
+
+  _renderTargetPatternContent(col) {
+    const isTarget = col.name === this.profile.target_column;
+    if (isTarget) {
+      return `
+        <div class="p-6 text-center text-slate-400 text-xs">
+          Esta columna es la variable objetivo principal (Target).
+        </div>
+      `;
+    }
+
+    const isNumeric = col.dtype && (col.dtype.includes("int") || col.dtype.includes("float"));
+
+    if (!isNumeric && col.top_categories && col.top_categories.length > 0) {
+      const hasTargetRate = col.top_categories.some(c => c.target_rate != null);
+      if (hasTargetRate) {
+        return `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-medium">Tasa de Incidencia del Target (%) por Categoría</span>
+              <span class="text-[11px] font-mono text-indigo-400">Patrón de propensión</span>
+            </div>
+
+            <div class="space-y-3 p-4 bg-slate-950 rounded-lg border border-slate-800">
+              ${col.top_categories.map(c => {
+                const rate = c.target_rate != null ? c.target_rate : 0.0;
+                let colorClass = "bg-indigo-600";
+                if (rate >= 60) colorClass = "bg-emerald-500";
+                else if (rate <= 40) colorClass = "bg-rose-500";
+
+                return `
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="font-mono font-medium text-slate-200">${c.value}</span>
+                      <span class="font-mono font-bold ${rate >= 50 ? 'text-emerald-400' : 'text-slate-300'}">
+                        ${rate.toFixed(1)}% tasa positiva (${c.count.toLocaleString()} muestras)
+                      </span>
+                    </div>
+                    <div class="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden flex">
+                      <div class="h-full ${colorClass} rounded-full transition-all" style="width: ${rate}%;"></div>
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-1">
+              <span class="font-bold text-slate-200">🎯 Utilidad en Modelado:</span>
+              <p class="text-slate-400">
+                La variación en la tasa positiva entre categorías demuestra que esta variable aporta poder discriminante. CATML aplicará Target Encoding out-of-fold para capturar estas diferencias de propensión sin causar fuga de datos.
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    } else if (isNumeric) {
+      const corr = col.target_correlation;
+      const bp = col.box_plot;
+      const byTarget = bp?.by_target || [];
+
+      return `
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+              <span class="text-slate-400 text-[10px] block">Correlación de Pearson con Target</span>
+              <span class="font-mono text-base font-bold ${corr != null && Math.abs(corr) >= 0.25 ? 'text-emerald-400' : 'text-slate-300'}">
+                ${corr != null ? (corr > 0 ? '+' : '') + corr.toFixed(4) : 'No calculada'}
+              </span>
+              <p class="text-[10px] text-slate-500">
+                ${corr != null && Math.abs(corr) >= 0.4 ? 'Correlación fuerte: candidato prioritario.' :
+                  corr != null && Math.abs(corr) >= 0.2 ? 'Correlación moderada: predictora útil.' :
+                  'Correlación lineal baja: el modelo explotará patrones no lineales mediante árboles.'
+                }
+              </p>
+            </div>
+
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+              <span class="text-slate-400 text-[10px] block">Separación Intercuartílica entre Clases</span>
+              <span class="font-mono text-base font-bold text-indigo-300">
+                ${byTarget.length === 2 ? Math.abs(byTarget[1].median - byTarget[0].median).toFixed(2) : (bp?.iqr != null ? bp.iqr.toFixed(2) : '—')}
+              </span>
+              <p class="text-[10px] text-slate-500">
+                ${byTarget.length === 2 ? 'Delta absoluto entre medianas de clase 0 y clase 1.' : 'Rango intercuartílico (IQR = Q75 - Q25).'}
+              </p>
+            </div>
+          </div>
+
+          ${byTarget.length >= 2 ? `
+            <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+              <span class="text-xs font-semibold text-slate-300">Comparativa de Medias por Clase del Target</span>
+              <div class="space-y-2">
+                ${byTarget.map(t => `
+                  <div class="flex items-center justify-between text-xs font-mono">
+                    <span class="text-slate-400">${this.profile.target_column} = ${t.class_label}:</span>
+                    <span class="font-bold text-slate-200">Media = ${t.mean.toFixed(2)} • Mediana = ${t.median.toFixed(2)} (${t.count.toLocaleString()} registros)</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="p-6 text-center text-slate-400 text-xs">
+        No hay datos bivariantes suficientes para correlacionar con la variable objetivo.
+      </div>
+    `;
+  }
+
+  _renderAndMountModal() {
+    const modalContainer = this.container.querySelector("#variableModalContainer");
+    if (!modalContainer) return;
+    modalContainer.innerHTML = this._renderVariableModal();
+
+    modalContainer.querySelector("#btnCloseVarModal")?.addEventListener("click", () => {
+      this.activeModalVar = null;
+      modalContainer.innerHTML = "";
+    });
+
+    modalContainer.querySelectorAll(".var-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this.activeModalTab = btn.getAttribute("data-modal-tab");
+        this._renderAndMountModal();
+      });
+    });
   }
 
   _updateSelectionUi() {
@@ -788,6 +1334,15 @@ export class DatasetsView {
           this.selectedFeatures.delete(col);
         }
         this._updateSelectionUi();
+      });
+    });
+
+    this.container.querySelectorAll(".btn-visualize-var").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const varName = btn.getAttribute("data-var");
+        this.activeModalVar = varName;
+        this.activeModalTab = "boxplot";
+        this._renderAndMountModal();
       });
     });
   }

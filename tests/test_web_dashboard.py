@@ -324,12 +324,25 @@ def test_web_dashboard_dataset_profile_enrichment_and_custom_features(running_we
         assert abs(num_x_col["target_correlation"]) > 0.5
         assert num_x_col["catml_action"] == "Keep"
 
-        # Verify categorical top_categories
+        # Verify box_plot and histogram
+        assert "box_plot" in num_x_col
+        assert num_x_col["box_plot"]["min"] is not None
+        assert len(num_x_col["box_plot"]["by_target"]) == 2
+        assert "histogram" in num_x_col
+        assert len(num_x_col["histogram"]["bins"]) == 10
+
+        # Verify dataset-level correlation_matrix
+        assert "correlation_matrix" in p
+        assert "columns" in p["correlation_matrix"]
+        assert "num_x" in p["correlation_matrix"]["columns"]
+
+        # Verify categorical top_categories and target_rate
         cat_col = cols_by_name["cat_group"]
         assert "top_categories" in cat_col
         assert isinstance(cat_col["top_categories"], list)
         assert len(cat_col["top_categories"]) == 2
         assert cat_col["catml_action"] == "Encode"
+        assert "target_rate" in cat_col["top_categories"][0]
 
     # 3. Create and run experiment with custom feature_names selection
     exp_payload = json.dumps({

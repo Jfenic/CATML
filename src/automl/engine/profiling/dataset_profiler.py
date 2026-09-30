@@ -75,12 +75,13 @@ def detect_column_cardinality_and_role(
     return cardinality_ratio, is_identifier, is_high_cardinality
 
 
-def profile_dataset(dataset: Dataset) -> DatasetProfile:
-    path = Path(dataset.path)
-    if not path.exists():
-        raise FileNotFoundError(f"Dataset not found: {path}")
+def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> DatasetProfile:
+    if df is None:
+        path = Path(dataset.path)
+        if not path.exists():
+            raise FileNotFoundError(f"Dataset not found: {path}")
+        df = pd.read_csv(path)
 
-    df = pd.read_csv(path)
     if dataset.target_column not in df.columns:
         raise ValueError(f"Target column '{dataset.target_column}' not in dataset")
 
@@ -125,6 +126,8 @@ def profile_dataset(dataset: Dataset) -> DatasetProfile:
         top_cats: list[dict[str, Any]] = []
 
         is_numeric = pd.api.types.is_numeric_dtype(series)
+        box_plot_data: dict[str, Any] = {}
+        histogram_data: dict[str, Any] = {}
 
         if is_numeric and unique_count > 0:
             clean_s = series.dropna()
@@ -136,11 +139,68 @@ def profile_dataset(dataset: Dataset) -> DatasetProfile:
                 median_val = round(float(clean_s.median()), 4)
                 q25_val = round(float(clean_s.quantile(0.25)), 4)
                 q75_val = round(float(clean_s.quantile(0.75)), 4)
+                iqr_val = round(float(q75_val - q25_val), 4)
                 if len(clean_s) > 2 and std_val > 0:
                     try:
                         skew_val = round(float(clean_s.skew()), 4)
                     except Exception:
                         skew_val = None
+
+                box_plot_data = {
+                    "min": min_val,
+                    "q25": q25_val,
+                    "median": median_val,
+                    "q75": q75_val,
+                    "max": max_val,
+                    "mean": mean_val,
+                    "iqr": iqr_val,
+                    "by_target": [],
+                }
+
+                # Histogram calculation (10 bins)
+                try:
+                    import numpy as np
+                    hist_counts, bin_edges = np.histogram(clean_s, bins=10)
+                    bin_labels = [f"{bin_edges[i]:.2f} - {bin_edges[i+1]:.2f}" for i in range(len(hist_counts))]
+                    histogram_data = {
+                        "bins": bin_labels,
+                        "counts": [int(c) for c in hist_counts],
+                        "percentages": [round(float(c / len(clean_s)) * 100, 1) for c in hist_counts],
+                    }
+                except Exception:
+                    pass
+
+                # If dataset target column is present, calculate box plot by target class
+                if dataset.target_column in df.columns and name != dataset.target_column:
+                    try:
+                        tgt_series = df[dataset.target_column]
+                        target_classes = tgt_series.dropna().unique().tolist()
+                        if len(target_classes) <= 6:
+                            by_target_list = []
+                            for tc in sorted(target_classes, key=lambda x: str(x)):
+                                mask = (tgt_series == tc)
+                                sub_s = series[mask].dropna()
+                                if len(sub_s) > 0:
+                                    tc_min = round(float(sub_s.min()), 4)
+                                    tc_q25 = round(float(sub_s.quantile(0.25)), 4)
+                                    tc_med = round(float(sub_s.median()), 4)
+                                    tc_q75 = round(float(sub_s.quantile(0.75)), 4)
+                                    tc_max = round(float(sub_s.max()), 4)
+                                    tc_mean = round(float(sub_s.mean()), 4)
+                                    by_target_list.append({
+                                        "class_label": str(tc),
+                                        "count": int(len(sub_s)),
+                                        "min": tc_min,
+                                        "q25": tc_q25,
+                                        "median": tc_med,
+                                        "q75": tc_q75,
+                                        "max": tc_max,
+                                        "mean": tc_mean,
+                                        "iqr": round(tc_q75 - tc_q25, 4),
+                                    })
+                            box_plot_data["by_target"] = by_target_list
+                    except Exception:
+                        pass
 
             if target_numeric is not None and name != dataset.target_column and len(clean_s) > 1:
                 try:
@@ -150,13 +210,24 @@ def profile_dataset(dataset: Dataset) -> DatasetProfile:
                 except Exception:
                     pass
         else:
-            vc = series.value_counts(dropna=False).head(5)
+            vc = series.value_counts(dropna=False).head(10)
+            tgt_series = df[dataset.target_column] if dataset.target_column in df.columns and name != dataset.target_column else None
             for val, cnt in vc.items():
-                top_cats.append({
-                    "value": str(val) if not pd.isna(val) else "<NULL>",
+                val_str = str(val) if not pd.isna(val) else "<NULL>"
+                cat_info: dict[str, Any] = {
+                    "value": val_str,
                     "count": int(cnt),
                     "pct": round(float(cnt / row_count) * 100, 1) if row_count > 0 else 0.0,
-                })
+                }
+                if tgt_series is not None and target_numeric is not None:
+                    try:
+                        mask = (series == val) if not pd.isna(val) else series.isna()
+                        sub_tgt = target_numeric[mask].dropna()
+                        if len(sub_tgt) > 0:
+                            cat_info["target_rate"] = round(float(sub_tgt.mean()) * 100, 1)
+                    except Exception:
+                        pass
+                top_cats.append(cat_info)
 
         # Generate smart actionable recommendations
         if name != dataset.target_column:
@@ -231,20 +302,38 @@ def profile_dataset(dataset: Dataset) -> DatasetProfile:
                 skew=skew_val,
                 target_correlation=target_corr,
                 top_categories=top_cats,
+                histogram=histogram_data,
+                box_plot=box_plot_data,
             )
         )
 
-    # Multi-collinearity detection between numeric features
+    # Multi-collinearity detection and full correlation matrix
     numeric_cols = [c.name for c in columns if c.mean is not None and c.name != dataset.target_column and not c.is_identifier]
+    correlation_matrix_data: dict[str, Any] = {}
     if len(numeric_cols) >= 2:
         try:
-            corr_mat = df[numeric_cols].corr()
+            corr_cols = list(numeric_cols)
+            corr_df = df[corr_cols].copy()
+            if target_numeric is not None and dataset.target_column not in corr_cols:
+                corr_df[dataset.target_column] = target_numeric
+                corr_cols.append(dataset.target_column)
+
+            corr_mat = corr_df.corr().round(4)
+            clean_matrix = []
+            for r in corr_mat.values:
+                clean_matrix.append([round(float(v), 4) if not pd.isna(v) else 0.0 for v in r])
+
+            correlation_matrix_data = {
+                "columns": corr_cols,
+                "matrix": clean_matrix,
+            }
+
             checked_pairs = set()
             for c1 in numeric_cols:
                 for c2 in numeric_cols:
                     if c1 < c2 and (c1, c2) not in checked_pairs:
                         checked_pairs.add((c1, c2))
-                        val = float(corr_mat.loc[c1, c2])
+                        val = float(corr_mat.loc[c1, c2]) if c1 in corr_mat.index and c2 in corr_mat.columns else 0.0
                         if not pd.isna(val) and abs(val) >= 0.88:
                             recommendations.append({
                                 "column": c2,
@@ -284,6 +373,7 @@ def profile_dataset(dataset: Dataset) -> DatasetProfile:
         columns=columns,
         preview_rows=preview_rows,
         recommendations=recommendations,
+        correlation_matrix=correlation_matrix_data,
     )
 
 

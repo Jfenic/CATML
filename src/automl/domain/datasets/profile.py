@@ -24,6 +24,8 @@ class ColumnProfile:
     skew: float | None = None
     target_correlation: float | None = None
     top_categories: list[dict[str, Any]] = field(default_factory=list)
+    histogram: dict[str, Any] = field(default_factory=dict)
+    box_plot: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -46,6 +48,7 @@ class DatasetProfile:
     columns: list[ColumnProfile] = field(default_factory=list)
     preview_rows: list[dict[str, Any]] = field(default_factory=list)
     recommendations: list[dict[str, Any]] = field(default_factory=list)
+    correlation_matrix: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,11 +77,14 @@ class DatasetProfile:
                     "skew": c.skew,
                     "target_correlation": c.target_correlation,
                     "top_categories": c.top_categories,
+                    "histogram": c.histogram,
+                    "box_plot": c.box_plot,
                 }
                 for c in self.columns
             ],
             "preview_rows": self.preview_rows,
             "recommendations": self.recommendations,
+            "correlation_matrix": self.correlation_matrix,
         }
 
     @property
