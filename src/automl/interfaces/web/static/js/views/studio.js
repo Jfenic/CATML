@@ -151,16 +151,16 @@ export class StudioView {
           </div>
 
           <!-- Quick Action Launcher Bar -->
-          <div class="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="mt-3 pt-3 border-t border-[#27272e] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
             <div class="flex items-center space-x-2">
-              <span class="text-slate-400 font-semibold uppercase text-[11px]">Lanzamiento Rápido:</span>
-              <button data-quick-model="lightgbm" class="btn-quick-run bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded text-xs transition-colors font-medium">⚡ LightGBM</button>
-              <button data-quick-model="xgboost" class="btn-quick-run bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded text-xs transition-colors font-medium">🔥 XGBoost</button>
-              <button data-quick-model="catboost" class="btn-quick-run bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded text-xs transition-colors font-medium">🐱 CatBoost</button>
-              <button data-quick-model="voting_ensemble" class="btn-quick-run bg-purple-950/40 hover:bg-purple-900/50 text-purple-300 border border-purple-800/60 px-2.5 py-1 rounded text-xs transition-colors font-medium">🗳️ Ensemble Blender</button>
+              <span class="text-[#D8D6CF]/60 font-semibold uppercase text-[10px]">LANZAMIENTO RÁPIDO:</span>
+              <button data-quick-model="lightgbm" class="btn-quick-run btn-technical text-xs">⚡ LightGBM</button>
+              <button data-quick-model="xgboost" class="btn-quick-run btn-technical text-xs">🔥 XGBoost</button>
+              <button data-quick-model="catboost" class="btn-quick-run btn-technical text-xs">🐱 CatBoost</button>
+              <button data-quick-model="voting_ensemble" class="btn-quick-run btn-technical text-xs border-[#9C7CFF]/50 text-[#9C7CFF]">🗳️ Ensemble</button>
             </div>
-            <button id="btnNewExpFromHeader" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-xs font-semibold transition-colors shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5">
-              <span>＋ Experimento Guiado</span>
+            <button id="btnNewExpFromHeader" class="btn-signal text-xs">
+              <span>＋ EXPERIMENTO GUIADO</span>
             </button>
           </div>
         </div>

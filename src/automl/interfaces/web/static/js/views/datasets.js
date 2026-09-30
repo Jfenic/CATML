@@ -252,29 +252,29 @@ export class DatasetsView {
               </span>
             </div>
 
-            <button id="btnLaunchWithSelection" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors shadow-lg shadow-emerald-600/20 flex items-center space-x-2">
-              <span>🚀 Lanzar Experimento con esta Selección (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
+            <button id="btnLaunchWithSelection" class="btn-signal">
+              <span>▶ LANZAR EXPERIMENTO (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
             </button>
           </div>
         </div>
 
-        <!-- 4. Multi-Tab Exploration Card -->
+        <!-- 4. Multi-Tab Exploration Equipment Module -->
         <div class="workbench-card overflow-hidden">
-          <div class="border-b border-slate-800 px-4 flex items-center space-x-6 text-xs font-medium bg-slate-950/40 overflow-x-auto">
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'schema' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="schema">
-              ▦ Schema & Selección
+          <div class="border-b border-[#27272e] px-4 flex items-center space-x-6 text-xs font-mono font-medium bg-[#111111] overflow-x-auto">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'schema' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="schema">
+              ▦ SCHEMA & SELECCIÓN
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'stats' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="stats">
-              📊 Estadísticas Descriptivas
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'stats' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="stats">
+              📊 ESTADÍSTICAS DESCRIPTIVAS
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'preview' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="preview">
-              🔍 Muestra Raw
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'preview' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="preview">
+              🔍 MUESTRA RAW
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'categories' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="categories">
-              🏷️ Distribución Categórica
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'categories' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="categories">
+              🏷️ DISTRIBUCIÓN CATEGÓRICA
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="correlation">
-              🔗 Matriz de Correlación
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="correlation">
+              🔗 MATRIZ DE CORRELACIÓN
             </button>
           </div>
 

@@ -14,6 +14,7 @@ La versión del paquete se define en [`automl.__version__`](../src/automl/__init
 | Gestionar trabajos, controles y recuperación | [Cola persistente](features/persistent-jobs/spec.md) |
 | Comprobar backend y reproducibilidad | [Backends](backends.md) |
 | Consultar diseño objetivo y fases futuras | [Especificación técnica](../AutoML_Arquitectura_Tecnica.md) |
+| Sistema de diseño UI (Neo-Industrial) | [Diseño UI](design/neo-industrial-ui-spec.md) y [ADR 005](decisions/005-neo-industrial-visual-ml-lab-ui.md) |
 | Entender decisiones | [ADRs](decisions/) |
 | Consultar última ejecución y contexto | [Progreso](../.agent/progress.md) |
 

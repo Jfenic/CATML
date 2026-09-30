@@ -145,12 +145,12 @@ export class NewExperimentModal {
           </div>
 
           <!-- Footer Actions -->
-          <div class="pt-4 border-t border-slate-800 flex items-center justify-end space-x-3">
-            <button id="btnCancelModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg font-medium transition-colors">
-              Cancel
+          <div class="pt-4 border-t border-[#27272e] flex items-center justify-end space-x-3">
+            <button id="btnCancelModal" class="btn-ghost">
+              CANCEL
             </button>
-            <button id="btnStartAutoML" ${!hasTarget ? "disabled" : ""} class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs px-5 py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-indigo-600/25 flex items-center space-x-2">
-              <span>⚡ Start AutoML</span>
+            <button id="btnStartAutoML" ${!hasTarget ? "disabled" : ""} class="btn-signal ${!hasTarget ? 'opacity-50 cursor-not-allowed' : ''}">
+              <span>▶ START TRAINING</span>
             </button>
           </div>
         </div>

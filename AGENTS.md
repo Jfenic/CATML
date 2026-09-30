@@ -9,6 +9,7 @@
 - **Short-Term Memory & Progress:** See [`.agent/progress.md`](.agent/progress.md).
 - **Developer Extension Guide:** See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 - **Active Feature Specs & Plans:** See [`docs/features/`](docs/features/) (e.g. [`docs/features/feature-discovery/spec.md`](docs/features/feature-discovery/spec.md) and [`plan.md`](docs/features/feature-discovery/plan.md)).
+- **UI Design System (Neo-Industrial):** See [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md) and [`docs/decisions/005-neo-industrial-visual-ml-lab-ui.md`](docs/decisions/005-neo-industrial-visual-ml-lab-ui.md).
 - **Architectural Decisions (ADRs):** See [`docs/decisions/`](docs/decisions/).
 - **Original Architectural Notes:** See [`planning.txt`](planning.txt).
 
@@ -67,3 +68,6 @@ The entire current test suite must pass before completing any task. Test coverag
        gh issue create --title "[FINDING/IMPROVEMENT] Short title" --body "### Context\n...\n### Finding / Limitation\n...\n### Affected Modules\n...\n### Suggested Resolution\n..." --label "blackboard"
        ```
    - When an issue on the blackboard is addressed, close it via `gh issue close <id> --comment "Addressed in commit/PR <ref>"`.
+8. **Neo-Industrial UI Standards:**
+   - Any work on web interfaces (`src/automl/interfaces/web/`) must strictly comply with [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
+   - Use the visual ML lab paradigm: palette (`#111111`, `#D8D6CF`, `#F1EFE9`, `#E5512D`), typography (`Space Grotesk` + `IBM Plex Mono`), modular 1px visible borders, sharp corners (`0px`-`4px`), and signal orange strictly reserved for primary execution CTAs.
