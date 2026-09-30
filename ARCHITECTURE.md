@@ -144,3 +144,8 @@ The directory tree is a summary; [docs/README.md](docs/README.md) maps current c
 - **Developer Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
 - **Architectural Rationale & Historical Design:** [`planning.txt`](planning.txt)
 - **Architectural Decision Records:** [`docs/decisions/`](docs/decisions/)
+
+
+## Persistent local execution
+
+Long-running Workbench experiments and submissions use a durable SQLite job queue. Pure domain jobs and `JobRepositoryPort` separate state from storage; application services validate/control jobs and execute existing commands/workspace operations. Bootstrap registers ID-returning job commands and snapshot queries. Infrastructure owns transactional claims and the worker lifecycle; read requests never start workers. The CLI and Workbench share these contracts. See [ADR 003](docs/decisions/003-persistent-local-jobs.md) and the [scope, recovery and controls](docs/features/persistent-jobs/spec.md).

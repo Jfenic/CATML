@@ -491,6 +491,36 @@ def launch_ui_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def jobs_cli(args) -> int:
+    from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
+    from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
+    if args.job_action == "worker":
+        from automl.infrastructure.jobs.worker import JobWorker
+        worker = JobWorker(args.workspace).start(background=False)
+        try:
+            while True:
+                if not worker.run_once():
+                    import time
+                    time.sleep(0.25)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            worker.close()
+        return 0
+    _, commands, queries = build_application(args.workspace)
+    if args.job_action == "submit":
+        result = {"job_id": commands.dispatch(SubmitJobCommand(args.operation, args.run_id,
+                  json.loads(args.payload), args.key))}
+    elif args.job_action == "list":
+        result = queries.dispatch(ListJobsQuery(args.run_id))
+    elif args.job_action == "show":
+        result = queries.dispatch(GetJobQuery(args.job_id))
+    else:
+        result = {"job_id": commands.dispatch(ControlJobCommand(args.job_id, args.job_action))}
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="automl", description=f"AutoML Platform CLI (V{PLATFORM_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -609,6 +639,21 @@ def main(argv: list[str] | None = None) -> int:
     ui_parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
     ui_parser.add_argument("--workspace", help="Connected workspace directory (default: auto)")
     ui_parser.set_defaults(func=launch_ui_cli)
+
+    job_parser = sub.add_parser("job", help="Persistent background jobs and worker")
+    job_sub = job_parser.add_subparsers(dest="job_action", required=True)
+    for action in ("submit", "list", "show", "pause", "resume", "cancel", "retry", "worker"):
+        action_parser = job_sub.add_parser(action)
+        action_parser.add_argument("--workspace", required=True)
+        action_parser.set_defaults(func=jobs_cli)
+        if action in {"show", "pause", "resume", "cancel", "retry"}:
+            action_parser.add_argument("--job-id", required=True)
+        if action in {"list", "submit"}:
+            action_parser.add_argument("--run-id", required=action == "submit")
+        if action == "submit":
+            action_parser.add_argument("--operation", choices=("experiment", "oof", "submission"), required=True)
+            action_parser.add_argument("--payload", required=True, help="JSON operation arguments")
+            action_parser.add_argument("--key", required=True, help="Stable idempotency key for this request")
 
     args = parser.parse_args(argv)
     return args.func(args)
