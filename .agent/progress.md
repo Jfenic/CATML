@@ -1,14 +1,17 @@
 # Progress
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H0 / Paquete B0)**:
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H1 / Paquete B1)**:
 - Rol: **Persona B** (Interfaces, Integración y Orquestación).
-- Rama: `feat/agentic-b0-compatibility`.
-- Entregable B0 completado:
-  - ADR 004 redactado en `docs/decisions/004-agentic-system-scope-and-dependencies.md` (posposición de V0.8, extras opcionales, transporte stdio y límites).
-  - `pyproject.toml` actualizado con extras opcionales `mcp` y `agents`.
-  - Casos de consumidor y fixtures implementados en `tests/test_v09_agent_consumers.py` (7 tests pasando).
-  - Documento de revisión técnica para Persona A redactado en `docs/features/agentic-system/review-b0-to-a0.md`.
-- Handoff H0: A la espera de la integración de A0 por Persona A para acordar contratos finales e iniciar B1 (servidor MCP stdio).
+- Rama: `feat/agentic-b1-mcp`.
+- Entregable B1 completado:
+  - Servidor MCP stdio implementado en `src/automl/interfaces/mcp/server.py` utilizando el SDK oficial `mcp` (MCPServer).
+  - Tools de consulta expuestas: `get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`.
+  - Resources expuestos: `catml://runs/{run_id}/leaderboard`, `catml://datasets/{dataset_id}/profile`.
+  - Subcomando CLI `automl mcp [--workspace PATH]` implementado en `src/automl/interfaces/cli/mcp_cli.py` y registrado en `main.py` de forma diferida (sin obligar a importar `mcp` para otros comandos).
+  - Logging estructurado exclusivamente por `sys.stderr` garantizando `stdout` 100% puro para JSON-RPC.
+  - Suite de tests completa en `tests/test_v09_mcp_server.py` (10 tests pasando, incluyendo handshake de subprocess stdio).
+- Validación global: 259 tests pasados, cobertura total 87.47% (>= 85%).
+- Handoff H1: A la espera de la integración de A1 por Persona A para cierre del hito H1 e inicio de B2 (mutaciones y aprobaciones).
  
 ## Completed
  

@@ -1,0 +1,236 @@
+"""Unit and integration tests for CATML Model Context Protocol (MCP) server.
+
+Persona B Package B1 verification suite.
+Tests cover server lifecycle, tool listing, query execution, resource reading,
+and missing dependency handling.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import io
+import json
+import shutil
+import tempfile
+from unittest.mock import patch
+
+import pytest
+
+from pathlib import Path
+
+from automl.application.bootstrap import build_application
+from automl.application.commands.workspace_commands import (
+    CreateExperimentCommand,
+    PlanExperimentsCommand,
+)
+from automl.interfaces.cli.mcp_cli import run_mcp_cli
+from automl.interfaces.mcp.server import HAS_MCP, create_mcp_server
+
+
+@pytest.fixture
+def sample_dataset_path():
+    return Path(__file__).resolve().parents[1] / "examples" / "data" / "customers_churn.csv"
+
+
+@pytest.fixture
+def temp_workspace(tmp_path: Path, sample_dataset_path: Path):
+    """Create a temporary workspace with registered dataset and run for MCP tests."""
+    ws, cb, qb = build_application(root_dir=str(tmp_path / "ws"))
+    dataset = ws.register_dataset(
+        name="customers",
+        path=sample_dataset_path,
+        target="churn",
+        task_type="binary_classification",
+    )
+    run = ws.create_run(dataset, metric="roc_auc")
+    return ws, cb, qb, dataset, run
+
+
+def test_mcp_server_initialization_and_tool_listing(temp_workspace):
+    """Verify MCP server exposes all canonical H1 query tools with valid schemas."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    tools = asyncio.run(server.list_tools())
+    tool_names = {t.name for t in tools}
+
+    expected_tools = {
+        "get_dataset_profile",
+        "list_models",
+        "list_plugins",
+        "list_experiments",
+        "get_leaderboard",
+        "get_feature_evidence",
+        "get_feature_ranking",
+    }
+    assert expected_tools.issubset(tool_names)
+
+    # Verify input schemas
+    for t in tools:
+        if t.name in expected_tools:
+            assert t.description is not None
+            assert t.input_schema is not None
+            assert t.input_schema["type"] == "object"
+
+
+def test_mcp_tool_list_models(temp_workspace):
+    """Verify list_models tool returns registered models through MCP."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    res = asyncio.run(server.call_tool("list_models", {}))
+    assert res.is_error is False
+    assert len(res.content) == 1
+
+    models = json.loads(res.content[0].text)
+    assert isinstance(models, list)
+    model_ids = [m["id"] if isinstance(m, dict) else m for m in models]
+    assert "logistic_regression" in model_ids
+    assert "random_forest" in model_ids
+
+
+def test_mcp_tool_list_plugins(temp_workspace):
+    """Verify list_plugins tool returns registered plugins through MCP."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    res = asyncio.run(server.call_tool("list_plugins", {}))
+    assert res.is_error is False
+
+    plugins = json.loads(res.content[0].text)
+    assert isinstance(plugins, list)
+    assert len(plugins) > 0
+
+
+def test_mcp_tool_get_dataset_profile(temp_workspace):
+    """Verify get_dataset_profile returns profile or NOT_FOUND error."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    # Nonexistent dataset
+    res_err = asyncio.run(server.call_tool("get_dataset_profile", {"dataset_id": "nonexistent_ds"}))
+    assert res_err.is_error is True
+    assert "NOT_FOUND" in res_err.content[0].text
+
+    # Existing dataset query
+    res_ok = asyncio.run(server.call_tool("get_dataset_profile", {"dataset_id": dataset.id}))
+    assert res_ok.is_error is False
+    profile_data = json.loads(res_ok.content[0].text)
+    assert "n_rows" in profile_data or "shape" in profile_data or "columns" in profile_data
+
+
+def test_mcp_tool_experiments_and_leaderboard(temp_workspace):
+    """Verify list_experiments and get_leaderboard tools."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    # Create experiment in run
+    cb.dispatch(CreateExperimentCommand(run.id, "exp_1", model_ids=["logistic_regression"]))
+
+    # Test list_experiments
+    res_exps = asyncio.run(server.call_tool("list_experiments", {"run_id": run.id}))
+    assert res_exps.is_error is False
+    exps = json.loads(res_exps.content[0].text)
+    assert len(exps) == 1
+
+    # Test get_leaderboard
+    res_lb = asyncio.run(server.call_tool("get_leaderboard", {"run_id": run.id, "top_k": 5}))
+    assert res_lb.is_error is False
+    lb = json.loads(res_lb.content[0].text)
+    assert isinstance(lb, list)
+
+    # Test leaderboard on unknown run
+    res_unknown = asyncio.run(server.call_tool("get_leaderboard", {"run_id": "unknown_run_xyz"}))
+    assert res_unknown.is_error is True
+    assert "NOT_FOUND" in res_unknown.content[0].text
+
+
+def test_mcp_tool_feature_evidence_and_ranking(temp_workspace):
+    """Verify feature evidence and ranking queries."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    # Feature ranking on empty run returns empty list
+    res_rank = asyncio.run(server.call_tool("get_feature_ranking", {"run_id": run.id, "method": "ensemble"}))
+    assert res_rank.is_error is False
+    ranking = json.loads(res_rank.content[0].text)
+    assert isinstance(ranking, list)
+
+    # Feature evidence on nonexistent feature returns NOT_FOUND
+    res_ev = asyncio.run(server.call_tool("get_feature_evidence", {"run_id": run.id, "feature_id": "feat_xyz"}))
+    assert res_ev.is_error is True
+    assert "NOT_FOUND" in res_ev.content[0].text
+
+
+def test_mcp_resources(temp_workspace):
+    """Verify MCP resource endpoints for live leaderboards and dataset profiles."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    # Read leaderboard resource
+    lb_res = asyncio.run(server.read_resource(f"catml://runs/{run.id}/leaderboard"))
+    assert len(lb_res) == 1
+    lb_data = json.loads(lb_res[0].content)
+    assert isinstance(lb_data, list)
+
+    # Read dataset profile resource
+    ds_res = asyncio.run(server.read_resource(f"catml://datasets/{dataset.id}/profile"))
+    assert len(ds_res) == 1
+    ds_data = json.loads(ds_res[0].content)
+    assert "n_rows" in ds_data or "columns" in ds_data
+
+
+def test_mcp_server_missing_dependency():
+    """Verify create_mcp_server raises clean ImportError when mcp is absent."""
+    with patch("automl.interfaces.mcp.server.HAS_MCP", False):
+        with pytest.raises(ImportError, match="pip install '\\.\\[mcp\\]'"):
+            create_mcp_server()
+
+
+def test_mcp_cli_missing_dependency():
+    """Verify automl mcp CLI exits with code 1 and writes to stderr when mcp is absent."""
+    with patch("automl.interfaces.mcp.server.HAS_MCP", False):
+        stderr_buf = io.StringIO()
+        with patch("sys.stderr", stderr_buf):
+            ret = run_mcp_cli(argparse.Namespace(workspace=None))
+            assert ret == 1
+            assert "pip install '.[mcp]'" in stderr_buf.getvalue()
+
+
+def test_mcp_cli_subprocess_stdio_handshake(tmp_path: Path):
+    """Verify real subprocess stdio lifecycle: stdout contains only pure JSON-RPC and logs go to stderr."""
+    import subprocess
+    import sys
+
+    req = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "test-client", "version": "1.0.0"},
+        },
+    }
+
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "automl.interfaces.cli.main", "mcp", "--workspace", str(tmp_path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    stdout, stderr = proc.communicate(input=json.dumps(req) + "\n", timeout=5)
+
+    assert proc.returncode == 0
+    # STDOUT must parse as valid JSON-RPC
+    assert len(stdout.strip()) > 0
+    resp = json.loads(stdout.strip())
+    assert resp.get("jsonrpc") == "2.0"
+    assert resp.get("id") == 1
+    assert "result" in resp
+    assert resp["result"]["serverInfo"]["name"] == "catml-mcp"
+    assert resp["result"]["serverInfo"]["version"] == "0.7.0"
+
+    # STDERR must contain the server initialization log
+    assert "catml.mcp" in stderr
