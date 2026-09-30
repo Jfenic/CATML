@@ -11,7 +11,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Views: Overview (Mission Control), Dataset Inspector ("¿Qué entendió CATML?"), Experiment Studio (explicable planner "Why this?", HPO, controls), Compare View (multi-select, metrics table, diff inspector), Visual Pipeline DAG (interactive execution nodes), Knowledge (V0.8 meta-learning preview), Lateral Agent Drawer (V1.0 hypothesis engine "Proponer ≠ Aceptar"), Kaggle S6E9 Center.
 - [x] Feature: CLI integration `automl ui [--port PORT] [--workspace WORKSPACE]` in `src/automl/interfaces/cli/main.py`.
 - [x] Testing: Comprehensive web test suite in `tests/test_web_dashboard.py` verifying static asset serving, dataset registration, profiling, experiment execution, pause/resume, and submission generation.
-- [ ] Next: Stratified 5-Fold Out-of-Fold (OOF) Prediction Blending (`--folds 5`) evaluated against a fixed baseline; see [evaluation protocol](docs/features/oof-blending/spec.md). The `--folds` prediction option is planned.
+- [x] Binary OOF prediction blending (`--folds 5`) with fixed equal weights, application commands/queries, CLI and Workbench; [scope and evaluation protocol](docs/features/oof-blending/spec.md).
+- [ ] Validate OOF blending on an independent holdout and representative benchmark before promoting a candidate.
 
 ## Next (Roadmap Phases)
 
@@ -71,3 +72,9 @@ Los hitos describen el núcleo implementado; consultar [alcance y limitaciones](
 - [x] Final validation (2026-09-30): 164 tests passed, 85.23% coverage; editable package metadata and CLI report 0.7.0; custom plugin example trained successfully; Markdown links and heading anchors checked.
 
 - [x] Organized review fixes on `fix/docs-and-plugin-registration` from updated `origin/main`, with separate commits for plugins, version and documentation; prior frontend edits excluded.
+
+## OOF Prediction Blending — 2026-09-30
+
+- [x] Initial binary ROC-AUC implementation with fold-local preprocessing, original label mapping, template alignment, persisted predictions and backend/configuration manifests.
+- [x] Run/experiment ownership, probability validity, time budgets, pause/cancel and changed-input/artifact checks.
+- [x] Final validation: 196 tests passed, 86.01% coverage; CLI/task catalog, JavaScript syntax, Markdown links and diff checks passed. Changes prepared for a separate draft PR based on the unmerged documentation PR #13.

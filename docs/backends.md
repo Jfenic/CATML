@@ -32,7 +32,7 @@ Para exigir el backend nativo, registrar `LightGBMPlugin(use_fallback_if_missing
 
 ## Alcance de reproducibilidad
 
-Los trials registran parámetros y seed; los resultados y eventos se guardan en SQLite. Actualmente el ID del modelo no identifica por sí solo el backend concreto, y no se persiste un manifiesto completo de versiones de librerías, plugin y hashes de datos por trial.
+Los trials registran parámetros y seed; los resultados y eventos se guardan en SQLite. En trials ordinarios el ID del modelo no identifica por sí solo el backend concreto y no se persiste un manifiesto completo. Los [experimentos OOF](features/oof-blending/spec.md) sí guardan backend, versiones de plugin/librerías, configuración y hashes de datos/artefactos en un informe enlazado al trial.
 
 Para una comparación reproducible, conservar el workspace, una copia o hash del dataset, configuración de validación, clase concreta del estimador y versiones del entorno:
 
