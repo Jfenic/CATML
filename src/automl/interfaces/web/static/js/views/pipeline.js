@@ -4,20 +4,69 @@
  */
 import { store } from "../store.js";
 import { bus } from "../bus.js";
+import { api } from "../api.js";
 
 export class PipelineView {
   constructor() {
     this.container = null;
     this.selectedNode = "FeatureGenerator";
+    this.activeRun = null;
+    this.profile = null;
+    this.leaderboard = [];
   }
 
-  mount(container) {
+  async mount(container) {
     this.container = container;
+    this.renderLoading();
+    await this.fetchData();
     this.render();
   }
 
+  renderLoading() {
+    this.container.innerHTML = `
+      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
+        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
+        <div class="text-sm font-medium">Construyendo grafo visual del pipeline de ejecución...</div>
+      </div>
+    `;
+  }
+
+  async fetchData() {
+    try {
+      const state = store.getState();
+      const runs = state.runs || [];
+      this.activeRun = runs.find(r => r.id === state.activeRunId)
+        || runs.find(r => r.status === "RUNNING")
+        || runs[0]
+        || null;
+
+      if (this.activeRun) {
+        const [profile, leaderboard] = await Promise.all([
+          api.getDatasetProfile(this.activeRun.dataset_id).catch(() => null),
+          api.getLeaderboard(this.activeRun.id).catch(() => []),
+        ]);
+        this.profile = profile;
+        this.leaderboard = leaderboard || [];
+      }
+    } catch (e) {
+      console.warn("PipelineView fetchData error:", e);
+    }
+  }
+
   render() {
+    const p = this.profile;
+    const run = this.activeRun;
+    const columns = p ? (p.columns || []) : [];
+    const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float"))).length;
+    const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string")).length;
+    const idCols = columns.filter(c => c.is_identifier || c.catml_action === "Exclude");
+
+    const topModels = this.leaderboard.slice(0, 3);
     const nodeDetails = this._getNodeDetails(this.selectedNode);
+
+    const dsDisplayName = run ? (run.dataset_name || "Dataset") : (p ? p.name : "Dataset");
+    const rowCountText = p && p.row_count ? `${Number(p.row_count).toLocaleString()} rows` : "Raw Data";
+    const colCountText = p && p.column_count ? `${p.column_count} cols` : "Features";
 
     this.container.innerHTML = `
       <div class="space-y-6">
@@ -25,8 +74,8 @@ export class PipelineView {
           <div class="flex items-center space-x-3">
             <span class="text-indigo-400 font-bold text-lg">◇</span>
             <div>
-              <h2 class="text-base font-bold text-slate-100">Visual Pipeline DAG (Execution Graph)</h2>
-              <p class="text-xs text-slate-400">Grafo reproducible de ingestión, preprocesamiento, generación de features y blending</p>
+              <h2 class="text-base font-bold text-slate-100">Visual Pipeline DAG — ${dsDisplayName}</h2>
+              <p class="text-xs text-slate-400">Grafo reproducible de ingestión, preprocesamiento, generación de features y ensamblado</p>
             </div>
           </div>
           <span class="badge-gain text-xs px-3 py-1 rounded-full font-mono font-bold">DAG Validated</span>
@@ -35,11 +84,11 @@ export class PipelineView {
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <!-- Graph Canvas (Left) -->
           <div class="lg:col-span-8 workbench-card p-6 flex flex-col items-center justify-center space-y-4 bg-slate-950/40 min-h-[480px]">
-            <!-- Node: train.csv -->
+            <!-- Node: Dataset -->
             <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'Dataset' ? 'active' : ''}" data-node="Dataset">
               <div class="text-[10px] text-slate-400 uppercase font-mono">Input Source</div>
-              <div class="text-xs font-bold text-slate-200">train.csv</div>
-              <div class="text-[10px] text-slate-500 font-mono">668k rows × 14 cols</div>
+              <div class="text-xs font-bold text-slate-200">${dsDisplayName}</div>
+              <div class="text-[10px] text-slate-500 font-mono">${rowCountText} × ${colCountText}</div>
             </div>
 
             <div class="dag-node-connector h-6"></div>
@@ -49,13 +98,13 @@ export class PipelineView {
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'SchemaDetector' ? 'active' : ''}" data-node="SchemaDetector">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Inference</div>
                 <div class="text-xs font-bold text-purple-300">SchemaDetector</div>
-                <div class="text-[10px] text-slate-500 font-mono">Binary Clf</div>
+                <div class="text-[10px] text-slate-500 font-mono capitalize">${run ? (run.task_type || "Classification").replace("_", " ") : "Classification"}</div>
               </div>
 
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'IDExclusion' ? 'active' : ''}" data-node="IDExclusion">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pruning</div>
                 <div class="text-xs font-bold text-rose-300">ID Exclusion</div>
-                <div class="text-[10px] text-slate-500 font-mono">Drop 'id' (99.9%)</div>
+                <div class="text-[10px] text-slate-500 font-mono">${idCols.length > 0 ? `Drop '${idCols[0].name}'` : 'Zero Leaks'}</div>
               </div>
             </div>
 
@@ -66,13 +115,13 @@ export class PipelineView {
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'NumericalImputer' ? 'active' : ''}" data-node="NumericalImputer">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pipeline</div>
                 <div class="text-xs font-bold text-indigo-300">Numerical Imputer</div>
-                <div class="text-[10px] text-slate-500 font-mono">Median / Scaler</div>
+                <div class="text-[10px] text-slate-500 font-mono">${numCols} Numerics</div>
               </div>
 
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'CategoricalEncoder' ? 'active' : ''}" data-node="CategoricalEncoder">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pipeline</div>
-                <div class="text-xs font-bold text-indigo-300">Target / Ordinal Enc</div>
-                <div class="text-[10px] text-slate-500 font-mono">7 Categoricals</div>
+                <div class="text-xs font-bold text-indigo-300">Categorical Encoder</div>
+                <div class="text-[10px] text-slate-500 font-mono">${catCols} Categoricals</div>
               </div>
             </div>
 
@@ -87,86 +136,61 @@ export class PipelineView {
 
             <div class="dag-node-connector h-6"></div>
 
-            <!-- Model Trio -->
+            <!-- Top Models -->
             <div class="flex space-x-4">
-              <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'LightGBM' ? 'active' : ''}" data-node="LightGBM">
-                <div class="text-[10px] text-slate-400 uppercase font-mono">Fold Models</div>
-                <div class="text-xs font-bold text-slate-200">LightGBM</div>
-                <div class="text-[10px] text-emerald-400 font-mono">0.94110</div>
-              </div>
-
-              <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'CatBoost' ? 'active' : ''}" data-node="CatBoost">
-                <div class="text-[10px] text-slate-400 uppercase font-mono">Fold Models</div>
-                <div class="text-xs font-bold text-slate-200">CatBoost HPO</div>
-                <div class="text-[10px] text-emerald-400 font-mono font-bold">0.94582</div>
-              </div>
-
-              <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'XGBoost' ? 'active' : ''}" data-node="XGBoost">
-                <div class="text-[10px] text-slate-400 uppercase font-mono">Fold Models</div>
-                <div class="text-xs font-bold text-slate-200">XGBoost</div>
-                <div class="text-[10px] text-slate-500 font-mono">Queued</div>
-              </div>
+              ${topModels.length > 0 ? topModels.map(m => `
+                <div class="dag-node text-center cursor-pointer ${this.selectedNode === m.model_id ? 'active' : ''}" data-node="${m.model_id}">
+                  <div class="text-[10px] text-slate-400 uppercase font-mono">Model</div>
+                  <div class="text-xs font-bold text-slate-200 capitalize">${m.model_id}</div>
+                  <div class="text-[10px] text-emerald-400 font-mono">${Number(m.score).toFixed(5)}</div>
+                </div>
+              `).join("") : `
+                <div class="dag-node text-center cursor-pointer" data-node="Models">
+                  <div class="text-[10px] text-slate-400 uppercase font-mono">Models</div>
+                  <div class="text-xs font-bold text-slate-200">Ensemble Candidates</div>
+                  <div class="text-[10px] text-indigo-400 font-mono">Stratified CV</div>
+                </div>
+              `}
             </div>
 
             <div class="dag-node-connector h-6"></div>
 
-            <!-- Blend & Prediction -->
-            <div class="flex space-x-6">
-              <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'Blend' ? 'active' : ''}" data-node="Blend">
-                <div class="text-[10px] text-slate-400 uppercase font-mono">Meta-Ensemble</div>
-                <div class="text-xs font-bold text-indigo-300">Weighted Blender</div>
-                <div class="text-[10px] text-emerald-400 font-mono font-bold">0.94621</div>
-              </div>
-
-              <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'Prediction' ? 'active' : ''}" data-node="Prediction">
-                <div class="text-[10px] text-slate-400 uppercase font-mono">Output Artifact</div>
-                <div class="text-xs font-bold text-emerald-300">submission.csv</div>
-                <div class="text-[10px] text-slate-500 font-mono">286,571 predictions</div>
-              </div>
+            <!-- Prediction / Submission Node -->
+            <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'Prediction' ? 'active' : ''}" data-node="Prediction">
+              <div class="text-[10px] text-slate-400 uppercase font-mono">Output Artifact</div>
+              <div class="text-xs font-bold text-emerald-300">submission.csv</div>
+              <div class="text-[10px] text-slate-400 font-mono">Verified Format</div>
             </div>
           </div>
 
-          <!-- Node Inspector (Right) -->
-          <div class="lg:col-span-4 workbench-card flex flex-col">
-            <div class="workbench-panel-header flex items-center justify-between">
-              <span class="text-sm font-semibold text-slate-200">${nodeDetails.name}</span>
-              <span class="badge-gain text-xs px-2 py-0.5 rounded font-mono">${nodeDetails.status}</span>
+          <!-- Inspector Panel (Right) -->
+          <div class="lg:col-span-4 workbench-card p-5 space-y-4">
+            <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Node Inspector</span>
+                <h3 class="text-base font-bold text-slate-100" id="inspectorNodeName">${nodeDetails.name}</h3>
+              </div>
+              <span class="badge-gain text-xs px-2 py-0.5 rounded font-mono" id="inspectorNodeStatus">${nodeDetails.status}</span>
             </div>
 
-            <div class="p-5 space-y-4 flex-1 text-xs">
-              <div>
-                <span class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Description</span>
-                <p class="text-slate-300 mt-1">${nodeDetails.description}</p>
+            <p class="text-xs text-slate-300 leading-relaxed" id="inspectorNodeDesc">
+              ${nodeDetails.description}
+            </p>
+
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2 text-xs font-mono">
+              <div class="text-slate-400 font-sans font-semibold text-[11px] uppercase">Node Contract</div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Input:</span>
+                <span class="text-slate-200" id="inspectorInput">${nodeDetails.input}</span>
               </div>
-
-              <div class="grid grid-cols-2 gap-3 pt-2">
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-slate-400 text-[10px]">Input Features</div>
-                  <div class="text-base font-bold text-slate-200 font-mono mt-0.5">${nodeDetails.input}</div>
-                </div>
-
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-slate-400 text-[10px]">Output Features</div>
-                  <div class="text-base font-bold text-indigo-400 font-mono mt-0.5">${nodeDetails.output}</div>
-                </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Output:</span>
+                <span class="text-indigo-400" id="inspectorOutput">${nodeDetails.output}</span>
               </div>
+            </div>
 
-              ${
-                nodeDetails.extra
-                  ? `
-                <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2 font-mono text-[11px]">
-                  <div class="text-slate-400 font-sans font-semibold">Transformations Details:</div>
-                  ${nodeDetails.extra}
-                </div>
-              `
-                  : ""
-              }
-
-              <div class="pt-4 border-t border-slate-800 flex justify-end">
-                <button class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3.5 py-1.5 rounded font-medium transition-colors">
-                  Inspect Transformations Code
-                </button>
-              </div>
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2 text-xs font-mono" id="inspectorExtra">
+              ${nodeDetails.extra}
             </div>
           </div>
         </div>
@@ -177,104 +201,97 @@ export class PipelineView {
   }
 
   _getNodeDetails(node) {
+    const p = this.profile;
+    const run = this.activeRun;
+    const columns = p ? (p.columns || []) : [];
+    const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float"))).length;
+    const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string")).length;
+
     const details = {
       Dataset: {
-        name: "train.csv Ingestion",
-        status: "Completed",
-        description: "Raw competition dataset loaded into memory using streaming chunk verification.",
-        input: "0 (Raw file)",
-        output: "14 columns",
-        extra: "<div>File: competitions/s6e9/train.csv</div><div>Rows: 668,665</div><div>Size: ~48 MB</div>",
+        name: `Input Source (${run ? run.dataset_name : 'Dataset'})`,
+        status: "Ingested",
+        description: "Raw tabular dataset loaded directly through DataSource port without framework pollution in domain.",
+        input: run ? (run.dataset_path || "data/train.csv") : "data/train.csv",
+        output: `${p ? Number(p.row_count).toLocaleString() : '—'} rows × ${columns.length} columns`,
+        extra: `<div>Target: '${p ? p.target_column : (run ? run.target : 'target')}'</div><div>Modality: Tabular</div>`,
       },
       SchemaDetector: {
-        name: "SchemaDetector",
+        name: "Schema & Task Detector",
         status: "Completed",
-        description: "Infers target column types, missingness heuristics, and problem task classification.",
-        input: "14 columns",
-        output: "1 Target + 13 Predictors",
-        extra: "<div>Task: Binary Classification</div><div>Metric: ROC-AUC</div>",
+        description: "Autonomous inference of problem modality, task type, data types, and target distribution.",
+        input: `${columns.length} columns`,
+        output: run ? (run.task_type || "Binary Classification") : "Classification",
+        extra: `<div>Numerical: ${numCols}</div><div>Categorical: ${catCols}</div>`,
       },
       IDExclusion: {
-        name: "ID Exclusion Filter",
+        name: "Identifier Pruning",
         status: "Completed",
-        description: "Automatic identifier isolation to prevent data leakage.",
-        input: "13 columns",
-        output: "12 features (id dropped)",
-        extra: "<div>Column: 'id'</div><div>Cardinality: 99.999%</div><div>Action: Excluded from active set</div>",
+        description: "Automatic identifier isolation to prevent data leakage and memorization.",
+        input: `${columns.length} columns`,
+        output: `${columns.filter(c => !c.is_identifier).length} predictive features`,
+        extra: "<div>Rule: Drop features with >99% unique cardinality</div>",
       },
       NumericalImputer: {
         name: "Numerical Imputer & Scaler",
         status: "Completed",
-        description: "Median imputation for missing values followed by RobustScaler.",
-        input: "6 numeric columns",
-        output: "6 numeric columns",
-        extra: "<div>Imputed: Income (0.3% missing)</div><div>Scaler: RobustScaler</div>",
+        description: "Missing value imputation followed by standard or robust scaling.",
+        input: `${numCols} numeric columns`,
+        output: `${numCols} scaled features`,
+        extra: "<div>Method: Median imputation + RobustScaler</div>",
       },
       CategoricalEncoder: {
         name: "Categorical Encoder",
         status: "Completed",
-        description: "Multi-level encoding: Ordinal mapping for tree models and smoothed target encoding.",
-        input: "7 categorical columns",
-        output: "7 encoded columns",
-        extra: "<div>TargetAdapter: ['No', 'Yes'] -> [0, 1]</div><div>Encoder: Ordinal & Target Encoding</div>",
+        description: "Out-of-fold target encoding and ordinal mapping for tree models.",
+        input: `${catCols} categorical columns`,
+        output: `${catCols} encoded features`,
+        extra: "<div>TargetAdapter: Textual / Object label normalization</div>",
       },
       FeatureGenerator: {
         name: "FeatureGenerator (Propose ≠ Accept)",
         status: "Completed",
         description: "Autonomous interaction hypothesis generator producing candidate pairwise features.",
-        input: "13 features",
-        output: "21 features (validated)",
-        extra: "<div>Generated: 8 interaction candidates</div><div class='text-emerald-400'>Accepted: 5 (passed ROC-AUC gain threshold)</div><div class='text-rose-400'>Rejected: 3 (failed holdout CV)</div>",
-      },
-      LightGBM: {
-        name: "LightGBM Gradient Boosting",
-        status: "Completed",
-        description: "Fast baseline gradient booster trained across 5 stratified folds.",
-        input: "18 features",
-        output: "Out-of-fold Probabilities",
-        extra: "<div>CV Score: 0.94110 ROC-AUC</div><div>Training time: 5.03s</div>",
-      },
-      CatBoost: {
-        name: "CatBoost HPO",
-        status: "Completed",
-        description: "Optimal tree model tuned with Optuna TPE over 60 trials.",
-        input: "18 features",
-        output: "Out-of-fold Probabilities",
-        extra: "<div>CV Score: 0.94582 ROC-AUC</div><div>Best trial: #37</div><div>Depth: 8, LR: 0.031</div>",
-      },
-      XGBoost: {
-        name: "XGBoost HPO",
-        status: "Queued",
-        description: "Extreme Gradient Boosting regularization exploration.",
-        input: "18 features",
-        output: "Out-of-fold Probabilities",
-        extra: "<div>Status: Waiting for CatBoost HPO completion</div>",
-      },
-      Blend: {
-        name: "Weighted Blender Ensemble",
-        status: "Completed",
-        description: "Meta-learner blending out-of-fold probability vectors to minimize variance.",
-        input: "2 Model Preds",
-        output: "1 Ensembled Vector",
-        extra: "<div>Weights: LightGBM (0.35), CatBoost (0.65)</div><div>Ensemble CV: 0.94621 ROC-AUC</div>",
+        input: `${columns.length} base features`,
+        output: "Empirically accepted features",
+        extra: "<div class='text-emerald-400'>Accepted: Verified by CV gain</div><div class='text-rose-400'>Rejected: Degrading or collinear</div>",
       },
       Prediction: {
-        name: "Prediction & Kaggle Submission",
+        name: "Prediction & Submission",
         status: "Ready",
-        description: "Generates aligned submission.csv for 286,571 test records.",
-        input: "test.csv (286,571)",
+        description: "Generates aligned submission.csv for holdout / test records.",
+        input: "Test dataset",
         output: "submission.csv",
-        extra: "<div>Valid rows: 286,571</div><div>ID column: 'id'</div><div>Proba range: [0.0001, 0.9998]</div>",
+        extra: "<div>Valid format, bounds, and null checks verified</div>",
       },
     };
-    return details[node] || details["FeatureGenerator"];
+
+    if (details[node]) return details[node];
+
+    // Check if it's a model in leaderboard
+    const model = this.leaderboard.find(m => m.model_id === node);
+    if (model) {
+      return {
+        name: `${model.model_id.toUpperCase()} Model`,
+        status: "Evaluated",
+        description: `Model trained and evaluated on 5-fold stratified cross-validation.`,
+        input: "Active Feature Set",
+        output: "Out-of-fold probability / prediction vector",
+        extra: `<div>CV Score: ${Number(model.score).toFixed(5)}</div><div>Time: ${model.training_time_seconds ? Number(model.training_time_seconds).toFixed(2) + 's' : '—'}</div>`,
+      };
+    }
+
+    return details["FeatureGenerator"];
   }
 
   _bindEvents() {
     this.container.querySelectorAll(".dag-node").forEach(nodeEl => {
       nodeEl.addEventListener("click", () => {
-        this.selectedNode = nodeEl.getAttribute("data-node");
-        this.render();
+        const node = nodeEl.getAttribute("data-node");
+        if (node) {
+          this.selectedNode = node;
+          this.render();
+        }
       });
     });
   }

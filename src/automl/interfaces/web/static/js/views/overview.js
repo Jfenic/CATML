@@ -21,28 +21,150 @@ export class OverviewView {
   render() {
     const state = store.getState();
     const overview = state.overview || {
-      best_score: 0.9412,
-      best_model: "xgboost",
-      total_runs: 2,
-      total_trials: 11,
+      best_score: null,
+      best_model: null,
+      total_runs: 0,
+      total_trials: 0,
       workspace: "CATML Default",
       recent_datasets: [],
       activity_feed: [],
     };
 
     const runs = state.runs || [];
-    const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || {
-      id: "run_695b92e6",
-      dataset_name: "EV Purchases",
-      task_type: "binary_classification",
-      metric: "ROC-AUC",
-      best_score: 0.9412,
-      best_model: "xgboost",
-      trials_count: 11,
-      status: "COMPLETED",
-    };
+    const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || null;
+    const isRunning = activeRun && activeRun.status === "RUNNING";
 
-    const isRunning = activeRun.status === "RUNNING";
+    const bestScoreText = overview.best_score != null && overview.best_score > 0
+      ? Number(overview.best_score).toFixed(4)
+      : (activeRun && activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—");
+
+    const bestModelText = (overview.best_model && overview.best_model !== "-")
+      ? overview.best_model
+      : (activeRun && activeRun.best_model ? activeRun.best_model : "None");
+
+    const trialsCount = overview.total_trials || (activeRun && activeRun.trials_count != null ? activeRun.trials_count : 0);
+
+    // Zone 1 markup
+    let zone1Html = "";
+    if (activeRun) {
+      zone1Html = `
+        <div class="border border-indigo-900/50 bg-indigo-950/20 rounded-xl p-4 space-y-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-base font-bold text-slate-100 uppercase tracking-wide">${activeRun.dataset_name || activeRun.id}</h3>
+              <p class="text-xs text-slate-400">AutoML • ${(activeRun.task_type || "Classification").replace("_", " ")} • ${activeRun.metric || "CV"}</p>
+            </div>
+            <span class="${isRunning ? 'badge-sys' : 'badge-gain'} text-xs px-2.5 py-1 rounded-full font-mono uppercase tracking-wider font-semibold flex items-center space-x-1.5">
+              ${isRunning ? '<svg class="animate-spin h-3 w-3 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : ''}
+              <span>● ${activeRun.status || "COMPLETED"}</span>
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+            <div>
+              <span class="text-slate-400">Best CV:</span>
+              <span class="ml-1 text-emerald-400 font-mono font-bold">${activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—"}</span>
+            </div>
+            <div>
+              <span class="text-slate-400">Best Model:</span>
+              <span class="ml-1 text-slate-200 font-medium uppercase">${activeRun.best_model || "None"}</span>
+            </div>
+            <div>
+              <span class="text-slate-400">Status:</span>
+              <span class="ml-1 text-indigo-300 font-medium">${activeRun.status || "READY"}</span>
+            </div>
+            <div>
+              <span class="text-slate-400">Trials:</span>
+              <span class="ml-1 text-slate-200 font-mono">${activeRun.trials_count != null ? activeRun.trials_count : 0}</span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="space-y-1 pt-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Optimization Progress</span>
+              <span>${isRunning ? 'In Progress' : 'Completed'}</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+              <div class="${isRunning ? 'bg-indigo-500 progress-striped w-2/3' : 'bg-emerald-500 w-full'} h-2.5 rounded-full"></div>
+            </div>
+          </div>
+
+          <div class="pt-2 flex justify-end">
+            <button id="btnOpenStudioFromRun" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center space-x-1">
+              <span>Open Experiment Studio</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      zone1Html = `
+        <div class="border border-slate-800 bg-slate-900/30 rounded-xl p-8 text-center space-y-3">
+          <span class="text-3xl text-slate-600 block">⚡</span>
+          <p class="text-sm font-medium text-slate-300">No active runs in current workspace.</p>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">Create a new experiment or register a dataset to launch autonomous model training and HPO.</p>
+          <button id="btnNewExpOverviewEmpty" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-600/20">
+            + New Experiment
+          </button>
+        </div>
+      `;
+    }
+
+    // Zone 2 markup (Best Results Table)
+    const runsRows = runs.length > 0
+      ? runs.map(r => `
+          <tr class="cursor-pointer hover:bg-slate-900/60 run-row-item" data-run-id="${r.id}">
+            <td class="font-medium text-slate-200">${r.dataset_name || r.id}</td>
+            <td><span class="text-xs text-slate-400 capitalize">${(r.task_type || "Classification").replace("_", " ")}</span></td>
+            <td><span class="badge-sys px-2 py-0.5 rounded text-xs uppercase">${r.best_model || "—"}</span></td>
+            <td class="font-mono text-xs">${r.metric || "CV"}</td>
+            <td class="font-mono font-bold text-emerald-400">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
+          </tr>
+        `).join("")
+      : `
+          <tr>
+            <td colspan="5" class="text-center text-slate-500 py-6 text-xs">No runs recorded yet. Start an experiment to see best results.</td>
+          </tr>
+        `;
+
+    // Zone 3 markup (Recent Datasets)
+    const recentDatasets = overview.recent_datasets || [];
+    const datasetsHtml = recentDatasets.length > 0
+      ? recentDatasets.map(d => `
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-slate-700 cursor-pointer dataset-item-card" data-dataset-id="${d.id}">
+            <div>
+              <div class="text-sm font-bold text-slate-200">${d.name}</div>
+              <div class="text-xs text-slate-400">${d.rows ? Number(d.rows).toLocaleString() + ' filas • ' : ''}${d.features ? d.features + ' features • ' : ''}Target: ${d.target || d.target_column || "—"}</div>
+            </div>
+            <span class="badge-gain text-xs px-2.5 py-1 rounded">Profiled</span>
+          </div>
+        `).join("")
+      : `
+          <div class="text-center text-slate-500 py-8 text-xs space-y-2">
+            <p>No datasets registered in workspace.</p>
+            <button id="btnRegisterDSOverview" class="text-indigo-400 hover:text-indigo-300 font-semibold underline">Register a dataset →</button>
+          </div>
+        `;
+
+    // Zone 4 markup (CATML Activity & Planner Decisions)
+    const activityFeed = overview.activity_feed || [];
+    const activityHtml = activityFeed.length > 0
+      ? activityFeed.map(act => {
+          const badgeClass = act.type === "ACCEPT" ? "badge-gain" : act.type === "REJECT" ? "badge-err" : act.type === "PLAN" ? "badge-intel" : "badge-sys";
+          return `
+            <div class="flex items-start space-x-3 p-2.5 rounded bg-slate-900/40 border border-slate-800/80">
+              <span class="${badgeClass} px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">${act.type || "INFO"}</span>
+              <div class="flex-1">
+                <span class="text-slate-200 font-medium">${act.title}:</span>
+                <span class="text-slate-400 ml-1">${act.description}</span>
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `
+          <div class="text-center text-slate-500 py-6 text-xs">No planner activity recorded.</div>
+        `;
 
     this.container.innerHTML = `
       <div class="space-y-6">
@@ -51,37 +173,37 @@ export class OverviewView {
           <div class="workbench-card p-4">
             <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Best CV Score</div>
             <div class="mt-2 flex items-baseline justify-between">
-              <span class="text-2xl font-bold font-mono-num text-emerald-400">${overview.best_score != null ? overview.best_score.toFixed(4) : "0.9412"}</span>
-              <span class="badge-gain text-xs px-2 py-0.5 rounded-full font-mono font-medium">+0.0001</span>
+              <span class="text-2xl font-bold font-mono-num text-emerald-400">${bestScoreText}</span>
+              <span class="badge-gain text-xs px-2 py-0.5 rounded-full font-mono font-medium">Optimal</span>
             </div>
-            <div class="mt-1 text-xs text-slate-400">Modelo: <span class="text-slate-200 font-medium uppercase">${overview.best_model || "xgboost"}</span></div>
+            <div class="mt-1 text-xs text-slate-400">Modelo: <span class="text-slate-200 font-medium uppercase">${bestModelText}</span></div>
           </div>
 
           <div class="workbench-card p-4">
             <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Active Run</div>
             <div class="mt-2 flex items-center space-x-2">
-              <span class="inline-block w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-indigo-500 animate-pulse' : 'bg-emerald-500'}"></span>
-              <span class="text-xl font-bold text-slate-100">${activeRun.status || "IDLE"}</span>
+              <span class="inline-block w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-indigo-500 animate-pulse' : (activeRun ? 'bg-emerald-500' : 'bg-slate-600')}"></span>
+              <span class="text-xl font-bold text-slate-100">${activeRun ? activeRun.status : "IDLE"}</span>
             </div>
-            <div class="mt-1 text-xs text-slate-400 truncate">${activeRun.dataset_name || "EV Purchases"} • ROC-AUC</div>
+            <div class="mt-1 text-xs text-slate-400 truncate">${activeRun ? `${activeRun.dataset_name || activeRun.id} • ${activeRun.metric || 'CV'}` : "No run selected"}</div>
           </div>
 
           <div class="workbench-card p-4">
             <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Trials Executed</div>
             <div class="mt-2 flex items-baseline justify-between">
-              <span class="text-2xl font-bold font-mono-num text-indigo-400">${overview.total_trials || 42}</span>
-              <span class="text-xs text-slate-500 font-mono">/ 60 budget</span>
+              <span class="text-2xl font-bold font-mono-num text-indigo-400">${trialsCount}</span>
+              <span class="text-xs text-slate-500 font-mono">${runs.length} runs</span>
             </div>
-            <div class="mt-1 text-xs text-slate-400">Progreso: <span class="text-slate-200 font-medium">68%</span></div>
+            <div class="mt-1 text-xs text-slate-400">Progreso: <span class="text-slate-200 font-medium">${isRunning ? 'En curso' : 'Completado'}</span></div>
           </div>
 
           <div class="workbench-card p-4">
             <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Compute & Workers</div>
             <div class="mt-2 flex items-baseline justify-between">
-              <span class="text-2xl font-bold font-mono-num text-slate-200">CPU 67%</span>
-              <span class="text-xs text-slate-400">RAM 51%</span>
+              <span class="text-2xl font-bold font-mono-num text-slate-200">${isRunning ? 'Active' : 'Idle'}</span>
+              <span class="text-xs text-slate-400">Stratified CV</span>
             </div>
-            <div class="mt-1 text-xs text-slate-400">Workers: <span class="text-indigo-400 font-medium">5 Folds activos</span></div>
+            <div class="mt-1 text-xs text-slate-400">Workers: <span class="text-indigo-400 font-medium">${isRunning ? 'Folds activos' : 'Listo'}</span></div>
           </div>
         </div>
 
@@ -99,55 +221,7 @@ export class OverviewView {
               </button>
             </div>
             <div class="p-5 space-y-4 flex-1">
-              <div class="border border-indigo-900/50 bg-indigo-950/20 rounded-xl p-4 space-y-3">
-                <div class="flex items-start justify-between">
-                  <div>
-                    <h3 class="text-base font-bold text-slate-100 uppercase tracking-wide">${activeRun.dataset_name || "EV PURCHASES"}</h3>
-                    <p class="text-xs text-slate-400">AutoML • Binary Classification • ROC-AUC</p>
-                  </div>
-                  <span class="badge-sys text-xs px-2.5 py-1 rounded-full font-mono uppercase tracking-wider font-semibold flex items-center space-x-1.5">
-                    <svg class="animate-spin h-3 w-3 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <span>● ${activeRun.status || "RUNNING"}</span>
-                  </span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
-                  <div>
-                    <span class="text-slate-400">Best CV:</span>
-                    <span class="ml-1 text-emerald-400 font-mono font-bold">${activeRun.best_score ? activeRun.best_score.toFixed(4) : (overview.best_score != null ? overview.best_score.toFixed(4) : "—")}</span>
-                  </div>
-                  <div>
-                    <span class="text-slate-400">Best Model:</span>
-                    <span class="ml-1 text-slate-200 font-medium uppercase">${activeRun.best_model || overview.best_model || "None"}</span>
-                  </div>
-                  <div>
-                    <span class="text-slate-400">Status:</span>
-                    <span class="ml-1 text-indigo-300 font-medium">${activeRun.status || "COMPLETED"}</span>
-                  </div>
-                  <div>
-                    <span class="text-slate-400">Trials:</span>
-                    <span class="ml-1 text-slate-200 font-mono">${activeRun.trials_count != null ? activeRun.trials_count : (overview.total_trials || 11)}</span>
-                  </div>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="space-y-1 pt-1">
-                  <div class="flex justify-between text-[11px] text-slate-400">
-                    <span>Optimization Progress</span>
-                    <span>${isRunning ? '68%' : '100%'}</span>
-                  </div>
-                  <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                    <div class="${isRunning ? 'bg-indigo-500 progress-striped' : 'bg-emerald-500'} h-2.5 rounded-full" style="width: ${isRunning ? '68%' : '100%'}"></div>
-                  </div>
-                </div>
-
-                <div class="pt-2 flex justify-end">
-                  <button id="btnOpenStudioFromRun" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center space-x-1">
-                    <span>Open Experiment Studio</span>
-                    <span>→</span>
-                  </button>
-                </div>
-              </div>
+              ${zone1Html}
             </div>
           </div>
 
@@ -172,27 +246,7 @@ export class OverviewView {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td class="font-medium text-slate-200">Playground S6E9</td>
-                    <td><span class="text-xs text-slate-400">Binary Clf</span></td>
-                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs uppercase">${overview.best_model || "xgboost"}</span></td>
-                    <td class="font-mono text-xs">ROC-AUC</td>
-                    <td class="font-mono font-bold text-emerald-400">${overview.best_score != null ? overview.best_score.toFixed(4) : "0.9412"}</td>
-                  </tr>
-                  <tr>
-                    <td class="font-medium text-slate-200">Customer Churn</td>
-                    <td><span class="text-xs text-slate-400">Binary Clf</span></td>
-                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs">LightGBM</span></td>
-                    <td class="font-mono text-xs">ROC-AUC</td>
-                    <td class="font-mono font-bold text-emerald-400">0.92480</td>
-                  </tr>
-                  <tr>
-                    <td class="font-medium text-slate-200">House Prices</td>
-                    <td><span class="text-xs text-slate-400">Regression</span></td>
-                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs">XGBoost</span></td>
-                    <td class="font-mono text-xs">RMSE</td>
-                    <td class="font-mono font-bold text-emerald-400">0.12450</td>
-                  </tr>
+                  ${runsRows}
                 </tbody>
               </table>
             </div>
@@ -208,21 +262,7 @@ export class OverviewView {
               <button id="btnViewAllDatasets" class="text-xs text-slate-400 hover:text-slate-200">View all →</button>
             </div>
             <div class="p-4 space-y-3 flex-1">
-              <div class="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-slate-700 cursor-pointer">
-                <div>
-                  <div class="text-sm font-bold text-slate-200">EV Purchases (Playground Series S6E9)</div>
-                  <div class="text-xs text-slate-400">668,665 filas • 13 features • Target: Will_Buy_EV</div>
-                </div>
-                <span class="badge-gain text-xs px-2.5 py-1 rounded">Profiled</span>
-              </div>
-
-              <div class="flex items-center justify-between p-3 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-slate-700 cursor-pointer">
-                <div>
-                  <div class="text-sm font-bold text-slate-200">Customer Churn</div>
-                  <div class="text-xs text-slate-400">10,000 filas • 12 features • Target: Exited</div>
-                </div>
-                <span class="badge-sys text-xs px-2.5 py-1 rounded">Benchmark</span>
-              </div>
+              ${datasetsHtml}
             </div>
           </div>
 
@@ -236,29 +276,7 @@ export class OverviewView {
               <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono">Explicable</span>
             </div>
             <div class="p-4 space-y-3 flex-1 text-xs">
-              <div class="flex items-start space-x-3 p-2.5 rounded bg-slate-900/40 border border-slate-800/80">
-                <span class="badge-intel px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">PLAN</span>
-                <div class="flex-1">
-                  <span class="text-slate-200 font-medium">CatBoost HPO priorizado:</span>
-                  <span class="text-slate-400">Densidad categórica moderada (7 categóricas) y superioridad empírica de árboles.</span>
-                </div>
-              </div>
-
-              <div class="flex items-start space-x-3 p-2.5 rounded bg-slate-900/40 border border-slate-800/80">
-                <span class="badge-gain px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">ACCEPT</span>
-                <div class="flex-1">
-                  <span class="text-slate-200 font-medium">TargetAdapter activado:</span>
-                  <span class="text-slate-400">Normalización de etiquetas textuales ['No', 'Yes'] a binarias para XGBoost y LightGBM.</span>
-                </div>
-              </div>
-
-              <div class="flex items-start space-x-3 p-2.5 rounded bg-slate-900/40 border border-slate-800/80">
-                <span class="badge-err px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">REJECT</span>
-                <div class="flex-1">
-                  <span class="text-slate-200 font-medium">Principio 'Proponer ≠ Aceptar':</span>
-                  <span class="text-slate-400">Rechazadas 17 interacciones polinomiales por degradación empírica (-0.0004).</span>
-                </div>
-              </div>
+              ${activityHtml}
             </div>
           </div>
         </div>
@@ -272,8 +290,33 @@ export class OverviewView {
     this.container.querySelector("#btnViewAllDatasets")?.addEventListener("click", () => {
       store.setNav("datasets");
     });
+    this.container.querySelector("#btnRegisterDSOverview")?.addEventListener("click", () => {
+      store.setNav("datasets");
+    });
     this.container.querySelector("#btnNewExpOverview")?.addEventListener("click", () => {
       bus.emit("modal:new-experiment");
+    });
+    this.container.querySelector("#btnNewExpOverviewEmpty")?.addEventListener("click", () => {
+      bus.emit("modal:new-experiment");
+    });
+
+    this.container.querySelectorAll(".run-row-item").forEach(el => {
+      el.addEventListener("click", () => {
+        const runId = el.getAttribute("data-run-id");
+        if (runId) {
+          bus.emit("run:select", runId);
+        }
+      });
+    });
+
+    this.container.querySelectorAll(".dataset-item-card").forEach(el => {
+      el.addEventListener("click", () => {
+        const datasetId = el.getAttribute("data-dataset-id");
+        if (datasetId) {
+          store.setState({ activeDatasetId: datasetId });
+          store.setNav("datasets");
+        }
+      });
     });
   }
 
