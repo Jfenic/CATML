@@ -1,3 +1,17 @@
+"""
+Gradient Boosting Model Plugins for CATML.
+
+This module provides plug-and-play ModelPluginPort implementations for Gradient
+Boosting Decision Tree (GBDT) frameworks:
+- LightGBMPlugin: Microsoft LightGBM with HistGradientBoosting fallback.
+- XGBoostPlugin: DMLC XGBoost with GradientBoosting fallback.
+
+Note on CatBoost and other frameworks:
+- CatBoost is tracked under Blackboard Issue #12 (roadmap V0.7/V0.8).
+- CatBoost requires an optional binary dependency (`catboost>=1.2`), and will be
+  packaged as `CatBoostPlugin` implementing `ModelPluginPort` with automatic
+  categorical feature handling and Optuna search space definitions.
+"""
 from __future__ import annotations
 
 from typing import Any

@@ -21,10 +21,10 @@ export class OverviewView {
   render() {
     const state = store.getState();
     const overview = state.overview || {
-      best_score: 0.9462,
-      best_model: "Ensemble #7",
-      total_runs: 3,
-      total_trials: 42,
+      best_score: 0.9412,
+      best_model: "xgboost",
+      total_runs: 2,
+      total_trials: 11,
       workspace: "CATML Default",
       recent_datasets: [],
       activity_feed: [],
@@ -32,15 +32,17 @@ export class OverviewView {
 
     const runs = state.runs || [];
     const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || {
-      id: "run_ev_s6e9",
+      id: "run_695b92e6",
       dataset_name: "EV Purchases",
       task_type: "binary_classification",
       metric: "ROC-AUC",
-      best_score: 0.9462,
-      best_model: "Ensemble #7",
-      trials_count: 37,
-      status: "RUNNING",
+      best_score: 0.9412,
+      best_model: "xgboost",
+      trials_count: 11,
+      status: "COMPLETED",
     };
+
+    const isRunning = activeRun.status === "RUNNING";
 
     this.container.innerHTML = `
       <div class="space-y-6">
@@ -49,17 +51,17 @@ export class OverviewView {
           <div class="workbench-card p-4">
             <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Best CV Score</div>
             <div class="mt-2 flex items-baseline justify-between">
-              <span class="text-2xl font-bold font-mono-num text-emerald-400">${overview.best_score ? overview.best_score.toFixed(4) : "0.9462"}</span>
-              <span class="badge-gain text-xs px-2 py-0.5 rounded-full font-mono font-medium">+0.0031</span>
+              <span class="text-2xl font-bold font-mono-num text-emerald-400">${overview.best_score != null ? overview.best_score.toFixed(4) : "0.9412"}</span>
+              <span class="badge-gain text-xs px-2 py-0.5 rounded-full font-mono font-medium">+0.0001</span>
             </div>
-            <div class="mt-1 text-xs text-slate-400">Modelo: <span class="text-slate-200 font-medium">${overview.best_model || "Ensemble #7"}</span></div>
+            <div class="mt-1 text-xs text-slate-400">Modelo: <span class="text-slate-200 font-medium uppercase">${overview.best_model || "xgboost"}</span></div>
           </div>
 
           <div class="workbench-card p-4">
             <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Active Run</div>
             <div class="mt-2 flex items-center space-x-2">
-              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span class="text-xl font-bold text-slate-100">${activeRun.status || "RUNNING"}</span>
+              <span class="inline-block w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-indigo-500 animate-pulse' : 'bg-emerald-500'}"></span>
+              <span class="text-xl font-bold text-slate-100">${activeRun.status || "IDLE"}</span>
             </div>
             <div class="mt-1 text-xs text-slate-400 truncate">${activeRun.dataset_name || "EV Purchases"} • ROC-AUC</div>
           </div>
@@ -112,20 +114,19 @@ export class OverviewView {
                 <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
                   <div>
                     <span class="text-slate-400">Best CV:</span>
-                    <span class="ml-1 text-emerald-400 font-mono font-bold">${activeRun.best_score ? activeRun.best_score.toFixed(4) : "0.9462"}</span>
-                    <span class="text-emerald-500 font-mono text-[10px]">↑ +0.0018</span>
+                    <span class="ml-1 text-emerald-400 font-mono font-bold">${activeRun.best_score ? activeRun.best_score.toFixed(4) : (overview.best_score != null ? overview.best_score.toFixed(4) : "—")}</span>
                   </div>
                   <div>
                     <span class="text-slate-400">Best Model:</span>
-                    <span class="ml-1 text-slate-200 font-medium">${activeRun.best_model || "Ensemble #7"}</span>
+                    <span class="ml-1 text-slate-200 font-medium uppercase">${activeRun.best_model || overview.best_model || "None"}</span>
                   </div>
                   <div>
-                    <span class="text-slate-400">Running:</span>
-                    <span class="ml-1 text-indigo-300 font-medium">CatBoost HPO</span>
+                    <span class="text-slate-400">Status:</span>
+                    <span class="ml-1 text-indigo-300 font-medium">${activeRun.status || "COMPLETED"}</span>
                   </div>
                   <div>
-                    <span class="text-slate-400">Trial:</span>
-                    <span class="ml-1 text-slate-200 font-mono">37 / 60</span>
+                    <span class="text-slate-400">Trials:</span>
+                    <span class="ml-1 text-slate-200 font-mono">${activeRun.trials_count != null ? activeRun.trials_count : (overview.total_trials || 11)}</span>
                   </div>
                 </div>
 
@@ -133,10 +134,10 @@ export class OverviewView {
                 <div class="space-y-1 pt-1">
                   <div class="flex justify-between text-[11px] text-slate-400">
                     <span>Optimization Progress</span>
-                    <span>68%</span>
+                    <span>${isRunning ? '68%' : '100%'}</span>
                   </div>
                   <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                    <div class="bg-indigo-500 h-2.5 rounded-full progress-striped" style="width: 68%"></div>
+                    <div class="${isRunning ? 'bg-indigo-500 progress-striped' : 'bg-emerald-500'} h-2.5 rounded-full" style="width: ${isRunning ? '68%' : '100%'}"></div>
                   </div>
                 </div>
 
@@ -174,9 +175,9 @@ export class OverviewView {
                   <tr>
                     <td class="font-medium text-slate-200">Playground S6E9</td>
                     <td><span class="text-xs text-slate-400">Binary Clf</span></td>
-                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs">Ensemble #7</span></td>
+                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs uppercase">${overview.best_model || "xgboost"}</span></td>
                     <td class="font-mono text-xs">ROC-AUC</td>
-                    <td class="font-mono font-bold text-emerald-400">0.94621</td>
+                    <td class="font-mono font-bold text-emerald-400">${overview.best_score != null ? overview.best_score.toFixed(4) : "0.9412"}</td>
                   </tr>
                   <tr>
                     <td class="font-medium text-slate-200">Customer Churn</td>
