@@ -1,17 +1,28 @@
 # Progress
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Hito H2 / Paquete A2)**:
-- Rol: **Persona A** (Contratos, Catálogo de Herramientas, Persistencia y Dominio Agéntico).
-- Rama: `feat/agentic-a2-mutations`.
-- Entregable A2 completado:
-  - Extensión de `ToolExecutor` (`src/automl/application/agents/executor.py`) con resolución y verificación de solicitudes de aprobación (`approval_id`), protección anti-tampering por hash determinista, deduplicación atómica ("Duplicados no repiten efectos") e intención duradera antes de mutar.
-  - Factoría completa `create_full_tool_registry` registrando tools mutantes (`create_experiment`, `prioritize_feature`, `run_experiment`) conectadas a `CommandBus`.
-  - Soporte de `approval_id` en DTOs `ToolInvocation` y `ToolCallContext` (`src/automl/application/agents/contracts.py`).
-  - Suite de pruebas exhaustiva en `tests/test_v09_agent_operations.py` (16 tests pasando, 97% de cobertura en módulos agénticos, 272 tests globales pasando, 86.65% cobertura).
-- Handoff H2: Listo para que Persona B integre el manejo de tools mutantes (`PENDING_APPROVAL`), comandos CLI de aprobación (`automl agent approve/reject/status`) y flujo E2E en el Paquete B2.
- 
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado)**:
+- Rol: **Persona B** (Interfaces, Integración y Orquestación).
+- Rama: `feat/agentic-b2-approvals`.
+- Entregable B2 completado:
+  - Servidor MCP (`src/automl/interfaces/mcp/server.py`): Integración de `ToolExecutor` y factoría `create_full_tool_registry`, exponiendo las tools mutantes `create_experiment`, `prioritize_feature` y `run_experiment` con gobierno por políticas y `SqliteAgentLedger`.
+  - Manejo estructurado de estado `PENDING_APPROVAL`: devuelve `approval_id` sin bloquear el terminal ni la conexión stdio. Candidatos no entrenan hasta ser autorizados.
+  - Subcomandos CLI de gobernanza (`src/automl/interfaces/cli/agent_cli.py`):
+    - `automl agent approvals list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`: lista solicitudes de aprobación pendientes o históricas con formato tabular y JSON.
+    - `automl agent approve <approval_id> [--reject] [--reviewer REVIEWER] [--notes NOTES] [--workspace PATH] [--json]`: resuelve la solicitud en el ledger de forma atómica.
+  - Verificación E2E de Hito H2 (`tests/test_v09_agent_e2e.py`): flujo completo (inspección MCP -> propuesta de candidato -> aprobación humana en CLI -> ejecución autorizada -> métricas en leaderboard consultables -> idempotencia probada).
+  - Suite de pruebas de CLI (`tests/test_v09_agent_cli.py`): 7 tests pasando (100% de cobertura en subcomandos).
+  - Suite global de pruebas: 289 tests pasando, 87.57% cobertura (superando el umbral de 85%).
+- Hito H2 cerrado: Primera entrega conjunta V0.9 local completada. Preparado para H3 (operaciones largas, HPO, leases y cancelación cooperativa).
+
 ## Completed
- 
+
+- Paquete B2 completado (Persona B, 2026-09-30):
+  - Exposición de tools mutantes en MCP stdio (`create_experiment`, `prioritize_feature`, `run_experiment`).
+  - Retorno no bloqueante de `PENDING_APPROVAL` con `approval_id`.
+  - Comandos CLI `automl agent approvals list` y `automl agent approve <id> [--reject]`.
+  - Pruebas en `tests/test_v09_agent_cli.py` (7 tests) y `tests/test_v09_agent_e2e.py` (1 test E2E exhaustivo).
+  - Hito H2 verificado y cerrado.
+
 - Paquete A2 completado (Persona A, 2026-09-30):
   - Tools mutantes y ejecución autorizada en `src/automl/application/agents/`:
     - `ToolExecutor`: integración con `SqliteAgentLedger` para auditoría y deduplicación atómica de idempotencia.
