@@ -1381,6 +1381,12 @@ class AutoMLWorkspace:
         experiment = self.repository.get_experiment(target_experiment_id)
         if experiment is None:
             raise KeyError(f"Experiment '{target_experiment_id}' not found.")
+        if experiment.run_id != run.id:
+            if target_trial_id:
+                raise ValueError(
+                    f"Trial '{target_trial_id}' (experiment '{target_experiment_id}') does not belong to run '{run_id}'."
+                )
+            raise ValueError(f"Experiment '{target_experiment_id}' does not belong to run '{run_id}'.")
 
         test_df = load_dataframe(test_dataset_path)
         if experiment.validation_strategy == "oof":
