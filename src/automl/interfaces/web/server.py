@@ -24,6 +24,7 @@ from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
     GetDatasetProfileQuery,
     GetLeaderboardQuery,
+    GetExperimentTrialsQuery,
     GetTaskPlanQuery,
     ListExperimentsQuery,
     ListModelsQuery,
@@ -187,6 +188,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             result = []
             for e in exps:
                 trials = ws.repository.list_trial_results(e.id)
+                parameters = {t["trial_id"]: t["parameters"]
+                              for t in qry.dispatch(GetExperimentTrialsQuery(e.id))}
                 best_trial = max(trials, key=lambda t: t.primary_score) if trials else None
                 result.append({
                     "id": e.id,
@@ -208,7 +211,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "score": round(t.primary_score, 5),
                             "time_s": round(t.training_time_seconds, 2),
                             "succeeded": t.succeeded,
-                            "params": t.parameters,
+                            "params": parameters.get(t.trial_id, {}),
                         }
                         for t in trials
                     ],
