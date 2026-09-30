@@ -14,6 +14,16 @@ class ColumnProfile:
     cardinality_ratio: float = 0.0
     is_identifier: bool = False
     is_high_cardinality: bool = False
+    mean: float | None = None
+    std: float | None = None
+    min: float | None = None
+    max: float | None = None
+    median: float | None = None
+    q25: float | None = None
+    q75: float | None = None
+    skew: float | None = None
+    target_correlation: float | None = None
+    top_categories: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -34,6 +44,8 @@ class DatasetProfile:
     target_column: str
     task_type: str
     columns: list[ColumnProfile] = field(default_factory=list)
+    preview_rows: list[dict[str, Any]] = field(default_factory=list)
+    recommendations: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,9 +64,21 @@ class DatasetProfile:
                     "cardinality_ratio": c.cardinality_ratio,
                     "is_identifier": c.is_identifier,
                     "is_high_cardinality": c.is_high_cardinality,
+                    "mean": c.mean,
+                    "std": c.std,
+                    "min": c.min,
+                    "max": c.max,
+                    "median": c.median,
+                    "q25": c.q25,
+                    "q75": c.q75,
+                    "skew": c.skew,
+                    "target_correlation": c.target_correlation,
+                    "top_categories": c.top_categories,
                 }
                 for c in self.columns
             ],
+            "preview_rows": self.preview_rows,
+            "recommendations": self.recommendations,
         }
 
     @property

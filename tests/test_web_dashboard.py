@@ -258,3 +258,101 @@ def test_experiments_endpoint_reads_parameters_from_persisted_trial(running_web_
         result = json.load(response)
     assert result[0]["trials"][0]["params"] == expected
     assert result[0]["best_score"] == 0.81
+
+
+def test_web_dashboard_dataset_profile_enrichment_and_custom_features(running_web_server):
+    base = running_web_server["base_url"]
+    tmp_path = running_web_server["tmp_path"]
+
+    # Create dataset with numeric, categorical, id, and target
+    csv_path = tmp_path / "rich_dataset.csv"
+    np.random.seed(42)
+    n = 50
+    df = pd.DataFrame({
+        "row_id": range(n),
+        "num_x": np.linspace(1.0, 10.0, n),
+        "num_y": np.random.normal(50.0, 5.0, n),
+        "cat_group": ["group_a" if i % 2 == 0 else "group_b" for i in range(n)],
+        "target": [0 if i < 25 else 1 for i in range(n)],
+    })
+    df.to_csv(csv_path, index=False)
+
+    # 1. Register Dataset
+    reg_payload = json.dumps({
+        "name": "rich_test_dataset",
+        "path": str(csv_path),
+        "target": "target",
+        "task_type": "binary_classification",
+    }).encode("utf-8")
+
+    req = Request(f"{base}/api/dataset/register", data=reg_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        reg_data = json.loads(resp.read().decode("utf-8"))
+        dataset_id = reg_data["dataset_id"]
+        run_id = reg_data["run_id"]
+
+    # 2. Query Profile endpoint
+    with urlopen(f"{base}/api/dataset/profile?dataset_id={dataset_id}") as resp:
+        assert resp.status == 200
+        p = json.loads(resp.read().decode("utf-8"))
+
+        # Verify preview_rows
+        assert "preview_rows" in p
+        assert isinstance(p["preview_rows"], list)
+        assert len(p["preview_rows"]) == min(8, n)
+        assert "num_x" in p["preview_rows"][0]
+        assert "cat_group" in p["preview_rows"][0]
+
+        # Verify recommendations
+        assert "recommendations" in p
+        assert isinstance(p["recommendations"], list)
+        rec_cols = [r["column"] for r in p["recommendations"]]
+        assert "row_id" in rec_cols
+
+        # Verify column statistics
+        cols_by_name = {c["name"]: c for c in p["columns"]}
+        num_x_col = cols_by_name["num_x"]
+        assert num_x_col["mean"] is not None
+        assert num_x_col["std"] is not None
+        assert num_x_col["min"] is not None
+        assert num_x_col["max"] is not None
+        assert num_x_col["median"] is not None
+        assert num_x_col["q25"] is not None
+        assert num_x_col["q75"] is not None
+        assert num_x_col["skew"] is not None
+        assert num_x_col["target_correlation"] is not None
+        assert abs(num_x_col["target_correlation"]) > 0.5
+        assert num_x_col["catml_action"] == "Keep"
+
+        # Verify categorical top_categories
+        cat_col = cols_by_name["cat_group"]
+        assert "top_categories" in cat_col
+        assert isinstance(cat_col["top_categories"], list)
+        assert len(cat_col["top_categories"]) == 2
+        assert cat_col["catml_action"] == "Encode"
+
+    # 3. Create and run experiment with custom feature_names selection
+    exp_payload = json.dumps({
+        "run_id": run_id,
+        "mode": "quick",
+        "models": ["logistic_regression"],
+        "feature_names": ["num_x"],
+        "name": "custom_num_x_only",
+    }).encode("utf-8")
+
+    req = Request(f"{base}/api/experiment/create_and_run", data=exp_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        assert resp.status == 200
+        exp_res = json.loads(resp.read().decode("utf-8"))
+        assert exp_res["status"] == "success"
+        exp_id = exp_res["experiment_id"]
+
+    # Verify that the created experiment contains exactly the selected features
+    with urlopen(f"{base}/api/experiments?run_id={run_id}") as resp:
+        assert resp.status == 200
+        exps = json.loads(resp.read().decode("utf-8"))
+        created_exp = next((e for e in exps if e["id"] == exp_id), None)
+        assert created_exp is not None
+        assert created_exp["feature_names"] == ["num_x"]
+        assert created_exp["features_count"] == 1
+

@@ -356,6 +356,8 @@ class SQLiteExperimentRepository:
             target_column=data["target_column"],
             task_type=data["task_type"],
             columns=columns,
+            preview_rows=data.get("preview_rows", []),
+            recommendations=data.get("recommendations", []),
         )
 
     # --- features ---

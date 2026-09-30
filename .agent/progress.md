@@ -1,16 +1,22 @@
 # Progress
 
-Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
-- Rama: `feat/ensemble-weight-optimization-and-pruning`.
+Active Track: **Interactive Dataset Analysis & Smart Feature Selection (AutoML Workbench)**:
+- Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
 - Entregable completado:
-  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`): parametrización softmax no acotada $\vec{w} = \text{softmax}(\vec{\theta})$ garantizando pesos estrictamente no negativos y suma 1.0, con regularización suave de Brier para superar plateaus discretos en métricas de ranking (ROC-AUC) y clasificación.
-  - Rank-Averaging Blending (`rank_average_predictions` y `method="rank"` en `blend_predictions`): conversión a rangos percentiles fraccionarios libres de escala $(rank - 1)/(N - 1)$, eliminando distorsiones por descalibración probabilística entre modelos heterogéneos (GBDTs, redes neuronales, lineales).
-  - Integración en `VotingEnsembleEstimator`: soporte de `voting="rank"`, `optimize_weights=True` y `metric`, optimizando pesos automáticamente sobre datos de validación / OOF con `self.weights_` y `self.optimal_score_`.
-  - Exposición en `VotingEnsemblePlugin` y `SearchSpaceBuilder`: parámetros `voting` ("soft", "hard", "rank") y `optimize_weights` explorables en HPO.
-  - Multi-fidelity Early Pruning en `OptunaOptimizer`: integración de `optuna.pruners.MedianPruner` (startup 5, warmup 2), método `report_step(trial_number, step, value)` y registro de `TrialState.PRUNED` en `observe(..., pruned=True)`.
-  - Validación completa: 294 tests pasando (20 tests en `tests/test_ensemble_plugin.py`, 14 tests en `tests/test_v04_optimizer.py`), 8 skipped, 0 fallos, 86.40% cobertura de código (supera el umbral de 85%).
+  - Extensión de contratos de dominio (`ColumnProfile`, `DatasetProfile` en `src/automl/domain/datasets/profile.py`): incorporación de campos estadísticos numéricos (`mean`, `std`, `min`, `max`, `median`, `q25`, `q75`, `skew`, `target_correlation`, `top_categories`), muestra de datos crudos (`preview_rows`) y recomendaciones automáticas (`recommendations`), preservando pureza hexagonal sin dependencias externas.
+  - Motor de perfilado (`dataset_profiler.py`): cálculo de estadísticas descriptivas, correlación de Pearson frente al target (numérico o texto adaptado), detección de multicolinealidad cruzada ($|r| > 0.88$), cálculo de frecuencias categóricas y generación de recomendaciones accionables ("exclude", "impute", "recommend", "collinear").
+  - Deserialización en persistencia (`sqlite_repository.py`): soporte transparente para los nuevos campos estadísticos y recomendaciones en SQLite.
+  - Vistas frontend interactivas:
+    - `datasets.js`: Grid de diagnósticos y banner de recomendaciones automáticas con aplicación en 1 clic; toolbar con filtros de tipo, búsqueda en vivo y selecciones batch (Todas, Ninguna, Top 5 Señal, Top 10 Señal); contador en vivo y botón primario "Lanzar Experimento con esta Selección"; explorador de 4 pestañas (Esquema & Selección con checkboxes, Estadísticas Descriptivas, Muestra Raw de Datos y Distribuciones Categóricas).
+    - `new_experiment.js`: Previsualización interactiva con badges y recuento de variables seleccionadas; propagación de `feature_names` en la creación de experimentos.
+    - `studio.js`: Barra superior de lanzamiento rápido (LightGBM, XGBoost, CatBoost, Ensemble Blender), filtros por familia de modelos y modal para inspección de hiperparámetros de cada trial.
+    - `server.py`: Soporte de `feature_names` en `/api/experiment/create_and_run` y enriquecimiento semántico de acciones sugeridas por CATML.
+  - Pruebas y cobertura: 295 tests pasando (incluyendo `tests/test_web_dashboard.py` enriquecido), 8 skipped, 0 fallos, 86.59% cobertura global (superando el umbral de 85%). Pruebas JS (`node --test tests/js/jobs.test.mjs`) passing al 100%.
 
 ## Completed
+
+- Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
+  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`), Rank-Averaging Blending, y Multi-fidelity Early Pruning en `OptunaOptimizer`. PR #31 integrado en main.
 
 - Blackboard Issue #12 completado (2026-09-30):
   - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML.

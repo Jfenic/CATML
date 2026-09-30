@@ -23,6 +23,7 @@ export class NewExperimentModal {
     const runs = state.runs || [];
     const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || null;
     const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
+    const customFeatures = state.customFeatures || null;
 
     const datasetName = activeRun ? (activeRun.dataset_name || activeRun.id) : (recentDs ? recentDs.name : "No Dataset Registered");
     const targetCol = activeRun ? (activeRun.target || "Target") : (recentDs ? (recentDs.target || recentDs.target_column || "Target") : "None");
@@ -103,6 +104,24 @@ export class NewExperimentModal {
           `
               : ""
           }
+
+          <!-- Feature Set Selection -->
+          <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-indigo-400">⚡</span>
+                <span class="font-semibold text-slate-300">Feature Set Selection:</span>
+              </div>
+              <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-bold">${customFeatures && customFeatures.length > 0 ? `${customFeatures.length} Custom Features` : 'All Recommended'}</span>
+            </div>
+            ${customFeatures && customFeatures.length > 0 ? `
+              <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+                ${customFeatures.map(f => `<span class="bg-indigo-950/60 text-indigo-300 border border-indigo-800/60 px-1.5 py-0.5 rounded text-[10px] font-mono">${f}</span>`).join("")}
+              </div>
+            ` : `
+              <div class="text-[11px] text-slate-400">Usando todas las características seleccionadas y recomendadas por el diagnóstico estadístico.</div>
+            `}
+          </div>
 
           <!-- Compute Budget -->
           <div class="space-y-2">
@@ -230,6 +249,7 @@ export class NewExperimentModal {
           mode: this.mode,
           budget: this.budget,
           models: selectedModels,
+          feature_names: customFeatures && customFeatures.length > 0 ? customFeatures : undefined,
         }, job => {
           const percent = job.total ? Math.round(job.completed * 100 / job.total) : 0;
           if (progressBar) progressBar.style.width = `${percent}%`;

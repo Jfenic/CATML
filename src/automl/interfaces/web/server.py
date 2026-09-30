@@ -310,7 +310,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if c.get("is_identifier"):
                     c["catml_action"] = "Exclude"
                     c["action_reason"] = "Identifier candidate (>99% cardinality)"
-                elif c.get("dtype") in ("object", "string", "category"):
+                elif any(sub in c.get("dtype", "").lower() for sub in ("object", "string", "category", "str")):
                     c["catml_action"] = "Encode"
                     c["action_reason"] = "Categorical encoding (target/ordinal)"
                 elif c.get("null_count", 0) > 0:
@@ -736,7 +736,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
                 profile = ws.repository.get_dataset_profile(dataset.id)
-                feature_names = [
+                feature_names = payload.get("feature_names") or [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
 
