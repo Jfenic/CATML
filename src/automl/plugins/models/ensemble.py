@@ -7,13 +7,20 @@ from automl.domain.optimization.search_space import ParameterSpec, SearchSpace
 from automl.domain.plugins.plugin import PluginCapability, PluginType
 from automl.domain.ports import ModelPluginPort
 from automl.domain.tasks.task_type import TaskType
-from automl.engine.ensemble.blender import blend_predictions, normalize_weights
+from automl.engine.ensemble.blender import (
+    blend_predictions,
+    normalize_weights,
+    optimize_ensemble_weights,
+    rank_average_predictions,
+)
 from automl.engine.ensemble.voting import VotingEnsembleEstimator
 
 # Re-export for public API and backward compatibility
 __all__ = [
     "blend_predictions",
     "normalize_weights",
+    "optimize_ensemble_weights",
+    "rank_average_predictions",
     "VotingEnsembleEstimator",
     "VotingEnsemblePlugin",
 ]
@@ -74,7 +81,8 @@ class VotingEnsemblePlugin(ModelPluginPort):
     def get_search_space(self, task_type: str) -> SearchSpace:
         space = SearchSpace()
         if task_type != TaskType.REGRESSION.value:
-            space.add(ParameterSpec.categorical("voting", ["soft", "hard"], default="soft"))
+            space.add(ParameterSpec.categorical("voting", ["soft", "hard", "rank"], default="soft"))
+        space.add(ParameterSpec.categorical("optimize_weights", [True, False], default=False))
         return space
 
     def blend(
@@ -82,22 +90,28 @@ class VotingEnsemblePlugin(ModelPluginPort):
         predictions: list[np.ndarray | list[float] | list[list[float]]],
         weights: list[float] | None = None,
         task_type: str = "binary_classification",
+        method: str = "average",
     ) -> np.ndarray:
-        return blend_predictions(predictions, weights=weights, task_type=task_type)
+        return blend_predictions(predictions, weights=weights, task_type=task_type, method=method)
 
     def from_models(
         self,
         models: list[Any],
         weights: list[float] | None = None,
         task_type: str = "binary_classification",
+        voting: str = "soft",
         refit: bool = False,
+        optimize_weights: bool = False,
+        metric: str = "roc_auc",
     ) -> VotingEnsembleEstimator:
         estimator = VotingEnsembleEstimator(
             estimators=models,
             weights=weights,
             task_type=task_type,
-            voting="soft",
+            voting=voting,
             refit=refit,
+            optimize_weights=optimize_weights,
+            metric=metric,
         )
         if not refit:
             estimator._validate_pre_fitted_estimators(models)
