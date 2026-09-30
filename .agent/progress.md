@@ -1,14 +1,14 @@
 # Progress
 
-## Current
- 
-Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
-- Web Interface Hexagonal Adapter (`src/automl/interfaces/web/server.py`): Zero-dependency standard library `ThreadingHTTPServer` mapped exclusively to `CommandBus`, `QueryBus`, and `AutoMLWorkspace`. Endpoints for overview, runs, lifecycle controls (`pause`, `resume`, `cancel`, `clone`), experiments, leaderboard, dataset profiling, planner explicability (`/api/plan`), meta-learning knowledge preview (`/api/knowledge`), agent hypotheses (`/api/agent/hypotheses`, `Proponer ≠ Aceptar`), and Kaggle checklist (`/api/kaggle/status`, `/api/predict`).
-- Frontend Modular Architecture (`src/automl/interfaces/web/static/`): Clean code design patterns including `EventBus` (PubSub), `WorkbenchStore` (State/Observable), `CATMLApiClient` (Adapter/Repository), and independent View Controllers (`overview.js`, `studio.js`, `datasets.js`, `compare.js`, `pipeline.js`, `knowledge.js`, `kaggle.js`, `agent.js`, `new_experiment.js`).
-- Design System (`css/workbench.css`): Dense technical dark theme with semantic color system (🔵 system/execution, 🟢 proven gain, 🟠 warning/waiting, 🔴 error/stop, 🟣 CATML intelligence).
-- CLI Command: `automl ui [--port PORT] [--workspace WORKSPACE]`.
-- Validation results: see dated entries below; run the entire suite with `--cov-fail-under=85`.
-- Current: OOF integrated into main through PR #16; persistent jobs implemented and validated on `feat/persistent-job-queue`, prepared for review. Independent benchmark evidence remains pending.
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H0 / Paquete B0)**:
+- Rol: **Persona B** (Interfaces, Integración y Orquestación).
+- Rama: `feat/agentic-b0-compatibility`.
+- Entregable B0 completado:
+  - ADR 004 redactado en `docs/decisions/004-agentic-system-scope-and-dependencies.md` (posposición de V0.8, extras opcionales, transporte stdio y límites).
+  - `pyproject.toml` actualizado con extras opcionales `mcp` y `agents`.
+  - Casos de consumidor y fixtures implementados en `tests/test_v09_agent_consumers.py` (7 tests pasando).
+  - Documento de revisión técnica para Persona A redactado en `docs/features/agentic-system/review-b0-to-a0.md`.
+- Handoff H0: A la espera de la integración de A0 por Persona A para acordar contratos finales e iniciar B1 (servidor MCP stdio).
  
 ## Completed
  
