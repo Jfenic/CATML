@@ -19,6 +19,13 @@ from typing import Any
 from automl.domain.optimization.search_space import ParameterSpec, SearchSpace
 from automl.domain.plugins.plugin import PluginCapability, PluginType
 from automl.domain.ports import ModelPluginPort
+from automl.plugins.models.catboost_plugin import CatBoostPlugin
+
+__all__ = [
+    "LightGBMPlugin",
+    "XGBoostPlugin",
+    "CatBoostPlugin",
+]
 
 
 class LightGBMPlugin(ModelPluginPort):

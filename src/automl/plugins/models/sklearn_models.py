@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from typing import Any
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor, RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.svm import SVC, SVR
+
+from automl.domain.optimization.search_space import SearchSpace
+from automl.domain.plugins.plugin import PluginCapability, PluginType
+from automl.domain.ports import ModelPluginPort
 
 
 def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None = None):
@@ -43,6 +49,26 @@ def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None =
             if is_regression
             else RandomForestClassifier(**rf_params)
         )
+    elif model_id == "extra_trees":
+        et_params = {"n_estimators": 100, "random_state": 42}
+        et_params.update(params)
+        return (
+            ExtraTreesRegressor(**et_params)
+            if is_regression
+            else ExtraTreesClassifier(**et_params)
+        )
+    elif model_id == "mlp":
+        mlp_params = {"max_iter": 500, "random_state": 42}
+        mlp_params.update(params)
+        return (
+            MLPRegressor(**mlp_params)
+            if is_regression
+            else MLPClassifier(**mlp_params)
+        )
+    elif model_id == "catboost":
+        from automl.plugins.models.catboost_plugin import CatBoostPlugin
+
+        return CatBoostPlugin().build_estimator(parameters=params, task_type=task_type)
     elif model_id in {"svc", "svr"}:
         if is_regression or model_id == "svr":
             svr_params = {}
@@ -66,6 +92,64 @@ def build_sklearn_model(model_id: str, task_type: str, parameters: dict | None =
         )
     else:
         raise ValueError(f"Unknown supervised model: {model_id}")
+
+
+class ExtraTreesPlugin(ModelPluginPort):
+    def __init__(self) -> None:
+        self.plugin_id = "extra_trees"
+        self.name = "Extra Trees (Extremely Randomized Trees)"
+        self.version = "1.0.0"
+        self.plugin_type = PluginType.MODEL
+        self.capabilities = PluginCapability(
+            supported_tasks=["binary_classification", "multiclass_classification", "regression"],
+            supported_modalities=["tabular"],
+            requires_gpu=False,
+            supports_proba=True,
+        )
+
+    def build_estimator(
+        self,
+        parameters: dict[str, Any] | None = None,
+        task_type: str = "binary_classification",
+        **kwargs: Any,
+    ) -> Any:
+        params = dict(parameters or {})
+        params.update(kwargs)
+        return build_sklearn_model("extra_trees", task_type=task_type, parameters=params)
+
+    def get_search_space(self, task_type: str) -> SearchSpace:
+        from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
+
+        return SearchSpaceBuilder.build("extra_trees", task_type=task_type)
+
+
+class MLPPlugin(ModelPluginPort):
+    def __init__(self) -> None:
+        self.plugin_id = "mlp"
+        self.name = "Multi-Layer Perceptron (MLP)"
+        self.version = "1.0.0"
+        self.plugin_type = PluginType.MODEL
+        self.capabilities = PluginCapability(
+            supported_tasks=["binary_classification", "multiclass_classification", "regression"],
+            supported_modalities=["tabular"],
+            requires_gpu=False,
+            supports_proba=True,
+        )
+
+    def build_estimator(
+        self,
+        parameters: dict[str, Any] | None = None,
+        task_type: str = "binary_classification",
+        **kwargs: Any,
+    ) -> Any:
+        params = dict(parameters or {})
+        params.update(kwargs)
+        return build_sklearn_model("mlp", task_type=task_type, parameters=params)
+
+    def get_search_space(self, task_type: str) -> SearchSpace:
+        from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
+
+        return SearchSpaceBuilder.build("mlp", task_type=task_type)
 
 
 def default_ensemble_factory(task_type: str) -> list[tuple[str, Any]]:
@@ -96,6 +180,8 @@ def default_model_specs():
     labels = {
         "logistic_regression": "Logistic Regression",
         "random_forest": "Random Forest",
+        "extra_trees": "Extra Trees",
+        "mlp": "Multi-Layer Perceptron (MLP)",
         "svc": "Support Vector Classifier",
         "ridge": "Ridge Regression",
         "svr": "Support Vector Regressor",
@@ -104,6 +190,7 @@ def default_model_specs():
         "dbscan": "DBSCAN",
         "lightgbm": "LightGBM",
         "xgboost": "XGBoost",
+        "catboost": "CatBoost",
         "voting_ensemble": "Voting Ensemble & Blending",
     }
 
