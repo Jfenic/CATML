@@ -73,25 +73,25 @@ export class KaggleView {
                     <td><span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-semibold">VERIFIED</span></td>
                   </tr>
                   <tr>
-                    <td class="font-medium text-slate-200">#2 Optuna Tuned (5 trials)</td>
-                    <td class="font-mono text-slate-300">0.94125</td>
-                    <td class="font-mono text-slate-200">0.94118</td>
-                    <td class="font-mono text-xs text-emerald-400">-0.00007</td>
-                    <td><span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-semibold">VERIFIED</span></td>
+                    <td class="font-medium text-slate-200">#2 XGBoost HPO (Trial 3ec383)</td>
+                    <td class="font-mono text-emerald-400 font-bold">0.94123</td>
+                    <td class="font-mono text-slate-400">—</td>
+                    <td class="font-mono text-xs text-indigo-400">+0.00013 local</td>
+                    <td><span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono font-semibold">BEST LOCAL</span></td>
                   </tr>
                   <tr>
-                    <td class="font-medium text-slate-200">#3 Interactions (22 feat)</td>
-                    <td class="font-mono text-slate-300">0.94093</td>
-                    <td class="font-mono text-slate-400">0.94061</td>
-                    <td class="font-mono text-xs text-rose-400">-0.00032 (Noise)</td>
-                    <td><span class="badge-err text-[10px] px-2 py-0.5 rounded font-mono font-semibold">REJECTED</span></td>
+                    <td class="font-medium text-slate-200">#3 Optuna Tuning (submission_optuna.csv)</td>
+                    <td class="font-mono text-slate-300">0.94040</td>
+                    <td class="font-mono text-amber-400">0.93999</td>
+                    <td class="font-mono text-xs text-rose-400">-0.00103</td>
+                    <td><span class="badge-warn text-[10px] px-2 py-0.5 rounded font-mono font-semibold">SUBMITTED</span></td>
                   </tr>
                   <tr class="bg-indigo-950/20">
-                    <td class="font-bold text-indigo-300">#4 Ensemble #7 (CatBoost+LGBM)</td>
-                    <td class="font-mono font-bold text-emerald-400">0.94621</td>
+                    <td class="font-bold text-indigo-300">#4 Ensemble Blend (XGBoost + LightGBM)</td>
                     <td class="font-mono text-slate-400">—</td>
-                    <td class="font-mono text-xs text-indigo-400">Ready to Submit</td>
-                    <td><span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-semibold">PENDING LB</span></td>
+                    <td class="font-mono text-slate-400">—</td>
+                    <td class="font-mono text-xs text-indigo-300">Candidato próximo</td>
+                    <td><span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-semibold">POR ENTRENAR</span></td>
                   </tr>
                 </tbody>
               </table>

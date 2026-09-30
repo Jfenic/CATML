@@ -21,13 +21,15 @@ export class StudioView {
 
   render() {
     const state = store.getState();
+    const overview = state.overview || {};
     const runs = state.runs || [];
     const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || {
-      id: "run_ev_s6e9",
+      id: "run_695b92e6",
       dataset_name: "EV Purchases",
-      status: "RUNNING",
-      best_score: 0.94621,
-      best_model: "Ensemble #7",
+      status: "COMPLETED",
+      best_score: 0.94123,
+      best_model: "xgboost",
+      trials_count: 11,
     };
 
     const isRunning = activeRun.status === "RUNNING";
@@ -40,32 +42,38 @@ export class StudioView {
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div class="flex items-center space-x-3">
-                <h2 class="text-lg font-bold text-slate-100">Experiment #42 / ${activeRun.dataset_name || "EV Purchases"}</h2>
+                <h2 class="text-lg font-bold text-slate-100">Run: ${activeRun.id || "Active"} / ${activeRun.dataset_name || "EV Purchases"}</h2>
                 <span id="runStatusBadge" class="${isRunning ? 'badge-sys' : isPaused ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-1 rounded-full font-mono font-semibold flex items-center space-x-1.5">
                   ${isRunning ? '<svg class="animate-spin h-3.5 w-3.5 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : ''}
-                  <span>● ${activeRun.status || "RUNNING"}</span>
+                  <span>● ${activeRun.status || "IDLE"}</span>
                 </span>
               </div>
-              <p class="text-xs text-slate-400 mt-0.5">AutoML Pipeline • Metric: ROC-AUC • 5-Fold Stratified Cross-Validation</p>
+              <p class="text-xs text-slate-400 mt-0.5">AutoML Pipeline • Metric: ${activeRun.metric || 'ROC-AUC'} • 5-Fold Stratified Cross-Validation</p>
             </div>
 
             <!-- Key metrics row -->
             <div class="flex items-center space-x-6">
               <div>
                 <div class="text-[11px] uppercase tracking-wider text-slate-400">Best CV</div>
-                <div class="text-lg font-bold font-mono-num text-emerald-400">0.94621 <span class="text-xs font-normal text-emerald-500 font-mono">+0.0031</span></div>
+                <div class="text-lg font-bold font-mono-num text-emerald-400">
+                  ${activeRun.best_score != null ? Number(activeRun.best_score).toFixed(5) : (overview.best_score != null ? Number(overview.best_score).toFixed(5) : "—")}
+                </div>
               </div>
               <div>
                 <div class="text-[11px] uppercase tracking-wider text-slate-400">Best Model</div>
-                <div class="text-base font-semibold text-slate-200">Ensemble #7</div>
+                <div class="text-base font-semibold text-slate-200 capitalize">
+                  ${activeRun.best_model || overview.best_model || "None"}
+                </div>
               </div>
               <div>
                 <div class="text-[11px] uppercase tracking-wider text-slate-400">Trials</div>
-                <div class="text-base font-mono font-semibold text-indigo-400">37 / 60</div>
+                <div class="text-base font-mono font-semibold text-indigo-400">
+                  ${activeRun.trials_count != null ? activeRun.trials_count : (overview.total_trials || 0)}
+                </div>
               </div>
               <div>
                 <div class="text-[11px] uppercase tracking-wider text-slate-400">Resources</div>
-                <div class="text-xs font-mono text-slate-300">CPU 67% • RAM 51%</div>
+                <div class="text-xs font-mono text-slate-300">CPU 12% • RAM 38%</div>
               </div>
 
               <!-- Action Controls -->
