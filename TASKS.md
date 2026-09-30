@@ -26,7 +26,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Concretar ejecución entre dos personas en [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md): paquetes A0–A5/B0–B5, dependencias, archivos/tests propios, handoff y revisión cruzada; primera entrega conjunta H2.
 - [x] H0 — Preparar V0.9: Contratos acordados y fusionados (PR #22 para B0 y PR #23 para A0 integrados en main).
 - [x] Paquete A1 (Persona A): Catálogo y ejecutor de consultas seguras (`ToolRegistry`, `ToolExecutor`, `create_read_only_tool_registry`), blindaje de scope (prevención de issue #14 del blackboard), normalización a DTOs tipados vía `QueryBus` sin mutaciones, y suite de tests `tests/test_v09_agent_tools.py` con 100% de cobertura (5 tests passing).
-- [ ] H1 — V0.9 Consultas y MCP stdio: Persona A completó A1; pendiente Persona B con B1 (servidor MCP stdio y CLI `automl mcp`) para cerrar H1.
+- [x] Paquete B1 (Persona B): Servidor MCP stdio en `src/automl/interfaces/mcp/`, subcomando CLI `automl mcp`, tools de consulta (`list_models`, `get_dataset_profile`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`), resources (`catml://runs/...`, `catml://datasets/...`) y lifecycle subprocess con stdout limpio (10 tests passing en `tests/test_v09_mcp_server.py`).
+- [x] H1 — V0.9 Consultas y MCP stdio: Catálogo de consultas A1 integrado con servidor MCP stdio B1.
 - [ ] H2 — V0.9 Mutaciones autorizadas e integración (primera entrega conjunta local).
 - [ ] H3 — V0.9 Operaciones largas, HPO y cancelación cooperativa.
 - [ ] H4–H5 — V1.0 incremental: ciclo determinista con proveedor falso → LangGraph opcional con checkpoints y recuperación probada.

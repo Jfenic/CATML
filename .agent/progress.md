@@ -1,15 +1,16 @@
 # Progress
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Hito H1 / Paquete A1)**:
-- Rol: **Persona A** (Contratos, Catálogo de Herramientas, Persistencia y Dominio Agéntico).
-- Rama: `feat/agentic-a1-tools`.
-- Entregable A1 completado:
-  - `ToolRegistry` (`src/automl/application/agents/registry.py`) con registro estricto, introspección e integración con esquemas canónicos.
-  - `ToolExecutor` y `create_read_only_tool_registry` (`src/automl/application/agents/executor.py`) mapeando consultas de solo lectura a `QueryBus.dispatch()` (`get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`).
-  - Blindaje estricto de aislamiento por run (prevención de issue #14 del blackboard): verifica `arguments["run_id"] == context.run_id`.
-  - Normalización canónica de salidas a DTOs/primitivas json-serializables (`ToolResult`).
-  - Suite exhaustiva de pruebas unitarias en `tests/test_v09_agent_tools.py` (5 tests pasando, 100% de cobertura en registry y executor, 254 tests globales pasando, 87.95% cobertura).
-- Handoff H1: Listo para que Persona B consuma `create_read_only_tool_registry(query_bus)` en el servidor MCP stdio (`src/automl/interfaces/mcp/server.py`) y CLI `automl mcp` (Paquete B1).
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H1 / Paquete B1 Integrado)**:
+- Rol: **Persona B** (Interfaces, Integración y Orquestación).
+- Rama: `feat/agentic-b1-mcp`.
+- Entregable B1 completado:
+  - Servidor MCP stdio implementado en `src/automl/interfaces/mcp/server.py` utilizando el SDK oficial `mcp` (MCPServer) y consumiendo las capacidades de A1.
+  - Tools de consulta expuestas: `get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`.
+  - Resources expuestos: `catml://runs/{run_id}/leaderboard`, `catml://datasets/{dataset_id}/profile`.
+  - Subcomando CLI `automl mcp [--workspace PATH]` implementado en `src/automl/interfaces/cli/mcp_cli.py` y registrado en `main.py` de forma diferida.
+  - Logging estructurado exclusivamente por `sys.stderr` garantizando `stdout` 100% puro para JSON-RPC.
+  - Suite de tests completa en `tests/test_v09_mcp_server.py` (10 tests pasando, incluyendo handshake de subprocess stdio).
+- Hito H1 cerrado: A1 y B1 integrados. Preparado para H2 (mutaciones, aprobación humana y ledger).
  
 ## Completed
  
@@ -20,7 +21,7 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Hito H1 / Paquete A1)
     - `create_read_only_tool_registry(query_bus)`: factoría canónica que expone 7 tools de solo lectura (`get_dataset_profile`, `list_models`, `list_plugins`, `list_experiments`, `get_leaderboard`, `get_feature_evidence`, `get_feature_ranking`).
     - Prevención estricta de fuga cruzada (Issue #14): rechaza llamadas donde `arguments['run_id'] != context.run_id` con `PERMISSION_DENIED`.
     - Pruebas en `tests/test_v09_agent_tools.py` (5 tests pasando, 100% cobertura en componentes nuevos).
- 
+
 - Paquete A0 completado (Persona A, 2026-09-30):
   - Definición de contratos de dominio en `src/automl/domain/agents/`: `AgentBudget`, `Hypothesis`, `ToolEffect`, `AgentPermission`, `PolicyDecisionType`, `ApprovalStatus`, `OperationStatus`, `ToolErrorCode`. Hexagonalmente puro, sin librerías externas.
   - DTOs de aplicación en `src/automl/application/agents/contracts.py`: `ToolDefinition`, `ToolCallContext`, `ToolInvocation`, `ToolResult`, `ToolError`, `PolicyDecision`, `ApprovalRequest`, `OperationRecord`, `AgentContext`, `AgentSessionState`.

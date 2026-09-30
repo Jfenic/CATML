@@ -521,6 +521,11 @@ def jobs_cli(args) -> int:
     return 0
 
 
+def mcp_cli(args: argparse.Namespace) -> int:
+    from automl.interfaces.cli.mcp_cli import run_mcp_cli
+    return run_mcp_cli(args)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="automl", description=f"AutoML Platform CLI (V{PLATFORM_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -654,6 +659,10 @@ def main(argv: list[str] | None = None) -> int:
             action_parser.add_argument("--operation", choices=("experiment", "oof", "submission"), required=True)
             action_parser.add_argument("--payload", required=True, help="JSON operation arguments")
             action_parser.add_argument("--key", required=True, help="Stable idempotency key for this request")
+
+    mcp_parser = sub.add_parser("mcp", help="Launch Model Context Protocol (MCP) stdio server")
+    mcp_parser.add_argument("--workspace", help="Path to workspace root directory (default: auto)")
+    mcp_parser.set_defaults(func=mcp_cli)
 
     args = parser.parse_args(argv)
     return args.func(args)
