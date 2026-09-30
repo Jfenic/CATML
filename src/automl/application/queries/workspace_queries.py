@@ -107,3 +107,8 @@ class ValidatePipelineGraphQuery:
 class GetPipelineExecutionOrderQuery:
     graph: Any
 
+
+@dataclass(frozen=True)
+class GetOOFResultQuery:
+    run_id: str
+    experiment_id: str

@@ -18,6 +18,7 @@ from automl.application.commands.workspace_commands import (
     SelectFeaturesCommand,
     PlanAblationExperimentsCommand,
     GenerateSubmissionCommand,
+    GenerateOOFSubmissionCommand,
 )
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
@@ -27,6 +28,7 @@ from automl.application.queries.workspace_queries import (
     ListCandidatesQuery,
     ListTaskTypesQuery,
     ListPluginsQuery,
+    GetOOFResultQuery,
 )
 from automl.domain.features.selection_strategy import FeatureSelectionStrategy
 from automl.application.services.workspace import PLATFORM_VERSION
@@ -422,17 +424,34 @@ def predict_cli(args: argparse.Namespace) -> int:
 
     out_path = args.output or "submission.csv"
 
-    res = cmd.dispatch(
-        GenerateSubmissionCommand(
-            run_id=run_id,
-            test_dataset_path=str(test_path),
-            output_path=out_path,
-            id_column=args.id_column,
-            template_path=getattr(args, "template", None),
-            experiment_id=args.experiment_id,
-            predict_proba=args.proba,
+    if args.models is not None and args.folds is None:
+        print("Error: --models requires --folds.", file=sys.stderr)
+        return 1
+    if args.folds is not None:
+        try:
+            experiment_id = cmd.dispatch(GenerateOOFSubmissionCommand(
+                run_id=run_id, test_dataset_path=str(test_path), output_path=out_path,
+                id_column=args.id_column, template_path=args.template,
+                experiment_id=args.experiment_id, predict_proba=args.proba,
+                folds=args.folds, model_ids=[m.strip() for m in args.models.split(",")] if args.models is not None else None,
+                max_seconds=args.oof_timeout,
+            ))
+            res = qry.dispatch(GetOOFResultQuery(run_id=run_id, experiment_id=experiment_id))
+        except (ValueError, KeyError, RuntimeError, TimeoutError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+    else:
+        res = cmd.dispatch(
+            GenerateSubmissionCommand(
+                run_id=run_id,
+                test_dataset_path=str(test_path),
+                output_path=out_path,
+                id_column=args.id_column,
+                template_path=getattr(args, "template", None),
+                experiment_id=args.experiment_id,
+                predict_proba=args.proba,
+            )
         )
-    )
 
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2))
@@ -447,6 +466,9 @@ def predict_cli(args: argparse.Namespace) -> int:
     print(f"  ID Column:     {res['id_column']}")
     print(f"  Target Column: {res['target_column']}")
     print(f"  Probabilities: {res['predict_proba']}")
+    if res.get("folds"):
+        print(f"  OOF folds:     {res['folds']}")
+        print(f"  ROC-AUC:       {res['score']:.6f} (baseline {res['baseline_score']:.6f}; delta {res['delta']:+.6f})")
     if res.get("template_used"):
         print(f"  Template:      {res['template_used']}\n")
     else:
@@ -577,6 +599,9 @@ def main(argv: list[str] | None = None) -> int:
     pred_parser.add_argument("--template", help="Path to sample submission CSV to match column names and row ID ordering exactly")
     pred_parser.add_argument("--experiment-id", help="Optional specific experiment ID to use")
     pred_parser.add_argument("--proba", action="store_true", help="Output probabilities instead of binary labels")
+    pred_parser.add_argument("--folds", type=int, help="OOF folds for binary classification; e.g. 5")
+    pred_parser.add_argument("--models", help="One or two comma-separated individual models for OOF")
+    pred_parser.add_argument("--oof-timeout", type=float, default=300.0, help="OOF time budget in seconds, checked between fits (default: 300)")
     pred_parser.add_argument("--json", action="store_true")
     pred_parser.set_defaults(func=predict_cli)
 
