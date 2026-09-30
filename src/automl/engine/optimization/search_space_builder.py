@@ -127,7 +127,60 @@ class SearchSpaceBuilder:
             space.add(
                 ParameterSpec.int("max_depth", 3, 10, default=6)
             )
+        elif model_id == "catboost":
+            space.add(
+                ParameterSpec.int("iterations", 50, 300, step=25, default=100)
+            )
+            space.add(
+                ParameterSpec.float("learning_rate", 0.01, 0.3, log=True, default=0.1)
+            )
+            space.add(
+                ParameterSpec.int("depth", 3, 10, default=6)
+            )
+        elif model_id == "extra_trees":
+            space.add(
+                ParameterSpec(
+                    name="n_estimators",
+                    type=ParameterType.INT,
+                    low=20,
+                    high=200,
+                    step=20,
+                    default=100,
+                )
+            )
+            space.add(
+                ParameterSpec(
+                    name="max_depth",
+                    type=ParameterType.INT,
+                    low=3,
+                    high=15,
+                    default=8,
+                )
+            )
+            space.add(
+                ParameterSpec(
+                    name="min_samples_split",
+                    type=ParameterType.INT,
+                    low=2,
+                    high=10,
+                    default=2,
+                )
+            )
+        elif model_id == "mlp":
+            space.add(
+                ParameterSpec.float("alpha", 1e-5, 1e-1, log=True, default=1e-4)
+            )
+            space.add(
+                ParameterSpec.float("learning_rate_init", 1e-4, 1e-1, log=True, default=1e-3)
+            )
+            space.add(
+                ParameterSpec.int("max_iter", 100, 500, step=50, default=200)
+            )
         else:
             raise ValueError(f"No default search space for model: {model_id}")
 
         return space
+
+    @classmethod
+    def build_for_model(cls, model_id: str, task_type: str | None = None) -> SearchSpace:
+        return cls.build(model_id, task_type=task_type)

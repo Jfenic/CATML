@@ -62,6 +62,10 @@ export class CATMLApiClient {
     return this._fetch(`/api/dataset/profile?dataset_id=${encodeURIComponent(datasetId)}`);
   }
 
+  async getDatasets() {
+    return this._fetch("/api/datasets");
+  }
+
   async getPlan(runId, datasetId) {
     const q = runId ? `run_id=${encodeURIComponent(runId)}` : `dataset_id=${encodeURIComponent(datasetId)}`;
     return this._fetch(`/api/plan?${q}`);

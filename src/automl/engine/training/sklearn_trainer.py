@@ -301,7 +301,7 @@ def _compute_metrics(
     if task_type == "regression":
         metrics["r2"] = float(r2_score(y_true, predictions))
         metrics["mae"] = float(mean_absolute_error(y_true, predictions))
-        metrics["rmse"] = float(mean_squared_error(y_true, predictions, squared=False))
+        metrics["rmse"] = float(np.sqrt(mean_squared_error(y_true, predictions)))
         return metrics
 
     metrics["accuracy"] = float(accuracy_score(y_true, predictions))

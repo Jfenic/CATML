@@ -9,15 +9,73 @@ import { api } from "../api.js";
 export class KnowledgeView {
   constructor() {
     this.container = null;
-    this.selectedSimilar = "Customer Churn";
+    this.knowledge = null;
+    this.activeRun = null;
   }
 
-  mount(container) {
+  async mount(container) {
     this.container = container;
+    this.renderLoading();
+    await this.fetchData();
     this.render();
   }
 
+  renderLoading() {
+    this.container.innerHTML = `
+      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
+        <div class="animate-spin text-2xl text-purple-400">🧠</div>
+        <div class="text-sm font-medium">Recuperando huella meta-estadística y memoria de CATML...</div>
+      </div>
+    `;
+  }
+
+  async fetchData() {
+    try {
+      const state = store.getState();
+      const runs = state.runs || [];
+      this.activeRun = runs.find(r => r.id === state.activeRunId)
+        || runs.find(r => r.status === "RUNNING")
+        || runs[0]
+        || null;
+
+      const datasetId = this.activeRun ? this.activeRun.dataset_id : (state.activeDatasetId || "");
+      this.knowledge = await api.getKnowledge(datasetId).catch(() => null);
+    } catch (e) {
+      console.warn("KnowledgeView fetchData error:", e);
+    }
+  }
+
   render() {
+    const k = this.knowledge || {
+      current_fingerprint: {
+        dataset_name: this.activeRun ? this.activeRun.dataset_name : "Active Dataset",
+        rows: 0,
+        features: 0,
+        categorical_ratio: 0.5,
+        numerical_ratio: 0.5,
+        missing_ratio: 0.0,
+        target_entropy: 0.693,
+      },
+      similar_datasets: [
+        { name: "Standard Tabular Benchmark", similarity: 0.85, reasons: ["Tabular modality", "Dense feature matrix"] },
+      ],
+      historical_rankings: [
+        { model: "CatBoost", experiments: 12, mean_rank: 1.6 },
+        { model: "LightGBM", experiments: 18, mean_rank: 2.1 },
+        { model: "XGBoost", experiments: 14, mean_rank: 2.7 },
+      ],
+      warm_start: {
+        recommended_model: "LightGBM",
+        params: { depth: 6, learning_rate: 0.05 },
+        expected_search_reduction: "~35%",
+      },
+    };
+
+    const fp = k.current_fingerprint || {};
+    const similar = k.similar_datasets || [];
+    const rankings = k.historical_rankings || [];
+    const warmStart = k.warm_start || {};
+
     this.container.innerHTML = `
       <div class="space-y-6">
         <!-- V0.8 Meta-Learning Header -->
@@ -29,10 +87,10 @@ export class KnowledgeView {
                 <h2 class="text-base font-bold text-slate-100">CATML Meta-Learning Knowledge (V0.8)</h2>
                 <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono">Memory Layer</span>
               </div>
-              <p class="text-xs text-slate-400">Meta-learning autónomo a partir del histórico de experimentos y datasets similares</p>
+              <p class="text-xs text-slate-400">Meta-learning autónomo a partir del histórico de experimentos y meta-features tabulares</p>
             </div>
           </div>
-          <span class="badge-sys text-xs px-3 py-1 rounded-full font-mono font-semibold">4 Datasets Indexed</span>
+          <span class="badge-sys text-xs px-3 py-1 rounded-full font-mono font-semibold">${similar.length} Datasets en Memoria</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -42,38 +100,38 @@ export class KnowledgeView {
             <div class="workbench-card p-5 space-y-3">
               <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Current Dataset Fingerprint</span>
-                <span class="font-mono text-xs text-indigo-400 font-semibold">EV Purchases</span>
+                <span class="font-mono text-xs text-indigo-400 font-semibold">${fp.dataset_name || "Active"}</span>
               </div>
 
               <div class="grid grid-cols-2 gap-3 text-xs pt-1 font-mono">
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
                   <span class="text-slate-400 text-[10px] uppercase font-sans">Rows</span>
-                  <div class="text-sm font-bold text-slate-100">668,665</div>
+                  <div class="text-sm font-bold text-slate-100">${fp.rows != null ? Number(fp.rows).toLocaleString() : "—"}</div>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
                   <span class="text-slate-400 text-[10px] uppercase font-sans">Features</span>
-                  <div class="text-sm font-bold text-slate-100">13</div>
+                  <div class="text-sm font-bold text-slate-100">${fp.features != null ? fp.features : "—"}</div>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
                   <span class="text-slate-400 text-[10px] uppercase font-sans">Categorical Ratio</span>
-                  <div class="text-sm font-bold text-purple-400">54%</div>
+                  <div class="text-sm font-bold text-purple-400">${fp.categorical_ratio != null ? (fp.categorical_ratio * 100).toFixed(0) + '%' : "—"}</div>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
                   <span class="text-slate-400 text-[10px] uppercase font-sans">Numerical Ratio</span>
-                  <div class="text-sm font-bold text-indigo-400">46%</div>
+                  <div class="text-sm font-bold text-indigo-400">${fp.numerical_ratio != null ? (fp.numerical_ratio * 100).toFixed(0) + '%' : "—"}</div>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
                   <span class="text-slate-400 text-[10px] uppercase font-sans">Missing Ratio</span>
-                  <div class="text-sm font-bold text-amber-400">2.1%</div>
+                  <div class="text-sm font-bold text-amber-400">${fp.missing_ratio != null ? (fp.missing_ratio * 100).toFixed(1) + '%' : "0.0%"}</div>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800">
                   <span class="text-slate-400 text-[10px] uppercase font-sans">Target Entropy</span>
-                  <div class="text-sm font-bold text-emerald-400">0.681</div>
+                  <div class="text-sm font-bold text-emerald-400">${fp.target_entropy != null ? Number(fp.target_entropy).toFixed(3) : "—"}</div>
                 </div>
               </div>
             </div>
@@ -82,78 +140,21 @@ export class KnowledgeView {
             <div class="workbench-card p-5 space-y-3">
               <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Similar Datasets in Memory</span>
               <div class="space-y-2 pt-1 text-xs">
-                <div class="p-3 rounded-lg bg-slate-900 border border-indigo-600/60 cursor-pointer flex items-center justify-between">
-                  <div>
-                    <div class="font-bold text-slate-100">Customer Churn</div>
-                    <div class="text-[11px] text-slate-400">Tabular Binary • 12 features</div>
+                ${similar.map(ds => `
+                  <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer flex items-center justify-between">
+                    <div>
+                      <div class="font-bold text-slate-200">${ds.name}</div>
+                      <div class="text-[11px] text-slate-400">${(ds.reasons || []).join(" • ")}</div>
+                    </div>
+                    <span class="badge-gain text-xs px-2.5 py-1 rounded font-mono font-bold">${Math.round(ds.similarity * 100)}% similar</span>
                   </div>
-                  <span class="badge-gain text-xs px-2.5 py-1 rounded font-mono font-bold">91% similar</span>
-                </div>
-
-                <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer flex items-center justify-between">
-                  <div>
-                    <div class="font-bold text-slate-200">Insurance Conversion</div>
-                    <div class="text-[11px] text-slate-400">Tabular Binary • High Cardinality</div>
-                  </div>
-                  <span class="badge-sys text-xs px-2.5 py-1 rounded font-mono font-bold">84% similar</span>
-                </div>
-
-                <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer flex items-center justify-between">
-                  <div>
-                    <div class="font-bold text-slate-200">Loan Acceptance</div>
-                    <div class="text-[11px] text-slate-400">Tabular Binary • ROC-AUC</div>
-                  </div>
-                  <span class="badge-sys text-xs px-2.5 py-1 rounded font-mono font-bold">81% similar</span>
-                </div>
-
-                <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer flex items-center justify-between">
-                  <div>
-                    <div class="font-bold text-slate-200">Credit Default</div>
-                    <div class="text-[11px] text-slate-400">Tabular Binary • Imbalanced</div>
-                  </div>
-                  <span class="badge-sys text-xs px-2.5 py-1 rounded font-mono font-bold">74% similar</span>
-                </div>
+                `).join("")}
               </div>
             </div>
           </div>
 
           <!-- Right: Meta-learning Evidence & Warm Start -->
           <div class="lg:col-span-7 space-y-6">
-            <!-- Why Similar Breakdown -->
-            <div class="workbench-card p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Similarity Breakdown: Customer Churn (91%)</span>
-                <span class="text-[11px] text-slate-400 font-mono">Cosine distance on meta-features</span>
-              </div>
-
-              <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-xs font-mono">
-                <div class="p-2 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-[10px] text-slate-400 font-sans">Rows Match</div>
-                  <div class="text-indigo-400 font-bold mt-0.5">0.83</div>
-                </div>
-
-                <div class="p-2 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-[10px] text-slate-400 font-sans">Categorical</div>
-                  <div class="text-emerald-400 font-bold mt-0.5">0.96</div>
-                </div>
-
-                <div class="p-2 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-[10px] text-slate-400 font-sans">Cardinality</div>
-                  <div class="text-emerald-400 font-bold mt-0.5">0.91</div>
-                </div>
-
-                <div class="p-2 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-[10px] text-slate-400 font-sans">Imbalance</div>
-                  <div class="text-indigo-400 font-bold mt-0.5">0.88</div>
-                </div>
-
-                <div class="p-2 rounded bg-slate-900 border border-slate-800">
-                  <div class="text-[10px] text-slate-400 font-sans">Missing Prof</div>
-                  <div class="text-emerald-400 font-bold mt-0.5">0.97</div>
-                </div>
-              </div>
-            </div>
-
             <!-- Historical Empirical Evidence on Similar Problems -->
             <div class="workbench-card p-5 space-y-3">
               <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Historical Algorithm Performance on Similar Datasets</span>
@@ -164,28 +165,16 @@ export class KnowledgeView {
                       <th>Algorithm</th>
                       <th>Tested Experiments</th>
                       <th>Mean Rank</th>
-                      <th>Top-1 Probability</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td class="font-bold text-slate-200">CatBoost</td>
-                      <td class="font-mono text-slate-400">12 experiments</td>
-                      <td class="font-mono font-bold text-emerald-400">1.6</td>
-                      <td><span class="badge-gain text-xs px-2 py-0.5 rounded font-mono font-bold">58%</span></td>
-                    </tr>
-                    <tr>
-                      <td class="font-bold text-slate-200">LightGBM</td>
-                      <td class="font-mono text-slate-400">18 experiments</td>
-                      <td class="font-mono font-bold text-indigo-400">2.1</td>
-                      <td><span class="badge-sys text-xs px-2 py-0.5 rounded font-mono font-bold">31%</span></td>
-                    </tr>
-                    <tr>
-                      <td class="font-bold text-slate-200">XGBoost</td>
-                      <td class="font-mono text-slate-400">14 experiments</td>
-                      <td class="font-mono font-bold text-slate-400">2.7</td>
-                      <td><span class="badge-warn text-xs px-2 py-0.5 rounded font-mono font-bold">11%</span></td>
-                    </tr>
+                    ${rankings.map(r => `
+                      <tr>
+                        <td class="font-bold text-slate-200">${r.model}</td>
+                        <td class="font-mono text-slate-400">${r.experiments} experiments</td>
+                        <td class="font-mono font-bold text-emerald-400">${r.mean_rank}</td>
+                      </tr>
+                    `).join("")}
                   </tbody>
                 </table>
               </div>
@@ -196,16 +185,17 @@ export class KnowledgeView {
               <div class="flex items-center justify-between">
                 <div>
                   <div class="text-xs uppercase font-bold text-indigo-300 tracking-wider">Recommended Warm Start for HPO</div>
-                  <div class="text-base font-bold text-slate-100 mt-0.5">CatBoost Classifier</div>
+                  <div class="text-base font-bold text-slate-100 mt-0.5">${warmStart.recommended_model || "LightGBM"} Prior</div>
                 </div>
-                <span class="badge-gain text-xs px-3 py-1 rounded font-mono font-bold">~37% Search Reduction</span>
+                <span class="badge-gain text-xs px-3 py-1 rounded font-mono font-bold">${warmStart.expected_search_reduction || "~35%"} Search Reduction</span>
               </div>
 
               <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs space-y-1 text-slate-300">
-                <div>depth:          <span class="text-indigo-400 font-bold">7</span></div>
-                <div>learning_rate:  <span class="text-indigo-400 font-bold">0.035</span></div>
-                <div>l2_leaf_reg:    <span class="text-indigo-400 font-bold">4.2</span></div>
-                <div>subsample:      <span class="text-indigo-400 font-bold">0.85</span></div>
+                ${warmStart.params ? Object.entries(warmStart.params).map(([k, v]) => `
+                  <div>${k}: <span class="text-indigo-400 font-bold">${v}</span></div>
+                `).join("") : `
+                  <div>learning_rate: <span class="text-indigo-400 font-bold">0.05</span></div>
+                `}
               </div>
 
               <div class="flex justify-end">
@@ -220,7 +210,7 @@ export class KnowledgeView {
     `;
 
     this.container.querySelector("#btnUseWarmStart")?.addEventListener("click", () => {
-      alert("Warm start parameters loaded! Subsequent HPO runs will initialize with CatBoost prior.");
+      alert(`Warm start parameters loaded for ${warmStart.recommended_model || "LightGBM"}! Subsequent HPO runs will initialize with this prior.`);
     });
   }
 

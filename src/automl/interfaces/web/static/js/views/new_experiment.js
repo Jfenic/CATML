@@ -19,6 +19,18 @@ export class NewExperimentModal {
   }
 
   render() {
+    const state = store.getState();
+    const runs = state.runs || [];
+    const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || null;
+    const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
+
+    const datasetName = activeRun ? (activeRun.dataset_name || activeRun.id) : (recentDs ? recentDs.name : "No Dataset Registered");
+    const targetCol = activeRun ? (activeRun.target || "Target") : (recentDs ? (recentDs.target || recentDs.target_column || "Target") : "None");
+    const metricName = activeRun ? (activeRun.metric || "ROC-AUC") : "ROC-AUC";
+    const taskType = activeRun ? (activeRun.task_type || "binary_classification").replace("_", " ") : "Classification";
+
+    const hasTarget = Boolean(activeRun || recentDs);
+
     this.container.innerHTML = `
       <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="workbench-card max-w-xl w-full p-6 space-y-5 border-slate-700 shadow-2xl">
@@ -33,9 +45,16 @@ export class NewExperimentModal {
           <!-- Dataset Card -->
           <div class="p-3.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
             <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Target Dataset</div>
-            <div class="text-sm font-bold text-slate-200">EV Purchases (Playground Series S6E9)</div>
-            <div class="text-xs text-slate-400 font-mono">668,665 rows × 14 columns • Target: Will_Buy_EV (ROC-AUC)</div>
+            <div class="text-sm font-bold text-slate-200">${datasetName}</div>
+            <div class="text-xs text-slate-400 font-mono">Task: <span class="capitalize">${taskType}</span> • Target: <span class="text-indigo-300 font-bold">${targetCol}</span> • Metric: <span class="text-emerald-400 font-bold">${metricName}</span></div>
           </div>
+
+          ${!hasTarget ? `
+            <div class="p-3 rounded-lg bg-amber-950/30 border border-amber-800/60 text-xs text-amber-300 flex items-center justify-between">
+              <span>No dataset is currently registered in this workspace.</span>
+              <button id="btnGoToDatasets" class="font-bold underline text-amber-200 hover:text-white">Register Dataset →</button>
+            </div>
+          ` : ""}
 
           <!-- How should CATML operate? -->
           <div class="space-y-2">
@@ -63,18 +82,22 @@ export class NewExperimentModal {
             this.mode === "guided"
               ? `
             <div class="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 space-y-3 text-xs">
-              <div class="font-semibold text-slate-200">Guided Constraints:</div>
-              <div class="grid grid-cols-2 gap-2 text-slate-300">
-                <label class="flex items-center space-x-2"><input type="checkbox" checked value="lightgbm" class="model-check rounded text-indigo-600 bg-slate-800"> <span>LightGBM</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" checked value="xgboost" class="model-check rounded text-indigo-600 bg-slate-800"> <span>XGBoost</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" value="random_forest" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Random Forest</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" value="logistic_regression" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Logistic Regression</span></label>
+              <div class="font-semibold text-slate-200">Algorithmic Model Families:</div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-300">
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="lightgbm" class="model-check rounded text-indigo-600 bg-slate-800"> <span>LightGBM</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="xgboost" class="model-check rounded text-indigo-600 bg-slate-800"> <span>XGBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="catboost" class="model-check rounded text-indigo-600 bg-slate-800"> <span>CatBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="extra_trees" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Extra Trees</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="mlp" class="model-check rounded text-indigo-600 bg-slate-800"> <span>MLP Neural</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="random_forest" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Random Forest</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="logistic_regression" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Logistic/Ridge</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="voting_ensemble" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Ensemble Blender</span></label>
               </div>
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px]">
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Feature engineering</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Optuna HPO</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>5-Fold Stratified CV</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Ensemble Blender</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Optuna Bayesian HPO</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Stratified Cross-Validation</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Empirical Propose ≠ Accept</span></label>
               </div>
             </div>
           `
@@ -107,7 +130,7 @@ export class NewExperimentModal {
             <button id="btnCancelModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg font-medium transition-colors">
               Cancel
             </button>
-            <button id="btnStartAutoML" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-5 py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-indigo-600/25 flex items-center space-x-2">
+            <button id="btnStartAutoML" ${!hasTarget ? "disabled" : ""} class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs px-5 py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-indigo-600/25 flex items-center space-x-2">
               <span>⚡ Start AutoML</span>
             </button>
           </div>
@@ -121,6 +144,10 @@ export class NewExperimentModal {
   _bindEvents() {
     this.container.querySelector("#btnCloseModal")?.addEventListener("click", () => this.destroy());
     this.container.querySelector("#btnCancelModal")?.addEventListener("click", () => this.destroy());
+    this.container.querySelector("#btnGoToDatasets")?.addEventListener("click", () => {
+      this.destroy();
+      store.setNav("datasets");
+    });
 
     this.container.querySelectorAll(".mode-card").forEach(el => {
       el.addEventListener("click", () => {
@@ -143,7 +170,11 @@ export class NewExperimentModal {
 
       try {
         const state = store.getState();
-        const activeRun = state.runs[0] || { id: "run_ev_s6e9" };
+        const activeRun = state.runs.find(r => r.status === "RUNNING") || state.runs[0] || null;
+        if (!activeRun) {
+          alert("No active AutoML run found. Please create a run or register a dataset first.");
+          return;
+        }
 
         let selectedModels = ["lightgbm"];
         if (this.mode === "guided" || this.mode === "manual") {
@@ -152,7 +183,7 @@ export class NewExperimentModal {
             selectedModels = checked;
           }
         } else {
-          selectedModels = ["lightgbm", "xgboost"];
+          selectedModels = ["lightgbm", "xgboost", "catboost"];
         }
 
         // Render Live Animated Training Overlay with Spinner and Progress Bar

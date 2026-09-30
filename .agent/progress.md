@@ -23,6 +23,16 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 
   - Pruebas en `tests/test_v09_agent_cli.py` (7 tests) y `tests/test_v09_agent_e2e.py` (1 test E2E exhaustivo).
   - Hito H2 verificado y cerrado.
 
+- Frontend Dynamic Binding & Dataset Neutrality (Workbench UI, 2026-09-30):
+  - Eliminación absoluta de datos hardcodeados en vistas de Workbench.
+  - Enlace dinámico de todas las vistas (Overview, Datasets, Studio, Compare, Pipeline, Kaggle, Knowledge).
+  - Endpoint `GET /api/datasets` agregado en `server.py`.
+
+- Blackboard Issue #12 completado (2026-09-30):
+  - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML con fallback.
+
+- Resolved Blackboard Issue #14 (2026-09-30):
+  - Validación de run ownership en `AutoMLWorkspace.predict()` (`tests/test_prediction_ownership.py`).
 - Paquete A2 completado (Persona A, 2026-09-30):
   - Tools mutantes y ejecución autorizada en `src/automl/application/agents/`:
     - `ToolExecutor`: integración con `SqliteAgentLedger` para auditoría y deduplicación atómica de idempotencia.

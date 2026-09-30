@@ -66,17 +66,57 @@ class App {
       });
 
       if (overview && overview.workspace) {
-        document.getElementById("workspaceLabel").textContent = overview.workspace;
+        const wsEl = document.getElementById("workspaceLabel");
+        if (wsEl) wsEl.textContent = overview.workspace;
+      }
+
+      // Dynamic Project Name Label
+      const projectEl = document.getElementById("projectNameLabel");
+      if (projectEl) {
+        if (runs && runs.length && runs[0].dataset_name && runs[0].dataset_name !== "-") {
+          projectEl.textContent = `${runs[0].dataset_name} (${runs[0].id})`;
+        } else if (overview && overview.recent_datasets && overview.recent_datasets.length) {
+          projectEl.textContent = overview.recent_datasets[0].name;
+        } else {
+          projectEl.textContent = "AutoML Workspace";
+        }
+      }
+
+      // Dynamic Kaggle Nav Item & Badge
+      const kaggleLabel = document.getElementById("kaggleNavLabel");
+      const kaggleBadge = document.getElementById("kaggleNavBadge");
+      if (kaggleLabel) {
+        if (runs && runs.length && runs[0].dataset_name && runs[0].dataset_name !== "-") {
+          kaggleLabel.textContent = runs[0].dataset_name;
+        } else if (overview && overview.recent_datasets && overview.recent_datasets.length) {
+          kaggleLabel.textContent = overview.recent_datasets[0].name;
+        } else {
+          kaggleLabel.textContent = "Kaggle & Submissions";
+        }
+      }
+      if (kaggleBadge) {
+        if (runs && runs.length && runs[0].best_score != null) {
+          kaggleBadge.textContent = Number(runs[0].best_score).toFixed(4);
+        } else if (overview && overview.best_score) {
+          kaggleBadge.textContent = Number(overview.best_score).toFixed(4);
+        } else {
+          kaggleBadge.textContent = "—";
+        }
       }
 
       const isAnyRunning = (runs || []).some(r => r.status === "RUNNING");
       const statusBadge = document.getElementById("globalStatusBadge");
+      const sysHw = document.getElementById("sysHardwareHeader");
+      if (sysHw) {
+        sysHw.textContent = isAnyRunning ? "AutoML Training Folds Active" : "AutoML Engine Ready";
+      }
+
       if (statusBadge) {
         if (isAnyRunning) {
           statusBadge.className = "badge-sys px-2.5 py-0.5 rounded-full font-mono font-semibold flex items-center space-x-1.5";
           statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>● RUNNING</span>`;
         } else {
-          const lastStatus = runs && runs[0] ? runs[0].status : "COMPLETED";
+          const lastStatus = runs && runs[0] ? runs[0].status : "READY";
           statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-full font-mono font-semibold flex items-center space-x-1.5";
           statusBadge.innerHTML = `<span>● ${lastStatus}</span>`;
         }
