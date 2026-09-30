@@ -12,6 +12,15 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
  
 ## Completed
  
+- Paquete A0 completado (Persona A, 2026-09-30):
+  - Definición de contratos de dominio en `src/automl/domain/agents/`: `AgentBudget`, `Hypothesis`, `ToolEffect`, `AgentPermission`, `PolicyDecisionType`, `ApprovalStatus`, `OperationStatus`, `ToolErrorCode`. Hexagonalmente puro, sin librerías externas.
+  - DTOs de aplicación en `src/automl/application/agents/contracts.py`: `ToolDefinition`, `ToolCallContext`, `ToolInvocation`, `ToolResult`, `ToolError`, `PolicyDecision`, `ApprovalRequest`, `OperationRecord`, `AgentContext`, `AgentSessionState`.
+  - Puerto de auditoría y persistencia `AgentLedgerPort` en `src/automl/application/agents/ports.py`.
+  - Evaluador de políticas `PolicyEvaluator` con defaults finitos, control de permisos, whitelist/blacklist de modelos, reservas presupuestarias y función criptográfica `compute_arguments_hash` en `src/automl/application/agents/policy.py`.
+  - Schemas canónicos `TOOL_SCHEMAS` para las 11 tools del catálogo inicial y validador puro sin dependencias en `src/automl/application/agents/schemas.py`.
+  - Ledger transaccional SQLite `SqliteAgentLedger` en `src/automl/infrastructure/database/sqlite_agent_ledger.py` con garantía de idempotencia `BEGIN IMMEDIATE`.
+  - Fixtures de contrato compartidas para Persona B en `tests/fixtures/agentic/fixtures_v09.py`.
+  - Suite de pruebas de contrato en `tests/test_v09_agent_contracts.py` (11 tests pasando, 100% de cobertura en módulos nuevos, suite global 242 tests pasando, 87.66% cobertura).
 - Guía de entrada (2026-09-30): `docs/features/agentic-system/README.md` explica elección A/B, orden de lectura, primera entrega A0/B0 y mensajes de asignación. Enlazada desde planes y TASKS; roles todavía sin personas asignadas y H0 pendiente.
 - Plan operativo para dos personas (2026-09-30): `docs/features/agentic-system/two-person-plan.md` asigna A a contratos/aplicación/persistencia/especialistas y B a MCP/CLI/CI/orquestación. Define paquetes A0–A5/B0–B5, integración por hito, propiedad de archivos/tests y primera entrega H2.
 - Revisión del plan agéntico (2026-09-30): diseño ampliado en `docs/features/agentic-system/plan.md` con separación dominio/aplicación/adaptadores, catálogo explícito, contratos versionados, límites estrictos, aprobación persistente, ledger/idempotencia, recuperación, MCP stdio/HTTP y hitos H0–H5 con propietarios y pruebas.
