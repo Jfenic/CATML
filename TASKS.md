@@ -90,3 +90,20 @@ Los hitos describen el núcleo implementado; consultar [alcance y limitaciones](
 - [x] Integrate real model/fold progress, cooperative controls, durable errors/retries, background Workbench activity and CLI/HTTP parity.
 - [x] Document operation scope, Linux/macOS lease, checkpoint recovery and partial OOF restart in spec and ADR 003.
 - [x] Final validation: 229 Python tests passed, 86.31% coverage; 4 JavaScript adapter tests, CLI help/task catalog, 21 Markdown file-link checks and diff checks passed. Prepared for an independent draft PR against main.
+
+
+## Workbench con datos reales — pausado por el usuario, 2026-09-30
+
+Rama: `feat/workbench-live-experiments`. Checkout aislado: `/tmp/catml-ui-pr`. Basada en `feat/persistent-job-queue` (PR #17); incorpora la corrección y regresiones del listado de trials de PR #19. **Implementación en curso, no lista para fusionar ni aplicada al servidor visual.**
+
+- [x] Auditar el workspace S6E9: al consultar, ambos jobs del usuario estaban completados; 6 experimentos y 15 trials, ningún job activo. La UI mostraba CatBoost, scores, recursos y logs de demostración sin respaldo en esos registros.
+- [x] Preparar Overview/Studio con selección de run/experimento, trials/parámetros, validación registrada, jobs asociados y eventos persistidos.
+- [x] Preparar sincronización central de snapshots, estados vacíos/error, controles de jobs reales, comparación simple y perfil de dataset guardado.
+- [x] Preparar creación de experimentos con plugins compatibles y submissions con rutas editables; retirar controles ficticios de presupuesto, promoción y envío a Kaggle. Agente/Knowledge/editor DAG aparecen como pendientes de integración.
+- [ ] Revisar el resultado visual y el DOM, foco/selección durante polling y lifecycle de vistas/modales. No hay todavía comprobación completa de navegador.
+- [ ] Revisar mejor-score para métricas de minimización y exclusión de trials fallidos en los endpoints de resumen/experimentos; evitar comparaciones globales entre métricas distintas.
+- [ ] Añadir pruebas Python del query/endpoint de eventos y datos reales, revisar el conteo/ejecución de las nuevas pruebas Node y completar formateo de JavaScript.
+- [ ] Ejecutar toda la suite con cobertura ≥85%, pruebas frontend, enlaces/documentación y diff; no atribuir a esta rama las validaciones previas de PR #17/#19.
+- [ ] Actualizar spec/ADRs si procede, sincronizar con los PR aprobados, publicar PR independiente y reiniciar la página solo después de validar.
+
+El servidor actual permanece en `http://localhost:8080`, usando `/tmp/catml-kaggle-preview` (cola validada + fix de trials). No reemplazarlo por la interfaz WIP sin completar los pasos anteriores.

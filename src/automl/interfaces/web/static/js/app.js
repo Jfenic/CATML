@@ -5,6 +5,7 @@
 import { store } from "./store.js";
 import { bus } from "./bus.js";
 import { api } from "./api.js";
+import { WorkspaceSync } from "./workspace_sync.js";
 import { JobsPanel } from "./views/jobs.js";
 
 import { OverviewView } from "./views/overview.js";
@@ -24,6 +25,7 @@ class App {
     this.agentDrawerContainer = document.getElementById("agentDrawer");
     this.modalContainer = document.getElementById("modalContainer");
 
+    this.sync = new WorkspaceSync(api, store);
     this.agentDrawer = new AgentDrawer();
     this.newExperimentModal = new NewExperimentModal();
   }
@@ -50,28 +52,16 @@ class App {
 
     // Initial render
     this._routeTo(store.getState().currentNav);
+    this.sync.start();
+    store.subscribe(state => {
+      document.getElementById("workspaceLabel").textContent = state.overview?.workspace || "Sin conexión";
+      document.getElementById("projectLabel").textContent = state.runs.find(run => run.id === state.activeRunId)?.dataset_name || "Sin dataset";
+      document.getElementById("backgroundStatus").textContent = `${state.jobs.filter(job => ["running", "pause_requested", "cancel_requested"].includes(job.status)).length} trabajos en ejecución`;
+    });
+    bus.emit("workspace:refresh");
   }
 
-  async _fetchInitialState() {
-    try {
-      const [overview, runs] = await Promise.all([
-        api.getOverview().catch(() => null),
-        api.getRuns().catch(() => []),
-      ]);
-
-      store.setState({
-        overview,
-        runs,
-        activeRunId: runs.length ? runs[0].id : null,
-      });
-
-      if (overview && overview.workspace) {
-        document.getElementById("workspaceLabel").textContent = overview.workspace;
-      }
-    } catch (e) {
-      console.warn("Could not load initial server state, using offline defaults:", e);
-    }
-  }
+  async _fetchInitialState() { await this.sync.refresh(); }
 
   _bindNavigation() {
     document.querySelectorAll(".nav-item").forEach(item => {
@@ -97,6 +87,7 @@ class App {
   }
 
   _bindGlobalEvents() {
+    bus.on("workspace:refresh", () => this.sync.refresh());
     bus.on("modal:new-experiment", () => {
       this.newExperimentModal.mount(this.modalContainer);
     });

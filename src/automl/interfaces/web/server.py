@@ -26,11 +26,13 @@ from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
     GetDatasetProfileQuery,
     GetLeaderboardQuery,
+    GetExperimentTrialsQuery,
     GetTaskPlanQuery,
     ListExperimentsQuery,
     ListModelsQuery,
     ListPluginsQuery,
     GetOOFResultQuery,
+    ListRunEventsQuery,
 )
 
 
@@ -145,13 +147,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if ds and ds.name not in [d["name"] for d in recent_datasets]:
                     recent_datasets.append({"id": ds.id, "name": ds.name, "path": ds.path, "target": ds.target_column})
 
-            # CATML activity feed (explanations, rule applications, validations)
-            activity_feed = [
-                {"timestamp": "Reciente", "level": "intel", "message": "Planner propuso CatBoost HPO por densidad categórica moderada."},
-                {"timestamp": "Reciente", "level": "action", "message": "TargetAdapter normalizó etiquetas binarias para XGBoost y LightGBM."},
-                {"timestamp": "Reciente", "level": "rule", "message": "Regla 'Proponer ≠ Aceptar': rechazadas 17 interacciones por colinealidad."},
-                {"timestamp": "Reciente", "level": "success", "message": f"Mejor CV actual: {best_score:.5f} ({best_model})."},
-            ]
+            activity_feed = qry.dispatch(ListRunEventsQuery(limit=20))
 
             self._send_json({
                 "platform": "CATML AutoML Platform",
@@ -164,6 +160,11 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "recent_datasets": recent_datasets,
                 "activity_feed": activity_feed,
             })
+            return
+
+        elif path == "/api/events":
+            run_id = query_params.get("run_id", [None])[0]
+            self._send_json(qry.dispatch(ListRunEventsQuery(run_id)))
             return
 
         elif path == "/api/runs":
@@ -182,6 +183,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "task_type": r.config.task_type,
                     "target": r.config.target,
                     "metric": r.config.metric,
+                    "validation_strategy": r.config.validation_strategy,
                     "status": r.status.value,
                     "best_score": lb[0]["score"] if lb else None,
                     "best_model": lb[0]["model_id"] if lb else None,
@@ -200,6 +202,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             result = []
             for e in exps:
                 trials = ws.repository.list_trial_results(e.id)
+                parameters = {t["trial_id"]: t["parameters"]
+                              for t in qry.dispatch(GetExperimentTrialsQuery(e.id))}
                 best_trial = max(trials, key=lambda t: t.primary_score) if trials else None
                 result.append({
                     "id": e.id,
@@ -213,6 +217,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "trials_count": len(trials),
                     "best_score": best_trial.primary_score if best_trial else None,
                     "metric": e.metric,
+                    "validation_strategy": e.validation_strategy,
                     "created_by": e.created_by,
                     "trials": [
                         {
@@ -221,7 +226,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "score": round(t.primary_score, 5),
                             "time_s": round(t.training_time_seconds, 2),
                             "succeeded": t.succeeded,
-                            "params": t.parameters,
+                            "failure_reason": t.failure_reason,
+                            "params": parameters.get(t.trial_id, {}),
                         }
                         for t in trials
                     ],

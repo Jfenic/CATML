@@ -7,6 +7,11 @@ export class WorkbenchStore {
     this._state = {
       currentNav: "overview",
       activeRunId: null,
+      activeExperimentId: null,
+      snapshotRunId: null,
+      jobs: [],
+      events: [],
+      lastUpdated: null,
       activeDatasetId: null,
       overview: null,
       runs: [],

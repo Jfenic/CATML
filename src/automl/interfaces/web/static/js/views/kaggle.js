@@ -1,219 +1,33 @@
-/**
- * KaggleView — Dedicated Kaggle Competition Workbench
- * Playground Series S6E9, Pre-flight validation checklist, CV vs LB tracking & Submission generation.
- */
 import { store } from "../store.js";
-import { bus } from "../bus.js";
 import { api } from "../api.js";
-
+import { bus } from "../bus.js";
+import { escapeHtml as e, selectedRun, score, card, empty, button } from "../ui.js";
 export class KaggleView {
-  constructor() {
-    this.container = null;
-    this.isSubmitting = false;
-  }
-
   mount(container) {
     this.container = container;
-    this.render();
-  }
-
-  render() {
-    this.container.innerHTML = `
-      <div class="space-y-6">
-        <!-- Competition Header -->
-        <div class="workbench-card p-5 bg-gradient-to-r from-slate-900 to-indigo-950/40 border-indigo-900/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center space-x-3">
-            <span class="text-2xl">🏆</span>
-            <div>
-              <div class="flex items-center space-x-2">
-                <h2 class="text-lg font-bold text-slate-100">Kaggle Playground Series S6E9</h2>
-                <span class="badge-sys text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold">Active Competition</span>
-              </div>
-              <p class="text-xs text-slate-400 mt-0.5">Predicting Electric Vehicle Purchases • Target: Will_Buy_EV • Evaluation Metric: ROC-AUC</p>
-            </div>
-          </div>
-
-          <div class="flex items-center space-x-6 text-right">
-            <div>
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Local Best CV</div>
-              <div class="text-xl font-bold font-mono-num text-emerald-400">0.94621</div>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Public LB Best</div>
-              <div class="text-xl font-bold font-mono-num text-indigo-400">0.94118</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Left: Submissions History & CV vs LB Tracking -->
-          <div class="lg:col-span-7 workbench-card overflow-hidden flex flex-col">
-            <div class="workbench-panel-header flex items-center justify-between">
-              <span class="text-sm font-semibold text-slate-200">Submissions & Public Leaderboard Tracker</span>
-              <span class="text-xs text-slate-400">Parity verified</span>
-            </div>
-
-            <div class="overflow-x-auto flex-1">
-              <table class="w-full wb-table text-left">
-                <thead>
-                  <tr>
-                    <th>Experiment</th>
-                    <th>Local CV</th>
-                    <th>Public LB</th>
-                    <th>Delta CV ↔ LB</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="font-medium text-slate-200">#1 Baseline LightGBM</td>
-                    <td class="font-mono text-slate-300">0.94110</td>
-                    <td class="font-mono text-slate-200">0.94102</td>
-                    <td class="font-mono text-xs text-emerald-400">-0.00008 (Exact parity)</td>
-                    <td><span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-semibold">VERIFIED</span></td>
-                  </tr>
-                  <tr>
-                    <td class="font-medium text-slate-200">#2 Optuna Tuned (5 trials)</td>
-                    <td class="font-mono text-slate-300">0.94125</td>
-                    <td class="font-mono text-slate-200">0.94118</td>
-                    <td class="font-mono text-xs text-emerald-400">-0.00007</td>
-                    <td><span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-semibold">VERIFIED</span></td>
-                  </tr>
-                  <tr>
-                    <td class="font-medium text-slate-200">#3 Interactions (22 feat)</td>
-                    <td class="font-mono text-slate-300">0.94093</td>
-                    <td class="font-mono text-slate-400">0.94061</td>
-                    <td class="font-mono text-xs text-rose-400">-0.00032 (Noise)</td>
-                    <td><span class="badge-err text-[10px] px-2 py-0.5 rounded font-mono font-semibold">REJECTED</span></td>
-                  </tr>
-                  <tr class="bg-indigo-950/20">
-                    <td class="font-bold text-indigo-300">#4 Ensemble #7 (CatBoost+LGBM)</td>
-                    <td class="font-mono font-bold text-emerald-400">0.94621</td>
-                    <td class="font-mono text-slate-400">—</td>
-                    <td class="font-mono text-xs text-indigo-400">Ready to Submit</td>
-                    <td><span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-semibold">PENDING LB</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Right: Pre-Flight Submission Validation Checklist -->
-          <div class="lg:col-span-5 workbench-card p-5 space-y-5 flex flex-col justify-between">
-            <div class="space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Submission Pre-Flight Validation</span>
-                <span class="badge-gain text-xs px-2.5 py-0.5 rounded font-mono font-bold">5/5 Passed</span>
-              </div>
-
-              <!-- Checklist Items -->
-              <div class="space-y-2 text-xs font-mono">
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ ID Column preserved ('id')</span>
-                  <span class="text-emerald-400 font-bold">PASS</span>
-                </div>
-
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Exact Test Count: 286,571 rows</span>
-                  <span class="text-emerald-400 font-bold">286,571 / 286,571</span>
-                </div>
-
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Probabilities bounded ∈ [0, 1]</span>
-                  <span class="text-emerald-400 font-bold">[0.0001, 0.9998]</span>
-                </div>
-
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Zero missing / NaN values</span>
-                  <span class="text-emerald-400 font-bold">0 nulls</span>
-                </div>
-
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Aligned with sample_submission.csv</span>
-                  <span class="text-emerald-400 font-bold">MATCH</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="space-y-2 pt-2 border-t border-slate-800">
-              <label class="flex items-center gap-2 text-xs text-slate-300">
-                <input type="checkbox" id="useOOF" /> Promediar 5 folds (OOF)
-              </label>
-              <button id="btnGenerateSubmission" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20">
-                <span>⚡ Generate & Validate submission.csv</span>
-              </button>
-
-              <button id="btnSubmitKaggleCLI" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
-                <span>🚀 Submit to Kaggle via Official CLI</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    this._bindEvents();
-  }
-
-  _bindEvents() {
-    this.container.querySelector("#btnGenerateSubmission")?.addEventListener("click", async () => {
-      const btn = this.container.querySelector("#btnGenerateSubmission");
-      if (!btn) return;
-      const originalText = btn.innerHTML;
-
+    const run = selectedRun(store.getState());
+    const folder = run?.dataset_path?.replace(/[^/]+$/, "") || "";
+    container.innerHTML = `<div class="space-y-5">${card("Predicciones y submission", `<p class="text-sm text-slate-400">Ejecución seleccionada: ${e(run?.dataset_name || "Ninguna")}. Puedes revisar los archivos antes de enviarlos a Kaggle.</p><form id="submissionForm" class="space-y-4">${[["test_dataset_path", "CSV de test", folder + "test.csv"], ["template_path", "Plantilla (opcional)", folder + "sample_submission.csv"], ["output_path", "Archivo de salida", folder + "submission_workbench.csv"]].map(([name,label,value]) => `<label class="block text-sm">${label}<input name="${name}" value="${e(value)}" ${name !== "template_path" ? "required" : ""} class="block w-full mt-2 p-2 bg-slate-950 border border-slate-700 rounded-lg"></label>`).join("")}<label class="block text-sm"><input type="checkbox" name="oof"> Evaluar OOF binario antes de generar</label><label class="block text-sm">Folds OOF<input name="folds" type="number" min="2" value="5" class="ml-3 w-20 p-2 bg-slate-950 border border-slate-700 rounded"></label>${button("Generar en segundo plano", `type="submit" ${run ? "" : "disabled"}`)}<p id="submissionMessage" role="status"></p></form>`)}<div id="submissionResults"></div><p class="text-xs text-slate-400">El envío a Kaggle y su puntuación pública no están integrados. No se muestran puntuaciones ni comprobaciones inventadas.</p></div>`;
+    container.querySelector("#submissionForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.target), submit = event.target.querySelector("button"), message = container.querySelector("#submissionMessage");
+      const payload = { test_dataset_path: form.get("test_dataset_path"), output_path: form.get("output_path"), predict_proba: true };
+      if (form.get("template_path")) payload.template_path = form.get("template_path");
+      if (form.get("oof")) payload.folds = Number(form.get("folds"));
+      submit.disabled = true;
       try {
-        const state = store.getState();
-        const activeRun = state.runs[0];
-        if (!activeRun) {
-          alert("No active run found.");
-          return;
-        }
-
-        btn.disabled = true;
-        btn.innerHTML = `
-          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" viewBox="0 0 24 24" fill="none">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span>⏳ Trabajo en cola...</span>
-        `;
-
-        const res = await api.generateSubmission({
-          run_id: activeRun.id,
-          test_dataset_path: "competitions/playground-series-s6e9/data/test.csv",
-          output_path: "competitions/playground-series-s6e9/submission_workbench.csv",
-          template_path: "competitions/playground-series-s6e9/data/sample_submission.csv",
-          predict_proba: true,
-          folds: this.container.querySelector("#useOOF")?.checked ? 5 : undefined,
-        }, job => {
-          btn.textContent = `${job.status}: ${job.completed}/${job.total || "?"} · ${job.message}`;
-        });
-
-        btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
-        btn.innerHTML = `<span>✓ ¡Generado con éxito! (${res.row_count} filas)</span>`;
-
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.className = "w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20";
-          btn.innerHTML = originalText;
-        }, 3000);
-
-        const oofInfo = res.oof ? `\nOOF ROC-AUC: ${res.oof.score.toFixed(6)}\nDelta vs baseline: ${res.oof.delta.toFixed(6)}` : "";
-        alert(`Submission Generated Successfully!\nRows: ${res.row_count}\nOutput: ${res.output_path}${oofInfo}`);
-      } catch (err) {
-        alert("Error generating submission: " + err.message);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-      }
+        const result = await api.submitJob(payload.folds ? "oof" : "submission", run.id, payload);
+        message.textContent = `Trabajo enviado: ${result.job_id}. Sigue su estado en el panel Trabajos.`;
+        bus.emit("workspace:refresh");
+      } catch (error) { message.textContent = error.message; }
+      finally { submit.disabled = false; }
     });
-
-    this.container.querySelector("#btnSubmitKaggleCLI")?.addEventListener("click", () => {
-      alert("Comando CLI preparado:\n\nkaggle competitions submit -c playground-series-s6e9 -f submission.csv -m 'CATML Ensemble #7'\n\nEjecutando en background mediante CommandBus...");
-    });
+    this.unsubscribe = store.subscribe(() => this.renderResults(run?.id));
+    this.renderResults(run?.id);
   }
-
-  destroy() {
-    this.container = null;
+  renderResults(runId) {
+    const results = store.getState().jobs.filter(job => job.run_id === runId && job.status === "completed" && ["oof", "submission"].includes(job.operation));
+    this.container.querySelector("#submissionResults").innerHTML = card("Archivos generados por trabajos completados", results.length ? results.map(job => `<article class="border-b border-slate-800 p-3"><p class="text-sm break-all">${e(job.result.output_path)}</p><p class="text-xs text-slate-400">${job.result.row_count} filas · ${e(job.updated_at)}</p>${job.result.oof ? `<p>OOF ${e(job.result.oof.metric)}: ${score(job.result.oof.score)} · delta frente al baseline: ${score(job.result.oof.delta)}</p>` : ""}</article>`).join("") : empty("Todavía no hay submissions terminadas en la cola de esta ejecución."));
   }
+  destroy() { this.unsubscribe?.(); this.container = null; }
 }

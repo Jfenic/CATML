@@ -219,3 +219,35 @@ def test_web_dashboard_dataset_and_experiment_flow(running_web_server):
         assert resp.status == 200
         resume_res = json.loads(resp.read().decode("utf-8"))
         assert resume_res["state"] == "RUNNING"
+
+
+@pytest.mark.parametrize("with_trial", [True, False])
+def test_experiments_endpoint_reads_parameters_from_persisted_trial(running_web_server, with_trial):
+    from automl.application.bootstrap import build_application
+    from automl.application.commands.workspace_commands import CreateExperimentCommand
+    from automl.application.queries.workspace_queries import GetExperimentTrialsQuery
+    from automl.domain.experiments.trial import Trial, TrialResult
+
+    workspace, commands, queries = build_application(AutoMLWebHandler.workspace_dir)
+    dataset = workspace.register_dataset("persisted", running_web_server["csv_path"], "target")
+    run = workspace.create_run(dataset, metric="roc_auc")
+    experiment = commands.dispatch(CreateExperimentCommand(run.id, "persisted", ["feat_a"],
+                                  model_ids=["logistic_regression"]))
+    if with_trial:
+        workspace.repository.save_trial(Trial(id="trial_persisted", experiment_id=experiment.id,
+                                             model_id="logistic_regression", parameters={"C": 0.5}))
+    workspace.repository.save_trial_result(TrialResult(trial_id="trial_persisted", experiment_id=experiment.id,
+                                           model_id="logistic_regression", primary_metric="roc_auc", primary_score=0.81))
+    expected = {"C": 0.5} if with_trial else {}
+    events = workspace.repository.list_events()
+    dto = queries.dispatch(GetExperimentTrialsQuery(experiment.id))
+    assert dto[0]["parameters"] == expected
+    if with_trial:
+        dto[0]["parameters"]["C"] = 99
+        assert workspace.repository.get_trial("trial_persisted").parameters == expected
+    assert workspace.repository.list_events() == events
+    with urlopen(f'{running_web_server["base_url"]}/api/experiments?run_id={run.id}') as response:
+        assert response.status == 200
+        result = json.load(response)
+    assert result[0]["trials"][0]["params"] == expected
+    assert result[0]["best_score"] == 0.81

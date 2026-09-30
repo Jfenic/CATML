@@ -37,6 +37,10 @@ export class CATMLApiClient {
   }
 
   // GET queries
+  async getEvents(runId) {
+    return this._fetch(`/api/events?run_id=${encodeURIComponent(runId)}`);
+  }
+
   async getOverview() {
     return this._fetch("/api/overview");
   }

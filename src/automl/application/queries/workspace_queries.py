@@ -112,3 +112,9 @@ class GetPipelineExecutionOrderQuery:
 class GetOOFResultQuery:
     run_id: str
     experiment_id: str
+
+
+@dataclass(frozen=True)
+class ListRunEventsQuery:
+    run_id: str | None = None
+    limit: int = 50

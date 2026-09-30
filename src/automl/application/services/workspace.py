@@ -1025,6 +1025,7 @@ class AutoMLWorkspace:
 
     def get_experiment_trials(self, experiment_id: str) -> list[dict]:
         results = self.repository.list_trial_results(experiment_id)
+        trials = {r.trial_id: self.repository.get_trial(r.trial_id) for r in results}
         return [
             {
                 "trial_id": r.trial_id,
@@ -1035,6 +1036,7 @@ class AutoMLWorkspace:
                 "training_time_s": round(r.training_time_seconds, 3),
                 "succeeded": r.succeeded,
                 "failure_reason": r.failure_reason,
+                "parameters": dict(trials[r.trial_id].parameters) if trials[r.trial_id] else {},
             }
             for r in results
         ]

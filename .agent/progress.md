@@ -8,7 +8,7 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
 - Design System (`css/workbench.css`): Dense technical dark theme with semantic color system (🔵 system/execution, 🟢 proven gain, 🟠 warning/waiting, 🔴 error/stop, 🟣 CATML intelligence).
 - CLI Command: `automl ui [--port PORT] [--workspace WORKSPACE]`.
 - Validation results: see dated entries below; run the entire suite with `--cov-fail-under=85`.
-- Current: OOF integrated into main through PR #16; persistent jobs implemented and validated on `feat/persistent-job-queue`, prepared for review. Independent benchmark evidence remains pending.
+- Current: user explicitly paused live Workbench UI improvements until tomorrow. Resume `feat/workbench-live-experiments` in `/tmp/catml-ui-pr`; implementation is WIP and not served. See the dated handoff below.
  
 ## Completed
  
@@ -105,3 +105,39 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
 - Added failed-model retry regression: retry refits failed/pending models and reuses successful results rather than repeatedly skipping failed trials at the final checkpoint.
 - Final validation: 229 Python tests passed, 86.31% coverage, one existing sklearn deprecation warning. Four Node adapter tests passed; checked CLI job help/task catalog, all 21 Markdown file links, changed JavaScript syntax and diff whitespace. Original checkout still contains only its eight pre-existing modified files.
 - Prepared an independent draft PR against main. No merges performed.
+
+
+## Handoff — Workbench real-data UI (user pause), 2026-09-30
+
+### Request and findings
+
+User wants easier experiment inspection and removal of hardcoded solutions/results. HTTP audit on the running S6E9 workspace found two user jobs completed, zero active jobs, 6 experiments and 15 trials; models LightGBM/XGBoost. Existing views displayed fabricated CatBoost HPO, scores, CPU/RAM, trial counts, charts, promotion and Kaggle submission actions. Scope now includes making operative views truthful; do not silently restore demo defaults.
+
+### Location and implemented work
+
+- UI branch `feat/workbench-live-experiments`, worktree `/tmp/catml-ui-pr`, based on validated jobs branch `feat/persistent-job-queue` / PR #17. PR #17 CI was green on Python 3.10/3.12. Main refs last fetched before this work; check remote state tomorrow.
+- Applied the two source-file fixes and HTTP regressions from independent PR #19 (`93b83f8`), which makes persisted experiment parameters readable via the application query. Keep this dependency clear when creating the UI PR. No main merges performed.
+- Replaced large demo templates in Overview, Studio, Compare, Datasets, Kaggle and experiment modal with actual stored data, selected run/experiment, trials/parameters/validation, job progress/actions, editable submission paths and compatible plugin selection. Added shared `ui.js`, `views/live_view.js`, `workspace_sync.js`. Floating jobs panel consumes the central store; polling is owned by WorkspaceSync.
+- Knowledge, DAG editor UI and agent drawer now explicitly say integration is pending, rather than presenting fabricated results/actions. Backend capabilities are preserved. Static header no longer claims RUNNING, invented resource usage or a fixed Kaggle score.
+- Added ListRunEventsQuery, bootstrap registration and GET /api/events; overview activity reads stored events. Experiment/run responses include validation strategy and trial failure reasons.
+
+### Validation and known pending work
+
+- Python compilation, app.js syntax and `git diff --check` passed during implementation. Node command `node --test tests/js/*.test.mjs` exited 0, but reported only two file-level tests; inspect the new module loader and verify individual test cases actually execute before claiming frontend coverage.
+- Tools installed only in `/tmp/catml-ui-tools`: linkedom (DOM check) and prettier (formatting), without project dependencies. Installation completed. DOM/browser checks and formatting have not run.
+- Full Python suite/coverage **has not run on the UI branch**. Prior results belong to separate branches: jobs 229 passed / 86.31%; trial fix 198 passed / 86.22%.
+- Add events/real-data HTTP regressions, test snapshot selection/stale responses, modal/plugin/submission flows, empty/error states, and pause/resume interaction. Review focus/dropdowns during three-second refresh and async view destruction.
+- Review endpoint best-score handling for minimization metrics and failed trials. Do not compare unrelated metrics as one global best score. Remove remaining misleading legacy API preview claims if reachable; document any intentionally retained previews.
+- Complete clean formatting, documentation/spec and appropriate tests; open a scoped UI PR only after validation. No UI PR was opened before pause.
+
+### Running page and preserved user work
+
+- Current page: http://localhost:8080. Server was restarted from `/tmp/catml-kaggle-preview` with validated jobs code plus trial-list fix; the unfinished UI branch is not deployed. Server session 87979 (if still available). Existing workspace: `/home/fenic/top_project/CATML/.automl/s6e9_automl`.
+- Restart the current validated preview, if needed, from the original project directory:
+
+```bash
+PYTHONPATH=/tmp/catml-kaggle-preview/src /home/fenic/top_project/CATML/.venv/bin/python -u -m automl.interfaces.cli.main ui --port 8080 --workspace /home/fenic/top_project/CATML/.automl/s6e9_automl
+```
+
+- One worker per workspace: stop only the server we started before restarting; do not launch a second worker against the same DB. Preserve the user's runs/jobs and competition files. Original checkout remains on `feat/web-dashboard-ui` with its eight unrelated modified files; do not overwrite them.
+- User explicitly asked to stop until tomorrow. Only documentation/Git preservation performed after that request; resume implementation when requested.
