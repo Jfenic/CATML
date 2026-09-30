@@ -87,7 +87,10 @@ automl plugin list
 # 7. Generate Kaggle-ready submission matching exact template IDs and columns
 automl predict --run-id <RUN_ID> --test-dataset data/test.csv --template data/sample_submission.csv --proba --output submission.csv
 
-# 8. Run regression benchmark suite
+# 8. Evaluate binary OOF blending and generate a fold-averaged submission
+automl predict --workspace .automl/demo --run-id <RUN_ID> --test-dataset data/test.csv --folds 5 --models logistic_regression,random_forest --proba --output submission_oof.csv
+
+# 9. Run regression benchmark suite
 automl benchmark run
 ```
 

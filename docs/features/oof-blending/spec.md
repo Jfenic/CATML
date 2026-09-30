@@ -1,6 +1,6 @@
-# Propuesta: blending de predicciones out-of-fold
+# Blending de predicciones out-of-fold — primera versión
 
-Estado: pendiente. Consultar [TASKS.md](../../../TASKS.md). La opción `automl predict --folds` aún no existe.
+Estado: flujo inicial implementado para clasificación binaria con ROC-AUC. Consultar [TASKS.md](../../../TASKS.md). La evaluación independiente para promover un candidato sigue pendiente; este flujo no promueve automáticamente resultados.
 
 ## Objetivo
 
@@ -20,4 +20,37 @@ Comparar blending de modelos entrenados con cinco folds estratificados frente a 
 - Primera comparación: dos modelos individuales y su combinación, cinco folds por modelo, un trial por modelo/fold; sin HPO adicional. Registrar tiempo real y detenerse con el límite de recursos configurado antes de comenzar.
 - Pruebas de integridad: cobertura OOF exactamente una vez por fila, ausencia de fuga entre folds, orden de IDs, probabilidades válidas, reproducibilidad y persistencia de resultados.
 - Promoción: evidencia de mejora en evaluación independiente bajo el mismo presupuesto. Si no mejora, conservar el candidato y registrar el resultado sin promoverlo.
-- Integración futura: comandos y queries de aplicación, luego CLI y Workbench. Mantener compatibilidad con la predicción actual.
+- Integración: `GenerateOOFSubmissionCommand` retorna el ID del experimento; `GetOOFResultQuery` lee su informe sin entrenar ni escribir. CLI y Workbench despachan estos mismos buses. La predicción anterior sigue disponible sin `--folds`.
+
+## Uso y alcance actual
+
+```bash
+automl predict --workspace .automl/demo --run-id RUN_ID \
+  --experiment-id SOURCE_EXPERIMENT_ID --test-dataset data/test.csv \
+  --template data/sample_submission.csv --output submission_oof.csv \
+  --folds 5 --models logistic_regression,random_forest --proba --json
+```
+
+`--experiment-id` identifica el experimento fuente y su lista fija de columnas, no el nuevo experimento OOF. Sin esa opción se usa el experimento no OOF de un resultado exitoso del leaderboard. Sin `--models`, se toman hasta dos modelos individuales de la fuente; una fuente compuesta usa logistic regression y random forest. El primer modelo seleccionado es el baseline declarado antes de evaluar; se reutilizan parámetros de trials exitosos de la fuente cuando existen.
+
+El flujo acepta uno o dos modelos individuales con `predict_proba`, al menos dos folds y suficientes filas por clase. Los pesos son iguales y no se ajustan con OOF. `--proba` devuelve la probabilidad de la segunda clase ordenada, registrada como `positive_class`; sin esa opción se emiten etiquetas originales con umbral 0.5.
+
+El preprocesado de cada fold ajusta imputación, escalado y one-hot encoding exclusivamente con sus filas de entrenamiento. Las columnas son una hipótesis fija heredada: este flujo no recalcula selección supervisada ni target encoding. Deben proporcionarse columnas sin transformaciones previas que hayan usado el objetivo completo.
+
+El presupuesto predeterminado es 300 segundos de evaluación, configurable con `--oof-timeout`. Se comprueba en los límites de cada fit; no interrumpe un estimador en mitad de su entrenamiento. Pause/cancel abortan en esos límites, conservan el estado del run y registran el fallo; tras resume se inicia un nuevo experimento, sin reusar fits parciales.
+
+En el Workbench, marcar **Promediar 5 folds (OOF)** al generar la submission. El endpoint `POST /api/predict` acepta `folds`, `model_ids`, `experiment_id` y `max_seconds`; retorna el informe dentro de `oof`.
+
+## Artefactos y evidencia
+
+Cada experimento guarda `oof/<experiment_id>/oof.csv`, `test_predictions.csv` y `report.json`. El informe registra ROC-AUC individual y del blend, scores por fold, dispersión, delta frente al baseline, clases, parámetros, seeds, backend y versiones, hashes de datos/configuración/artefactos, tiempo y máximo de memoria del proceso cuando el sistema lo permite. Esta memoria es el máximo acumulado del proceso, no una medida aislada de cada fit.
+
+El resultado se referencia desde un `TrialResult` de `oof_blend` en SQLite. Las consultas reutilizan las probabilidades guardadas para el mismo test y rechazan cambios en los datos o artefactos. Para un test diferente hay que volver a ejecutar `--folds`; los modelos de cada fold no se serializan en esta versión.
+
+La comparación OOF sirve como evidencia diagnóstica bajo pesos fijos. No garantiza un delta positivo ni reemplaza el holdout independiente requerido para promoción. No se ha acreditado una mejora de score Kaggle.
+
+| Capacidad | Implementación / pruebas |
+| --- | --- |
+| Folds, probabilidades y blending | [motor OOF](../../../src/automl/engine/ensemble/oof.py), [tests](../../../tests/test_oof_blending.py) |
+| Persistencia, controles y consultas | [servicio de aplicación](../../../src/automl/application/services/oof_submission.py), [tests](../../../tests/test_oof_blending.py) |
+| Paridad CLI / HTTP | [CLI](../../../src/automl/interfaces/cli/main.py), [servidor](../../../src/automl/interfaces/web/server.py), [tests](../../../tests/test_oof_blending.py) |

@@ -23,6 +23,7 @@ from automl.application.commands.workspace_commands import (
     PlanAblationExperimentsCommand,
     PromoteCandidateFeatureSetCommand,
     GenerateSubmissionCommand,
+    GenerateOOFSubmissionCommand,
     ExecutePipelineCommand,
 )
 from automl.application.queries.workspace_queries import (
@@ -45,6 +46,7 @@ from automl.application.queries.workspace_queries import (
     PredictDatasetQuery,
     ValidatePipelineGraphQuery,
     GetPipelineExecutionOrderQuery,
+    GetOOFResultQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 
@@ -193,6 +195,8 @@ def register_handlers(
         ExecutePipelineCommand,
         lambda cmd: workspace.execute_pipeline(cmd.graph, cmd.inputs),
     )
+    command_bus.register(GenerateOOFSubmissionCommand, workspace.generate_oof_submission)
+    query_bus.register(GetOOFResultQuery, lambda q: workspace.get_oof_result(q.run_id, q.experiment_id))
 
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(

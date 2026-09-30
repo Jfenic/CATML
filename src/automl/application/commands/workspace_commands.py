@@ -160,3 +160,16 @@ class ExecutePipelineCommand:
     graph: Any
     inputs: dict[str, Any]
 
+
+@dataclass(frozen=True)
+class GenerateOOFSubmissionCommand:
+    run_id: str
+    test_dataset_path: str
+    output_path: str
+    folds: int = 5
+    model_ids: list[str] | None = None
+    experiment_id: str | None = None
+    id_column: str | None = None
+    template_path: str | None = None
+    predict_proba: bool = True
+    max_seconds: float = 300.0

@@ -1364,30 +1364,33 @@ class AutoMLWorkspace:
         if experiment is None:
             raise KeyError(f"Experiment '{target_experiment_id}' not found.")
 
-        feature_names = experiment.feature_names
-        from automl.engine.profiling.dataset_profiler import load_dataframe
-
-        train_df = load_dataframe(dataset.path)
-        X_train = train_df[feature_names]
-        y_train = train_df[dataset.target_column]
-
         test_df = load_dataframe(test_dataset_path)
-        missing_features = [f for f in feature_names if f not in test_df.columns]
-        if missing_features:
-            raise ValueError(f"Test dataset is missing required features: {missing_features}")
-        X_test = test_df[feature_names]
+        if experiment.validation_strategy == "oof":
+            from automl.application.services.oof_submission import cached_oof_predictions
+            raw_preds = cached_oof_predictions(self, run_id, experiment.id, test_dataset_path, predict_proba)
+        else:
+            feature_names = experiment.feature_names
 
-        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
-        preds = trainer.fit_and_predict(
-            X_train=X_train,
-            y_train=y_train,
-            X_test=X_test,
-            model_id=target_model_id,
-            task_type=dataset.task_type,
-            parameters=parameters,
-            predict_proba=predict_proba,
-        )
-        raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)
+            train_df = load_dataframe(dataset.path)
+            X_train = train_df[feature_names]
+            y_train = train_df[dataset.target_column]
+
+            missing_features = [f for f in feature_names if f not in test_df.columns]
+            if missing_features:
+                raise ValueError(f"Test dataset is missing required features: {missing_features}")
+            X_test = test_df[feature_names]
+
+            trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
+            preds = trainer.fit_and_predict(
+                X_train=X_train,
+                y_train=y_train,
+                X_test=X_test,
+                model_id=target_model_id,
+                task_type=dataset.task_type,
+                parameters=parameters,
+                predict_proba=predict_proba,
+            )
+            raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)
 
         if template_path is not None:
             import pandas as pd
@@ -1450,6 +1453,13 @@ class AutoMLWorkspace:
             trial_id=trial_id,
             predict_proba=predict_proba,
         )
+        return self._write_submission(run_id, test_dataset_path, output_path, preds,
+                                      id_column, template_path, predict_proba)
+
+    def _write_submission(
+        self, run_id, test_dataset_path, output_path, preds,
+        id_column=None, template_path=None, predict_proba=False,
+    ) -> dict[str, Any]:
         run = self._get_run(run_id)
         dataset = self._get_dataset(run.dataset_id)
 
@@ -1550,6 +1560,14 @@ class AutoMLWorkspace:
             "predict_proba": predict_proba,
             "template_used": template_used,
         }
+
+    def generate_oof_submission(self, command) -> str:
+        from automl.application.services.oof_submission import generate_oof_submission
+        return generate_oof_submission(self, command)
+
+    def get_oof_result(self, run_id: str, experiment_id: str) -> dict:
+        from automl.application.services.oof_submission import get_oof_report
+        return get_oof_report(self, run_id, experiment_id)
 
     def validate_pipeline_graph(self, graph: PipelineGraph) -> None:
         """Validates that a pipeline graph is well-formed, acyclic, and modality-consistent."""

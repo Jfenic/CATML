@@ -14,6 +14,7 @@ from automl.application.commands.workspace_commands import (
     CloneRunCommand,
     CreateExperimentCommand,
     GenerateSubmissionCommand,
+    GenerateOOFSubmissionCommand,
     OptimizeExperimentCommand,
     PauseRunCommand,
     ResumeRunCommand,
@@ -27,6 +28,7 @@ from automl.application.queries.workspace_queries import (
     ListExperimentsQuery,
     ListModelsQuery,
     ListPluginsQuery,
+    GetOOFResultQuery,
 )
 
 
@@ -695,15 +697,25 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     self._send_json({"error": "run_id and test_dataset_path are required"}, HTTPStatus.BAD_REQUEST)
                     return
 
-                sub_res = cmd.dispatch(
-                    GenerateSubmissionCommand(
-                        run_id=run_id,
-                        test_dataset_path=test_dataset_path,
-                        output_path=output_path,
-                        template_path=template_path,
-                        predict_proba=predict_proba,
+                if payload.get("folds") is not None:
+                    experiment_id = cmd.dispatch(GenerateOOFSubmissionCommand(
+                        run_id=run_id, test_dataset_path=test_dataset_path,
+                        output_path=output_path, template_path=template_path,
+                        id_column=payload.get("id_column"), predict_proba=predict_proba,
+                        experiment_id=payload.get("experiment_id"), folds=payload["folds"],
+                        model_ids=payload.get("model_ids"), max_seconds=payload.get("max_seconds", 300.0),
+                    ))
+                    sub_res = qry.dispatch(GetOOFResultQuery(run_id=run_id, experiment_id=experiment_id))
+                else:
+                    sub_res = cmd.dispatch(
+                        GenerateSubmissionCommand(
+                            run_id=run_id,
+                            test_dataset_path=test_dataset_path,
+                            output_path=output_path,
+                            template_path=template_path,
+                            predict_proba=predict_proba,
+                        )
                     )
-                )
 
                 self._send_json({
                     "status": "success",
@@ -711,6 +723,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "row_count": sub_res.get("row_count"),
                     "id_column": sub_res.get("id_column"),
                     "target_column": sub_res.get("target_column"),
+                    "oof": sub_res if payload.get("folds") is not None else None,
                     "checklist": {
                         "id_column_valid": True,
                         "row_count": sub_res.get("row_count"),

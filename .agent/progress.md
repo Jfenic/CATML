@@ -8,7 +8,7 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
 - Design System (`css/workbench.css`): Dense technical dark theme with semantic color system (🔵 system/execution, 🟢 proven gain, 🟠 warning/waiting, 🔴 error/stop, 🟣 CATML intelligence).
 - CLI Command: `automl ui [--port PORT] [--workspace WORKSPACE]`.
 - Validation results: see dated entries below; run the entire suite with `--cov-fail-under=85`.
-- Next: Stratified 5-Fold OOF Predictor (`--folds 5`) to compare fold blending against a fixed baseline under the documented evaluation protocol.
+- Current: binary OOF fold blending implemented on `feat/oof-prediction-blending`; independent benchmark evidence remains pending.
  
 ## Completed
  
@@ -47,7 +47,7 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
  
 ## Next
  
-1. OOF prediction blending: [protocol](../docs/features/oof-blending/spec.md).
+1. Independent OOF benchmark and promotion evaluation: [protocol](../docs/features/oof-blending/spec.md).
 2. Remaining tabular plugins and V0.8–V1.0: [current backlog](../TASKS.md).
 
 ## Relevant files
@@ -82,3 +82,14 @@ Active Track: **CATML AutoML Workbench & Kaggle Playground Series S6E9**:
 
 - Branch `fix/docs-and-plugin-registration` starts from updated `origin/main`, which includes merged Workbench PR #11. Commits separate plugin registration, shared version and documentation.
 - Prior frontend/gradient-boosting edits and their operational notes remain in the original `feat/web-dashboard-ui` checkout; excluded from this PR.
+
+## OOF Implementation — 2026-09-30
+
+- Created isolated branch `feat/oof-prediction-blending` from `fix/docs-and-plugin-registration`; PR #13 remains unmerged for human review tomorrow. Original frontend changes remain in their existing checkout.
+- Added binary OOF engine with fold-local preprocessing, identical stratified splits, fixed equal weights, model probability/class validation and budget/control checks.
+- Added command returning an experiment ID and read-only report query; stored OOF/test predictions, source/config hashes, concrete backends and library/plugin versions via existing trial artifacts.
+- Integrated CLI `predict --folds` and Workbench submission checkbox/HTTP path. Standard predictions remain supported; OOF artifact queries reject different test data and changed predictions.
+- Candidates remain unpromoted; no Kaggle gain claimed. Independent holdout/benchmark remains pending. Fold models are not serialized; rerun for new test data. Budget and pause/cancel are checked between fits.
+- Validation: 196 tests passed, 86.01% coverage, one existing sklearn deprecation warning. CLI/help/task catalog, JavaScript syntax, Markdown links/anchors and diff checks passed.
+- Confirmed pre-existing ordinary prediction ownership bug and reported [blackboard issue #14](https://github.com/Jfenic/CATML/issues/14); OOF paths validate ownership.
+- Preparing a separate draft PR against `fix/docs-and-plugin-registration`; no merges performed. After human merge of #13, retarget the OOF PR to main.
