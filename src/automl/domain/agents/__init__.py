@@ -6,6 +6,7 @@ from automl.domain.agents.entities import (
     Hypothesis,
     OperationStatus,
     PolicyDecisionType,
+    RunLease,
     ToolEffect,
     ToolErrorCode,
 )
@@ -17,6 +18,8 @@ __all__ = [
     "Hypothesis",
     "OperationStatus",
     "PolicyDecisionType",
+    "RunLease",
     "ToolEffect",
     "ToolErrorCode",
 ]
+
