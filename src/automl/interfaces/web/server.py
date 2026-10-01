@@ -300,6 +300,31 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "dataset_id parameter required"}, HTTPStatus.BAD_REQUEST)
                 return
             profile = ws.repository.get_dataset_profile(dataset_id)
+            force_refresh = query_params.get("refresh", ["0"])[0] in ("1", "true")
+            needs_enrichment = (
+                profile is None
+                or not getattr(profile, "correlation_matrix", None)
+                or not getattr(profile, "preview_rows", None)
+                or any(getattr(c, "mean", None) is None for c in profile.columns if any(t in c.dtype.lower() for t in ("int", "float")))
+            )
+            if profile is None or force_refresh or needs_enrichment:
+                dataset = ws.repository.get_dataset(dataset_id)
+                if dataset and Path(dataset.path).exists():
+                    try:
+                        from automl.engine.profiling.dataset_profiler import profile_dataset, load_dataframe
+                        df = load_dataframe(dataset.path)
+                        if len(df) > 50000:
+                            sample_df = df.sample(n=50000, random_state=42)
+                            profile = profile_dataset(dataset, sample_df)
+                            profile.row_count = len(df)
+                        else:
+                            profile = profile_dataset(dataset, df)
+                        ws.repository.save_dataset_profile(profile)
+                    except Exception as err:
+                        if not profile:
+                            self._send_json({"error": f"Error computing profile: {str(err)}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                            return
+
             if not profile:
                 self._send_json({"error": "Profile not found"}, HTTPStatus.NOT_FOUND)
                 return
@@ -310,7 +335,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if c.get("is_identifier"):
                     c["catml_action"] = "Exclude"
                     c["action_reason"] = "Identifier candidate (>99% cardinality)"
-                elif c.get("dtype") in ("object", "string", "category"):
+                elif any(sub in c.get("dtype", "").lower() for sub in ("object", "string", "category", "str")):
                     c["catml_action"] = "Encode"
                     c["action_reason"] = "Categorical encoding (target/ordinal)"
                 elif c.get("null_count", 0) > 0:
@@ -736,7 +761,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
                 profile = ws.repository.get_dataset_profile(dataset.id)
-                feature_names = [
+                feature_names = payload.get("feature_names") or [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
 

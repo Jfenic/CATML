@@ -16,6 +16,8 @@ export class StudioView {
     this.plan = null;
     this.leaderboard = [];
     this.experiments = [];
+    this.modelFilter = "all";
+    this.modelSearch = "";
   }
 
   async mount(container) {
@@ -144,9 +146,22 @@ export class StudioView {
                     : `<button id="btnResumeRun" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">▶ Resume</button>`
                 }
                 <button id="btnStopRun" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-600/40 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">■ Stop</button>
-                <button id="btnCloneRun" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">Clone</button>
               </div>
             </div>
+          </div>
+
+          <!-- Quick Action Launcher Bar -->
+          <div class="mt-3 pt-3 border-t border-[#27272e] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+            <div class="flex items-center space-x-2">
+              <span class="text-[#D8D6CF]/60 font-semibold uppercase text-[10px]">LANZAMIENTO RÁPIDO:</span>
+              <button data-quick-model="lightgbm" class="btn-quick-run btn-technical text-xs">⚡ LightGBM</button>
+              <button data-quick-model="xgboost" class="btn-quick-run btn-technical text-xs">🔥 XGBoost</button>
+              <button data-quick-model="catboost" class="btn-quick-run btn-technical text-xs">🐱 CatBoost</button>
+              <button data-quick-model="voting_ensemble" class="btn-quick-run btn-technical text-xs border-[#9C7CFF]/50 text-[#9C7CFF]">🗳️ Ensemble</button>
+            </div>
+            <button id="btnNewExpFromHeader" class="btn-signal text-xs">
+              <span>＋ EXPERIMENTO GUIADO</span>
+            </button>
           </div>
         </div>
 
@@ -250,6 +265,20 @@ export class StudioView {
           <div id="whyModalBody" class="text-xs text-slate-300 space-y-2"></div>
         </div>
       </div>
+
+      <!-- Trial Parameters Modal Dialog -->
+      <div id="trialParamsModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="workbench-card max-w-lg w-full p-6 space-y-4 border-indigo-800/60 shadow-2xl">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex items-center space-x-2">
+              <span class="text-indigo-400 text-lg">🔍</span>
+              <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wide" id="trialParamsModalTitle">Hiperparámetros del Modelo</h3>
+            </div>
+            <button id="btnCloseTrialParamsModal" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+          </div>
+          <div id="trialParamsModalBody" class="text-xs text-slate-300 space-y-3"></div>
+        </div>
+      </div>
     `;
 
     this._bindEvents();
@@ -259,34 +288,81 @@ export class StudioView {
   _renderTabContent() {
     const activeRun = this.activeRun;
     if (this.activeTab === "models") {
+      let filteredLeaderboard = this.leaderboard;
+
+      if (this.modelSearch) {
+        filteredLeaderboard = filteredLeaderboard.filter(row =>
+          row.model_id.toLowerCase().includes(this.modelSearch.toLowerCase())
+        );
+      }
+
+      if (this.modelFilter === "gbdt") {
+        filteredLeaderboard = filteredLeaderboard.filter(row =>
+          ["lightgbm", "xgboost", "catboost"].includes(row.model_id)
+        );
+      } else if (this.modelFilter === "trees") {
+        filteredLeaderboard = filteredLeaderboard.filter(row =>
+          ["random_forest", "extra_trees"].includes(row.model_id)
+        );
+      } else if (this.modelFilter === "linear") {
+        filteredLeaderboard = filteredLeaderboard.filter(row =>
+          ["logistic_regression", "ridge", "svc", "svr"].includes(row.model_id)
+        );
+      } else if (this.modelFilter === "ensemble") {
+        filteredLeaderboard = filteredLeaderboard.filter(row =>
+          ["voting_ensemble"].includes(row.model_id)
+        );
+      }
+
       return `
-        <div class="overflow-x-auto">
-          <table class="w-full wb-table text-left">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Model</th>
-                <th>Validation Metric</th>
-                <th>Score</th>
-                <th>Duration</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${this.leaderboard.length > 0 ? this.leaderboard.map((row, idx) => `
+        <div class="space-y-4">
+          <!-- Filter & Search Toolbar -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+              <span class="text-slate-400 text-[11px] uppercase font-semibold mr-1">Familia:</span>
+              <button data-modelfilter="all" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'all' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Todas (${this.leaderboard.length})</button>
+              <button data-modelfilter="gbdt" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'gbdt' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">GBDTs</button>
+              <button data-modelfilter="trees" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'trees' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Random Forest / ET</button>
+              <button data-modelfilter="linear" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'linear' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Lineales & SVM</button>
+              <button data-modelfilter="ensemble" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'ensemble' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Ensambles</button>
+            </div>
+            <input type="text" id="modelSearchInput" value="${this.modelSearch}" placeholder="Buscar modelo en leaderboard..." class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1 font-mono w-52 focus:border-indigo-500">
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full wb-table text-left">
+              <thead>
                 <tr>
-                  <td class="font-mono font-bold ${idx === 0 ? 'text-amber-400' : 'text-slate-400'}">#${idx + 1}</td>
-                  <td class="font-medium text-slate-200 capitalize">${row.model_id}</td>
-                  <td class="font-mono text-xs">${activeRun ? activeRun.metric : "CV"}</td>
-                  <td class="font-mono font-bold ${idx === 0 ? 'text-emerald-400' : 'text-slate-200'}">${Number(row.score).toFixed(5)}</td>
-                  <td class="font-mono text-xs text-slate-400">${row.training_time_seconds ? Number(row.training_time_seconds).toFixed(2) + 's' : '—'}</td>
-                  <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Optimal' : 'Verified'}</span></td>
+                  <th>Rank</th>
+                  <th>Model</th>
+                  <th>Validation Metric</th>
+                  <th>Score</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th class="text-right">Inspección</th>
                 </tr>
-              `).join("") : `
-                <tr><td colspan="6" class="text-center text-slate-500 py-6 text-xs">No models evaluated yet in this run.</td></tr>
-              `}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${filteredLeaderboard.length > 0 ? filteredLeaderboard.map((row, idx) => `
+                  <tr>
+                    <td class="font-mono font-bold ${idx === 0 ? 'text-amber-400' : 'text-slate-400'}">#${idx + 1}</td>
+                    <td class="font-medium text-slate-200 capitalize font-mono">${row.model_id}</td>
+                    <td class="font-mono text-xs">${activeRun ? activeRun.metric : "CV"}</td>
+                    <td class="font-mono font-bold ${idx === 0 ? 'text-emerald-400' : 'text-slate-200'}">${Number(row.score).toFixed(5)}</td>
+                    <td class="font-mono text-xs text-slate-400">${row.training_time_seconds ? Number(row.training_time_seconds).toFixed(2) + 's' : '—'}</td>
+                    <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Optimal' : 'Verified'}</span></td>
+                    <td class="text-right">
+                      <button data-inspect-model="${row.model_id}" class="btn-inspect-model-params text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 px-2.5 py-0.5 rounded font-mono transition-colors">
+                        🔍 Params
+                      </button>
+                    </td>
+                  </tr>
+                `).join("") : `
+                  <tr><td colspan="7" class="text-center text-slate-500 py-6 text-xs">No hay modelos que coincidan con el filtro seleccionado.</td></tr>
+                `}
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     } else if (this.activeTab === "hpo") {
@@ -503,6 +579,138 @@ export class StudioView {
             </div>
           `;
           whyModal.classList.remove("hidden");
+        }
+      });
+    });
+
+    // Quick Action Run buttons
+    this.container.querySelectorAll(".btn-quick-run").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const modelId = btn.getAttribute("data-quick-model");
+        if (!this.activeRun || !modelId) return;
+        const oldText = btn.innerHTML;
+        btn.disabled = true;
+        btn.textContent = "⏳ Ejecutando...";
+        try {
+          await api.runExperiment({
+            run_id: this.activeRun.id,
+            model_id: modelId,
+            name: `quick_${modelId}`,
+          });
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          alert("Error al ejecutar experimento rápido: " + err.message);
+          btn.disabled = false;
+          btn.innerHTML = oldText;
+        }
+      });
+    });
+
+    // New Experiment from Header button
+    this.container.querySelector("#btnNewExpFromHeader")?.addEventListener("click", () => {
+      bus.emit("modal:new-experiment");
+    });
+
+    // Model Filter Pills in Leaderboard
+    this.container.querySelectorAll(".model-filter-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this.modelFilter = btn.getAttribute("data-modelfilter");
+        const tabContent = this.container.querySelector("#tabContent");
+        if (tabContent) {
+          tabContent.innerHTML = this._renderTabContent();
+          this._bindLeaderboardEvents();
+        }
+      });
+    });
+
+    // Model Search Input
+    this.container.querySelector("#modelSearchInput")?.addEventListener("input", e => {
+      this.modelSearch = e.target.value.trim();
+      const tabContent = this.container.querySelector("#tabContent");
+      if (tabContent) {
+        tabContent.innerHTML = this._renderTabContent();
+        this._bindLeaderboardEvents();
+      }
+    });
+
+    // Trial Params Inspection Modal
+    this._bindLeaderboardEvents();
+  }
+
+  _bindLeaderboardEvents() {
+    const paramsModal = this.container.querySelector("#trialParamsModal");
+    const paramsModalBody = this.container.querySelector("#trialParamsModalBody");
+    const paramsModalTitle = this.container.querySelector("#trialParamsModalTitle");
+    const btnClose = this.container.querySelector("#btnCloseTrialParamsModal");
+
+    btnClose?.addEventListener("click", () => {
+      paramsModal?.classList.add("hidden");
+    });
+
+    this.container.querySelectorAll(".btn-inspect-model-params").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const modelId = btn.getAttribute("data-inspect-model");
+        let foundTrial = null;
+        for (const e of this.experiments) {
+          for (const t of (e.trials || [])) {
+            if (t.model_id === modelId) {
+              if (!foundTrial || (t.score && t.score > foundTrial.score)) {
+                foundTrial = t;
+              }
+            }
+          }
+        }
+
+        if (paramsModal && paramsModalBody) {
+          if (paramsModalTitle) {
+            paramsModalTitle.textContent = `Hiperparámetros — ${modelId.toUpperCase()}`;
+          }
+
+          if (foundTrial && foundTrial.params && Object.keys(foundTrial.params).length > 0) {
+            paramsModalBody.innerHTML = `
+              <div class="space-y-3 font-sans">
+                <div class="flex items-center justify-between p-2.5 rounded bg-slate-900 border border-slate-800 text-xs">
+                  <div>
+                    <span class="text-slate-400 block text-[10px]">Score de Validación (${this.activeRun?.metric || 'CV'})</span>
+                    <span class="font-mono text-emerald-400 font-bold text-sm">${foundTrial.score ? foundTrial.score.toFixed(5) : '—'}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block text-[10px]">Tiempo de Entrenamiento</span>
+                    <span class="font-mono text-slate-200">${foundTrial.time_s ? foundTrial.time_s + 's' : '—'}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block text-[10px]">Trial ID</span>
+                    <span class="font-mono text-indigo-300 font-bold">${foundTrial.trial_id || 'trial_1'}</span>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <span class="font-semibold text-slate-300 text-xs">Parámetros Exactos Utilizados:</span>
+                  <div class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto">
+                    ${Object.entries(foundTrial.params).map(([k, v]) => `
+                      <div class="p-2 rounded bg-slate-950 border border-slate-800/80 font-mono text-xs">
+                        <span class="text-slate-400 text-[10px] block">${k}</span>
+                        <span class="text-indigo-300 font-bold">${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v)}</span>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            paramsModalBody.innerHTML = `
+              <div class="p-6 text-center text-slate-400 space-y-2">
+                <span class="text-2xl text-slate-500 block">⚙</span>
+                <p class="text-xs">Este modelo fue entrenado con los hiperparámetros por defecto de CATML o aún no registra un trial individual en SQLite.</p>
+                <div class="font-mono text-[11px] text-indigo-300 bg-slate-950 p-2 rounded border border-slate-800">
+                  Modelo: ${modelId} • Modo: Default Canonical Estimator
+                </div>
+              </div>
+            `;
+          }
+
+          paramsModal.classList.remove("hidden");
         }
       });
     });

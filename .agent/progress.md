@@ -1,8 +1,6 @@
-# Progress
-
 Active Track: **Generalist AutoML Engine Enhancements — Next: Phase 2 (Temporal Dynamics Engine)**:
 - Target Roadmap: [`docs/features/generalist-enhancements/spec.md`](../docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](../docs/features/generalist-enhancements/plan.md).
-- Status: Phase 1 completed on branch `feat/n-model-oof-and-stacking`. Ready for PR.
+- Status: Phase 1 completed on branch `feat/n-model-oof-and-stacking`. Merged latest main with PR #32 and PR #33.
 - Next Milestone: Phase 2 — Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections).
 
 ## Completed
@@ -13,7 +11,28 @@ Active Track: **Generalist AutoML Engine Enhancements — Next: Phase 2 (Tempora
   - Supported multiple blending methods (`average`, `rank`, `simplex`, `stacked`) across engine, application CQRS, CLI, and web server.
   - Added CLI options `--models`, `--method {average,rank,simplex,stacked}`, and `--meta-model {ridge,logistic_regression,lasso}` in `automl predict`.
   - Added 13 new unit and integration tests in `tests/test_oof_multi_model.py`.
-  - Full test suite: 314 passed, 10 skipped, 85.68% coverage (exceeding >=85% threshold).
+  - Full test suite passing with >= 85% coverage. PR #34 opened.
+
+- Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator (2026-10-01):
+  - Added `include_differences: bool = True` to `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`).
+  - Implemented variance-prioritized pair discovery for `"difference"` type (`inter_diff_colA_minus_colB = colA - colB`).
+  - Added deterministic vector subtraction in `transform()` and `interactions_differences` candidate set.
+  - Tests passing: 8/8 in `tests/test_feature_interactions.py`. Merged into `main` via PR #33.
+
+- Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench, 2026-10-01):
+  - Statistical and correlation profiling extensions in `ColumnProfile` and `DatasetProfile`.
+  - Correlation heatmap, box plots, histograms, and target propensity analysis in Workbench UI.
+  - Neo-Industrial Visual ML Lab UI standard and ADR 005. Merged into `main` via PR #32.
+
+- Paquete B2 completado (Persona B, 2026-09-30):
+  - Exposición de tools mutantes en MCP stdio (`create_experiment`, `prioritize_feature`, `run_experiment`).
+  - Retorno no bloqueante de `PENDING_APPROVAL` con `approval_id`.
+  - Comandos CLI `automl agent approvals list` y `automl agent approve <id> [--reject]`.
+  - Pruebas en `tests/test_v09_agent_cli.py` (7 tests) y `tests/test_v09_agent_e2e.py` (1 test E2E exhaustivo).
+  - Hito H2 verificado y cerrado (PR #30).
+
+- Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
+  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`), Rank-Averaging Blending, y Multi-fidelity Early Pruning en `OptunaOptimizer`. PR #31 integrado en main.
 
 - Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator (2026-10-01):
   - Added `include_differences: bool = True` to `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`).
@@ -26,6 +45,7 @@ Active Track: **Generalist AutoML Engine Enhancements — Next: Phase 2 (Tempora
   - MCP Server mutations, CLI agent subcommands, and E2E verification.
 
 - Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
+
 
 - Blackboard Issue #12 completado (2026-09-30):
   - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML con fallback.
