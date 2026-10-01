@@ -434,6 +434,8 @@ def predict_cli(args: argparse.Namespace) -> int:
                 id_column=args.id_column, template_path=args.template,
                 experiment_id=args.experiment_id, predict_proba=args.proba,
                 folds=args.folds, model_ids=[m.strip() for m in args.models.split(",")] if args.models is not None else None,
+                method=getattr(args, "method", "average") or "average",
+                meta_model=getattr(args, "meta_model", "ridge") or "ridge",
                 max_seconds=args.oof_timeout,
             ))
             res = qry.dispatch(GetOOFResultQuery(run_id=run_id, experiment_id=experiment_id))
@@ -468,6 +470,7 @@ def predict_cli(args: argparse.Namespace) -> int:
     print(f"  Probabilities: {res['predict_proba']}")
     if res.get("folds"):
         print(f"  OOF folds:     {res['folds']}")
+        print(f"  OOF method:    {res.get('method', 'average')}")
         print(f"  ROC-AUC:       {res['score']:.6f} (baseline {res['baseline_score']:.6f}; delta {res['delta']:+.6f})")
     if res.get("template_used"):
         print(f"  Template:      {res['template_used']}\n")
@@ -635,7 +638,9 @@ def main(argv: list[str] | None = None) -> int:
     pred_parser.add_argument("--experiment-id", help="Optional specific experiment ID to use")
     pred_parser.add_argument("--proba", action="store_true", help="Output probabilities instead of binary labels")
     pred_parser.add_argument("--folds", type=int, help="OOF folds for binary classification; e.g. 5")
-    pred_parser.add_argument("--models", help="One or two comma-separated individual models for OOF")
+    pred_parser.add_argument("--models", help="Comma-separated individual models for OOF (e.g. lightgbm,xgboost,catboost)")
+    pred_parser.add_argument("--method", choices=["average", "rank", "simplex", "stacked"], default="average", help="Blending method for OOF (default: average)")
+    pred_parser.add_argument("--meta-model", choices=["ridge", "logistic_regression", "lasso"], default="ridge", help="Meta-estimator for Level-2 stacking (default: ridge)")
     pred_parser.add_argument("--oof-timeout", type=float, default=300.0, help="OOF time budget in seconds, checked between fits (default: 300)")
     pred_parser.add_argument("--json", action="store_true")
     pred_parser.set_defaults(func=predict_cli)

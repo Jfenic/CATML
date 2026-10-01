@@ -833,7 +833,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         output_path=output_path, template_path=template_path,
                         id_column=payload.get("id_column"), predict_proba=predict_proba,
                         experiment_id=payload.get("experiment_id"), folds=payload["folds"],
-                        model_ids=payload.get("model_ids"), max_seconds=payload.get("max_seconds", 300.0),
+                        model_ids=payload.get("model_ids"),
+                        method=payload.get("method", "average"),
+                        meta_model=payload.get("meta_model", "ridge"),
+                        max_seconds=payload.get("max_seconds", 300.0),
                     ))
                     sub_res = qry.dispatch(GetOOFResultQuery(run_id=run_id, experiment_id=experiment_id))
                 else:

@@ -1,15 +1,19 @@
 # Progress
 
-Active Track: **Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking**:
+Active Track: **Generalist AutoML Engine Enhancements — Next: Phase 2 (Temporal Dynamics Engine)**:
 - Target Roadmap: [`docs/features/generalist-enhancements/spec.md`](../docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](../docs/features/generalist-enhancements/plan.md).
-- Status: Active implementation on branch `feat/n-model-oof-and-stacking`.
-- Tasks:
-  - Remove 2-model limit in `src/automl/engine/ensemble/oof.py` and `src/automl/application/services/oof_submission.py`.
-  - Add Level-2 stacking (`RidgeClassifier`/`Ridge` meta-model) in `src/automl/engine/ensemble/blender.py`.
-  - Support `method` parameter (`average`, `rank`, `simplex`, `stacked`) across Engine, Application, and CLI.
-  - Comprehensive unit and integration tests with coverage >= 85%.
+- Status: Phase 1 completed on branch `feat/n-model-oof-and-stacking`. Ready for PR.
+- Next Milestone: Phase 2 — Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections).
 
 ## Completed
+
+- Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (2026-10-01):
+  - Removed 2-model restriction in `evaluate_oof` (`src/automl/engine/ensemble/oof.py`) and `GenerateOOFSubmissionCommand` (`src/automl/application/services/oof_submission.py`), enabling blending of arbitrary $N \ge 1$ models.
+  - Implemented Level-2 Stacking (`stack_predictions` in `src/automl/engine/ensemble/blender.py`) supporting `Ridge`, `LogisticRegression`, and `Lasso` meta-estimators trained exclusively on out-of-fold prediction matrices without data leakage.
+  - Supported multiple blending methods (`average`, `rank`, `simplex`, `stacked`) across engine, application CQRS, CLI, and web server.
+  - Added CLI options `--models`, `--method {average,rank,simplex,stacked}`, and `--meta-model {ridge,logistic_regression,lasso}` in `automl predict`.
+  - Added 13 new unit and integration tests in `tests/test_oof_multi_model.py`.
+  - Full test suite: 314 passed, 10 skipped, 85.68% coverage (exceeding >=85% threshold).
 
 - Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator (2026-10-01):
   - Added `include_differences: bool = True` to `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`).

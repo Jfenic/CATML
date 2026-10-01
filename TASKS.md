@@ -38,14 +38,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [ ] V1.0 Phase: Autonomous Experiment Agent con LangGraph (Planner, Critic, Feature Advisor y Orchestrator cíclico "Proponer ≠ Aceptar") — *Ver plan detallado en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*
 - [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
 
-- [ ] Stacking with a trained meta-estimator (distinct from voting/blending).
+- [x] Stacking with a trained meta-estimator (distinct from voting/blending).
 - [ ] Persist backend class, plugin/library versions and dataset/config hashes per trial ([current limits](docs/backends.md)).
 - [ ] Add the dedicated `feature_selection_v05` benchmark scenario from the feature-discovery specification.
 
 ### Generalist AutoML Engine & Super-Ensembles
 > Technical Specs & Execution Plan: [`docs/features/generalist-enhancements/spec.md`](docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](docs/features/generalist-enhancements/plan.md).
 
-- [ ] Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (remove 2-model limit, Rank-Averaging, Ridge meta-learner).
+- [x] Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (remove 2-model limit, Rank-Averaging, Ridge meta-learner).
 - [ ] Phase 2: Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections).
 - [ ] Phase 3: Workbench Web UX (K-Fold strategy selector, visual multi-select ensemble builder, Kaggle drag-and-drop export).
 - [ ] Phase 4: Anti-Leakage Guardian in Profiler & Plugin Observability.
