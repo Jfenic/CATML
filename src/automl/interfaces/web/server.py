@@ -989,7 +989,6 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 suggestions = ws.suggest_derived_features(dataset_id=dataset_id)
                 self._send_json({"status": "success", "suggestions": suggestions})
                 return
-
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
         except (ValueError, TypeError) as exc:

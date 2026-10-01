@@ -151,21 +151,6 @@ pytest --cov=src/automl --cov-fail-under=85
 
 ---
 
-## Parallel Multi-Agent Development & Collaboration
-
-CATML supports concurrent engineering across multiple developers and autonomous AI coding agents (such as Persona A focusing on application rules, specialists, and domain policies, and Persona B focusing on orchestration, interfaces, and protocol servers).
-
-To maintain codebase stability, prevent git merge conflicts, and preserve auditability:
-- **Contract-First Stabilization:** Before branching into parallel feature tracks, shared interfaces, protocols, and data transfer objects (DTOs) are agreed upon and merged into `main`.
-- **Subdirectory Ownership:** Development tracks work within isolated subdirectories (e.g., domain specialists vs CLI/orchestrators) without modifying monolithic core files concurrently.
-- **Merge-Only Integration:** Branch synchronization is performed strictly using `git merge origin/main`; rebasing is forbidden.
-- **Independent Progress Tracking:** Progress documentation maintains designated tracks for each persona to avoid adjacent-line merge conflicts.
-- **Cross-Agent Blackboard:** Tasks begin with a pre-flight inspection (`gh issue list --label blackboard --state open`), and out-of-scope discoveries are recorded via GitHub issues rather than ad-hoc edits.
-
-For detailed guidelines, see [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md).
-
----
-
 ## Deeper Documentation
 
 Version: `0.7.0`, defined in [`src/automl/__init__.py`](src/automl/__init__.py). Phase labels in the design roadmap describe milestones. Current status belongs to [`TASKS.md`](TASKS.md).
@@ -180,3 +165,9 @@ Version: `0.7.0`, defined in [`src/automl/__init__.py`](src/automl/__init__.py).
 - **Design Notes & Rationale:** [`planning.txt`](planning.txt)
 - **Feature Specifications & Historical Plans:** [`docs/features/`](docs/features/)
 - **Architecture Decision Records (ADRs):** [`docs/decisions/`](docs/decisions/)
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) file for details.
