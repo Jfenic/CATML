@@ -64,7 +64,7 @@ def test_create_full_tool_registry_catalog(mock_buses):
     registry = create_full_tool_registry(q_bus, c_bus)
 
     tools = registry.list_tools()
-    assert len(tools) == 10
+    assert len(tools) == 11
 
     tool_names = {t.name for t in tools}
     assert "get_dataset_profile" in tool_names
@@ -72,12 +72,18 @@ def test_create_full_tool_registry_catalog(mock_buses):
     assert "create_experiment" in tool_names
     assert "prioritize_feature" in tool_names
     assert "run_experiment" in tool_names
+    assert "optimize_experiment" in tool_names
 
     create_exp_def = registry.get_definition("create_experiment")
     assert create_exp_def is not None
     assert create_exp_def.effect == ToolEffect.MUTATE
     assert create_exp_def.permission_required == AgentPermission.EXECUTE_WITHIN_BUDGET
     assert create_exp_def.cost_estimate == {"experiments": 1}
+
+    opt_exp_def = registry.get_definition("optimize_experiment")
+    assert opt_exp_def is not None
+    assert opt_exp_def.effect == ToolEffect.MUTATE
+    assert opt_exp_def.permission_required == AgentPermission.EXECUTE_WITHIN_BUDGET
 
 
 def test_authorized_mutating_execution_and_ledger_audit(mock_buses, temp_ledger):

@@ -253,3 +253,138 @@ def optimize_ensemble_weights(
         final_score = abs(final_score)
 
     return final_weights, float(final_score)
+
+
+def stack_predictions(
+    oof_predictions: list[np.ndarray | list[float] | list[list[float]]],
+    y_true: np.ndarray | list[Any],
+    test_predictions: list[np.ndarray | list[float] | list[list[float]]] | None = None,
+    meta_model: str = "ridge",
+    task_type: str = "binary_classification",
+    alpha: float = 1.0,
+    random_state: int = 42,
+) -> tuple[np.ndarray, np.ndarray | None, Any]:
+    """Fits a Level-2 meta-estimator on out-of-fold predictions to generate stacked predictions.
+
+    Prevents data leakage by training meta-estimators strictly on out-of-fold probability or value
+    matrices and projecting the fitted meta-learner onto test predictions.
+
+    Args:
+        oof_predictions: List of out-of-fold prediction arrays from N base models.
+        y_true: Ground truth target labels aligned with oof_predictions.
+        test_predictions: Optional list of test prediction arrays from the same N base models.
+        meta_model: Meta-learner model type ('ridge', 'logistic_regression', 'lasso').
+        task_type: Problem type ('binary_classification', 'multiclass_classification', 'regression').
+        alpha: Regularization strength for Ridge/Lasso, or inverse C for LogisticRegression.
+        random_state: Random state for deterministic fitting.
+
+    Returns:
+        tuple of (stacked_oof, stacked_test, fitted_meta_estimator)
+    """
+    if not oof_predictions:
+        raise ValueError("Cannot stack empty predictions list.")
+
+    # Extract 1D feature per model for binary/regression
+    meta_cols: list[np.ndarray] = []
+    for i, p in enumerate(oof_predictions):
+        arr = np.asarray(p, dtype=float)
+        if arr.ndim == 2:
+            if arr.shape[1] == 2 and "binary" in task_type:
+                meta_cols.append(arr[:, 1])
+            elif arr.shape[1] == 1:
+                meta_cols.append(arr.ravel())
+            else:
+                for c in range(arr.shape[1]):
+                    meta_cols.append(arr[:, c])
+        elif arr.ndim == 1:
+            meta_cols.append(arr)
+        else:
+            raise ValueError(f"OOF prediction array at index {i} has unsupported ndim={arr.ndim}")
+
+    X_meta = np.column_stack(meta_cols)
+    n_samples = X_meta.shape[0]
+
+    y_arr = np.asarray(y_true)
+    if len(y_arr) != n_samples:
+        raise ValueError(f"y_true length ({len(y_arr)}) does not match OOF rows ({n_samples}).")
+
+    if "binary" in task_type and not np.issubdtype(y_arr.dtype, np.number):
+        unique_labels = np.unique(y_arr)
+        if len(unique_labels) == 2:
+            y_arr = np.where(y_arr == unique_labels[1], 1, 0)
+
+    # Process test predictions if provided
+    X_meta_test: np.ndarray | None = None
+    if test_predictions is not None:
+        if len(test_predictions) != len(oof_predictions):
+            raise ValueError(
+                f"test_predictions count ({len(test_predictions)}) must match oof_predictions count ({len(oof_predictions)})."
+            )
+        test_cols: list[np.ndarray] = []
+        for i, p in enumerate(test_predictions):
+            arr = np.asarray(p, dtype=float)
+            if arr.ndim == 2:
+                if arr.shape[1] == 2 and "binary" in task_type:
+                    test_cols.append(arr[:, 1])
+                elif arr.shape[1] == 1:
+                    test_cols.append(arr.ravel())
+                else:
+                    for c in range(arr.shape[1]):
+                        test_cols.append(arr[:, c])
+            elif arr.ndim == 1:
+                test_cols.append(arr)
+            else:
+                raise ValueError(f"Test prediction array at index {i} has unsupported ndim={arr.ndim}")
+        X_meta_test = np.column_stack(test_cols)
+        if X_meta_test.shape[1] != X_meta.shape[1]:
+            raise ValueError(
+                f"Test feature dimensions ({X_meta_test.shape[1]}) do not match OOF feature dimensions ({X_meta.shape[1]})."
+            )
+
+    meta_model_lower = meta_model.lower().replace("-", "_")
+    is_classification = "classification" in task_type or task_type in {
+        "binary_classification",
+        "multiclass_classification",
+    }
+
+    if meta_model_lower in ("ridge", "ridge_regression", "ridge_classifier"):
+        from sklearn.linear_model import Ridge
+
+        estimator = Ridge(alpha=alpha, random_state=random_state)
+        estimator.fit(X_meta, y_arr)
+        if is_classification:
+            stacked_oof = np.clip(estimator.predict(X_meta), 0.0, 1.0)
+            stacked_test = np.clip(estimator.predict(X_meta_test), 0.0, 1.0) if X_meta_test is not None else None
+        else:
+            stacked_oof = estimator.predict(X_meta)
+            stacked_test = estimator.predict(X_meta_test) if X_meta_test is not None else None
+    elif meta_model_lower in ("logistic", "logistic_regression"):
+        from sklearn.linear_model import LogisticRegression
+
+        c_val = 1.0 / max(alpha, 1e-6)
+        estimator = LogisticRegression(C=c_val, random_state=random_state, solver="lbfgs", max_iter=500)
+        estimator.fit(X_meta, y_arr)
+        if hasattr(estimator, "classes_") and len(estimator.classes_) == 2 and "binary" in task_type:
+            stacked_oof = estimator.predict_proba(X_meta)[:, 1]
+            stacked_test = estimator.predict_proba(X_meta_test)[:, 1] if X_meta_test is not None else None
+        else:
+            stacked_oof = estimator.predict_proba(X_meta)
+            stacked_test = estimator.predict_proba(X_meta_test) if X_meta_test is not None else None
+    elif meta_model_lower == "lasso":
+        from sklearn.linear_model import Lasso
+
+        estimator = Lasso(alpha=alpha, random_state=random_state)
+        estimator.fit(X_meta, y_arr)
+        if is_classification:
+            stacked_oof = np.clip(estimator.predict(X_meta), 0.0, 1.0)
+            stacked_test = np.clip(estimator.predict(X_meta_test), 0.0, 1.0) if X_meta_test is not None else None
+        else:
+            stacked_oof = estimator.predict(X_meta)
+            stacked_test = estimator.predict(X_meta_test) if X_meta_test is not None else None
+    else:
+        raise ValueError(
+            f"Unsupported stacking meta_model '{meta_model}'. Supported: 'ridge', 'logistic_regression', 'lasso'."
+        )
+
+    return stacked_oof, stacked_test, estimator
+

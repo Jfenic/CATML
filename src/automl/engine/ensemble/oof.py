@@ -1,4 +1,4 @@
-"""Leakage-safe binary OOF probabilities and fixed equal-weight blending."""
+"""Leakage-safe binary OOF probabilities, multi-model blending, and Level-2 stacking."""
 
 from dataclasses import dataclass
 from time import monotonic
@@ -10,7 +10,11 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
-from automl.engine.ensemble.blender import blend_predictions
+from automl.engine.ensemble.blender import (
+    blend_predictions,
+    optimize_ensemble_weights,
+    stack_predictions,
+)
 from automl.engine.training.sklearn_trainer import _build_pipeline
 
 
@@ -28,6 +32,8 @@ class OOFResult:
     backends: dict[str, str]
     parameters: dict[str, dict]
     training_seconds: float
+    weights: dict[str, float] | None = None
+    method: str = "average"
 
 
 def evaluate_oof(
@@ -37,6 +43,8 @@ def evaluate_oof(
     factories: dict[str, Callable[[], Any]],
     folds: int = 5,
     seed: int = 42,
+    method: str = "average",
+    meta_model: str = "ridge",
     max_seconds: float = 300.0,
     check_allowed: Callable[[], None] | None = None,
     progress: Callable[[int, int, str], None] | None = None,
@@ -45,12 +53,26 @@ def evaluate_oof(
         raise ValueError("folds must be an integer >= 2")
     if not np.isfinite(max_seconds) or max_seconds <= 0:
         raise ValueError("max_seconds must be finite and positive")
-    if not factories or len(factories) > 2:
-        raise ValueError("OOF currently accepts one or two individual models")
+    if not factories:
+        raise ValueError("OOF requires at least one model factory (one or two or more)")
     if X.empty or X_test.empty or len(X) != len(y) or y.isna().any():
         raise ValueError("OOF requires nonempty features/test data and a complete aligned target")
     if list(X.columns) != list(X_test.columns):
         raise ValueError("Train and test feature columns must match")
+
+    method_aliases = {
+        "mean": "average",
+        "avg": "average",
+        "stacking": "stacked",
+        "stack": "stacked",
+        "nelder_mead": "simplex",
+    }
+    canonical_method = method_aliases.get(method.lower(), method.lower())
+    valid_methods = {"average", "rank", "simplex", "stacked"}
+    if canonical_method not in valid_methods:
+        raise ValueError(
+            f"Unknown OOF blending method '{method}'. Valid options are: {sorted(valid_methods)}"
+        )
 
     encoder = LabelEncoder()
     target = encoder.fit_transform(y)
@@ -90,7 +112,6 @@ def evaluate_oof(
         progress(0, folds * len(factories), "Evaluating OOF folds")
     for fold, (train_idx, valid_idx) in enumerate(splitter.split(X, target)):
         fold_ids[valid_idx] = fold
-        validation_predictions = []
         for name, factory in factories.items():
             check_budget()
             model = factory()
@@ -108,21 +129,72 @@ def evaluate_oof(
             valid_probs = probabilities(pipeline, X.iloc[valid_idx])
             oof[name][valid_idx] = valid_probs
             test_folds[name].append(probabilities(pipeline, X_test))
-            validation_predictions.append(valid_probs)
             fold_scores[name].append(float(roc_auc_score(target[valid_idx], valid_probs)))
             completed += 1
             if progress:
                 progress(completed, folds * len(factories), f"Fold {fold + 1}/{folds}: {name}")
-        fold_scores["oof_blend"].append(float(roc_auc_score(
-            target[valid_idx], blend_predictions(validation_predictions),
-        )))
 
     check_budget()
     test = {name: blend_predictions(values) for name, values in test_folds.items()}
-    blended_oof = blend_predictions(list(oof.values()))
-    blended_test = blend_predictions(list(test.values()))
+    oof_list = list(oof.values())
+    test_list = list(test.values())
+    model_names = list(factories.keys())
+    weights: dict[str, float] | None = None
+
+    if canonical_method == "average":
+        blended_oof = blend_predictions(oof_list, method="average")
+        blended_test = blend_predictions(test_list, method="average")
+        equal_w = 1.0 / len(model_names)
+        weights = {name: equal_w for name in model_names}
+    elif canonical_method == "rank":
+        blended_oof = blend_predictions(oof_list, method="rank")
+        blended_test = blend_predictions(test_list, method="rank")
+        equal_w = 1.0 / len(model_names)
+        weights = {name: equal_w for name in model_names}
+    elif canonical_method == "simplex":
+        opt_weights, _ = optimize_ensemble_weights(
+            oof_list, target, metric="roc_auc", task_type="binary_classification", method="average"
+        )
+        blended_oof = blend_predictions(oof_list, weights=opt_weights, method="average")
+        blended_test = blend_predictions(test_list, weights=opt_weights, method="average")
+        weights = {name: float(w) for name, w in zip(model_names, opt_weights)}
+    elif canonical_method == "stacked":
+        stacked_oof, stacked_test, fitted_meta = stack_predictions(
+            oof_list,
+            target,
+            test_predictions=test_list,
+            meta_model=meta_model,
+            task_type="binary_classification",
+            random_state=seed,
+        )
+        blended_oof = stacked_oof
+        blended_test = stacked_test if stacked_test is not None else blend_predictions(test_list)
+        if hasattr(fitted_meta, "coef_"):
+            raw_coefs = np.asarray(fitted_meta.coef_).ravel()
+            if len(raw_coefs) == len(model_names):
+                weights = {name: float(c) for name, c in zip(model_names, raw_coefs)}
+
+    # Compute fold scores for the blend consistently
+    for fold in range(folds):
+        fold_mask = fold_ids == fold
+        fold_scores["oof_blend"].append(float(roc_auc_score(target[fold_mask], blended_oof[fold_mask])))
+
     scores = {name: float(roc_auc_score(target, values)) for name, values in oof.items()}
     scores["oof_blend"] = float(roc_auc_score(target, blended_oof))
-    return OOFResult(oof, test, blended_oof, blended_test, fold_ids, target,
-                     encoder.classes_.tolist(), scores, fold_scores, backends,
-                     parameters, monotonic() - started)
+    return OOFResult(
+        oof=oof,
+        test=test,
+        blended_oof=blended_oof,
+        blended_test=blended_test,
+        fold_ids=fold_ids,
+        target=target,
+        classes=encoder.classes_.tolist(),
+        scores=scores,
+        fold_scores=fold_scores,
+        backends=backends,
+        parameters=parameters,
+        training_seconds=monotonic() - started,
+        weights=weights,
+        method=canonical_method,
+    )
+

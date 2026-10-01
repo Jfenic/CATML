@@ -73,9 +73,9 @@ def generate_oof_submission(workspace, command) -> str:
     if source is None or source.run_id != run.id or source.validation_strategy == "oof":
         raise ValueError("Select a source experiment belonging to this run with --experiment-id")
     individual_models = [m for m in source.model_ids if m not in {"voting_ensemble", "oof_blend"}]
-    models = command.model_ids if command.model_ids is not None else (individual_models[:2] or ["logistic_regression", "random_forest"])
-    if not models or len(models) > 2 or len(set(models)) != len(models):
-        raise ValueError("OOF requires one or two distinct individual model IDs")
+    models = command.model_ids if command.model_ids is not None else (individual_models or ["logistic_regression", "random_forest"])
+    if not models or len(set(models)) != len(models):
+        raise ValueError("OOF requires at least one distinct individual model ID")
     if any(m in {"voting_ensemble", "oof_blend"} for m in models):
         raise ValueError("Select individual models rather than an ensemble for OOF")
     workspace.model_registry.validate_for_task(models, dataset.task_type)
@@ -106,28 +106,57 @@ def generate_oof_submission(workspace, command) -> str:
             return model
         return build
 
+    method = getattr(command, "method", "average") or "average"
+    meta_model = getattr(command, "meta_model", "ridge") or "ridge"
+    method_title = method.replace("_", " ").title()
+
     experiment = workspace.create_experiment(
-        run, name="OOF equal-weight blending", feature_names=features, model_ids=models,
-        hypothesis=f"Equal-weight OOF blend vs predeclared baseline {models[0]} on identical folds; no automatic promotion.",
+        run,
+        name=f"OOF {method_title} blending",
+        feature_names=features,
+        model_ids=models,
+        hypothesis=f"{method_title} OOF blend ({', '.join(models)}) vs predeclared baseline {models[0]} on identical folds; no automatic promotion.",
     )
     experiment.validation_strategy = "oof"
     experiment.metric = "roc_auc"
     experiment.status = ExperimentStatus.RUNNING
     workspace.repository.save_experiment(experiment)
-    trial = Trial(id=f"trial_{uuid.uuid4().hex[:8]}", experiment_id=experiment.id,
-                  model_id="oof_blend", seed=run.config.random_seed,
-                  parameters={"models": models, "folds": command.folds, "weights": [1 / len(models)] * len(models)},
-                  status=TrialStatus.RUNNING)
+    trial = Trial(
+        id=f"trial_{uuid.uuid4().hex[:8]}",
+        experiment_id=experiment.id,
+        model_id="oof_blend",
+        seed=run.config.random_seed,
+        parameters={
+            "models": models,
+            "folds": command.folds,
+            "method": method,
+            "weights": [1 / len(models)] * len(models),
+        },
+        status=TrialStatus.RUNNING,
+    )
     workspace.repository.save_trial(trial)
     run.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
     workspace.repository.save_run(run)
-    workspace._emit("OOFStarted", {"experiment_id": experiment.id, "models": models, "folds": command.folds}, run_id=run.id)
+    workspace._emit(
+        "OOFStarted",
+        {"experiment_id": experiment.id, "models": models, "folds": command.folds, "method": method},
+        run_id=run.id,
+    )
     started = monotonic()
     try:
-        result = evaluate_oof(X, train_df[dataset.target_column], X_test,
-                              {m: factory(m) for m in models}, folds=command.folds,
-                              seed=run.config.random_seed, max_seconds=command.max_seconds,
-                              check_allowed=check_allowed, progress=workspace.execution_progress)
+        result = evaluate_oof(
+            X,
+            train_df[dataset.target_column],
+            X_test,
+            {m: factory(m) for m in models},
+            folds=command.folds,
+            seed=run.config.random_seed,
+            method=method,
+            meta_model=meta_model,
+            max_seconds=command.max_seconds,
+            check_allowed=check_allowed,
+            progress=workspace.execution_progress,
+        )
         if file_hash(dataset.path) != train_hash or file_hash(command.test_dataset_path) != test_hash:
             raise ValueError("Dataset changed during OOF evaluation; discard this run and retry")
         check_allowed()
@@ -147,9 +176,14 @@ def generate_oof_submission(workspace, command) -> str:
                 versions[name] = version(name)
             except PackageNotFoundError:
                 pass
+
+        if result.weights is not None:
+            trial.parameters["weights"] = [float(result.weights.get(m, 0.0)) for m in models]
+
         report = {**submission, "run_id": run.id, "experiment_id": experiment.id,
                   "source_experiment_id": source.id, "folds": command.folds,
-                  "seed": run.config.random_seed, "models": models, "weights": trial.parameters["weights"],
+                  "seed": run.config.random_seed, "models": models, "method": result.method,
+                  "weights": trial.parameters["weights"], "weights_by_model": result.weights,
                   "metric": "roc_auc", "score": result.scores["oof_blend"],
                   "baseline_model": models[0], "baseline_score": result.scores[models[0]],
                   "delta": result.scores["oof_blend"] - result.scores[models[0]],
@@ -162,10 +196,10 @@ def generate_oof_submission(workspace, command) -> str:
                   "max_seconds": command.max_seconds, "training_seconds": result.training_seconds,
                   "oof_predictions_path": str(oof_path), "test_predictions_path": str(test_path),
                   "oof_predictions_hash": file_hash(oof_path), "test_predictions_hash": file_hash(test_path),
-                  "promoted": False, "evaluation": "fixed-weight OOF comparison; not independent holdout evidence"}
+                  "promoted": False, "evaluation": f"{result.method} OOF comparison; not independent holdout evidence"}
         report["plugin_versions"] = {m: workspace.plugin_registry.get_model_plugin(m).version
                                      for m in models if workspace.plugin_registry.get_model_plugin(m)}
-        config = {key: report[key] for key in ("models", "folds", "seed", "features", "parameters", "weights")}
+        config = {key: report[key] for key in ("models", "folds", "seed", "features", "parameters", "weights", "method")}
         report["config_hash"] = hashlib.sha256(json.dumps(config, sort_keys=True, default=str).encode()).hexdigest()
         try:
             import resource

@@ -39,6 +39,7 @@ from automl.application.bus.command_bus import CommandBus
 from automl.application.bus.query_bus import QueryBus
 from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
+    OptimizeExperimentCommand,
     PrioritizeFeatureCommand,
     RunExperimentCommand,
 )
@@ -307,11 +308,35 @@ class ToolExecutor:
                     )
                 pre_approved = True
 
+        # Resolve cost estimate (dynamic for optimize_experiment based on n_trials)
+        cost_estimate = dict(tool_def.cost_estimate) if tool_def.cost_estimate else {}
+        if invocation.tool_name == "optimize_experiment" and "n_trials" in invocation.arguments:
+            cost_estimate["trials"] = int(invocation.arguments["n_trials"])
+
+        # Compute effective budget considering active reservations
+        if self.ledger and invocation.context.run_id:
+            active_reserved = self.ledger.get_active_reserved_budget(invocation.context.run_id)
+            effective_budget = AgentBudget(
+                max_experiments=active_budget.max_experiments,
+                max_trials=active_budget.max_trials,
+                max_folds=active_budget.max_folds,
+                max_duration_seconds=active_budget.max_duration_seconds,
+                max_llm_calls=active_budget.max_llm_calls,
+                max_tokens=active_budget.max_tokens,
+                consumed_experiments=active_budget.consumed_experiments + active_reserved.get("experiments", 0),
+                consumed_trials=active_budget.consumed_trials + active_reserved.get("trials", 0),
+                consumed_duration_seconds=active_budget.consumed_duration_seconds + active_reserved.get("duration_seconds", 0.0),
+                consumed_llm_calls=active_budget.consumed_llm_calls + active_reserved.get("llm_calls", 0),
+                consumed_tokens=active_budget.consumed_tokens + active_reserved.get("tokens", 0),
+            )
+        else:
+            effective_budget = active_budget
+
         # 5. Policy evaluation
         decision = self.policy_evaluator.evaluate(
             tool_def,
             invocation.context,
-            active_budget,
+            effective_budget,
             invocation.arguments,
         )
 
@@ -342,7 +367,7 @@ class ToolExecutor:
                 run_id=invocation.context.run_id,
                 arguments=invocation.arguments,
                 policy_version=decision.policy_version,
-                max_cost=tool_def.cost_estimate,
+                max_cost=cost_estimate,
             )
             appr_id = f"appr-{arg_hash[:16]}"
             if self.ledger:
@@ -354,7 +379,7 @@ class ToolExecutor:
                     arguments_hash=arg_hash,
                     arguments=invocation.arguments,
                     policy_version=decision.policy_version,
-                    max_cost=tool_def.cost_estimate,
+                    max_cost=cost_estimate,
                     expires_at="2099-12-31T23:59:59Z",
                     status=ApprovalStatus.PENDING,
                 )
@@ -387,7 +412,7 @@ class ToolExecutor:
             run_id=invocation.context.run_id,
             arguments=invocation.arguments,
             policy_version=decision.policy_version,
-            max_cost=tool_def.cost_estimate,
+            max_cost=cost_estimate,
         )
 
         if self.ledger and idempotency_key:
@@ -522,7 +547,7 @@ class ToolExecutor:
                 arguments_hash=current_arg_hash,
                 arguments=invocation.arguments,
                 status=OperationStatus.RUNNING,
-                reserved_budget=tool_def.cost_estimate or {},
+                reserved_budget=cost_estimate,
                 consumed_budget={},
             )
             try:
@@ -549,6 +574,14 @@ class ToolExecutor:
                     error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
                     error_message="Operation exceeded invocation context deadline before execution",
                 )
+        # 8. Check cooperative cancellation before dispatching handler
+        if self.ledger and operation_id and self.ledger.is_cancellation_requested(operation_id):
+            self.ledger.update_operation_status(
+                operation_id=operation_id,
+                status=OperationStatus.CANCELLED,
+                error_code=ToolErrorCode.CANCELLED.value,
+                error_message="Operation cancelled prior to execution",
+            )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
@@ -557,6 +590,8 @@ class ToolExecutor:
                 error=ToolError(
                     code=ToolErrorCode.DEADLINE_EXCEEDED,
                     message="Operation deadline exceeded",
+                    code=ToolErrorCode.CANCELLED,
+                    message="Operation cancelled prior to execution",
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
@@ -587,10 +622,30 @@ class ToolExecutor:
         # 9. Execute Handler
         try:
             raw_data = handler(invocation.arguments, invocation.context)
-            if tool_def.cost_estimate:
-                active_budget.consume(tool_def.cost_estimate)
+            if cost_estimate:
+                active_budget.consume(cost_estimate)
 
             if self.ledger and operation_id:
+                if self.ledger.is_cancellation_requested(operation_id):
+                    self.ledger.update_operation_status(
+                        operation_id=operation_id,
+                        status=OperationStatus.CANCELLED,
+                        error_code=ToolErrorCode.CANCELLED.value,
+                        error_message="Operation was cancelled during execution",
+                    )
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=operation_id,
+                        error=ToolError(
+                            code=ToolErrorCode.CANCELLED,
+                            message="Operation was cancelled during execution",
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+
                 result_ref_str = (
                     json.dumps(raw_data)
                     if isinstance(raw_data, (dict, list))
@@ -599,7 +654,7 @@ class ToolExecutor:
                 self.ledger.update_operation_status(
                     operation_id=operation_id,
                     status=OperationStatus.SUCCEEDED,
-                    consumed=tool_def.cost_estimate,
+                    consumed=cost_estimate,
                     result_ref=result_ref_str,
                 )
 
@@ -618,6 +673,13 @@ class ToolExecutor:
                     operation_id=operation_id,
                     status=OperationStatus.TIMED_OUT,
                     error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
+        except (InterruptedError, KeyboardInterrupt):
+            err_msg = f"Operation '{invocation.tool_name}' was interrupted or cancelled"
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.CANCELLED,
+                    error_code=ToolErrorCode.CANCELLED.value,
                     error_message=err_msg,
                 )
             return ToolResult(
@@ -627,6 +689,7 @@ class ToolExecutor:
                 operation_id=operation_id,
                 error=ToolError(
                     code=ToolErrorCode.DEADLINE_EXCEEDED,
+                    code=ToolErrorCode.CANCELLED,
                     message=err_msg,
                     correlation_id=invocation.context.correlation_id,
                 ),
@@ -696,6 +759,27 @@ class ToolExecutor:
                 execution_time_seconds=time.perf_counter() - start_time,
             )
         except Exception as exc:
+            if self.ledger and operation_id and self.ledger.is_cancellation_requested(operation_id):
+                err_msg = f"Operation '{invocation.tool_name}' was cancelled"
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.CANCELLED,
+                    error_code=ToolErrorCode.CANCELLED.value,
+                    error_message=err_msg,
+                )
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    operation_id=operation_id,
+                    error=ToolError(
+                        code=ToolErrorCode.CANCELLED,
+                        message=err_msg,
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
+
             err_msg = f"Internal error executing '{invocation.tool_name}': {str(exc)}"
             if self.ledger and operation_id:
                 self.ledger.update_operation_status(
@@ -1135,5 +1219,43 @@ def create_full_tool_registry(
             ),
             _handle_cancel_operation,
         )
+    # 11. optimize_experiment
+    def _handle_optimize_experiment(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+        run_id = args["run_id"]
+        experiment_id = args["experiment_id"]
+        n_trials = args.get("n_trials", 10)
+
+        cmd = OptimizeExperimentCommand(
+            run_id=run_id,
+            experiment_id=experiment_id,
+            n_trials=n_trials,
+        )
+        res = command_bus.dispatch(cmd)
+        best_trial_id = ""
+        best_score = 0.0
+        if isinstance(res, dict):
+            best_trial_id = res.get("best_trial_id") or ""
+            if not best_trial_id and res.get("trials"):
+                best_trial_id = res["trials"][0].get("trial_id", "")
+            best_score = float(res.get("best_score", 0.0))
+
+        return {
+            "best_trial_id": str(best_trial_id),
+            "best_score": float(best_score),
+        }
+
+    registry.register(
+        ToolDefinition(
+            name="optimize_experiment",
+            version="1.0.0",
+            description="Run hyperparameter optimization trials for a candidate experiment",
+            effect=ToolEffect.MUTATE,
+            permission_required=AgentPermission.EXECUTE_WITHIN_BUDGET,
+            cost_estimate={"trials": 10},
+            input_schema=TOOL_SCHEMAS["optimize_experiment"]["input"],
+            output_schema=TOOL_SCHEMAS["optimize_experiment"]["output"],
+        ),
+        _handle_optimize_experiment,
+    )
 
     return registry

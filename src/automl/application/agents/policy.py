@@ -139,7 +139,10 @@ class PolicyEvaluator:
             )
 
         # 4. Budget limits check
-        cost = tool.cost_estimate
+        cost = dict(tool.cost_estimate) if tool.cost_estimate else {}
+        if tool.name == "optimize_experiment" and "n_trials" in arguments:
+            cost["trials"] = int(arguments["n_trials"])
+
         if cost:
             can_afford, budget_error = budget.can_afford(cost)
             if not can_afford:
@@ -157,7 +160,7 @@ class PolicyEvaluator:
                     decision=PolicyDecisionType.REQUIRE_APPROVAL,
                     reason="Human approval required for mutating state operation",
                     approval_required=True,
-                    estimated_cost=tool.cost_estimate,
+                    estimated_cost=cost,
                     policy_version=self.config.policy_version,
                 )
 
@@ -167,5 +170,5 @@ class PolicyEvaluator:
             reason="Tool invocation authorized by policy",
             effective_limits=budget.to_dict(),
             policy_version=self.config.policy_version,
-            estimated_cost=tool.cost_estimate,
+            estimated_cost=cost,
         )
