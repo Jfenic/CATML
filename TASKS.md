@@ -42,6 +42,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [ ] Persist backend class, plugin/library versions and dataset/config hashes per trial ([current limits](docs/backends.md)).
 - [ ] Add the dedicated `feature_selection_v05` benchmark scenario from the feature-discovery specification.
 
+### Generalist AutoML Engine & Super-Ensembles
+> Technical Specs & Execution Plan: [`docs/features/generalist-enhancements/spec.md`](docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](docs/features/generalist-enhancements/plan.md).
+
+- [ ] Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (remove 2-model limit, Rank-Averaging, Ridge meta-learner).
+- [ ] Phase 2: Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections).
+- [ ] Phase 3: Workbench Web UX (K-Fold strategy selector, visual multi-select ensemble builder, Kaggle drag-and-drop export).
+- [ ] Phase 4: Anti-Leakage Guardian in Profiler & Plugin Observability.
+
 ## Backlog — Mejoras Tabulares Identificadas (Kaggle Benchmarking)
 
 > Evidencia de implementación y limitaciones: [`docs/README.md`](docs/README.md). Flujo de colaboración: [`CONTRIBUTING.md`](CONTRIBUTING.md).

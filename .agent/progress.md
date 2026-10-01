@@ -1,44 +1,27 @@
 # Progress
 
-
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado)**:
-- Rol: **Persona B** (Interfaces, Integración y Orquestación).
-- Rama: `feat/agentic-b2-approvals`.
-- Entregable B2 completado:
-  - Servidor MCP (`src/automl/interfaces/mcp/server.py`): Integración de `ToolExecutor` y factoría `create_full_tool_registry`, exponiendo las tools mutantes `create_experiment`, `prioritize_feature` y `run_experiment` con gobierno por políticas y `SqliteAgentLedger`.
-  - Manejo estructurado de estado `PENDING_APPROVAL`: devuelve `approval_id` sin bloquear el terminal ni la conexión stdio. Candidatos no entrenan hasta ser autorizados.
-  - Subcomandos CLI de gobernanza (`src/automl/interfaces/cli/agent_cli.py`):
-    - `automl agent approvals list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`: lista solicitudes de aprobación pendientes o históricas con formato tabular y JSON.
-    - `automl agent approve <approval_id> [--reject] [--reviewer REVIEWER] [--notes NOTES] [--workspace PATH] [--json]`: resuelve la solicitud en el ledger de forma atómica.
-  - Verificación E2E de Hito H2 (`tests/test_v09_agent_e2e.py`): flujo completo (inspección MCP -> propuesta de candidato -> aprobación humana en CLI -> ejecución autorizada -> métricas en leaderboard consultables -> idempotencia probada).
-  - Suite de pruebas de CLI (`tests/test_v09_agent_cli.py`): 7 tests pasando (100% de cobertura en subcomandos).
-  - Suite global de pruebas: 289 tests pasando, 87.57% cobertura (superando el umbral de 85%).
-- Hito H2 cerrado: Primera entrega conjunta V0.9 local completada. Preparado para H3 (operaciones largas, HPO, leases y cancelación cooperativa).
-
-Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
-- Rama: `feat/ensemble-weight-optimization-and-pruning`.
-- Entregable completado:
-  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`): parametrización softmax no acotada $\vec{w} = \text{softmax}(\vec{\theta})$ garantizando pesos estrictamente no negativos y suma 1.0, con regularización suave de Brier para superar plateaus discretos en métricas de ranking (ROC-AUC) y clasificación.
-  - Rank-Averaging Blending (`rank_average_predictions` y `method="rank"` en `blend_predictions`): conversión a rangos percentiles fraccionarios libres de escala $(rank - 1)/(N - 1)$, eliminando distorsiones por descalibración probabilística entre modelos heterogéneos (GBDTs, redes neuronales, lineales).
-  - Integración en `VotingEnsembleEstimator`: soporte de `voting="rank"`, `optimize_weights=True` y `metric`, optimizando pesos automáticamente sobre datos de validación / OOF con `self.weights_` y `self.optimal_score_`.
-  - Exposición en `VotingEnsemblePlugin` y `SearchSpaceBuilder`: parámetros `voting` ("soft", "hard", "rank") y `optimize_weights` explorables en HPO.
-  - Multi-fidelity Early Pruning en `OptunaOptimizer`: integración de `optuna.pruners.MedianPruner` (startup 5, warmup 2), método `report_step(trial_number, step, value)` y registro de `TrialState.PRUNED` en `observe(..., pruned=True)`.
-  - Validación completa: 294 tests pasando (20 tests en `tests/test_ensemble_plugin.py`, 14 tests en `tests/test_v04_optimizer.py`), 8 skipped, 0 fallos, 86.40% cobertura de código (supera el umbral de 85%).
-
+Active Track: **Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking**:
+- Target Roadmap: [`docs/features/generalist-enhancements/spec.md`](../docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](../docs/features/generalist-enhancements/plan.md).
+- Status: Active implementation on branch `feat/n-model-oof-and-stacking`.
+- Tasks:
+  - Remove 2-model limit in `src/automl/engine/ensemble/oof.py` and `src/automl/application/services/oof_submission.py`.
+  - Add Level-2 stacking (`RidgeClassifier`/`Ridge` meta-model) in `src/automl/engine/ensemble/blender.py`.
+  - Support `method` parameter (`average`, `rank`, `simplex`, `stacked`) across Engine, Application, and CLI.
+  - Comprehensive unit and integration tests with coverage >= 85%.
 
 ## Completed
 
-- Paquete B2 completado (Persona B, 2026-09-30):
-  - Exposición de tools mutantes en MCP stdio (`create_experiment`, `prioritize_feature`, `run_experiment`).
-  - Retorno no bloqueante de `PENDING_APPROVAL` con `approval_id`.
-  - Comandos CLI `automl agent approvals list` y `automl agent approve <id> [--reject]`.
-  - Pruebas en `tests/test_v09_agent_cli.py` (7 tests) y `tests/test_v09_agent_e2e.py` (1 test E2E exhaustivo).
-  - Hito H2 verificado y cerrado.
+- Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator (2026-10-01):
+  - Added `include_differences: bool = True` to `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`).
+  - Implemented variance-prioritized pair discovery for `"difference"` type (`inter_diff_colA_minus_colB = colA - colB`).
+  - Added deterministic vector subtraction in `transform()` and `interactions_differences` candidate set.
+  - Tests passing: 8/8 in `tests/test_feature_interactions.py`; full suite 296 passing, 86.42% coverage.
+  - PR #33 opened against `main`.
 
-- Frontend Dynamic Binding & Dataset Neutrality (Workbench UI, 2026-09-30):
-  - Eliminación absoluta de datos hardcodeados en vistas de Workbench.
-  - Enlace dinámico de todas las vistas (Overview, Datasets, Studio, Compare, Pipeline, Kaggle, Knowledge).
-  - Endpoint `GET /api/datasets` agregado en `server.py`.
+- Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado) (2026-09-30):
+  - MCP Server mutations, CLI agent subcommands, and E2E verification.
+
+- Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
 
 - Blackboard Issue #12 completado (2026-09-30):
   - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML con fallback.
