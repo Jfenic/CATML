@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 import sys
 from typing import Any
+import uuid
 
 try:
     from mcp.server.mcpserver import MCPServer
@@ -19,6 +21,10 @@ except ImportError:
     MCPServer = Any  # type: ignore
     types = Any  # type: ignore
 
+from automl.application.agents.contracts import ToolCallContext, ToolInvocation
+from automl.application.agents.executor import ToolExecutor, create_full_tool_registry
+from automl.application.agents.policy import AgentPolicyConfig, PolicyEvaluator
+from automl.application.agents.ports import AgentLedgerPort
 from automl.application.bootstrap import build_application
 from automl.application.bus.command_bus import CommandBus
 from automl.application.bus.query_bus import QueryBus
@@ -32,7 +38,8 @@ from automl.application.queries.workspace_queries import (
     ListPluginsQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
-from automl.domain.agents.entities import ToolErrorCode
+from automl.domain.agents.entities import AgentPermission, ToolErrorCode
+from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
 
 logger = logging.getLogger("catml.mcp")
 
@@ -42,6 +49,8 @@ def create_mcp_server(
     command_bus: CommandBus | None = None,
     query_bus: QueryBus | None = None,
     root_dir: str | None = None,
+    ledger: AgentLedgerPort | None = None,
+    policy_evaluator: PolicyEvaluator | None = None,
 ) -> Any:
     """Create and configure the CATML MCP server instance."""
     if not HAS_MCP:
@@ -53,7 +62,39 @@ def create_mcp_server(
     if workspace is None or command_bus is None or query_bus is None:
         workspace, command_bus, query_bus = build_application(root_dir=root_dir)
 
+    if ledger is None:
+        if workspace and hasattr(workspace, "root_dir") and workspace.root_dir:
+            ledger_path = Path(workspace.root_dir) / "agent_ledger.db"
+        elif root_dir:
+            ledger_path = Path(root_dir) / "agent_ledger.db"
+        else:
+            ledger_path = Path.cwd() / ".automl" / "default" / "agent_ledger.db"
+        ledger = SqliteAgentLedger(ledger_path)
+
+    if policy_evaluator is None:
+        policy_evaluator = PolicyEvaluator(
+            AgentPolicyConfig(
+                require_approval_for_mutations=True,
+                default_mode=AgentPermission.EXECUTE_WITHIN_BUDGET,
+            )
+        )
+
+    tool_registry = create_full_tool_registry(
+        query_bus=query_bus,
+        command_bus=command_bus,
+        workspace=workspace,
+    )
+    executor = ToolExecutor(
+        registry=tool_registry,
+        policy_evaluator=policy_evaluator,
+        ledger=ledger,
+    )
+
+    ws_path = str(workspace.root_dir) if workspace and hasattr(workspace, "root_dir") else "."
+
     server = MCPServer("catml-mcp", version="0.7.0")
+    server.executor = executor
+    server.ledger = ledger
 
     # -----------------------------------------------------------------------
     # Query Tools (Milestone H1)
@@ -123,7 +164,21 @@ def create_mcp_server(
     def list_experiments(run_id: str) -> types.CallToolResult:
         try:
             exps = query_bus.dispatch(ListExperimentsQuery(run_id=run_id))
-            data = [e.to_dict() if hasattr(e, "to_dict") else str(e) for e in exps]
+            data = []
+            for e in exps or []:
+                if hasattr(e, "to_dict"):
+                    data.append(e.to_dict())
+                else:
+                    status_val = e.status.value if hasattr(e.status, "value") else str(e.status)
+                    data.append({
+                        "id": getattr(e, "id", str(e)),
+                        "experiment_id": getattr(e, "id", str(e)),
+                        "run_id": getattr(e, "run_id", run_id),
+                        "name": getattr(e, "name", ""),
+                        "model_ids": getattr(e, "model_ids", []),
+                        "metric": getattr(e, "metric", ""),
+                        "status": status_val,
+                    })
             return types.CallToolResult(
                 content=[types.TextContent(type="text", text=json.dumps(data, default=str, indent=2))],
                 is_error=False,
@@ -196,6 +251,215 @@ def create_mcp_server(
             return types.CallToolResult(
                 content=[types.TextContent(type="text", text=json.dumps(ranking, default=str, indent=2))],
                 is_error=False,
+            )
+        except Exception as e:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INTERNAL_ERROR.value}] {str(e)}")],
+                is_error=True,
+            )
+
+    # -----------------------------------------------------------------------
+    # Mutating Tools with Policy & Approval Governance (Milestone H2)
+    # -----------------------------------------------------------------------
+
+    @server.tool(
+        name="create_experiment",
+        description="Propose and create an experiment candidate with specified model and features.",
+    )
+    def create_experiment(
+        run_id: str,
+        model_name: str,
+        feature_names: list[str] | None = None,
+        idempotency_key: str | None = None,
+        approval_id: str | None = None,
+    ) -> types.CallToolResult:
+        try:
+            arguments = {
+                "run_id": run_id,
+                "model_name": model_name,
+            }
+            if feature_names is not None:
+                arguments["feature_names"] = feature_names
+
+            inv = ToolInvocation(
+                tool_name="create_experiment",
+                arguments=arguments,
+                context=ToolCallContext(
+                    actor="mcp_agent",
+                    workspace_path=ws_path,
+                    run_id=run_id,
+                    correlation_id=f"mcp-{uuid.uuid4().hex[:8]}",
+                    permission=AgentPermission.EXECUTE_WITHIN_BUDGET,
+                    approval_id=approval_id,
+                ),
+                idempotency_key=idempotency_key,
+                approval_id=approval_id,
+            )
+            res = executor.execute(inv)
+            if res.success:
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text=json.dumps(res.data, default=str, indent=2))],
+                    is_error=False,
+                )
+            if res.error and res.error.code == ToolErrorCode.APPROVAL_REQUIRED:
+                return types.CallToolResult(
+                    content=[
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps(
+                                {
+                                    "status": "PENDING_APPROVAL",
+                                    "approval_id": res.approval_id,
+                                    "message": f"Action 'create_experiment' requires human approval. Run: automl agent approve {res.approval_id}",
+                                    "details": res.error.details,
+                                },
+                                indent=2,
+                            ),
+                        )
+                    ],
+                    is_error=False,
+                )
+            err_msg = res.error.message if res.error else "Unknown error"
+            err_code = res.error.code.value if res.error else ToolErrorCode.INTERNAL_ERROR.value
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{err_code}] {err_msg}")],
+                is_error=True,
+            )
+        except Exception as e:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INTERNAL_ERROR.value}] {str(e)}")],
+                is_error=True,
+            )
+
+    @server.tool(
+        name="prioritize_feature",
+        description="Prioritize a specific feature to adjust its weight in candidate selection.",
+    )
+    def prioritize_feature(
+        run_id: str,
+        feature_name: str,
+        priority: str,
+        dataset_id: str | None = None,
+        idempotency_key: str | None = None,
+        approval_id: str | None = None,
+    ) -> types.CallToolResult:
+        try:
+            arguments = {
+                "run_id": run_id,
+                "feature_name": feature_name,
+                "priority": priority,
+            }
+            if dataset_id:
+                arguments["dataset_id"] = dataset_id
+
+            inv = ToolInvocation(
+                tool_name="prioritize_feature",
+                arguments=arguments,
+                context=ToolCallContext(
+                    actor="mcp_agent",
+                    workspace_path=ws_path,
+                    run_id=run_id,
+                    correlation_id=f"mcp-{uuid.uuid4().hex[:8]}",
+                    permission=AgentPermission.EXECUTE_WITHIN_BUDGET,
+                    approval_id=approval_id,
+                ),
+                idempotency_key=idempotency_key,
+                approval_id=approval_id,
+            )
+            res = executor.execute(inv)
+            if res.success:
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text=json.dumps(res.data, default=str, indent=2))],
+                    is_error=False,
+                )
+            if res.error and res.error.code == ToolErrorCode.APPROVAL_REQUIRED:
+                return types.CallToolResult(
+                    content=[
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps(
+                                {
+                                    "status": "PENDING_APPROVAL",
+                                    "approval_id": res.approval_id,
+                                    "message": f"Action 'prioritize_feature' requires human approval. Run: automl agent approve {res.approval_id}",
+                                    "details": res.error.details,
+                                },
+                                indent=2,
+                            ),
+                        )
+                    ],
+                    is_error=False,
+                )
+            err_msg = res.error.message if res.error else "Unknown error"
+            err_code = res.error.code.value if res.error else ToolErrorCode.INTERNAL_ERROR.value
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{err_code}] {err_msg}")],
+                is_error=True,
+            )
+        except Exception as e:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INTERNAL_ERROR.value}] {str(e)}")],
+                is_error=True,
+            )
+
+    @server.tool(
+        name="run_experiment",
+        description="Execute training and validation for a configured experiment candidate.",
+    )
+    def run_experiment(
+        run_id: str,
+        experiment_id: str,
+        idempotency_key: str | None = None,
+        approval_id: str | None = None,
+    ) -> types.CallToolResult:
+        try:
+            arguments = {
+                "run_id": run_id,
+                "experiment_id": experiment_id,
+            }
+            inv = ToolInvocation(
+                tool_name="run_experiment",
+                arguments=arguments,
+                context=ToolCallContext(
+                    actor="mcp_agent",
+                    workspace_path=ws_path,
+                    run_id=run_id,
+                    correlation_id=f"mcp-{uuid.uuid4().hex[:8]}",
+                    permission=AgentPermission.EXECUTE_WITHIN_BUDGET,
+                    approval_id=approval_id,
+                ),
+                idempotency_key=idempotency_key,
+                approval_id=approval_id,
+            )
+            res = executor.execute(inv)
+            if res.success:
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text=json.dumps(res.data, default=str, indent=2))],
+                    is_error=False,
+                )
+            if res.error and res.error.code == ToolErrorCode.APPROVAL_REQUIRED:
+                return types.CallToolResult(
+                    content=[
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps(
+                                {
+                                    "status": "PENDING_APPROVAL",
+                                    "approval_id": res.approval_id,
+                                    "message": f"Action 'run_experiment' requires human approval. Run: automl agent approve {res.approval_id}",
+                                    "details": res.error.details,
+                                },
+                                indent=2,
+                            ),
+                        )
+                    ],
+                    is_error=False,
+                )
+            err_msg = res.error.message if res.error else "Unknown error"
+            err_code = res.error.code.value if res.error else ToolErrorCode.INTERNAL_ERROR.value
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{err_code}] {err_msg}")],
+                is_error=True,
             )
         except Exception as e:
             return types.CallToolResult(

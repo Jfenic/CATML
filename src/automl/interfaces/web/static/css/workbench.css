@@ -1,66 +1,69 @@
 /* ==========================================================================
-   CATML AutoML Workbench — Design System & Custom Styles
-   Clean, dense, technical UI for explainable and controllable AutoML
+   CATML AutoML Workbench — Neo-Industrial Design System
+   Visual ML Laboratory: Technical, Modular, Precise, Visual, Experimental
+   Specification: docs/design/neo-industrial-ui-spec.md
    ========================================================================== */
 
 :root {
-  --color-bg-base: #030712;
-  --color-bg-panel: #0b1329;
-  --color-bg-card: #111c38;
-  --color-border: #1e293b;
-  --color-border-hover: #334155;
+  /* Architectural Base Palette */
+  --color-bg-base: #111111;
+  --color-bg-panel: #16171c;
+  --color-bg-card: #1c1d24;
+  --color-border: #27272e;
+  --color-border-hover: #3d3e48;
+  --color-text-main: #F1EFE9;
+  --color-text-muted: #D8D6CF;
 
-  /* Semantic Color Guidelines:
-     🔵 System / Execution: Sky / Indigo
-     🟢 Proven Improvement: Emerald
-     🟠 Warning / Pending: Amber
-     🔴 Error / Destructive: Rose
-     🟣 CATML Intelligence: Violet (Planner, Knowledge, Agent)
-  */
-  --catml-sys: #6366f1;
-  --catml-sys-light: #818cf8;
-  --catml-gain: #10b981;
-  --catml-warn: #f59e0b;
-  --catml-err: #f43f5e;
-  --catml-intel: #a855f7;
-}
+  /* Typography */
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-/* Custom Scrollbar for dense technical panels */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  /* Functional Semantic Accents */
+  --catml-signal: #E5512D;     /* Signal Orange: Primary Action CTA & Champion Highlight */
+  --catml-gain: #63D49A;       /* Completed / Success / Metric Validated */
+  --catml-warn: #E7C84B;       /* Running / In Progress / Attention */
+  --catml-err: #D85454;        /* Error / Failed / Destructive */
+  --catml-sys: #5C78FF;        /* Data / Dataset / Informational */
+  --catml-intel: #9C7CFF;      /* AI / Knowledge / Agent */
 }
 
-/* Base typography */
+/* Base resets & typography */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--color-bg-base);
-  color: #f1f5f9;
+  color: var(--color-text-main);
   overflow-x: hidden;
 }
 
-/* Monospace data elements */
-.font-mono-num {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+/* Monospace technical data */
+.font-mono-num,
+.font-mono {
+  font-family: var(--font-mono);
   font-feature-settings: "tnum" 1;
 }
 
-/* Card and Panel Utilities */
+/* Custom Scrollbar for dense technical laboratory panels */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #111111;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272e;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3d3e48;
+}
+
+/* Modular Panels & Engineering Equipment Blocks */
 .workbench-card {
   background-color: var(--color-bg-panel);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 2px;
+  transition: border-color 0.15s ease;
 }
 
 .workbench-card:hover {
@@ -68,44 +71,146 @@ body {
 }
 
 .workbench-panel-header {
-  background: rgba(15, 23, 42, 0.7);
+  background: #111111;
   border-bottom: 1px solid var(--color-border);
   padding: 0.75rem 1rem;
+  font-family: var(--font-mono);
 }
 
-/* Semantic Badges */
-.badge-intel {
-  background-color: rgba(168, 85, 247, 0.12);
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  color: #c084fc;
+/* Neo-Industrial Button Suite */
+.btn-signal {
+  background-color: var(--catml-signal);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 1rem;
+  border-radius: 2px;
+  border: 1px solid #ff6740;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.btn-signal:hover {
+  background-color: #ff5c35;
+  box-shadow: 0 0 12px rgba(229, 81, 45, 0.45);
+}
+
+.btn-technical {
+  background-color: var(--color-bg-card);
+  border: 1px solid #333333;
+  color: var(--color-text-main);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-technical:hover {
+  border-color: var(--color-text-muted);
+  background-color: #27272e;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  border: 1px solid rgba(216, 214, 207, 0.25);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-text-main);
+  color: var(--color-text-main);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Functional Semantic Status Badges */
 .badge-gain {
-  background-color: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34d399;
+  background-color: rgba(99, 212, 154, 0.12);
+  border: 1px solid rgba(99, 212, 154, 0.35);
+  color: #63D49A;
+  border-radius: 2px;
 }
 
 .badge-sys {
-  background-color: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #818cf8;
+  background-color: rgba(92, 120, 255, 0.12);
+  border: 1px solid rgba(92, 120, 255, 0.35);
+  color: #5C78FF;
+  border-radius: 2px;
 }
 
 .badge-warn {
-  background-color: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
+  background-color: rgba(231, 200, 75, 0.12);
+  border: 1px solid rgba(231, 200, 75, 0.35);
+  color: #E7C84B;
+  border-radius: 2px;
 }
 
 .badge-err {
-  background-color: rgba(244, 63, 94, 0.12);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  color: #fb7185;
+  background-color: rgba(216, 84, 84, 0.12);
+  border: 1px solid rgba(216, 84, 84, 0.35);
+  color: #D85454;
+  border-radius: 2px;
+}
+
+.badge-intel {
+  background-color: rgba(156, 124, 255, 0.12);
+  border: 1px solid rgba(156, 124, 255, 0.35);
+  color: #9C7CFF;
+  border-radius: 2px;
+}
+
+/* Leaderboard Champion Highlight */
+.champion-lead {
+  border-left: 3px solid var(--catml-signal) !important;
+}
+
+/* Large Technical Metric Blocks */
+.metric-block {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  padding: 1.25rem;
+}
+
+.metric-block .metric-val {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-text-main);
+}
+
+.metric-block .metric-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-top: 0.35rem;
 }
 
 /* Lateral Agent Drawer Animation */
 #agentDrawer {
+  background: #14151a;
+  border-left: 1px solid var(--color-border);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -119,9 +224,9 @@ body {
 
 /* Pipeline DAG Nodes & Connectors */
 .dag-node {
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 0.5rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
   padding: 0.625rem 0.875rem;
   min-width: 140px;
   cursor: pointer;
@@ -129,45 +234,53 @@ body {
 }
 
 .dag-node:hover, .dag-node.active {
-  border-color: #818cf8;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+  border-color: var(--catml-signal);
+  box-shadow: 0 0 8px rgba(229, 81, 45, 0.3);
   transform: translateY(-1px);
 }
 
 .dag-node-connector {
   width: 2px;
-  background-color: #334155;
+  background-color: var(--color-border);
 }
 
-/* Table styles */
+/* High-Density Technical Tables */
+.wb-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
 .wb-table th {
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
   padding: 0.625rem 0.875rem;
   border-bottom: 1px solid var(--color-border);
+  background: #111111;
 }
 
 .wb-table td {
   padding: 0.625rem 0.875rem;
-  border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+  border-bottom: 1px solid rgba(39, 39, 46, 0.6);
   font-size: 0.8125rem;
 }
 
 .wb-table tr:hover td {
-  background-color: rgba(30, 41, 59, 0.35);
+  background-color: rgba(39, 39, 46, 0.35);
 }
 
-/* Training Indicator & Spinner Animations */
+/* Training Indicator & Live Animation */
 @keyframes catml-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.7); }
+@keyframes pulse-signal {
+  0%, 100% { box-shadow: 0 0 10px rgba(229, 81, 45, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(229, 81, 45, 0.5); }
 }
 
 .animate-catml-spin {
@@ -175,8 +288,8 @@ body {
 }
 
 .training-card-active {
-  animation: pulse-glow 2s infinite;
-  border-color: #6366f1 !important;
+  animation: pulse-signal 2s infinite;
+  border-color: var(--catml-signal) !important;
 }
 
 .progress-striped {

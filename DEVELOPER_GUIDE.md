@@ -69,7 +69,8 @@ infrastructure/ (SQLite, storage)
 | **Plugins — Models** | `plugins/models/` | Adaptadores sklearn, gradient boosting y voting | Nuevos `ModelPluginPort` |
 | **Infrastructure** | `infrastructure/database/` | SQLite, eventos, benchmark | Postgres adapter |
 | **Benchmarks** | `benchmarks/runner.py` | Escenarios de regresión de calidad | Nuevos escenarios por versión |
-| **CLI** | `interfaces/cli/` | Subcomandos | Workbench HTTP reutilizando la aplicación |
+| **CLI** | `interfaces/cli/` | Subcomandos | Comandos que deleguen en workspace |
+| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP y SPA visual | Vistas SPA siguiendo `docs/design/neo-industrial-ui-spec.md` |
 
 ---
 
@@ -144,6 +145,7 @@ Cambiar métricas de evaluación         → engine/training/sklearn_trainer.py
 Nuevo comando usuario/LLM              → commands/ + bootstrap.py
 Nueva consulta UI/LLM                  → queries/ + bootstrap.py
 Persistencia / auditoría               → sqlite_repository.py
+Modificar UI / Workbench              → interfaces/web/ + docs/design/neo-industrial-ui-spec.md
 Medir mejoras entre versiones          → benchmarks/runner.py
 Documentación formal                   → AutoML_Arquitectura_Tecnica.md
 ```
@@ -158,6 +160,7 @@ Documentación formal                   → AutoML_Arquitectura_Tecnica.md
 4. **Eventos** en toda mutación relevante (`repository.append_event`).
 5. **Tests:** agrupar por funcionalidad; añadir pruebas de regresión en la suite relevante.
 6. **Versión:** actualizar `automl.__version__` en `src/automl/__init__.py`; empaquetado, CLI y Workbench comparten esa fuente. Actualizar las referencias de versión en la documentación.
+7. **Estilo Neo-Industrial en UI:** Toda la interfaz web y paneles de visualización deben seguir rigurosamente el diseño de laboratorio técnico en [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md) (paleta `#111111` / `#D8D6CF` / `#E5512D`, fuentes `Space Grotesk` + `IBM Plex Mono`, bordes de 1px y radio $\le 4$px).
 
 ---
 

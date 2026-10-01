@@ -1,5 +1,6 @@
 # Progress
 
+
 Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator**:
 - Rama: `feat/feature-interactions-differences`.
 - Entregable completado:
@@ -9,22 +10,67 @@ Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatu
     - Transformación determinista y pura en `transform(df, features)` sin mutar el DataFrame original.
     - Empaquetado automático del conjunto de candidatos `interactions_differences` en `propose_candidate_feature_sets` para experimentación y ablación directa.
   - Pruebas y cobertura: 8 tests passing en `tests/test_feature_interactions.py` (incorporando pruebas para `difference`, verificación matemática, flag de desactivación y conjunto de candidatos); suite global con 296 tests passing, 8 skipped, 86.42% de cobertura de código.
+=======
+Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
+- Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
+
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado)**:
+- Rol: **Persona B** (Interfaces, Integración y Orquestación).
+- Rama: `feat/agentic-b2-approvals`.
+- Entregable B2 completado:
+  - Servidor MCP (`src/automl/interfaces/mcp/server.py`): Integración de `ToolExecutor` y factoría `create_full_tool_registry`, exponiendo las tools mutantes `create_experiment`, `prioritize_feature` y `run_experiment` con gobierno por políticas y `SqliteAgentLedger`.
+  - Manejo estructurado de estado `PENDING_APPROVAL`: devuelve `approval_id` sin bloquear el terminal ni la conexión stdio. Candidatos no entrenan hasta ser autorizados.
+  - Subcomandos CLI de gobernanza (`src/automl/interfaces/cli/agent_cli.py`):
+    - `automl agent approvals list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`: lista solicitudes de aprobación pendientes o históricas con formato tabular y JSON.
+    - `automl agent approve <approval_id> [--reject] [--reviewer REVIEWER] [--notes NOTES] [--workspace PATH] [--json]`: resuelve la solicitud en el ledger de forma atómica.
+  - Verificación E2E de Hito H2 (`tests/test_v09_agent_e2e.py`): flujo completo (inspección MCP -> propuesta de candidato -> aprobación humana en CLI -> ejecución autorizada -> métricas en leaderboard consultables -> idempotencia probada).
+  - Suite de pruebas de CLI (`tests/test_v09_agent_cli.py`): 7 tests pasando (100% de cobertura en subcomandos).
+  - Suite global de pruebas: 289 tests pasando, 87.57% cobertura (superando el umbral de 85%).
+- Hito H2 cerrado: Primera entrega conjunta V0.9 local completada. Preparado para H3 (operaciones largas, HPO, leases y cancelación cooperativa).
+
+Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
+- Rama: `feat/ensemble-weight-optimization-and-pruning`.
+- Entregable completado:
+  - Extensión de contratos de dominio (`ColumnProfile`, `DatasetProfile` en `src/automl/domain/datasets/profile.py`): incorporación de campos estadísticos numéricos (`mean`, `std`, `min`, `max`, `median`, `q25`, `q75`, `skew`, `target_correlation`, `top_categories`), `histogram` (10 bins), `box_plot` (estadísticas globales y desglosadas por clases del target), `correlation_matrix` completa ($r \in [-1, 1]$), muestra de datos crudos (`preview_rows`) y recomendaciones automáticas (`recommendations`), preservando pureza hexagonal sin dependencias externas.
+  - Motor de perfilado (`dataset_profiler.py`): cálculo de estadísticas descriptivas, correlación de Pearson frente al target (numérico o texto adaptado), detección de multicolinealidad cruzada ($|r| > 0.88$), cálculo de frecuencias categóricas con tasa de propensión al target (`target_rate`), generación de cajas y bigotes desglosados por clase de objetivo, e histogramas bivariantes.
+  - Deserialización en persistencia (`sqlite_repository.py`): soporte transparente para los nuevos campos estadísticos, matriz de correlación y recomendaciones en SQLite, con filtrado seguro de atributos para garantizar retrocompatibilidad.
+  - Vistas frontend interactivas:
+    - `datasets.js`: Pestaña dedicada a la **Matriz de Correlación** (mapa de calor interactivo de Pearson entre todas las variables numéricas y el target, con detección visual de colinealidad); botones `[📊 Ver]` en cada fila de las tablas de Schema y Estadísticas Descriptivas; **Modal de Análisis Visual y Patrones de Variable** con 3 modos: Diagrama de Caja y Bigotes (Box Plot SVG comparativo por clase de target y métricas IQR/Mediana), Histograma de Distribución (10 bins con diagnóstico de asimetría/skewness), y Patrones frente a la Variable Objetivo (tasa de conversión % por categoría o comparativa de medias por clase).
+    - `new_experiment.js`: Previsualización interactiva con badges y recuento de variables seleccionadas; propagación de `feature_names` en la creación de experimentos.
+    - `studio.js`: Barra superior de lanzamiento rápido (LightGBM, XGBoost, CatBoost, Ensemble Blender), filtros por familia de modelos y modal para inspección de hiperparámetros de cada trial.
+  - Sistema de Diseño UI Neo-Industrial (Visual ML Lab):
+    - Especificación oficial de diseño en `docs/design/neo-industrial-ui-spec.md` y registro arquitectónico `docs/decisions/005-neo-industrial-visual-ml-lab-ui.md`.
+    - Regla 8 añadida a `AGENTS.md` y directrices en `DEVELOPER_GUIDE.md` para que cualquier agente o desarrollador futuro preserve estrictamente este estándar.
+    - Tipografía dual (`Space Grotesk` para títulos/interfaz y `IBM Plex Mono` para datos/métricas/IDs/logs).
+    - Paleta modular técnica: `#111111` (negro carbón), `#16171c` / `#1c1d24` (paneles modulares), `#D8D6CF` (cemento), `#F1EFE9` (blanco cálido), con `#E5512D` (naranja señal) reservado exclusivamente para acciones y CTAs principales de ejecución.
+    - Navegación lateral numerada (`01 Dashboard`, `02 Datasets`, `03 Experiments`, `04 Models`, `05 Pipelines`, `06 Deployments`).
+    - Eliminación de bordes redondeados tipo SaaS (radios estrictos $\le 4$px, bordes de 1px) y modernización integral de `index.html`, `workbench.css`, `app.js`, `overview.js`, `new_experiment.js`, `studio.js`, `compare.js`, `datasets.js`.
+  - Pruebas y cobertura: 295 tests pasando (incluyendo `tests/test_web_dashboard.py` enriquecido con aserciones para `box_plot`, `histogram`, `target_rate` y `correlation_matrix`), 8 skipped, 0 fallos, 86.45% cobertura global (superando el umbral de 85%). Pruebas JS (`node --test tests/js/jobs.test.mjs`) passing al 100%.
+
 
 ## Completed
 
 - Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
+=======
+  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`), Rank-Averaging Blending, y Multi-fidelity Early Pruning en `OptunaOptimizer`. PR #31 integrado en main.
+- Paquete B2 completado (Persona B, 2026-09-30):
+  - Exposición de tools mutantes en MCP stdio (`create_experiment`, `prioritize_feature`, `run_experiment`).
+  - Retorno no bloqueante de `PENDING_APPROVAL` con `approval_id`.
+  - Comandos CLI `automl agent approvals list` y `automl agent approve <id> [--reject]`.
+  - Pruebas en `tests/test_v09_agent_cli.py` (7 tests) y `tests/test_v09_agent_e2e.py` (1 test E2E exhaustivo).
+  - Hito H2 verificado y cerrado.
+
+- Frontend Dynamic Binding & Dataset Neutrality (Workbench UI, 2026-09-30):
+  - Eliminación absoluta de datos hardcodeados en vistas de Workbench.
+  - Enlace dinámico de todas las vistas (Overview, Datasets, Studio, Compare, Pipeline, Kaggle, Knowledge).
+  - Endpoint `GET /api/datasets` agregado en `server.py`.
+
 
 - Blackboard Issue #12 completado (2026-09-30):
-  - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML.
-  - Fallback automático para CatBoost cuando la librería nativa no está presente.
-  - Soporte completo en optimizador de hiperparámetros y ejecución de experimentos E2E.
- 
+  - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML con fallback.
+
 - Resolved Blackboard Issue #14 (2026-09-30):
-  - Enforced strict run ownership validation in `AutoMLWorkspace.predict()` (`src/automl/application/services/workspace.py`):
-    - Rejects foreign `experiment_id` when `experiment.run_id != run.id` with `ValueError`.
-    - Rejects foreign `trial_id` when the associated experiment does not belong to the requested run with `ValueError`.
-  - Added full regression test suite in `tests/test_prediction_ownership.py` (4 tests passing).
- 
+  - Validación de run ownership en `AutoMLWorkspace.predict()` (`tests/test_prediction_ownership.py`).
 - Paquete A2 completado (Persona A, 2026-09-30):
   - Tools mutantes y ejecución autorizada en `src/automl/application/agents/`:
     - `ToolExecutor`: integración con `SqliteAgentLedger` para auditoría y deduplicación atómica de idempotencia.

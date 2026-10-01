@@ -113,11 +113,11 @@ class App {
 
       if (statusBadge) {
         if (isAnyRunning) {
-          statusBadge.className = "badge-sys px-2.5 py-0.5 rounded-full font-mono font-semibold flex items-center space-x-1.5";
-          statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>● RUNNING</span>`;
+          statusBadge.className = "badge-warn px-2.5 py-0.5 rounded-sm font-mono text-[11px] font-semibold flex items-center space-x-1.5";
+          statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-[#E7C84B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>● TRAINING</span>`;
         } else {
           const lastStatus = runs && runs[0] ? runs[0].status : "READY";
-          statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-full font-mono font-semibold flex items-center space-x-1.5";
+          statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-sm font-mono text-[11px] font-semibold flex items-center space-x-1.5";
           statusBadge.innerHTML = `<span>● ${lastStatus}</span>`;
         }
       }
@@ -175,11 +175,11 @@ class App {
     document.querySelectorAll(".nav-item").forEach(item => {
       const id = item.getAttribute("data-nav");
       if (id === navId) {
-        item.classList.add("bg-indigo-600/20", "text-indigo-400", "border-indigo-600");
-        item.classList.remove("text-slate-400", "hover:bg-slate-900", "border-transparent");
+        item.classList.add("bg-[#1c1d24]", "text-[#F1EFE9]", "border-[#E5512D]");
+        item.classList.remove("text-[#D8D6CF]/70", "hover:bg-[#1c1d24]/50", "border-transparent");
       } else if (id !== "agent") {
-        item.classList.remove("bg-indigo-600/20", "text-indigo-400", "border-indigo-600");
-        item.classList.add("text-slate-400", "hover:bg-slate-900", "border-transparent");
+        item.classList.remove("bg-[#1c1d24]", "text-[#F1EFE9]", "border-[#E5512D]");
+        item.classList.add("text-[#D8D6CF]/70", "hover:bg-[#1c1d24]/50", "border-transparent");
       }
     });
 

@@ -23,6 +23,7 @@ from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
     PlanExperimentsCommand,
 )
+from automl.domain.agents.entities import ApprovalStatus
 from automl.interfaces.cli.mcp_cli import run_mcp_cli
 from automl.interfaces.mcp.server import HAS_MCP, create_mcp_server
 
@@ -63,8 +64,12 @@ def test_mcp_server_initialization_and_tool_listing(temp_workspace):
         "get_leaderboard",
         "get_feature_evidence",
         "get_feature_ranking",
+        "create_experiment",
+        "prioritize_feature",
+        "run_experiment",
     }
     assert expected_tools.issubset(tool_names)
+    assert len(expected_tools) == 10
 
     # Verify input schemas
     for t in tools:
@@ -185,6 +190,66 @@ def test_mcp_resources(temp_workspace):
     assert len(ds_res) == 1
     ds_data = json.loads(ds_res[0].content)
     assert "n_rows" in ds_data or "columns" in ds_data
+
+
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
+def test_mcp_mutating_tools_and_governance(temp_workspace):
+    """Verify MCP mutating tools require approval, don't block terminal, and execute once authorized."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    # 1. Propose candidate without approval -> returns PENDING_APPROVAL
+    res_prop = asyncio.run(
+        server.call_tool(
+            "create_experiment",
+            {"run_id": run.id, "model_name": "logistic_regression"},
+        )
+    )
+    assert res_prop.is_error is False
+    data_prop = json.loads(res_prop.content[0].text)
+    assert data_prop["status"] == "PENDING_APPROVAL"
+    assert "approval_id" in data_prop
+    appr_id = data_prop["approval_id"]
+
+    # 2. Approve via server's ledger
+    server.ledger.update_approval_status(appr_id, status=ApprovalStatus.APPROVED, reviewer="test_reviewer")
+
+    # 3. Call again with approval_id -> succeeds and returns experiment_id
+    res_auth = asyncio.run(
+        server.call_tool(
+            "create_experiment",
+            {"run_id": run.id, "model_name": "logistic_regression", "approval_id": appr_id},
+        )
+    )
+    assert res_auth.is_error is False
+    data_auth = json.loads(res_auth.content[0].text)
+    assert "experiment_id" in data_auth
+    exp_id = data_auth["experiment_id"]
+
+    # 4. Propose run_experiment -> returns PENDING_APPROVAL
+    res_run_prop = asyncio.run(
+        server.call_tool(
+            "run_experiment",
+            {"run_id": run.id, "experiment_id": exp_id},
+        )
+    )
+    assert res_run_prop.is_error is False
+    data_run_prop = json.loads(res_run_prop.content[0].text)
+    assert data_run_prop["status"] == "PENDING_APPROVAL"
+    run_appr_id = data_run_prop["approval_id"]
+
+    # 5. Approve run_experiment and execute
+    server.ledger.update_approval_status(run_appr_id, status=ApprovalStatus.APPROVED, reviewer="test_reviewer")
+    res_run_exec = asyncio.run(
+        server.call_tool(
+            "run_experiment",
+            {"run_id": run.id, "experiment_id": exp_id, "approval_id": run_appr_id},
+        )
+    )
+    assert res_run_exec.is_error is False
+    data_run = json.loads(res_run_exec.content[0].text)
+    assert "trial_id" in data_run
+    assert "metric_value" in data_run
 
 
 def test_mcp_server_missing_dependency():

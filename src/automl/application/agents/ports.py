@@ -54,6 +54,12 @@ class AgentLedgerPort(Protocol):
         """Update approval request status (approved, rejected, revoked)."""
         ...
 
+    def list_approvals(
+        self, run_id: str | None = None, status: ApprovalStatus | None = None
+    ) -> list[ApprovalRequest]:
+        """List approval requests, optionally filtered by run_id or status."""
+        ...
+
     def save_hypothesis(self, hyp: Hypothesis) -> None:
         """Save a proposed or evaluated hypothesis."""
         ...
