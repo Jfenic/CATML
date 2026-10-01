@@ -33,7 +33,7 @@ Esta tabla describe el alcance comprobable; los criterios ampliados de una espec
 | Multimodal | DAG, imágenes y fusión tabular; encoder determinista predeterminado; texto/audio y late fusion no acreditados como implementación completa | [Spec V0.7](features/multimodal/spec.md), [tests E2E](../tests/test_v07_multimodal_e2e.py) |
 | Workbench HTTP | Servicio local, ejecución y consulta de experimentos, datasets y submissions; sin autenticación | [Servidor](../src/automl/interfaces/web/server.py), [tests](../tests/test_web_dashboard.py) |
 | Trabajos persistentes | Experimentos, OOF y submissions con worker único, progreso real y controles; OOF parcial reinicia, HPO sigue síncrono | [Spec](features/persistent-jobs/spec.md), [tests](../tests/test_jobs.py), [ADR 003](decisions/003-persistent-local-jobs.md) |
-| Knowledge / agente | Vistas y respuestas ilustrativas de preview; no equivalen a meta-learning o agente autónomo operativo | [Servidor](../src/automl/interfaces/web/server.py), [ADR 004](decisions/004-agentic-system-scope-and-dependencies.md), [plan agéntico](features/agentic-system/plan.md) |
+| Knowledge / agente | H0–H3 completados en `main`: catálogo de tools, políticas de aprobación, leases de operaciones, reconciliación y servidor MCP dual (stdio/http). H4–H5 en progreso | [Application agents](../src/automl/application/agents/), [CLI / MCP](../src/automl/interfaces/), [plan agéntico](features/agentic-system/plan.md) |
 | Predicciones / submissions | Predicción con plantilla y OOF binario con pesos iguales (`--folds`); evaluación independiente para promoción pendiente | [Tests de plantilla](../tests/test_submission_template.py), [protocolo OOF](features/oof-blending/spec.md) |
 
 ## Mantener la documentación

@@ -432,7 +432,7 @@ def test_mcp_operation_resources(temp_workspace):
 
 def test_mcp_cli_transport_args():
     """Verify run_mcp_cli passes transport configuration cleanly to run_mcp_service."""
-    with patch("automl.interfaces.mcp.server.run_mcp_service") as mock_service:
+    with patch("automl.interfaces.mcp.server.HAS_MCP", True), patch("automl.interfaces.mcp.server.run_mcp_service") as mock_service:
         args = argparse.Namespace(
             workspace="/tmp/test_ws",
             transport="streamable-http",
