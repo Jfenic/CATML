@@ -173,3 +173,6 @@ class GenerateOOFSubmissionCommand:
     template_path: str | None = None
     predict_proba: bool = True
     max_seconds: float = 300.0
+    method: str = "average"
+    meta_model: str = "ridge"
+
