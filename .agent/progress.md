@@ -14,32 +14,35 @@ Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatu
 Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
 - Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H3 / Paquete B3 Cerrado)**:
-- Rol: **Persona B** (Interfaces, Integración y Orquestación).
-- Rama: `feat/agentic-b3-operations`.
-- Entregable B3 completado:
-  - Dominio y Contratos (`src/automl/domain/agents/entities.py`, `src/automl/application/agents/ports.py`):
-    - Estados `CANCEL_REQUESTED`, `TIMED_OUT`, `RECOVERY_REQUIRED` en `OperationStatus`.
-    - Método `list_operations(run_id, status)` en `AgentLedgerPort`.
-    - Índice optimizado `idx_agent_op_run` en `agent_operations (run_id, status)` implementado en `SqliteAgentLedger`.
-  - Subcomandos CLI de inspección y control de operaciones (`src/automl/interfaces/cli/agent_cli.py`):
-    - `automl agent operations list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`
-    - `automl agent operations get <operation_id> [--workspace PATH] [--json]`
-    - `automl agent operations cancel <operation_id> [--reason REASON] [--force] [--workspace PATH] [--json]` (con alias retrocompatible `automl agent cancel`)
-  - Servidor y Transporte MCP (`src/automl/interfaces/mcp/server.py`, `src/automl/interfaces/cli/mcp_cli.py`):
-    - Tools MCP registradas: `get_operation_status`, `list_operations`, `cancel_operation`.
-    - Recursos MCP: `catml://runs/{run_id}/operations` y `catml://operations/{operation_id}`.
-    - Soporte de transporte dual en CLI: `--transport {stdio,streamable-http}`, `--host`, `--port`, `--path` mediante SSE / Starlette con fallback limpio a stdio.
-  - Ejecutor e Idempotencia (`src/automl/application/agents/executor.py`):
-    - Cumplimiento estricto del criterio de aceptación *"Timeout no se presenta como cancelación"*: operaciones con deadline expirado antes de ejecución o durante contexto son marcadas `TIMED_OUT` con código de error `DEADLINE_EXCEEDED`, completamente diferenciadas de `CANCELLED`.
-    - Recuperabilidad durable: operaciones conservan su `operation_id` y sobreveviven a reinicios de proceso/servidor.
-    - Deduplicación atómica ampliada para estados terminales e intermedios (`CANCEL_REQUESTED`, `CANCELLED`, `TIMED_OUT`, `RECOVERY_REQUIRED`).
-  - Verificación y Cobertura:
-    - 14 tests en `tests/test_v09_agent_cli.py`.
-    - 14 tests en `tests/test_v09_mcp_server.py`.
-    - 2 tests de integración E2E exhaustivos en `tests/test_v09_agent_e2e.py` (`test_h3_b3_operation_lifecycle_recovery_and_timeout_e2e`).
-    - Suite global completa: 325 tests pasando, 87.04% cobertura de código (superando el umbral de 85%).
-- Hito H3 (Persona B): Listo para integración y handoff con Persona A (Paquete A3).
+Active Track: **Sistema Agéntico V0.9/V1.0 — Hito H4: Ciclo Determinista y Especialistas (A4 + B4)**:
+- **Protocolo de Concurrencia Activo:** `two-person-plan.md` §5.1 y Regla 9 en `AGENTS.md`.
+- **Track Persona A (Paquete A4):**
+  - Rol: **Persona A** (Aplicación, Políticas y Especialistas).
+  - Subdirectorios propios: `src/automl/application/agents/specialists/` (`planner.py`, `advisor.py`, `critic.py`, `context_builder.py`), `src/automl/infrastructure/llm/` (`fake_provider.py`), y `tests/test_v10_specialists.py`.
+  - Entregable: ContextBuilder acotado, especialistas ("Proponer ≠ Aceptar"), proveedor determinista y evidencia comparable.
+- **Track Persona B (Paquete B4):**
+  - Rol: **Persona B** (Interfaces, Integración y Orquestación).
+  - Subdirectorios propios: `src/automl/application/agents/orchestrator/` (`state_machine.py`, `session_manager.py`), `src/automl/interfaces/cli/agent_session_cli.py`, y `tests/test_v10_orchestrator.py`.
+  - Entregable: Máquina de estados determinista, CLI de sesión (`start`, `step`, `resume`), criterios de parada.
+
+---
+
+## Completed
+
+- **Hito H3 Integrado en `main` — Operaciones largas, HPO y cancelación cooperativa (2026-10-01):**
+  - **Paquete A3 (Persona A, PR #35):**
+    - Exclusividad de escritor por run mediante `agent_run_leases` en `SqliteAgentLedger` (`acquire_run_lease`, `heartbeat_run_lease`, `release_run_lease`, `get_run_lease`).
+    - Reconciliación de operaciones caídas (`reconcile_operations`): transición a `RECOVERY_REQUIRED`.
+    - Cancelación cooperativa: `request_operation_cancellation`, verificación en bucle de trials en `AutoMLWorkspace.optimize_experiment`.
+    - Reservas atómicas de presupuesto en `ToolExecutor` para evitar sobrecostes concurrentes.
+    - Herramienta `optimize_experiment` con cálculo dinámico según `n_trials`. 10 tests en `tests/test_v09_agent_a3.py`.
+  - **Paquete B3 (Persona B, PR #36):**
+    - Dominio y Contratos: estados `TIMED_OUT`, `CANCEL_REQUESTED`, `RECOVERY_REQUIRED` en `OperationStatus`.
+    - Subcomandos CLI de inspección y control (`automl agent operations list/get/cancel`).
+    - Servidor y transporte MCP dual stdio y streamable-http, tools de inspección y control de operaciones.
+    - Cumplimiento de criterios: "Timeout no se presenta como cancelación", "Operation ID recuperable".
+    - 14 tests en `test_v09_agent_cli.py`, 14 tests en `test_v09_mcp_server.py`, 2 tests E2E en `test_v09_agent_e2e.py`.
+  - **Integración y resolución de conflictos:** Fusionado exitosamente en `main` (commits `de08d3c` y `24532ca`). Total: 327 tests passing, 85.82% cobertura.
 
 Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
 - Rama: `feat/ensemble-weight-optimization-and-pruning`.

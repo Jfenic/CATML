@@ -100,6 +100,42 @@ Orden de integración por iteración: contratos compartidos → implementación 
 
 Coordinación breve diaria: paquete/commit en curso, contrato cambiado, bloqueo y siguiente entrega. Registrar hallazgos ajenos al alcance en el blackboard según AGENTS.md. Si el contrato se bloquea, avanzar tests/adaptadores contra fixtures acordadas, sin saltarse buses ni inventar reglas de negocio.
 
+## 5.1 Protocolo de Prevención de Conflictos y Concurrencia (Lecciones H3 $\rightarrow$ H4/H5)
+
+Para evitar colisiones de Git entre Persona A y Persona B durante el desarrollo concurrente (como los solapamientos identificados en H3 sobre archivos compartidos), se establecen las siguientes directrices obligatorias para H4 y H5:
+
+1. **Aislamiento Físico por Subdirectorios (Folder-Level Ownership):**
+   - **Persona A (A4 / A5):** Trabaja **exclusivamente** dentro de:
+     - `src/automl/application/agents/specialists/` (`planner.py`, `advisor.py`, `critic.py`, `context_builder.py`).
+     - `src/automl/infrastructure/llm/` (`fake_provider.py`, adaptadores LLM).
+     - Tests en `tests/test_v10_specialists.py`.
+   - **Persona B (B4 / B5):** Trabaja **exclusivamente** dentro de:
+     - `src/automl/application/agents/orchestrator/` (`state_machine.py`, `session_manager.py`, `loop.py`).
+     - `src/automl/interfaces/cli/agent_session_cli.py` (aislado del CLI de operaciones).
+     - Tests en `tests/test_v10_orchestrator.py` y `tests/test_v09_agent_cli.py`.
+   - **Regla estricta:** Ninguna persona modificará archivos centrales compartidos (`executor.py`, `sqlite_agent_ledger.py`) de forma concurrente sin un PR de contrato previo.
+
+2. **Segregación de Interfaces (ISP) en Puertos y Persistencia:**
+   - En lugar de concentrar métodos en un único `AgentLedgerPort` monolítico en `ports.py`, segregar por responsabilidad:
+     - `AgentOperationStorePort`: Operaciones, worker leases y cancelación (cerrado en H3).
+     - `AgentApprovalStorePort`: Aprobaciones humanas y anti-tampering (cerrado en H2).
+     - `AgentSessionStorePort`: Gestión de sesión, checkpoints y memoria (H4/B4).
+     - `SpecialistPort`: Interfaz pura de especialistas (`propose`, `evaluate`, `critique` — H4/A4).
+   - `SqliteAgentLedger` o repositorios modulares implementan las interfaces pertinentes sin colisiones de código.
+
+3. **Pactar Contratos DTO en `main` antes de ramificar H4:**
+   - Antes de iniciar el desarrollo en paralelo de A4 y B4, se publica un PR común integrado en `main` con las firmas puras y DTOs (`CandidateProposal`, `EvaluationFeedback`, `ContextPayload`, `SessionStepResult`).
+   - Ambas ramas de feature nacen de dicho commit base común; ninguna rama altera contratos compartidos durante su implementación.
+
+4. **Zonas de Tracking Separadas en Documentación:**
+   - En `TASKS.md` y `.agent/progress.md`, mantener bloques separados y distantes para cada Persona:
+     - `### Track Persona A (Especialistas & Políticas)`
+     - `### Track Persona B (CLI, MCP & Orquestación)`
+   - Esto evita colisiones de líneas adyacentes en Markdown al resolver o actualizar tareas.
+
+5. **Política Git (Merge sin Rebase):**
+   - Siempre integrar mediante `git merge origin/main` (nunca `git rebase`). Sincronizar ramas locales frecuentemente tan pronto como el colaborador integre su PR para mantener un historial auditable y sin regresiones.
+
 ## 6. Definition of Done de cada paquete e hito
 
 Un paquete termina con comportamiento implementado, tests propios, errores documentados y revisión de la otra persona. Un hito termina al integrar A y B y verificar consumidores reales, además de:

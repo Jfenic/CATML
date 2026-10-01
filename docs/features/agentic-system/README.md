@@ -1,6 +1,17 @@
-# Empieza aquí: elige tu rol A o B
+# CATML Agentic System: Roles & Implementation Guide
 
-Esta es la entrada para cualquier persona que vaya a implementar el sistema agéntico de CATML. La planificación está lista para empezar **H0: acordar contratos y preparar la implementación**. MCP y los agentes descritos todavía no están implementados; H1–H5 empiezan según sus dependencias.
+> **Current Status (`main` branch):** Milestones **H0, H1, H2, and H3** are fully implemented and integrated into `main` (PR #22, #23, #24, #25, #26, #30, #35, #36). The system provides a complete tool catalog, budget reservation policies, human approvals, long-running operations lifecycle with worker leases, failure reconciliation, cooperative cancellation, agent operations CLI inspection, and a dual-transport Model Context Protocol (MCP) server. Current work proceeds to **Milestone H4** (autonomous deterministic cycle and specialist agents).
+
+## Multi-Agent / Two-Person Concurrency & Conflict Prevention Protocol
+
+All contributors and AI coding agents working concurrently across Persona A and Persona B must adhere to the collaboration protocol detailed in [`two-person-plan.md` §5.1](two-person-plan.md#51-protocolo-de-prevención-de-conflictos-y-concurrencia-lecciones-h3-rightarrow-h4h5) and [`AGENTS.md`](../../../AGENTS.md):
+1. **Subdirectory Ownership:** Persona A works exclusively in `specialists/` and `infrastructure/llm/`; Persona B works exclusively in `orchestrator/` and session CLI interfaces. Monolithic shared files (`executor.py`, `sqlite_agent_ledger.py`, `ports.py`) are never modified concurrently without an integrated contract PR.
+2. **Contract-First Stabilization:** All shared DTOs, protocols, and interfaces are defined and merged into `main` before branching into parallel implementation tasks.
+3. **Merge-Only Git Policy:** Always integrate with `git merge origin/main`; never rebase active or shared branches.
+4. **Separated Documentation Tracks:** Update only your assigned persona track in `TASKS.md` and `.agent/progress.md`.
+5. **Cross-Agent Blackboard:** Review `gh issue list --label blackboard --state open` before starting any task.
+
+---
 
 ## 1. Elige tu rol
 

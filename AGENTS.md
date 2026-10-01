@@ -71,3 +71,9 @@ The entire current test suite must pass before completing any task. Test coverag
 8. **Neo-Industrial UI Standards:**
    - Any work on web interfaces (`src/automl/interfaces/web/`) must strictly comply with [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
    - Use the visual ML lab paradigm: palette (`#111111`, `#D8D6CF`, `#F1EFE9`, `#E5512D`), typography (`Space Grotesk` + `IBM Plex Mono`), modular 1px visible borders, sharp corners (`0px`-`4px`), and signal orange strictly reserved for primary execution CTAs.
+9. **Multi-Agent / Two-Person Concurrency & Conflict Prevention:**
+   - When collaborating concurrently across Persona A and Persona B (or multiple developers/agents), strictly adhere to the isolation protocol in [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md):
+     - **Subdirectory Ownership:** Work exclusively within assigned subdirectories (e.g. `specialists/` vs `orchestrator/`).
+     - **Shared Contract Stability:** Never edit monolithic shared files (`executor.py`, `sqlite_agent_ledger.py`, `ports.py`) concurrently on feature branches without a prior pre-agreed contract PR merged into `main`.
+     - **Separated Documentation Tracks:** In `TASKS.md` and `.agent/progress.md`, update only your designated Persona track (`### Track Persona A` vs `### Track Persona B`).
+     - **No Rebase:** Always merge (`git merge origin/main`); never rebase.

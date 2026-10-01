@@ -12,6 +12,7 @@ CATML is designed for reproducible machine learning experimentation. Rather than
 - **Human & AI Agent Parity:** Expose identical Command and Query capabilities across the CLI and Workbench HTTP API, with future LLM tools using the same application layer.
 - **Strict Separation of Concerns:** Keep core domain logic pure and independent of ML frameworks (scikit-learn, Optuna, PyTorch) or persistence backends (SQLite, Postgres).
 - **Hypothesis-Driven Automation ("Propose ≠ Accept"):** Require that all candidate features, models, and hyperparameters be empirically evaluated and compared against baselines before acceptance.
+- **Agentic Protocol & AI Parity:** Expose full AutoML capabilities to external AI coding agents via standard Model Context Protocol (MCP) and dedicated CLI commands, backed by strict budget controls, atomic operation leases, and cooperative cancellation.
 
 ---
 
@@ -59,7 +60,7 @@ These packages are optional. If absent, `LightGBMPlugin` uses scikit-learn HistG
 automl ui --port 8080 --workspace .automl/demo
 ```
 
-El Workbench ejecuta experimentos y submissions mediante una cola SQLite y un worker local. El panel «Trabajos» conserva seguimiento tras recargar y ofrece pausa, cancelación y reintentos. Véase [cola persistente, CLI y API](docs/features/persistent-jobs/spec.md) para controles, recuperación y límites.
+The Workbench executes experiments and submissions using a persistent SQLite queue and a local worker. The 'Jobs' panel maintains run state across reloads and provides pause, cancellation, and retry capabilities. See [persistent queue, CLI, and API](docs/features/persistent-jobs/spec.md) for controls, recovery, and boundaries.
 
 Open <http://localhost:8080>. The workspace holds the SQLite history for runs, experiments and results; use the same path in CLI commands to inspect that history. Stop the server with Ctrl+C. Without `--workspace`, the CLI selects `.automl/s6e9_automl` if it exists, otherwise `.automl/demo`.
 
@@ -94,6 +95,15 @@ automl predict --workspace .automl/demo --run-id <RUN_ID> --test-dataset data/te
 
 # 9. Run regression benchmark suite
 automl benchmark run
+
+# 10. Inspect and manage agentic operations (cooperative cancellation, lease tracking)
+automl agent operations list
+automl agent operations get <OPERATION_ID>
+automl agent operations cancel <OPERATION_ID>
+
+# 11. Run Model Context Protocol (MCP) server for external AI agents
+automl mcp --transport stdio
+automl mcp --transport streamable-http --port 8000
 ```
 
 ### Programmatic Python API
@@ -138,6 +148,21 @@ pytest
 # Run tests with coverage report (target >= 85%)
 pytest --cov=src/automl --cov-fail-under=85
 ```
+
+---
+
+## Parallel Multi-Agent Development & Collaboration
+
+CATML supports concurrent engineering across multiple developers and autonomous AI coding agents (such as Persona A focusing on application rules, specialists, and domain policies, and Persona B focusing on orchestration, interfaces, and protocol servers).
+
+To maintain codebase stability, prevent git merge conflicts, and preserve auditability:
+- **Contract-First Stabilization:** Before branching into parallel feature tracks, shared interfaces, protocols, and data transfer objects (DTOs) are agreed upon and merged into `main`.
+- **Subdirectory Ownership:** Development tracks work within isolated subdirectories (e.g., domain specialists vs CLI/orchestrators) without modifying monolithic core files concurrently.
+- **Merge-Only Integration:** Branch synchronization is performed strictly using `git merge origin/main`; rebasing is forbidden.
+- **Independent Progress Tracking:** Progress documentation maintains designated tracks for each persona to avoid adjacent-line merge conflicts.
+- **Cross-Agent Blackboard:** Tasks begin with a pre-flight inspection (`gh issue list --label blackboard --state open`), and out-of-scope discoveries are recorded via GitHub issues rather than ad-hoc edits.
+
+For detailed guidelines, see [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md).
 
 ---
 

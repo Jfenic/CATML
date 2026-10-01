@@ -21,6 +21,16 @@ Conservar cambios existentes y acordar el alcance antes de editar archivos compa
 
 Implementar el cambio, ejecutar sus pruebas y revisar el diff. Sincronizar la rama con la rama base antes de abrir el PR, resolviendo conflictos sin descartar trabajo ajeno. El PR debe explicar el problema, comportamiento resultante, validación y limitaciones.
 
+## Concurrent Multi-Agent & Parallel Development Protocol
+
+When multiple developers or AI coding agents work concurrently on parallel tracks (e.g., Persona A and Persona B):
+
+1. **Pre-Agreed Shared Contracts:** Define and merge shared interfaces, domain ports, and DTO contracts into `main` before starting parallel work on feature branches.
+2. **Subdirectory Ownership & Isolation:** Confine changes strictly to your assigned directory (e.g. `specialists/` vs `orchestrator/`). Monolithic shared files (such as `executor.py`, `ports.py`, or `sqlite_agent_ledger.py`) must never be edited concurrently on feature branches without a pre-agreed contract PR.
+3. **Merge-Only Policy:** Always synchronize branches with `git merge origin/main`. **Never rebase** branches intended for collaboration.
+4. **Separated Progress Tracking:** Keep tracking updates isolated in designated sections of [`TASKS.md`](TASKS.md) and [`.agent/progress.md`](.agent/progress.md) (`Track Persona A` vs `Track Persona B`).
+5. **Cross-Agent Blackboard:** Check `gh issue list --label blackboard --state open` before starting, and report any out-of-scope issues via GitHub issues rather than editing unrelated modules.
+
 ## Extensión y límites arquitectónicos
 
 Las reglas de dominio puro, CQRS, paridad de interfaces y propuestas verificadas están en [AGENTS.md](AGENTS.md#core-rules-for-working-in-catml). La organización de capas se describe en [ARCHITECTURE.md](ARCHITECTURE.md).
