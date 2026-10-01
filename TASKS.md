@@ -38,9 +38,13 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Paquete A3 (Persona A): HPO (`optimize_experiment`), reservas atómicas de presupuesto, leases por run, reconciliación de operaciones caídas y cancelación cooperativa (10 tests pasando en `tests/test_v09_agent_a3.py`, 16 tests en `tests/test_v09_agent_operations.py`). PR #35 integrado en main.
   - [x] Paquete B3 (Persona B): Inspección de estado y control de operaciones en CLI (`automl agent operations list`, `automl agent operations get`, `automl agent operations cancel`), tools MCP (`get_operation_status`, `list_operations`, `cancel_operation`), recursos MCP (`catml://runs/{run_id}/operations`, `catml://operations/{operation_id}`), transporte dual stdio / streamable-http en `automl mcp`, cumplimiento estricto de criterios de aceptación de H3 ("Timeout no se presenta como cancelación", "Operation ID recuperable" tras reinicio de proceso, flujo de cancelación cooperativa). 14 tests en `test_v09_agent_cli.py`, 14 tests en `test_v09_mcp_server.py`, 2 tests exhaustivos en `test_v09_agent_e2e.py`.
 
-- [ ] H4–H5 — V1.0 incremental: ciclo determinista con proveedor falso → LangGraph opcional con checkpoints y recuperación probada.
-- [ ] V0.9 Phase: LLM Agent Tools & MCP Server (`AgentTool` wrappers, JSON-Schema tool registry, permission policies, MCP Server adapter) — *Ver plan detallado para 2 personas en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*
-- [ ] V1.0 Phase: Autonomous Experiment Agent con LangGraph (Planner, Critic, Feature Advisor y Orchestrator cíclico "Proponer ≠ Aceptar") — *Ver plan detallado en [`docs/features/agentic-system/plan.md`](docs/features/agentic-system/plan.md)*
+- [ ] H4 — V1.0 Ciclo determinista y especialistas ("Proponer ≠ Aceptar") (Concurrencia aislada según two-person-plan.md §5.1):
+  - [ ] Contratos H4 acordados en `main`: DTOs de paso (`CandidateProposal`, `EvaluationFeedback`, `ContextPayload`, `SessionStepResult`).
+  - [ ] Track Persona A (Paquete A4): `ContextBuilder`, especialistas (`Planner`, `FeatureAdvisor`, `Critic`) en `src/automl/application/agents/specialists/`, proveedor determinista `FakeLLMProvider` en `src/automl/infrastructure/llm/` y tests en `tests/test_v10_specialists.py`.
+  - [ ] Track Persona B (Paquete B4): Máquina de estados determinista en `src/automl/application/agents/orchestrator/`, CLI de sesión en `src/automl/interfaces/cli/agent_session_cli.py`, criterios de parada y tests en `tests/test_v10_orchestrator.py`.
+- [ ] H5 — V1.0 Proveedor real, LangGraph duradero y recuperación (Integración final A5 + B5):
+  - [ ] Track Persona A (Paquete A5): Adaptador LLM agnóstico con validación de respuesta, timeouts/reintentos acotados, redacción y auditoría de tokens.
+  - [ ] Track Persona B (Paquete B5): Checkpointer LangGraph SQLite, reanudación tras fallo y tests E2E de orquestación.
 - [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
 
 - [x] Stacking with a trained meta-estimator (distinct from voting/blending).
