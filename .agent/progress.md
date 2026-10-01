@@ -14,19 +14,32 @@ Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatu
 Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
 - Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
 
-Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado)**:
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H3 / Paquete B3 Cerrado)**:
 - Rol: **Persona B** (Interfaces, Integración y Orquestación).
-- Rama: `feat/agentic-b2-approvals`.
-- Entregable B2 completado:
-  - Servidor MCP (`src/automl/interfaces/mcp/server.py`): Integración de `ToolExecutor` y factoría `create_full_tool_registry`, exponiendo las tools mutantes `create_experiment`, `prioritize_feature` y `run_experiment` con gobierno por políticas y `SqliteAgentLedger`.
-  - Manejo estructurado de estado `PENDING_APPROVAL`: devuelve `approval_id` sin bloquear el terminal ni la conexión stdio. Candidatos no entrenan hasta ser autorizados.
-  - Subcomandos CLI de gobernanza (`src/automl/interfaces/cli/agent_cli.py`):
-    - `automl agent approvals list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`: lista solicitudes de aprobación pendientes o históricas con formato tabular y JSON.
-    - `automl agent approve <approval_id> [--reject] [--reviewer REVIEWER] [--notes NOTES] [--workspace PATH] [--json]`: resuelve la solicitud en el ledger de forma atómica.
-  - Verificación E2E de Hito H2 (`tests/test_v09_agent_e2e.py`): flujo completo (inspección MCP -> propuesta de candidato -> aprobación humana en CLI -> ejecución autorizada -> métricas en leaderboard consultables -> idempotencia probada).
-  - Suite de pruebas de CLI (`tests/test_v09_agent_cli.py`): 7 tests pasando (100% de cobertura en subcomandos).
-  - Suite global de pruebas: 289 tests pasando, 87.57% cobertura (superando el umbral de 85%).
-- Hito H2 cerrado: Primera entrega conjunta V0.9 local completada. Preparado para H3 (operaciones largas, HPO, leases y cancelación cooperativa).
+- Rama: `feat/agentic-b3-operations`.
+- Entregable B3 completado:
+  - Dominio y Contratos (`src/automl/domain/agents/entities.py`, `src/automl/application/agents/ports.py`):
+    - Estados `CANCEL_REQUESTED`, `TIMED_OUT`, `RECOVERY_REQUIRED` en `OperationStatus`.
+    - Método `list_operations(run_id, status)` en `AgentLedgerPort`.
+    - Índice optimizado `idx_agent_op_run` en `agent_operations (run_id, status)` implementado en `SqliteAgentLedger`.
+  - Subcomandos CLI de inspección y control de operaciones (`src/automl/interfaces/cli/agent_cli.py`):
+    - `automl agent operations list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`
+    - `automl agent operations get <operation_id> [--workspace PATH] [--json]`
+    - `automl agent operations cancel <operation_id> [--reason REASON] [--force] [--workspace PATH] [--json]` (con alias retrocompatible `automl agent cancel`)
+  - Servidor y Transporte MCP (`src/automl/interfaces/mcp/server.py`, `src/automl/interfaces/cli/mcp_cli.py`):
+    - Tools MCP registradas: `get_operation_status`, `list_operations`, `cancel_operation`.
+    - Recursos MCP: `catml://runs/{run_id}/operations` y `catml://operations/{operation_id}`.
+    - Soporte de transporte dual en CLI: `--transport {stdio,streamable-http}`, `--host`, `--port`, `--path` mediante SSE / Starlette con fallback limpio a stdio.
+  - Ejecutor e Idempotencia (`src/automl/application/agents/executor.py`):
+    - Cumplimiento estricto del criterio de aceptación *"Timeout no se presenta como cancelación"*: operaciones con deadline expirado antes de ejecución o durante contexto son marcadas `TIMED_OUT` con código de error `DEADLINE_EXCEEDED`, completamente diferenciadas de `CANCELLED`.
+    - Recuperabilidad durable: operaciones conservan su `operation_id` y sobreveviven a reinicios de proceso/servidor.
+    - Deduplicación atómica ampliada para estados terminales e intermedios (`CANCEL_REQUESTED`, `CANCELLED`, `TIMED_OUT`, `RECOVERY_REQUIRED`).
+  - Verificación y Cobertura:
+    - 14 tests en `tests/test_v09_agent_cli.py`.
+    - 14 tests en `tests/test_v09_mcp_server.py`.
+    - 2 tests de integración E2E exhaustivos en `tests/test_v09_agent_e2e.py` (`test_h3_b3_operation_lifecycle_recovery_and_timeout_e2e`).
+    - Suite global completa: 325 tests pasando, 87.04% cobertura de código (superando el umbral de 85%).
+- Hito H3 (Persona B): Listo para integración y handoff con Persona A (Paquete A3).
 
 Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
 - Rama: `feat/ensemble-weight-optimization-and-pruning`.

@@ -13,9 +13,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import io
 import json
 from pathlib import Path
+import sys
 import tempfile
+import time
 
 import pytest
 
@@ -32,9 +35,17 @@ from automl.application.commands.workspace_commands import (
     PlanExperimentsCommand,
     RunExperimentCommand,
 )
-from automl.domain.agents.entities import ApprovalStatus, ToolErrorCode
+from automl.domain.agents.entities import AgentPermission, ApprovalStatus, OperationStatus, ToolErrorCode
+from automl.application.agents.contracts import OperationRecord, ToolCallContext, ToolInvocation
 from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
-from automl.interfaces.cli.agent_cli import approvals_list_cli, approve_cli
+from automl.interfaces.cli.agent_cli import (
+    approvals_list_cli,
+    approve_cli,
+    operations_cancel_cli,
+    operations_get_cli,
+    operations_list_cli,
+)
+from automl.application.agents.policy import compute_arguments_hash
 from automl.interfaces.mcp.server import create_mcp_server
 
 
@@ -303,3 +314,231 @@ def test_h2_full_agent_e2e_flow(e2e_environment):
     assert denied_res.is_error is True
     assert "PERMISSION_DENIED" in denied_res.content[0].text
     assert "rejected" in denied_res.content[0].text
+
+
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
+def test_h3_b3_operation_lifecycle_recovery_and_timeout_e2e(e2e_environment, monkeypatch):
+    """Milestone H3 / Package B3 verification:
+
+    1. Operation recoverability across process/server reinitialization.
+    2. Strict distinction: timeout vs cancellation (acceptance: 'Timeout no se presenta como cancelación').
+    3. Cooperative cancellation flow through CLI and MCP.
+    """
+    ws, cb, qb, dataset, run, ledger, ws_dir = e2e_environment
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb, ledger=ledger)
+
+    # -------------------------------------------------------------------------
+    # Part 1: Execute authorized operation, obtain operation_id, and recover after restart
+    # -------------------------------------------------------------------------
+    # Create candidate experiment directly through CommandBus for isolation
+    exp = cb.dispatch(
+        CreateExperimentCommand(
+            run_id=run.id,
+            name="exp_e2e_b3",
+            model_ids=["logistic_regression"],
+            feature_names=["tenure", "monthly_charges"],
+        )
+    )
+    exp_id = exp.id
+
+    # Create pre-approved request to allow immediate execution
+    appr_id = f"appr-b3-{int(time.time())}"
+    from automl.application.agents.contracts import ApprovalRequest
+    from automl.application.agents.policy import compute_arguments_hash
+    real_hash = compute_arguments_hash(
+        action="run_experiment",
+        actor="mcp_agent",
+        run_id=run.id,
+        arguments={"run_id": run.id, "experiment_id": exp_id},
+        policy_version="1.0.0",
+        max_cost={"trials": 1},
+    )
+    server.ledger.save_approval(
+        ApprovalRequest(
+            approval_id=appr_id,
+            action="run_experiment",
+            actor="mcp_agent",
+            run_id=run.id,
+            arguments_hash=real_hash,
+            arguments={"run_id": run.id, "experiment_id": exp_id},
+            policy_version="1.0.0",
+            max_cost={"trials": 1},
+            expires_at="2099-12-31T23:59:59Z",
+            status=ApprovalStatus.APPROVED,
+        )
+    )
+
+    # Execute via MCP
+    exec_res = asyncio.run(
+        server.call_tool(
+            "run_experiment",
+            {
+                "run_id": run.id,
+                "experiment_id": exp_id,
+                "approval_id": appr_id,
+                "idempotency_key": "idemp_b3_op_001",
+            },
+        )
+    )
+    assert exec_res.is_error is False
+    exec_data = json.loads(exec_res.content[0].text)
+    assert "trial_id" in exec_data
+
+    # Retrieve operation from ledger
+    op_record = ledger.get_operation_by_idempotency_key(run.id, "run_experiment", "idemp_b3_op_001")
+    assert op_record is not None
+    assert op_record.status == OperationStatus.SUCCEEDED
+    operation_id = op_record.operation_id
+    assert operation_id.startswith("op-")
+
+    # Inspect via CLI
+    stdout_buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", stdout_buf)
+    args_get = argparse.Namespace(
+        workspace=str(ws_dir),
+        operation_id=operation_id,
+        json=True,
+    )
+    assert operations_get_cli(args_get) == 0
+    cli_op_data = json.loads(stdout_buf.getvalue())
+    assert cli_op_data["operation_id"] == operation_id
+    assert cli_op_data["status"] == "succeeded"
+
+    # SIMULATE RESTART: Instantiate a brand new ledger and server instance from disk
+    restarted_ledger = SqliteAgentLedger(ws_dir / "agent_ledger.db")
+    restarted_server = create_mcp_server(root_dir=str(ws_dir), ledger=restarted_ledger)
+
+    # Recover operation by operation_id on restarted instance
+    recovered_op = restarted_ledger.get_operation(operation_id)
+    assert recovered_op is not None
+    assert recovered_op.operation_id == operation_id
+    assert recovered_op.status == OperationStatus.SUCCEEDED
+    assert recovered_op.action == "run_experiment"
+
+    # Verify MCP get_operation_status recovers operation on restarted server
+    mcp_recovered_res = asyncio.run(
+        restarted_server.call_tool("get_operation_status", {"operation_id": operation_id})
+    )
+    assert mcp_recovered_res.is_error is False
+    mcp_rec_data = json.loads(mcp_recovered_res.content[0].text)
+    assert mcp_rec_data["operation_id"] == operation_id
+    assert mcp_rec_data["status"] == "succeeded"
+
+    # -------------------------------------------------------------------------
+    # Part 2: Acceptance check: "Timeout no se presenta como cancelación"
+    # -------------------------------------------------------------------------
+    # Tool invocation with an already expired deadline
+    expired_inv = ToolInvocation(
+        tool_name="create_experiment",
+        arguments={"run_id": run.id, "model_name": "random_forest"},
+        context=ToolCallContext(
+            actor="mcp_agent",
+            workspace_path=str(ws_dir),
+            run_id=run.id,
+            correlation_id="corr-timeout-test",
+            deadline=time.time() - 5.0,  # Expired 5 seconds ago
+            permission=AgentPermission.EXECUTE_WITHIN_BUDGET,
+        ),
+        idempotency_key="idemp_timeout_test",
+    )
+    timeout_result = restarted_server.executor.execute(expired_inv)
+
+    assert timeout_result.success is False
+    assert timeout_result.error is not None
+    assert timeout_result.error.code == ToolErrorCode.DEADLINE_EXCEEDED
+    assert "deadline exceeded" in timeout_result.error.message
+
+    # Operation must be recorded as TIMED_OUT, NOT CANCELLED
+    timeout_op = restarted_ledger.get_operation_by_idempotency_key(run.id, "create_experiment", "idemp_timeout_test")
+    assert timeout_op is not None
+    assert timeout_op.status == OperationStatus.TIMED_OUT
+    assert timeout_op.status != OperationStatus.CANCELLED
+
+    # Verify query distinction via CLI
+    stdout_timed_out = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", stdout_timed_out)
+    args_list_to = argparse.Namespace(
+        workspace=str(ws_dir),
+        run_id=run.id,
+        status="timed_out",
+        json=True,
+    )
+    assert operations_list_cli(args_list_to) == 0
+    to_ops = json.loads(stdout_timed_out.getvalue())
+    assert any(o["operation_id"] == timeout_op.operation_id for o in to_ops)
+
+    stdout_cancelled = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", stdout_cancelled)
+    args_list_canc = argparse.Namespace(
+        workspace=str(ws_dir),
+        run_id=run.id,
+        status="cancelled",
+        json=True,
+    )
+    assert operations_list_cli(args_list_canc) == 0
+    canc_ops = json.loads(stdout_cancelled.getvalue())
+    # Timeout operation MUST NOT appear in cancelled operations list
+    assert not any(o["operation_id"] == timeout_op.operation_id for o in canc_ops)
+
+    # -------------------------------------------------------------------------
+    # Part 3: Cooperative cancellation flow
+    # -------------------------------------------------------------------------
+    # Record an operation currently running
+    exp_tool_def = restarted_server.executor.registry.get_definition("run_experiment")
+    arg_hash = compute_arguments_hash(
+        action="run_experiment",
+        actor="mcp_agent",
+        run_id=run.id,
+        arguments={"run_id": run.id, "experiment_id": exp_id},
+        policy_version="1.0.0",
+        max_cost=exp_tool_def.cost_estimate if exp_tool_def else {},
+    )
+    active_op = OperationRecord(
+        operation_id="op-in-flight-b3",
+        run_id=run.id,
+        actor="mcp_agent",
+        idempotency_key="idemp_in_flight",
+        action="run_experiment",
+        arguments_hash=arg_hash,
+        arguments={"run_id": run.id, "experiment_id": exp_id},
+        status=OperationStatus.RUNNING,
+    )
+    restarted_ledger.record_operation(active_op)
+
+    # Human cancels operation cooperatively via CLI
+    stdout_cancel_cli = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", stdout_cancel_cli)
+    args_cancel = argparse.Namespace(
+        workspace=str(ws_dir),
+        operation_id="op-in-flight-b3",
+        reason="User requested cancellation via Mission Control",
+        force=False,
+        json=True,
+    )
+    assert operations_cancel_cli(args_cancel) == 0
+    cancel_cli_res = json.loads(stdout_cancel_cli.getvalue())
+    assert cancel_cli_res["status"] == "cancel_requested"
+
+    # Executor encountering a cancel_requested operation refuses to execute and transitions to cancelled
+    cancelled_inv = ToolInvocation(
+        tool_name="run_experiment",
+        arguments={"run_id": run.id, "experiment_id": exp_id},
+        context=ToolCallContext(
+            actor="mcp_agent",
+            workspace_path=str(ws_dir),
+            run_id=run.id,
+            correlation_id="corr-cancel-check",
+            permission=AgentPermission.EXECUTE_WITHIN_BUDGET,
+            approval_id=appr_id,
+        ),
+        idempotency_key="idemp_in_flight",
+    )
+    cancelled_exec_res = restarted_server.executor.execute(cancelled_inv)
+    assert cancelled_exec_res.success is False
+    assert cancelled_exec_res.error.code == ToolErrorCode.CONFLICT
+    assert "Operation cancelled" in cancelled_exec_res.error.message
+
+    # Final state in ledger is cancelled
+    final_op = restarted_ledger.get_operation("op-in-flight-b3")
+    assert final_op.status == OperationStatus.CANCELLED
+

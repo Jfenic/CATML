@@ -303,4 +303,62 @@ TOOL_SCHEMAS: dict[str, dict[str, Any]] = {
             "required": ["best_trial_id"],
         },
     },
+    "get_operation_status": {
+        "input": {
+            "type": "object",
+            "properties": {
+                "operation_id": {"type": "string"},
+            },
+            "required": ["operation_id"],
+            "additionalProperties": False,
+        },
+        "output": {
+            "type": "object",
+            "properties": {
+                "operation_id": {"type": "string"},
+                "status": {"type": "string"},
+                "action": {"type": "string"},
+                "run_id": {"type": "string"},
+            },
+            "required": ["operation_id", "status"],
+        },
+    },
+    "list_operations": {
+        "input": {
+            "type": "object",
+            "properties": {
+                "run_id": {"type": "string"},
+                "status": {"type": "string"},
+            },
+            "required": ["run_id"],
+            "additionalProperties": False,
+        },
+        "output": {
+            "type": "object",
+            "properties": {
+                "operations": {"type": "array"},
+            },
+            "required": ["operations"],
+        },
+    },
+    "cancel_operation": {
+        "input": {
+            "type": "object",
+            "properties": {
+                "operation_id": {"type": "string"},
+                "reason": {"type": "string"},
+                "force": {"type": "boolean"},
+            },
+            "required": ["operation_id"],
+            "additionalProperties": False,
+        },
+        "output": {
+            "type": "object",
+            "properties": {
+                "operation_id": {"type": "string"},
+                "status": {"type": "string"},
+            },
+            "required": ["operation_id", "status"],
+        },
+    },
 }

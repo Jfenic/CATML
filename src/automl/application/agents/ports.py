@@ -40,6 +40,12 @@ class AgentLedgerPort(Protocol):
         """Transition operation status, updating consumed budget or error details."""
         ...
 
+    def list_operations(
+        self, run_id: str | None = None, status: OperationStatus | None = None
+    ) -> list[OperationRecord]:
+        """List operation records, optionally filtered by run_id or status."""
+        ...
+
     def save_approval(self, req: ApprovalRequest) -> None:
         """Persist a new approval request."""
         ...

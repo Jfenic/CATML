@@ -41,9 +41,12 @@ class OperationStatus(str, Enum):
     """Execution status for recorded agent operations."""
     PENDING = "pending"
     RUNNING = "running"
+    CANCEL_REQUESTED = "cancel_requested"
+    CANCELLED = "cancelled"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    CANCELLED = "cancelled"
+    TIMED_OUT = "timed_out"
+    RECOVERY_REQUIRED = "recovery_required"
 
 
 class ToolErrorCode(str, Enum):

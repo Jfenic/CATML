@@ -660,8 +660,12 @@ def main(argv: list[str] | None = None) -> int:
             action_parser.add_argument("--payload", required=True, help="JSON operation arguments")
             action_parser.add_argument("--key", required=True, help="Stable idempotency key for this request")
 
-    mcp_parser = sub.add_parser("mcp", help="Launch Model Context Protocol (MCP) stdio server")
+    mcp_parser = sub.add_parser("mcp", help="Launch Model Context Protocol (MCP) server")
     mcp_parser.add_argument("--workspace", help="Path to workspace root directory (default: auto)")
+    mcp_parser.add_argument("--transport", choices=["stdio", "streamable-http"], default="stdio", help="MCP transport protocol (default: stdio)")
+    mcp_parser.add_argument("--host", default="127.0.0.1", help="Host interface for streamable-http (default: 127.0.0.1)")
+    mcp_parser.add_argument("--port", type=int, default=8000, help="Port for streamable-http (default: 8000)")
+    mcp_parser.add_argument("--path", default="/mcp", help="Path prefix for streamable-http (default: /mcp)")
     mcp_parser.set_defaults(func=mcp_cli)
 
     agent_parser = sub.add_parser("agent", help="LLM Agent governance, approvals, and audit ledger")

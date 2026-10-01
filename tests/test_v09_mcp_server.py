@@ -23,7 +23,8 @@ from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
     PlanExperimentsCommand,
 )
-from automl.domain.agents.entities import ApprovalStatus
+from automl.application.agents.contracts import OperationRecord
+from automl.domain.agents.entities import ApprovalStatus, OperationStatus
 from automl.interfaces.cli.mcp_cli import run_mcp_cli
 from automl.interfaces.mcp.server import HAS_MCP, create_mcp_server
 
@@ -67,9 +68,12 @@ def test_mcp_server_initialization_and_tool_listing(temp_workspace):
         "create_experiment",
         "prioritize_feature",
         "run_experiment",
+        "get_operation_status",
+        "list_operations",
+        "cancel_operation",
     }
     assert expected_tools.issubset(tool_names)
-    assert len(expected_tools) == 10
+    assert len(expected_tools) == 13
 
     # Verify input schemas
     for t in tools:
@@ -307,3 +311,142 @@ def test_mcp_cli_subprocess_stdio_handshake(tmp_path: Path):
 
     # STDERR must contain the server initialization log
     assert "catml.mcp" in stderr
+
+
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
+def test_mcp_operation_tools(temp_workspace):
+    """Verify get_operation_status, list_operations, and cancel_operation tools in MCP."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    # Seed an operation in the server's ledger
+    op = OperationRecord(
+        operation_id="op-test-mcp-1",
+        run_id=run.id,
+        actor="mcp_tester",
+        idempotency_key="idemp_mcp_1",
+        action="run_experiment",
+        arguments_hash="hash_1",
+        arguments={"run_id": run.id, "experiment_id": "exp_1"},
+        status=OperationStatus.RUNNING,
+    )
+    server.ledger.record_operation(op)
+
+    # 1. get_operation_status
+    res_get = asyncio.run(server.call_tool("get_operation_status", {"operation_id": "op-test-mcp-1"}))
+    assert res_get.is_error is False
+    data_get = json.loads(res_get.content[0].text)
+    assert data_get["operation_id"] == "op-test-mcp-1"
+    assert data_get["status"] == "running"
+
+    # Nonexistent
+    res_get_missing = asyncio.run(server.call_tool("get_operation_status", {"operation_id": "op-missing"}))
+    assert res_get_missing.is_error is True
+    assert "NOT_FOUND" in res_get_missing.content[0].text
+
+    # 2. list_operations
+    res_list = asyncio.run(server.call_tool("list_operations", {"run_id": run.id}))
+    assert res_list.is_error is False
+    ops = json.loads(res_list.content[0].text)
+    assert len(ops) >= 1
+    assert ops[0]["operation_id"] == "op-test-mcp-1"
+
+    # Invalid status filter
+    res_list_bad = asyncio.run(server.call_tool("list_operations", {"run_id": run.id, "status": "INVALID"}))
+    assert res_list_bad.is_error is True
+    assert "INVALID_ARGUMENT" in res_list_bad.content[0].text
+
+    # 3. cancel_operation: cooperative cancellation -> cancel_requested
+    res_cancel = asyncio.run(
+        server.call_tool("cancel_operation", {"operation_id": "op-test-mcp-1", "reason": "User stop"})
+    )
+    assert res_cancel.is_error is False
+    cancel_data = json.loads(res_cancel.content[0].text)
+    assert cancel_data["operation_id"] == "op-test-mcp-1"
+    assert cancel_data["status"] == "cancel_requested"
+
+    # Verify in ledger
+    updated_op = server.ledger.get_operation("op-test-mcp-1")
+    assert updated_op.status == OperationStatus.CANCEL_REQUESTED
+
+    # 4. Force cancel -> cancelled
+    res_force = asyncio.run(
+        server.call_tool("cancel_operation", {"operation_id": "op-test-mcp-1", "force": True})
+    )
+    assert res_force.is_error is False
+    assert json.loads(res_force.content[0].text)["status"] == "cancelled"
+
+    # 5. Cannot cancel terminal operation
+    res_term = asyncio.run(
+        server.call_tool("cancel_operation", {"operation_id": "op-test-mcp-1"})
+    )
+    assert res_term.is_error is True
+    assert "CONFLICT" in res_term.content[0].text
+
+    # 6. Nonexistent operation cancellation
+    res_cancel_missing = asyncio.run(
+        server.call_tool("cancel_operation", {"operation_id": "nonexistent-op"})
+    )
+    assert res_cancel_missing.is_error is True
+    assert "NOT_FOUND" in res_cancel_missing.content[0].text
+
+
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
+def test_mcp_operation_resources(temp_workspace):
+    """Verify catml://runs/{run_id}/operations and catml://operations/{op_id} resources."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(workspace=ws, command_bus=cb, query_bus=qb)
+
+    op = OperationRecord(
+        operation_id="op-resource-test",
+        run_id=run.id,
+        actor="agent",
+        idempotency_key="idemp_res",
+        action="create_experiment",
+        arguments_hash="hash_res",
+        arguments={"run_id": run.id, "model_name": "rf"},
+        status=OperationStatus.SUCCEEDED,
+    )
+    server.ledger.record_operation(op)
+
+    # 1. Read run operations resource
+    ops_res = asyncio.run(server.read_resource(f"catml://runs/{run.id}/operations"))
+    assert len(ops_res) == 1
+    ops_data = json.loads(ops_res[0].content)
+    assert isinstance(ops_data, list)
+    assert any(o["operation_id"] == "op-resource-test" for o in ops_data)
+
+    # 2. Read single operation resource
+    op_res = asyncio.run(server.read_resource("catml://operations/op-resource-test"))
+    assert len(op_res) == 1
+    op_data = json.loads(op_res[0].content)
+    assert op_data["operation_id"] == "op-resource-test"
+    assert op_data["status"] == "succeeded"
+
+    # Nonexistent
+    missing_res = asyncio.run(server.read_resource("catml://operations/missing-op"))
+    assert len(missing_res) == 1
+    missing_data = json.loads(missing_res[0].content)
+    assert "error" in missing_data
+
+
+def test_mcp_cli_transport_args():
+    """Verify run_mcp_cli passes transport configuration cleanly to run_mcp_service."""
+    with patch("automl.interfaces.mcp.server.run_mcp_service") as mock_service:
+        args = argparse.Namespace(
+            workspace="/tmp/test_ws",
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=9000,
+            path="/api/mcp",
+        )
+        ret = run_mcp_cli(args)
+        assert ret == 0
+        mock_service.assert_called_once_with(
+            root_dir="/tmp/test_ws",
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=9000,
+            streamable_http_path="/api/mcp",
+        )
+
