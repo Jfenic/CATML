@@ -38,7 +38,7 @@ from automl.application.queries.workspace_queries import (
     ListPluginsQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
-from automl.domain.agents.entities import AgentPermission, ToolErrorCode
+from automl.domain.agents.entities import AgentPermission, OperationStatus, ToolErrorCode
 from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
 
 logger = logging.getLogger("catml.mcp")
@@ -83,6 +83,7 @@ def create_mcp_server(
         query_bus=query_bus,
         command_bus=command_bus,
         workspace=workspace,
+        ledger=ledger,
     )
     executor = ToolExecutor(
         registry=tool_registry,
@@ -468,7 +469,116 @@ def create_mcp_server(
             )
 
     # -----------------------------------------------------------------------
-    # Resources (Milestone H1)
+    # Operations Inspection & Control Tools (Milestone H3)
+    # -----------------------------------------------------------------------
+
+    @server.tool(
+        name="get_operation_status",
+        description="Inspect execution status, budget consumption, and result or error of a recorded agent operation.",
+    )
+    def get_operation_status(operation_id: str) -> types.CallToolResult:
+        try:
+            op = ledger.get_operation(operation_id)
+            if op is None:
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"[{ToolErrorCode.NOT_FOUND.value}] Operation '{operation_id}' not found in ledger.")],
+                    is_error=True,
+                )
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=json.dumps(op.to_dict(), default=str, indent=2))],
+                is_error=False,
+            )
+        except Exception as e:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INTERNAL_ERROR.value}] {str(e)}")],
+                is_error=True,
+            )
+
+    @server.tool(
+        name="list_operations",
+        description="List recorded agent operations for a run, optionally filtered by status.",
+    )
+    def list_operations(run_id: str, status: str | None = None) -> types.CallToolResult:
+        try:
+            status_filter: OperationStatus | None = None
+            if status:
+                try:
+                    status_filter = OperationStatus(status.lower())
+                except ValueError:
+                    return types.CallToolResult(
+                        content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INVALID_ARGUMENT.value}] Invalid status filter '{status}'.")],
+                        is_error=True,
+                    )
+            ops = ledger.list_operations(run_id=run_id, status=status_filter)
+            payload = [op.to_dict() for op in ops]
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=json.dumps(payload, default=str, indent=2))],
+                is_error=False,
+            )
+        except Exception as e:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INTERNAL_ERROR.value}] {str(e)}")],
+                is_error=True,
+            )
+
+    @server.tool(
+        name="cancel_operation",
+        description="Request cooperative cancellation or force cancellation of an active agent operation.",
+    )
+    def cancel_operation(operation_id: str, reason: str | None = None, force: bool = False) -> types.CallToolResult:
+        try:
+            op = ledger.get_operation(operation_id)
+            if op is None:
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"[{ToolErrorCode.NOT_FOUND.value}] Operation '{operation_id}' not found in ledger.")],
+                    is_error=True,
+                )
+
+            terminal_statuses = (
+                OperationStatus.SUCCEEDED,
+                OperationStatus.FAILED,
+                OperationStatus.CANCELLED,
+                OperationStatus.TIMED_OUT,
+            )
+            if op.status in terminal_statuses:
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text=f"[{ToolErrorCode.CONFLICT.value}] Cannot cancel operation '{operation_id}' with terminal status '{op.status.value}'.")],
+                    is_error=True,
+                )
+
+            target_status = OperationStatus.CANCELLED if force else OperationStatus.CANCEL_REQUESTED
+            error_msg = f"Cancellation requested: {reason}" if reason else "Cancellation requested"
+
+            resolved = ledger.update_operation_status(
+                operation_id=operation_id,
+                status=target_status,
+                error_message=error_msg,
+            )
+            return types.CallToolResult(
+                content=[
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "operation_id": resolved.operation_id,
+                                "status": resolved.status.value,
+                                "action": resolved.action,
+                                "message": f"Operation '{resolved.operation_id}' updated to '{resolved.status.value}'.",
+                            },
+                            indent=2,
+                        ),
+                    )
+                ],
+                is_error=False,
+            )
+        except Exception as e:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=f"[{ToolErrorCode.INTERNAL_ERROR.value}] {str(e)}")],
+                is_error=True,
+            )
+
+    # -----------------------------------------------------------------------
+    # Resources (Milestones H1 & H3)
     # -----------------------------------------------------------------------
 
     @server.resource("catml://runs/{run_id}/leaderboard")
@@ -492,17 +602,52 @@ def create_mcp_server(
         except Exception as e:
             return json.dumps({"error": str(e), "code": ToolErrorCode.INTERNAL_ERROR.value})
 
+    @server.resource("catml://runs/{run_id}/operations")
+    def run_operations_resource(run_id: str) -> str:
+        """Resource exposing all operations for a run as JSON."""
+        try:
+            ops = ledger.list_operations(run_id=run_id)
+            payload = [op.to_dict() for op in ops]
+            return json.dumps(payload, default=str, indent=2)
+        except Exception as e:
+            return json.dumps({"error": str(e), "code": ToolErrorCode.INTERNAL_ERROR.value})
+
+    @server.resource("catml://operations/{operation_id}")
+    def operation_detail_resource(operation_id: str) -> str:
+        """Resource exposing detailed record of an operation as JSON."""
+        try:
+            op = ledger.get_operation(operation_id)
+            if op is None:
+                return json.dumps({"error": f"Operation '{operation_id}' not found", "code": ToolErrorCode.NOT_FOUND.value})
+            return json.dumps(op.to_dict(), default=str, indent=2)
+        except Exception as e:
+            return json.dumps({"error": str(e), "code": ToolErrorCode.INTERNAL_ERROR.value})
+
     return server
 
 
 def run_stdio_server(root_dir: str | None = None) -> None:
     """Run the CATML MCP server on standard input/output streams."""
-    # Ensure all logging goes to stderr so stdout is strictly preserved for JSON-RPC
+    run_mcp_service(root_dir=root_dir, transport="stdio")
+
+
+def run_mcp_service(
+    root_dir: str | None = None,
+    transport: str = "stdio",
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    streamable_http_path: str = "/mcp",
+) -> None:
+    """Run the CATML MCP server on stdio or streamable-http transport."""
     logging.basicConfig(
         stream=sys.stderr,
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    logger.info("Iniciando CATML MCP Stdio Server (V0.7.0)...")
     server = create_mcp_server(root_dir=root_dir)
-    server.run(transport="stdio")
+    if transport == "streamable-http":
+        logger.info(f"Iniciando CATML MCP Streamable-HTTP Server en http://{host}:{port}{streamable_http_path}...")
+        server.run(transport="streamable-http", host=host, port=port, streamable_http_path=streamable_http_path)
+    else:
+        logger.info("Iniciando CATML MCP Stdio Server (V0.7.0)...")
+        server.run(transport="stdio")

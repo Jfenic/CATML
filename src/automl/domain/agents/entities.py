@@ -46,6 +46,7 @@ class OperationStatus(str, Enum):
     CANCELLED = "cancelled"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    TIMED_OUT = "timed_out"
     RECOVERY_REQUIRED = "recovery_required"
 
 

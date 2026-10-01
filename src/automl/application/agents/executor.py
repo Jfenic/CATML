@@ -141,6 +141,48 @@ class ToolExecutor:
                     execution_time_seconds=time.perf_counter() - start_time,
                 )
 
+        # 3b. Check deadline before approval and policy evaluation
+        if invocation.context.deadline is not None and time.time() > invocation.context.deadline:
+            op_id = None
+            if self.ledger and invocation.idempotency_key:
+                op_id = f"op-{uuid.uuid4().hex[:12]}"
+                try:
+                    self.ledger.record_operation(
+                        OperationRecord(
+                            operation_id=op_id,
+                            run_id=invocation.context.run_id,
+                            actor=invocation.context.actor,
+                            idempotency_key=invocation.idempotency_key,
+                            action=invocation.tool_name,
+                            arguments_hash=compute_arguments_hash(
+                                action=invocation.tool_name,
+                                actor=invocation.context.actor,
+                                run_id=invocation.context.run_id,
+                                arguments=invocation.arguments,
+                                policy_version=getattr(getattr(self.policy_evaluator, "config", None), "policy_version", "1.0.0"),
+                                max_cost=tool_def.cost_estimate,
+                            ),
+                            arguments=invocation.arguments,
+                            status=OperationStatus.TIMED_OUT,
+                            error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
+                            error_message="Operation deadline expired before execution",
+                        )
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to record timed out operation: %s", exc)
+            return ToolResult(
+                request_id=req_id,
+                tool_name=invocation.tool_name,
+                success=False,
+                operation_id=op_id,
+                error=ToolError(
+                    code=ToolErrorCode.DEADLINE_EXCEEDED,
+                    message="Operation deadline exceeded",
+                    correlation_id=invocation.context.correlation_id,
+                ),
+                execution_time_seconds=time.perf_counter() - start_time,
+            )
+
         # 4. Check for pre-existing approval
         approval_id = (
             invocation.approval_id
@@ -399,7 +441,53 @@ class ToolExecutor:
                     )
 
                 # Matching arguments: deduplication ("Duplicados no repiten efectos")
-                if existing_op.status == OperationStatus.SUCCEEDED:
+                if existing_op.status in (OperationStatus.CANCEL_REQUESTED, OperationStatus.CANCELLED):
+                    if existing_op.status == OperationStatus.CANCEL_REQUESTED and self.ledger:
+                        self.ledger.update_operation_status(
+                            operation_id=existing_op.operation_id,
+                            status=OperationStatus.CANCELLED,
+                            error_code=ToolErrorCode.CONFLICT.value,
+                            error_message="Operation cancelled",
+                        )
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=existing_op.operation_id,
+                        error=ToolError(
+                            code=ToolErrorCode.CONFLICT,
+                            message="Operation cancelled",
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+                elif existing_op.status == OperationStatus.TIMED_OUT:
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=existing_op.operation_id,
+                        error=ToolError(
+                            code=ToolErrorCode.DEADLINE_EXCEEDED,
+                            message=existing_op.error_message or "Operation timed out",
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+                elif existing_op.status == OperationStatus.RECOVERY_REQUIRED:
+                    return ToolResult(
+                        request_id=req_id,
+                        tool_name=invocation.tool_name,
+                        success=False,
+                        operation_id=existing_op.operation_id,
+                        error=ToolError(
+                            code=ToolErrorCode.CONFLICT,
+                            message="Operation requires recovery before it can be re-executed",
+                            correlation_id=invocation.context.correlation_id,
+                        ),
+                        execution_time_seconds=time.perf_counter() - start_time,
+                    )
+                elif existing_op.status == OperationStatus.SUCCEEDED:
                     cached_data = None
                     if existing_op.result_ref:
                         try:
@@ -477,26 +565,57 @@ class ToolExecutor:
                     execution_time_seconds=time.perf_counter() - start_time,
                 )
 
-        # 8. Check cooperative cancellation before dispatching handler
-        if self.ledger and operation_id and self.ledger.is_cancellation_requested(operation_id):
-            self.ledger.update_operation_status(
-                operation_id=operation_id,
-                status=OperationStatus.CANCELLED,
-                error_code=ToolErrorCode.CANCELLED.value,
-                error_message="Operation cancelled prior to execution",
-            )
+        # 8. Check deadline before handler execution ("Timeout no se presenta como cancelación")
+        if invocation.context.deadline is not None and time.time() > invocation.context.deadline:
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.TIMED_OUT,
+                    error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
+                    error_message="Operation exceeded invocation context deadline before execution",
+                )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
                 success=False,
                 operation_id=operation_id,
                 error=ToolError(
-                    code=ToolErrorCode.CANCELLED,
-                    message="Operation cancelled prior to execution",
+                    code=ToolErrorCode.DEADLINE_EXCEEDED,
+                    message="Operation deadline exceeded",
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
+
+        # Check cooperative cancellation before dispatching handler
+        if self.ledger and operation_id:
+            is_cancelled = False
+            if hasattr(self.ledger, "is_cancellation_requested") and self.ledger.is_cancellation_requested(operation_id):
+                is_cancelled = True
+            else:
+                current_op = self.ledger.get_operation(operation_id)
+                if current_op and current_op.status in (OperationStatus.CANCEL_REQUESTED, OperationStatus.CANCELLED):
+                    is_cancelled = True
+
+            if is_cancelled:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.CANCELLED,
+                    error_code=ToolErrorCode.CONFLICT.value,
+                    error_message="Operation was cancelled prior to execution",
+                )
+                return ToolResult(
+                    request_id=req_id,
+                    tool_name=invocation.tool_name,
+                    success=False,
+                    operation_id=operation_id,
+                    error=ToolError(
+                        code=ToolErrorCode.CONFLICT,
+                        message="Operation cancelled",
+                        correlation_id=invocation.context.correlation_id,
+                    ),
+                    execution_time_seconds=time.perf_counter() - start_time,
+                )
 
         # 9. Execute Handler
         try:
@@ -505,7 +624,7 @@ class ToolExecutor:
                 active_budget.consume(cost_estimate)
 
             if self.ledger and operation_id:
-                if self.ledger.is_cancellation_requested(operation_id):
+                if hasattr(self.ledger, "is_cancellation_requested") and self.ledger.is_cancellation_requested(operation_id):
                     self.ledger.update_operation_status(
                         operation_id=operation_id,
                         status=OperationStatus.CANCELLED,
@@ -543,6 +662,27 @@ class ToolExecutor:
                 success=True,
                 data=raw_data,
                 operation_id=operation_id,
+                execution_time_seconds=time.perf_counter() - start_time,
+            )
+        except TimeoutError as exc:
+            err_msg = str(exc) or "Operation timed out"
+            if self.ledger and operation_id:
+                self.ledger.update_operation_status(
+                    operation_id=operation_id,
+                    status=OperationStatus.TIMED_OUT,
+                    error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
+                    error_message=err_msg,
+                )
+            return ToolResult(
+                request_id=req_id,
+                tool_name=invocation.tool_name,
+                success=False,
+                operation_id=operation_id,
+                error=ToolError(
+                    code=ToolErrorCode.DEADLINE_EXCEEDED,
+                    message=err_msg,
+                    correlation_id=invocation.context.correlation_id,
+                ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
         except (InterruptedError, KeyboardInterrupt):
@@ -892,8 +1032,9 @@ def create_full_tool_registry(
     command_bus: CommandBus,
     workspace: Any = None,
     run_dataset_resolver: Callable[[str], str] | None = None,
+    ledger: AgentLedgerPort | None = None,
 ) -> ToolRegistry:
-    """Build ToolRegistry with both safe query tools and authorized mutating tools."""
+    """Build ToolRegistry with safe query tools, authorized mutating tools, and operations tools."""
     registry = create_read_only_tool_registry(query_bus)
 
     # 8. create_experiment
@@ -1010,6 +1151,85 @@ def create_full_tool_registry(
         _handle_run_experiment,
     )
 
+    if ledger:
+        # 11. get_operation_status
+        def _handle_get_operation_status(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+            op = ledger.get_operation(args["operation_id"])
+            if not op:
+                raise KeyError(f"Operation not found: {args['operation_id']}")
+            return op.to_dict()
+
+        registry.register(
+            ToolDefinition(
+                name="get_operation_status",
+                version="1.0.0",
+                description="Inspect execution status, budget consumption, and result or error of a recorded agent operation",
+                effect=ToolEffect.READ,
+                permission_required=AgentPermission.READ_ONLY,
+                cost_estimate={},
+                input_schema=TOOL_SCHEMAS["get_operation_status"]["input"],
+                output_schema=TOOL_SCHEMAS["get_operation_status"]["output"],
+            ),
+            _handle_get_operation_status,
+        )
+
+        # 12. list_operations
+        def _handle_list_operations(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+            run_id = args["run_id"]
+            status_arg = args.get("status")
+            status_filter = OperationStatus(status_arg.lower()) if status_arg else None
+            ops = ledger.list_operations(run_id=run_id, status=status_filter)
+            return {"operations": [o.to_dict() for o in ops]}
+
+        registry.register(
+            ToolDefinition(
+                name="list_operations",
+                version="1.0.0",
+                description="List recorded agent operations for a run, optionally filtered by status",
+                effect=ToolEffect.READ,
+                permission_required=AgentPermission.READ_ONLY,
+                cost_estimate={},
+                input_schema=TOOL_SCHEMAS["list_operations"]["input"],
+                output_schema=TOOL_SCHEMAS["list_operations"]["output"],
+            ),
+            _handle_list_operations,
+        )
+
+        # 13. cancel_operation
+        def _handle_cancel_operation(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
+            operation_id = args["operation_id"]
+            reason = args.get("reason")
+            force = args.get("force", False)
+            op = ledger.get_operation(operation_id)
+            if not op:
+                raise KeyError(f"Operation not found: {operation_id}")
+            if op.status in (
+                OperationStatus.SUCCEEDED,
+                OperationStatus.FAILED,
+                OperationStatus.CANCELLED,
+                OperationStatus.TIMED_OUT,
+            ):
+                raise ValueError(
+                    f"Cannot cancel operation '{operation_id}' with terminal status '{op.status.value}'"
+                )
+            target_status = OperationStatus.CANCELLED if force else OperationStatus.CANCEL_REQUESTED
+            error_msg = f"Cancellation requested: {reason}" if reason else "Cancellation requested"
+            resolved = ledger.update_operation_status(operation_id, target_status, error_message=error_msg)
+            return {"operation_id": resolved.operation_id, "status": resolved.status.value}
+
+        registry.register(
+            ToolDefinition(
+                name="cancel_operation",
+                version="1.0.0",
+                description="Request cooperative cancellation or force cancellation of an active agent operation",
+                effect=ToolEffect.MUTATE,
+                permission_required=AgentPermission.EXECUTE_WITHIN_BUDGET,
+                cost_estimate={},
+                input_schema=TOOL_SCHEMAS["cancel_operation"]["input"],
+                output_schema=TOOL_SCHEMAS["cancel_operation"]["output"],
+            ),
+            _handle_cancel_operation,
+        )
     # 11. optimize_experiment
     def _handle_optimize_experiment(args: dict[str, Any], _ctx: ToolCallContext) -> dict[str, Any]:
         run_id = args["run_id"]

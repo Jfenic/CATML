@@ -1,9 +1,70 @@
+
+# Progress
+
+
+Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator**:
+- Rama: `feat/feature-interactions-differences`.
+- Entregable completado:
+  - Extensión de `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`):
+    - Parámetro `include_differences: bool = True` en `__init__`.
+    - Detección y propuesta de características tipo `"difference"` (`inter_diff_colA_minus_colB = colA - colB`) para pares numéricos priorizados por varianza, respetando el principio *"Proponer ≠ Aceptar"*.
+    - Transformación determinista y pura en `transform(df, features)` sin mutar el DataFrame original.
+    - Empaquetado automático del conjunto de candidatos `interactions_differences` en `propose_candidate_feature_sets` para experimentación y ablación directa.
+  - Pruebas y cobertura: 8 tests passing en `tests/test_feature_interactions.py` (incorporando pruebas para `difference`, verificación matemática, flag de desactivación y conjunto de candidatos); suite global con 296 tests passing, 8 skipped, 86.42% de cobertura de código.
+Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
+- Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
+
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H3 / Paquete B3 Cerrado)**:
+- Rol: **Persona B** (Interfaces, Integración y Orquestación).
+- Rama: `feat/agentic-b3-operations`.
+- Entregable B3 completado:
+  - Dominio y Contratos (`src/automl/domain/agents/entities.py`, `src/automl/application/agents/ports.py`):
+    - Estados `CANCEL_REQUESTED`, `TIMED_OUT`, `RECOVERY_REQUIRED` en `OperationStatus`.
+    - Método `list_operations(run_id, status)` en `AgentLedgerPort`.
+    - Índice optimizado `idx_agent_op_run` en `agent_operations (run_id, status)` implementado en `SqliteAgentLedger`.
+  - Subcomandos CLI de inspección y control de operaciones (`src/automl/interfaces/cli/agent_cli.py`):
+    - `automl agent operations list [--run-id ID] [--status STATUS] [--workspace PATH] [--json]`
+    - `automl agent operations get <operation_id> [--workspace PATH] [--json]`
+    - `automl agent operations cancel <operation_id> [--reason REASON] [--force] [--workspace PATH] [--json]` (con alias retrocompatible `automl agent cancel`)
+  - Servidor y Transporte MCP (`src/automl/interfaces/mcp/server.py`, `src/automl/interfaces/cli/mcp_cli.py`):
+    - Tools MCP registradas: `get_operation_status`, `list_operations`, `cancel_operation`.
+    - Recursos MCP: `catml://runs/{run_id}/operations` y `catml://operations/{operation_id}`.
+    - Soporte de transporte dual en CLI: `--transport {stdio,streamable-http}`, `--host`, `--port`, `--path` mediante SSE / Starlette con fallback limpio a stdio.
+  - Ejecutor e Idempotencia (`src/automl/application/agents/executor.py`):
+    - Cumplimiento estricto del criterio de aceptación *"Timeout no se presenta como cancelación"*: operaciones con deadline expirado antes de ejecución o durante contexto son marcadas `TIMED_OUT` con código de error `DEADLINE_EXCEEDED`, completamente diferenciadas de `CANCELLED`.
+    - Recuperabilidad durable: operaciones conservan su `operation_id` y sobreveviven a reinicios de proceso/servidor.
+    - Deduplicación atómica ampliada para estados terminales e intermedios (`CANCEL_REQUESTED`, `CANCELLED`, `TIMED_OUT`, `RECOVERY_REQUIRED`).
+  - Verificación y Cobertura:
+    - 14 tests en `tests/test_v09_agent_cli.py`.
+    - 14 tests en `tests/test_v09_mcp_server.py`.
+    - 2 tests de integración E2E exhaustivos en `tests/test_v09_agent_e2e.py` (`test_h3_b3_operation_lifecycle_recovery_and_timeout_e2e`).
+    - Suite global completa: 325 tests pasando, 87.04% cobertura de código (superando el umbral de 85%).
+- Hito H3 (Persona B): Listo para integración y handoff con Persona A (Paquete A3).
+
+Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
+- Rama: `feat/ensemble-weight-optimization-and-pruning`.
+- Entregable completado:
+  - Extensión de contratos de dominio (`ColumnProfile`, `DatasetProfile` en `src/automl/domain/datasets/profile.py`): incorporación de campos estadísticos numéricos (`mean`, `std`, `min`, `max`, `median`, `q25`, `q75`, `skew`, `target_correlation`, `top_categories`), `histogram` (10 bins), `box_plot` (estadísticas globales y desglosadas por clases del target), `correlation_matrix` completa ($r \in [-1, 1]$), muestra de datos crudos (`preview_rows`) y recomendaciones automáticas (`recommendations`), preservando pureza hexagonal sin dependencias externas.
+  - Motor de perfilado (`dataset_profiler.py`): cálculo de estadísticas descriptivas, correlación de Pearson frente al target (numérico o texto adaptado), detección de multicolinealidad cruzada ($|r| > 0.88$), cálculo de frecuencias categóricas con tasa de propensión al target (`target_rate`), generación de cajas y bigotes desglosados por clase de objetivo, e histogramas bivariantes.
+  - Deserialización en persistencia (`sqlite_repository.py`): soporte transparente para los nuevos campos estadísticos, matriz de correlación y recomendaciones en SQLite, con filtrado seguro de atributos para garantizar retrocompatibilidad.
+  - Vistas frontend interactivas:
+    - `datasets.js`: Pestaña dedicada a la **Matriz de Correlación** (mapa de calor interactivo de Pearson entre todas las variables numéricas y el target, con detección visual de colinealidad); botones `[📊 Ver]` en cada fila de las tablas de Schema y Estadísticas Descriptivas; **Modal de Análisis Visual y Patrones de Variable** con 3 modos: Diagrama de Caja y Bigotes (Box Plot SVG comparativo por clase de target y métricas IQR/Mediana), Histograma de Distribución (10 bins con diagnóstico de asimetría/skewness), y Patrones frente a la Variable Objetivo (tasa de conversión % por categoría o comparativa de medias por clase).
+    - `new_experiment.js`: Previsualización interactiva con badges y recuento de variables seleccionadas; propagación de `feature_names` en la creación de experimentos.
+    - `studio.js`: Barra superior de lanzamiento rápido (LightGBM, XGBoost, CatBoost, Ensemble Blender), filtros por familia de modelos y modal para inspección de hiperparámetros de cada trial.
+  - Sistema de Diseño UI Neo-Industrial (Visual ML Lab):
+    - Especificación oficial de diseño en `docs/design/neo-industrial-ui-spec.md` y registro arquitectónico `docs/decisions/005-neo-industrial-visual-ml-lab-ui.md`.
+    - Regla 8 añadida a `AGENTS.md` y directrices en `DEVELOPER_GUIDE.md` para que cualquier agente o desarrollador futuro preserve estrictamente este estándar.
+    - Tipografía dual (`Space Grotesk` para títulos/interfaz y `IBM Plex Mono` para datos/métricas/IDs/logs).
+    - Paleta modular técnica: `#111111` (negro carbón), `#16171c` / `#1c1d24` (paneles modulares), `#D8D6CF` (cemento), `#F1EFE9` (blanco cálido), con `#E5512D` (naranja señal) reservado exclusivamente para acciones y CTAs principales de ejecución.
+    - Navegación lateral numerada (`01 Dashboard`, `02 Datasets`, `03 Experiments`, `04 Models`, `05 Pipelines`, `06 Deployments`).
+    - Eliminación de bordes redondeados tipo SaaS (radios estrictos $\le 4$px, bordes de 1px) y modernización integral de `index.html`, `workbench.css`, `app.js`, `overview.js`, `new_experiment.js`, `studio.js`, `compare.js`, `datasets.js`.
+  - Pruebas y cobertura: 295 tests pasando (incluyendo `tests/test_web_dashboard.py` enriquecido con aserciones para `box_plot`, `histogram`, `target_rate` y `correlation_matrix`), 8 skipped, 0 fallos, 86.45% cobertura global (superando el umbral de 85%). Pruebas JS (`node --test tests/js/jobs.test.mjs`) passing al 100%.
+
 Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Paquete A3 / Hito H3 completado)**:
 - Rol: **Persona A** (Aplicación, Políticas y Persistencia).
 - Rama: `feat/agentic-a3-operations`.
 - Objetivo A3: HPO (`optimize_experiment`), worker leases por run, reconciliación de operaciones caídas, cancelación cooperativa y reservas atómicas de presupuesto.
 - Estado: Completado y verificado. Suite de pruebas `tests/test_v09_agent_a3.py` (10 tests) y suite completa de tests de operaciones pasando.
-
 ## Completed
 
 - Paquete A3 completado (Persona A, 2026-10-01):

@@ -64,6 +64,12 @@ class SqliteAgentLedger(AgentLedgerPort):
             )
             connection.execute(
                 """
+                CREATE INDEX IF NOT EXISTS idx_agent_op_run
+                ON agent_operations (run_id, status)
+                """
+            )
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS agent_approvals (
                     approval_id TEXT PRIMARY KEY,
                     action TEXT NOT NULL,
@@ -276,7 +282,21 @@ class SqliteAgentLedger(AgentLedgerPort):
                 (operation_id,),
             ).fetchone()
             return self._row_to_operation(updated_row)
-
+    def list_operations(
+        self, run_id: str | None = None, status: OperationStatus | None = None
+    ) -> list[OperationRecord]:
+        with self._connect() as connection:
+            query = "SELECT * FROM agent_operations WHERE 1=1"
+            params: list[Any] = []
+            if run_id:
+                query += " AND run_id = ?"
+                params.append(run_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status.value)
+            query += " ORDER BY created_at DESC"
+            rows = connection.execute(query, params).fetchall()
+            return [self._row_to_operation(r) for r in rows]
     def request_operation_cancellation(self, operation_id: str) -> OperationRecord:
         now = _utc_now()
         with self._connect() as connection:
@@ -293,6 +313,7 @@ class SqliteAgentLedger(AgentLedgerPort):
                 OperationStatus.SUCCEEDED,
                 OperationStatus.FAILED,
                 OperationStatus.CANCELLED,
+                OperationStatus.TIMED_OUT,
             }:
                 return self._row_to_operation(row)
 
