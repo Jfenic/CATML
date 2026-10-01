@@ -180,3 +180,9 @@ Version: `0.7.0`, defined in [`src/automl/__init__.py`](src/automl/__init__.py).
 - **Design Notes & Rationale:** [`planning.txt`](planning.txt)
 - **Feature Specifications & Historical Plans:** [`docs/features/`](docs/features/)
 - **Architecture Decision Records (ADRs):** [`docs/decisions/`](docs/decisions/)
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) file for details.
