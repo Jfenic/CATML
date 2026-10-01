@@ -50,7 +50,39 @@ def test_propose_features_immutability(sample_tabular_data: pd.DataFrame) -> Non
     feature_types = {f.feature_type for f in features}
     assert "ratio" in feature_types
     assert "product" in feature_types
+    assert "difference" in feature_types
     assert "target_encoding" in feature_types
+
+
+def test_fit_and_transform_differences(sample_tabular_data: pd.DataFrame) -> None:
+    generator = InteractionFeatureGenerator()
+    features = [
+        GeneratedFeature("diff_Income_Commute", "difference", ("Income", "Commute_km")),
+    ]
+
+    out_df = generator.transform(sample_tabular_data, features)
+
+    # Verify input not modified
+    assert "diff_Income_Commute" not in sample_tabular_data.columns
+
+    # Verify output contains new column
+    assert "diff_Income_Commute" in out_df.columns
+
+    # Verify mathematical accuracy (A - B)
+    expected_diff = sample_tabular_data["Income"] - sample_tabular_data["Commute_km"]
+    np.testing.assert_allclose(out_df["diff_Income_Commute"], expected_diff)
+
+
+def test_disable_differences_flag(sample_tabular_data: pd.DataFrame) -> None:
+    generator = InteractionFeatureGenerator(include_differences=False)
+    features = generator.propose_features(
+        df=sample_tabular_data,
+        feature_names=["Age", "Income", "Commute_km"],
+        target_column="Bought_EV",
+    )
+    feature_types = {f.feature_type for f in features}
+    assert "difference" not in feature_types
+    assert "ratio" in feature_types or "product" in feature_types
 
 
 def test_fit_and_transform_ratios_and_products(sample_tabular_data: pd.DataFrame) -> None:
@@ -112,6 +144,7 @@ def test_propose_candidate_feature_sets() -> None:
     features = [
         GeneratedFeature("prod_1", "product", ("A", "B")),
         GeneratedFeature("ratio_1", "ratio", ("A", "B")),
+        GeneratedFeature("diff_1", "difference", ("A", "B")),
         GeneratedFeature("te_1", "target_encoding", ("Cat",)),
     ]
 
@@ -122,14 +155,15 @@ def test_propose_candidate_feature_sets() -> None:
         dataset_id="ds_123",
     )
 
-    assert len(candidates) == 3
+    assert len(candidates) == 4
     names = {c.name for c in candidates}
     assert "interactions_all" in names
     assert "interactions_ratios" in names
+    assert "interactions_differences" in names
     assert "interactions_target_enc" in names
 
     all_cand = next(c for c in candidates if c.name == "interactions_all")
-    assert len(all_cand.feature_names) == 6
+    assert len(all_cand.feature_names) == 7
     assert all_cand.created_by == "interaction_generator"
 
 

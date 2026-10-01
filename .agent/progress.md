@@ -1,5 +1,16 @@
 # Progress
 
+
+Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator**:
+- Rama: `feat/feature-interactions-differences`.
+- Entregable completado:
+  - Extensión de `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`):
+    - Parámetro `include_differences: bool = True` en `__init__`.
+    - Detección y propuesta de características tipo `"difference"` (`inter_diff_colA_minus_colB = colA - colB`) para pares numéricos priorizados por varianza, respetando el principio *"Proponer ≠ Aceptar"*.
+    - Transformación determinista y pura en `transform(df, features)` sin mutar el DataFrame original.
+    - Empaquetado automático del conjunto de candidatos `interactions_differences` en `propose_candidate_feature_sets` para experimentación y ablación directa.
+  - Pruebas y cobertura: 8 tests passing en `tests/test_feature_interactions.py` (incorporando pruebas para `difference`, verificación matemática, flag de desactivación y conjunto de candidatos); suite global con 296 tests passing, 8 skipped, 86.42% de cobertura de código.
+=======
 Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
 - Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
 
@@ -40,6 +51,7 @@ Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
 ## Completed
 
 - Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
+=======
   - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`), Rank-Averaging Blending, y Multi-fidelity Early Pruning en `OptunaOptimizer`. PR #31 integrado en main.
 - Paquete B2 completado (Persona B, 2026-09-30):
   - Exposición de tools mutantes en MCP stdio (`create_experiment`, `prioritize_feature`, `run_experiment`).
@@ -52,6 +64,7 @@ Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
   - Eliminación absoluta de datos hardcodeados en vistas de Workbench.
   - Enlace dinámico de todas las vistas (Overview, Datasets, Studio, Compare, Pipeline, Kaggle, Knowledge).
   - Endpoint `GET /api/datasets` agregado en `server.py`.
+
 
 - Blackboard Issue #12 completado (2026-09-30):
   - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML con fallback.
