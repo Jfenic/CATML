@@ -941,6 +941,55 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"status": "success", "questionnaire": questionnaire.to_dict()})
                 return
 
+            elif path == "/api/features/calculate":
+                dataset_id = payload.get("dataset_id")
+                name = payload.get("name", "derived_feature")
+                expression = payload.get("expression", "")
+                expression_type = payload.get("expression_type", "formula")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                eval_res = ws.validate_derived_feature(
+                    dataset_id=dataset_id,
+                    name=name,
+                    expression=expression,
+                    expression_type=expression_type,
+                )
+                self._send_json({"status": "success", "result": eval_res.to_dict()})
+                return
+
+            elif path == "/api/features/apply":
+                dataset_id = payload.get("dataset_id")
+                name = payload.get("name", "derived_feature")
+                expression = payload.get("expression", "")
+                expression_type = payload.get("expression_type", "formula")
+                description = payload.get("description", "")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                eval_res, profile = ws.apply_derived_feature(
+                    dataset_id=dataset_id,
+                    name=name,
+                    expression=expression,
+                    expression_type=expression_type,
+                    description=description,
+                )
+                self._send_json({
+                    "status": "success",
+                    "result": eval_res.to_dict(),
+                    "feature_count": len(profile.columns) if profile else None,
+                })
+                return
+
+            elif path == "/api/features/suggest":
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                suggestions = ws.suggest_derived_features(dataset_id=dataset_id)
+                self._send_json({"status": "success", "suggestions": suggestions})
+                return
+
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
         except (ValueError, TypeError) as exc:

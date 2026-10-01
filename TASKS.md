@@ -17,8 +17,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Binary OOF prediction blending (`--folds 5`) with fixed equal weights, application commands/queries, CLI and Workbench; [scope and evaluation protocol](docs/features/oof-blending/spec.md).
 - [ ] Validate OOF blending on an independent holdout and representative benchmark before promoting a candidate.
 
-- [x] Persistent local jobs for experiments, OOF and submissions: SQLite queue, single worker, idempotency, actual progress, cooperative controls, explicit recovery/retry, CLI/API and Workbench activity panel ([scope](docs/features/persistent-jobs/spec.md)).
-- [ ] Extend background jobs to HPO/benchmarks and verify fold-model persistence before claiming resumable partial OOF.
+- [x] Feature: Dataset Framing & Problem Context Questionnaire: Entidad de dominio `DatasetQuestionnaire`, servicio `QuestionnaireAdvisor` (heurísticas de churn, fraude, médico, crédito, series temporales, cohortes + modo LLM), persistencia SQLite en `dataset_questionnaires`, paridad en `AutoMLWorkspace` y endpoints REST en `server.py` (`GET/POST /api/dataset/questionnaire`). Suite en `tests/test_dataset_questionnaire.py` (PR #42).
+- [x] Feature: Safe Feature Calculator & Derived Column Engine (`docs/features/derived-features/spec.md`): Motor robusto para generación de columnas complejas con doble modo: Fórmulas matemáticas AST seguras con lista blanca y aislamiento automático de división por cero (sin caídas), y código Python sandboxed restringido (`np`, `pd`, builtins seguros, auditoría AST anti-inyección). Especialista `FeatureAdvisor` para conexión de agentes LLM, validación previa (`POST /api/features/calculate`), persistencia en dataset (`POST /api/features/apply`), sugerencias asistidas (`POST /api/features/suggest`) y pestaña interactiva en Workbench UI (`datasets.js`). 22 tests en `tests/test_derived_feature_engine.py`.
 
 ## Next (Roadmap Phases)
 

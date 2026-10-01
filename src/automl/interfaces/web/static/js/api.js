@@ -205,6 +205,27 @@ export class CATMLApiClient {
       body: JSON.stringify({ hypothesis_id: hypothesisId, action }),
     });
   }
+
+  async calculateDerivedFeature(payload) {
+    return this._fetch("/api/features/calculate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async applyDerivedFeature(payload) {
+    return this._fetch("/api/features/apply", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async suggestDerivedFeatures(datasetId) {
+    return this._fetch("/api/features/suggest", {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId }),
+    });
+  }
 }
 
 export const api = new CATMLApiClient();
