@@ -16,10 +16,17 @@ Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Sele
 
 Active Track: **Sistema Agéntico V0.9/V1.0 — Hito H4: Ciclo Determinista y Especialistas (A4 + B4)**:
 - **Protocolo de Concurrencia Activo:** `two-person-plan.md` §5.1 y Regla 9 en `AGENTS.md`.
-- **Track Persona A (Paquete A4):**
+- **Track Persona A (Paquete A4 — Completado):**
   - Rol: **Persona A** (Aplicación, Políticas y Especialistas).
+  - Rama: `feat/agentic-a4-specialists`.
   - Subdirectorios propios: `src/automl/application/agents/specialists/` (`planner.py`, `advisor.py`, `critic.py`, `context_builder.py`), `src/automl/infrastructure/llm/` (`fake_provider.py`), y `tests/test_v10_specialists.py`.
-  - Entregable: ContextBuilder acotado, especialistas ("Proponer ≠ Aceptar"), proveedor determinista y evidencia comparable.
+  - Entregable completado:
+    - `ContextBuilder`: Extracción determinista de `ContextPayload`, truncamiento configurable de leaderboard/features/historial y lista explícita de `omissions` (sin datos crudos).
+    - `Planner`: Formulación científica de hipótesis y propuestas `CandidateProposal` ("Proponer ≠ Aceptar") para baselines, random forests, boosting y tuning.
+    - `FeatureAdvisor`: Detección heurística de target leakage y propuesta de `interactions_differences` y encodings categóricos.
+    - `Critic`: Evaluación empírica de métricas, diagnóstico de varianza y recomendaciones objetivas (`accept`, `reject`, `explore_alternative`).
+    - `FakeLLMProvider`: Mock determinista en `infrastructure/llm/` con soporte de respuestas canned, schemas JSON y simulación de errores/latencia.
+    - Validación: 31 tests unitarios y de integración pasando en `tests/test_v10_specialists.py` con 94% de cobertura del paquete; 386 tests pasando en la suite global con 87.35% de cobertura total.
 - **Track Persona B (Paquete B4):**
   - Rol: **Persona B** (Interfaces, Integración y Orquestación).
   - Subdirectorios propios: `src/automl/application/agents/orchestrator/` (`state_machine.py`, `session_manager.py`), `src/automl/interfaces/cli/agent_session_cli.py`, y `tests/test_v10_orchestrator.py`.
