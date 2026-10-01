@@ -17,7 +17,7 @@ class GeneratedFeature:
     """Represents a generated synthetic interaction or encoding feature."""
 
     name: str
-    feature_type: str  # "ratio" | "product" | "target_encoding"
+    feature_type: str  # "ratio" | "product" | "difference" | "target_encoding"
     source_columns: tuple[str, ...]
     description: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -29,7 +29,8 @@ class InteractionFeatureGenerator:
     Discovers candidate features by generating:
       1. Pairwise numerical ratios (A / B) with epsilon safety.
       2. Pairwise numerical products (A * B).
-      3. Smoothed Out-Of-Fold target encoding for medium-cardinality categorical features.
+      3. Pairwise numerical differences (A - B).
+      4. Smoothed Out-Of-Fold target encoding for medium-cardinality categorical features.
 
     Strictly obeys 'Propose != Accept': Original datasets are never mutated,
     and generated features are proposed as candidate FeatureSets for hypothesis testing.
@@ -40,6 +41,7 @@ class InteractionFeatureGenerator:
         max_numerical_pairs: int = 10,
         include_ratios: bool = True,
         include_products: bool = True,
+        include_differences: bool = True,
         include_target_encoding: bool = True,
         min_categorical_cardinality: int = 2,
         max_categorical_cardinality: int = 100,
@@ -48,6 +50,7 @@ class InteractionFeatureGenerator:
         self.max_numerical_pairs = max_numerical_pairs
         self.include_ratios = include_ratios
         self.include_products = include_products
+        self.include_differences = include_differences
         self.include_target_encoding = include_target_encoding
         self.min_categorical_cardinality = min_categorical_cardinality
         self.max_categorical_cardinality = max_categorical_cardinality
@@ -76,8 +79,8 @@ class InteractionFeatureGenerator:
         numeric_cols = [c for c in valid_cols if pd.api.types.is_numeric_dtype(df[c])]
         categorical_cols = [c for c in valid_cols if c not in numeric_cols]
 
-        # 2. Pairwise numerical features (products and ratios)
-        if len(numeric_cols) >= 2 and (self.include_ratios or self.include_products):
+        # 2. Pairwise numerical features (products, ratios, and differences)
+        if len(numeric_cols) >= 2 and (self.include_ratios or self.include_products or self.include_differences):
             # Select top numeric pairs by variance to prioritize informative interactions
             variances = df[numeric_cols].var().fillna(0.0)
             sorted_num = sorted(numeric_cols, key=lambda c: float(variances.get(c, 0.0)), reverse=True)
@@ -104,6 +107,18 @@ class InteractionFeatureGenerator:
                             feature_type="ratio",
                             source_columns=(col_a, col_b),
                             description=f"Interaction ratio: {col_a} / ({col_b} + eps)",
+                        )
+                    )
+
+                if self.include_differences:
+                    # Pairwise difference: A - B
+                    diff_name_ab = f"inter_diff_{col_a}_minus_{col_b}"
+                    candidates.append(
+                        GeneratedFeature(
+                            name=diff_name_ab,
+                            feature_type="difference",
+                            source_columns=(col_a, col_b),
+                            description=f"Interaction difference: {col_a} - {col_b}",
                         )
                     )
 
@@ -185,6 +200,10 @@ class InteractionFeatureGenerator:
                 # Clip extreme infinities
                 out_df[feat.name] = np.nan_to_num(ratio_vals, nan=0.0, posinf=1e6, neginf=-1e6)
 
+            elif feat.feature_type == "difference":
+                col_a, col_b = feat.source_columns
+                out_df[feat.name] = (out_df[col_a].astype(float) - out_df[col_b].astype(float)).astype(float)
+
             elif feat.feature_type == "target_encoding":
                 col = feat.source_columns[0]
                 enc_map = self._target_enc_maps.get(feat.name, {})
@@ -234,7 +253,21 @@ class InteractionFeatureGenerator:
                 )
             )
 
-        # 3. Base + Target Encoding Only
+        # 3. Base + Top Differences Only
+        diff_names = [f.name for f in generated_features if f.feature_type == "difference"]
+        if diff_names:
+            candidates.append(
+                FeatureSet(
+                    id=f"fs_interactions_diffs_{uuid.uuid4().hex[:6]}",
+                    dataset_id=dataset_id,
+                    name="interactions_differences",
+                    feature_names=base_features + diff_names,
+                    created_by="interaction_generator",
+                    lineage=f"Base ({len(base_features)}) + {len(diff_names)} difference features",
+                )
+            )
+
+        # 4. Base + Target Encoding Only
         te_names = [f.name for f in generated_features if f.feature_type == "target_encoding"]
         if te_names:
             candidates.append(

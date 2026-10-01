@@ -1,16 +1,18 @@
 # Progress
 
-Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
-- Rama: `feat/ensemble-weight-optimization-and-pruning`.
+Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator**:
+- Rama: `feat/feature-interactions-differences`.
 - Entregable completado:
-  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`): parametrización softmax no acotada $\vec{w} = \text{softmax}(\vec{\theta})$ garantizando pesos estrictamente no negativos y suma 1.0, con regularización suave de Brier para superar plateaus discretos en métricas de ranking (ROC-AUC) y clasificación.
-  - Rank-Averaging Blending (`rank_average_predictions` y `method="rank"` en `blend_predictions`): conversión a rangos percentiles fraccionarios libres de escala $(rank - 1)/(N - 1)$, eliminando distorsiones por descalibración probabilística entre modelos heterogéneos (GBDTs, redes neuronales, lineales).
-  - Integración en `VotingEnsembleEstimator`: soporte de `voting="rank"`, `optimize_weights=True` y `metric`, optimizando pesos automáticamente sobre datos de validación / OOF con `self.weights_` y `self.optimal_score_`.
-  - Exposición en `VotingEnsemblePlugin` y `SearchSpaceBuilder`: parámetros `voting` ("soft", "hard", "rank") y `optimize_weights` explorables en HPO.
-  - Multi-fidelity Early Pruning en `OptunaOptimizer`: integración de `optuna.pruners.MedianPruner` (startup 5, warmup 2), método `report_step(trial_number, step, value)` y registro de `TrialState.PRUNED` en `observe(..., pruned=True)`.
-  - Validación completa: 294 tests pasando (20 tests en `tests/test_ensemble_plugin.py`, 14 tests en `tests/test_v04_optimizer.py`), 8 skipped, 0 fallos, 86.40% cobertura de código (supera el umbral de 85%).
+  - Extensión de `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`):
+    - Parámetro `include_differences: bool = True` en `__init__`.
+    - Detección y propuesta de características tipo `"difference"` (`inter_diff_colA_minus_colB = colA - colB`) para pares numéricos priorizados por varianza, respetando el principio *"Proponer ≠ Aceptar"*.
+    - Transformación determinista y pura en `transform(df, features)` sin mutar el DataFrame original.
+    - Empaquetado automático del conjunto de candidatos `interactions_differences` en `propose_candidate_feature_sets` para experimentación y ablación directa.
+  - Pruebas y cobertura: 8 tests passing en `tests/test_feature_interactions.py` (incorporando pruebas para `difference`, verificación matemática, flag de desactivación y conjunto de candidatos); suite global con 296 tests passing, 8 skipped, 86.42% de cobertura de código.
 
 ## Completed
+
+- Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
 
 - Blackboard Issue #12 completado (2026-09-30):
   - Soporte de CatBoost, Extra Trees y MLP en el Plugin System de CATML.
