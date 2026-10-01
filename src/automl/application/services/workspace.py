@@ -590,6 +590,48 @@ class AutoMLWorkspace:
         self.repository.save_problem_definition(problem)
         return problem
 
+    def get_dataset_questionnaire(
+        self,
+        dataset_id: str,
+        auto_generate: bool = True,
+        llm_provider: Any = None,
+    ) -> Any | None:
+        """Retrieve dataset framing questionnaire, optionally generating it if not found."""
+        q = self.repository.get_dataset_questionnaire(dataset_id)
+        if q is not None:
+            return q
+        if not auto_generate:
+            return None
+        return self.generate_dataset_questionnaire(dataset_id, llm_provider=llm_provider)
+
+    def generate_dataset_questionnaire(
+        self,
+        dataset_id: str,
+        llm_provider: Any = None,
+    ) -> Any:
+        """Synthesize and persist a problem context questionnaire for the dataset."""
+        dataset = self._get_dataset(dataset_id)
+        profile = self.repository.get_dataset_profile(dataset_id)
+        profile_summary = profile.to_dict() if profile else None
+        columns = [c.name for c in profile.columns] if profile else []
+        target_col = getattr(dataset, "target_column", getattr(dataset, "target", ""))
+
+        from automl.engine.planning.questionnaire_advisor import QuestionnaireAdvisor
+        advisor = QuestionnaireAdvisor(llm_provider=llm_provider)
+        q = advisor.infer(
+            dataset_id=dataset.id,
+            dataset_name=dataset.name,
+            column_names=columns,
+            target_column=target_col,
+            profile_summary=profile_summary,
+        )
+        self.repository.save_dataset_questionnaire(q)
+        return q
+
+    def save_dataset_questionnaire(self, questionnaire: Any) -> None:
+        """Explicitly persist an edited or reviewed questionnaire."""
+        self.repository.save_dataset_questionnaire(questionnaire)
+
     def list_task_types(self) -> list[dict]:
         rows = []
         for task in TaskType:

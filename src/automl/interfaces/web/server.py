@@ -547,6 +547,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/dataset/questionnaire":
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            if not dataset_id:
+                datasets = ws.repository.list_datasets()
+                dataset_id = datasets[0].id if datasets else ""
+            if not dataset_id:
+                self._send_json({"error": "No dataset found"}, HTTPStatus.NOT_FOUND)
+                return
+            questionnaire = ws.get_dataset_questionnaire(dataset_id)
+            self._send_json(questionnaire.to_dict() if questionnaire else {})
+            return
+
         elif path == "/api/kaggle/status":
             run_id = query_params.get("run_id", [""])[0]
             run = ws.repository.get_run(run_id) if run_id else None
@@ -901,6 +913,32 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "action": action,
                     "message": f"Hypothesis {hyp_id} {action}ed by human operator.",
                 })
+                return
+
+            elif path == "/api/dataset/questionnaire":
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                from automl.domain.tasks.questionnaire import DatasetQuestionnaire
+                q_data = dict(payload.get("questionnaire", payload))
+                q_data["dataset_id"] = dataset_id
+                q_data["auto_generated"] = False
+                questionnaire = DatasetQuestionnaire.from_dict(q_data)
+                ws.save_dataset_questionnaire(questionnaire)
+                self._send_json({"status": "success", "questionnaire": questionnaire.to_dict()})
+                return
+
+            elif path == "/api/dataset/questionnaire/generate":
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    datasets = ws.repository.list_datasets()
+                    dataset_id = datasets[0].id if datasets else ""
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                questionnaire = ws.generate_dataset_questionnaire(dataset_id)
+                self._send_json({"status": "success", "questionnaire": questionnaire.to_dict()})
                 return
 
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)

@@ -154,9 +154,35 @@ class SQLiteExperimentRepository:
                     confidence REAL DEFAULT 0.0,
                     PRIMARY KEY (run_id, features_json)
                 );
+                CREATE TABLE IF NOT EXISTS dataset_questionnaires (
+                    dataset_id TEXT PRIMARY KEY,
+                    questionnaire_json TEXT NOT NULL
+                );
                 """
             )
             self._migrate(conn)
+
+    def save_dataset_questionnaire(self, questionnaire) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO dataset_questionnaires (dataset_id, questionnaire_json)
+                VALUES (?, ?)
+                """,
+                (questionnaire.dataset_id, json.dumps(questionnaire.to_dict())),
+            )
+
+    def get_dataset_questionnaire(self, dataset_id: str):
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT questionnaire_json FROM dataset_questionnaires WHERE dataset_id = ?",
+                (dataset_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        from automl.domain.tasks.questionnaire import DatasetQuestionnaire
+        data = json.loads(row["questionnaire_json"])
+        return DatasetQuestionnaire.from_dict(data)
 
     def save_problem_definition(self, definition) -> None:
         with self._connect() as conn:
