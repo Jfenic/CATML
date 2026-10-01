@@ -917,11 +917,31 @@ class AutoMLWorkspace:
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         results: list[TrialResult] = []
         started_at = time.time()
+        is_cancelled = False
+        is_paused = False
 
         for trial_idx in range(n_trials):
             if timeout_seconds and (time.time() - started_at) > timeout_seconds:
                 break
             if opt.should_stop():
+                break
+
+            if self.execution_check:
+                self.execution_check()
+
+            refreshed = self.repository.get_run(run.id)
+            if refreshed and refreshed.status == RunStatus.PAUSED:
+                is_paused = True
+                experiment.status = ExperimentStatus.PAUSED
+                self.repository.save_experiment(experiment)
+                self._emit("RunPaused", {"experiment_id": experiment.id, "trial_idx": trial_idx}, run_id=run.id)
+                break
+
+            if refreshed and refreshed.status == RunStatus.CANCELLED:
+                is_cancelled = True
+                experiment.status = ExperimentStatus.CANCELLED
+                self.repository.save_experiment(experiment)
+                self._emit("RunCancelled", {"experiment_id": experiment.id, "trial_idx": trial_idx}, run_id=run.id)
                 break
 
             params = opt.suggest(trial_idx, space)
@@ -964,13 +984,22 @@ class AutoMLWorkspace:
                 run_id=run.id,
             )
 
-        experiment.status = ExperimentStatus.COMPLETED
-        self.repository.save_experiment(experiment)
-        run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
-        self.repository.save_run(run)
+        if not is_cancelled and not is_paused:
+            experiment.status = ExperimentStatus.COMPLETED
+            self.repository.save_experiment(experiment)
+            run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
+            self.repository.save_run(run)
 
         best_score = opt.best_score()
         best_params = opt.best_parameters()
+        best_trial_id = ""
+        if results:
+            best_res = (
+                max(results, key=lambda r: r.primary_score)
+                if direction == "maximize"
+                else min(results, key=lambda r: r.primary_score)
+            )
+            best_trial_id = best_res.trial_id
 
         self._emit(
             "ExperimentOptimized",
@@ -980,6 +1009,7 @@ class AutoMLWorkspace:
                 "trials_executed": len(results),
                 "best_score": round(best_score, 4),
                 "best_params": best_params,
+                "best_trial_id": best_trial_id,
                 "optimizer": optimizer,
             },
             run_id=run.id,
@@ -992,6 +1022,7 @@ class AutoMLWorkspace:
             "trials_executed": len(results),
             "best_score": round(best_score, 4),
             "best_params": best_params,
+            "best_trial_id": best_trial_id,
             "trials": [
                 {
                     "trial_id": r.trial_id,

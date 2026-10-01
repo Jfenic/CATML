@@ -40,10 +40,13 @@ class ApprovalStatus(str, Enum):
 class OperationStatus(str, Enum):
     """Execution status for recorded agent operations."""
     PENDING = "pending"
+    QUEUED = "queued"
     RUNNING = "running"
+    CANCEL_REQUESTED = "cancel_requested"
+    CANCELLED = "cancelled"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    CANCELLED = "cancelled"
+    RECOVERY_REQUIRED = "recovery_required"
 
 
 class ToolErrorCode(str, Enum):
@@ -57,7 +60,33 @@ class ToolErrorCode(str, Enum):
     CONFLICT = "CONFLICT"
     DEADLINE_EXCEEDED = "DEADLINE_EXCEEDED"
     DEPENDENCY_UNAVAILABLE = "DEPENDENCY_UNAVAILABLE"
+    CANCELLED = "CANCELLED"
+    RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+@dataclass
+class RunLease:
+    """Exclusive writer lease for a run to prevent concurrent state corruption."""
+    run_id: str
+    owner_id: str
+    acquired_at: str
+    expires_at: str
+    heartbeat_at: str
+
+    def is_expired(self, now_iso: str | None = None) -> bool:
+        from datetime import datetime, timezone
+        now_dt = datetime.fromisoformat(now_iso.replace("Z", "+00:00")) if now_iso else datetime.now(timezone.utc)
+        exp_dt = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
+        return now_dt > exp_dt
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RunLease:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
 
 
 @dataclass

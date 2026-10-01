@@ -1,17 +1,25 @@
-Active Track: **Generalist AutoML Engine Enhancements — Next: Phase 2 (Temporal Dynamics Engine)**:
-- Target Roadmap: [`docs/features/generalist-enhancements/spec.md`](../docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](../docs/features/generalist-enhancements/plan.md).
-- Status: Phase 1 completed on branch `feat/n-model-oof-and-stacking`. Merged latest main with PR #32 and PR #33.
-- Next Milestone: Phase 2 — Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections).
+Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Paquete A3 / Hito H3 completado)**:
+- Rol: **Persona A** (Aplicación, Políticas y Persistencia).
+- Rama: `feat/agentic-a3-operations`.
+- Objetivo A3: HPO (`optimize_experiment`), worker leases por run, reconciliación de operaciones caídas, cancelación cooperativa y reservas atómicas de presupuesto.
+- Estado: Completado y verificado. Suite de pruebas `tests/test_v09_agent_a3.py` (10 tests) y suite completa de tests de operaciones pasando.
 
 ## Completed
 
-- Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (2026-10-01):
-  - Removed 2-model restriction in `evaluate_oof` (`src/automl/engine/ensemble/oof.py`) and `GenerateOOFSubmissionCommand` (`src/automl/application/services/oof_submission.py`), enabling blending of arbitrary $N \ge 1$ models.
-  - Implemented Level-2 Stacking (`stack_predictions` in `src/automl/engine/ensemble/blender.py`) supporting `Ridge`, `LogisticRegression`, and `Lasso` meta-estimators trained exclusively on out-of-fold prediction matrices without data leakage.
-  - Supported multiple blending methods (`average`, `rank`, `simplex`, `stacked`) across engine, application CQRS, CLI, and web server.
-  - Added CLI options `--models`, `--method {average,rank,simplex,stacked}`, and `--meta-model {ridge,logistic_regression,lasso}` in `automl predict`.
-  - Added 13 new unit and integration tests in `tests/test_oof_multi_model.py`.
-  - Full test suite passing with >= 85% coverage. PR #34 opened.
+- Paquete A3 completado (Persona A, 2026-10-01):
+  - Exclusividad de escritor por run mediante `agent_run_leases` en `SqliteAgentLedger` (`acquire_run_lease`, `heartbeat_run_lease`, `release_run_lease`, `get_run_lease`).
+  - Reconciliación de operaciones huérfanas/caídas (`reconcile_operations`): transiciona operaciones en `RUNNING` con lease expirado a `RECOVERY_REQUIRED`.
+  - Cancelación cooperativa: `request_operation_cancellation` transiciona operaciones a `CANCEL_REQUESTED` o `CANCELLED`. Bucle de trials en `AutoMLWorkspace.optimize_experiment` comprueba `execution_check` y `run.status in {CANCELLED, PAUSED}` antes de cada trial, deteniendo la ejecución sin comenzar nuevos trials.
+  - Reservas atómicas de presupuesto: `get_active_reserved_budget(run_id)` computa recursos reservados por operaciones en vuelo (`pending`, `queued`, `running`, `cancel_requested`). `ToolExecutor` evalúa `effective_budget` evitando que solicitudes concurrentes superen límites.
+  - Herramienta `optimize_experiment` registrada en `ToolExecutor` (11 tools en catálogo total) con cálculo dinámico de costes según `n_trials`.
+  - Suite de tests dedicada `tests/test_v09_agent_a3.py` con 10 tests exhaustivos passing.
+
+- Generalist AutoML Engine — Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (PR #34, 2026-10-01):
+  - Removed 2-model restriction in `evaluate_oof` and `GenerateOOFSubmissionCommand`.
+  - Implemented Level-2 Stacking (`stack_predictions` in `blender.py`) with Ridge, LogisticRegression, Lasso.
+  - Multi-method support (`average`, `rank`, `simplex`, `stacked`) across engine, CQRS, CLI, and web server.
+  - 13 new unit/integration tests in `tests/test_oof_multi_model.py`. 314 tests passing, 85.68% coverage.
+
 
 - Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator (2026-10-01):
   - Added `include_differences: bool = True` to `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`).

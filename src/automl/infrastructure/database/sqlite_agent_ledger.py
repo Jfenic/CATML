@@ -2,13 +2,19 @@
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
 from typing import Any
 
-from automl.domain.agents.entities import ApprovalStatus, Hypothesis, OperationStatus
+from automl.domain.agents.entities import (
+    ApprovalStatus,
+    Hypothesis,
+    OperationStatus,
+    RunLease,
+    ToolErrorCode,
+)
 from automl.application.agents.contracts import (
     AgentSessionState,
     ApprovalRequest,
@@ -115,6 +121,23 @@ class SqliteAgentLedger(AgentLedgerPort):
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_run_leases (
+                    run_id TEXT PRIMARY KEY,
+                    owner_id TEXT NOT NULL,
+                    acquired_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    heartbeat_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agent_lease_owner
+                ON agent_run_leases (owner_id)
                 """
             )
 
@@ -253,6 +276,272 @@ class SqliteAgentLedger(AgentLedgerPort):
                 (operation_id,),
             ).fetchone()
             return self._row_to_operation(updated_row)
+
+    def request_operation_cancellation(self, operation_id: str) -> OperationRecord:
+        now = _utc_now()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM agent_operations WHERE operation_id = ?",
+                (operation_id,),
+            ).fetchone()
+            if not row:
+                raise KeyError(f"Operation not found: {operation_id}")
+
+            current_status = OperationStatus(row["status"])
+            if current_status in {
+                OperationStatus.SUCCEEDED,
+                OperationStatus.FAILED,
+                OperationStatus.CANCELLED,
+            }:
+                return self._row_to_operation(row)
+
+            if current_status in {OperationStatus.PENDING, OperationStatus.QUEUED}:
+                connection.execute(
+                    """
+                    UPDATE agent_operations
+                    SET status = ?, error_code = ?, error_message = ?, updated_at = ?
+                    WHERE operation_id = ?
+                    """,
+                    (
+                        OperationStatus.CANCELLED.value,
+                        ToolErrorCode.CANCELLED.value,
+                        "Operation cancelled prior to execution",
+                        now,
+                        operation_id,
+                    ),
+                )
+            elif current_status in {OperationStatus.RUNNING, OperationStatus.CANCEL_REQUESTED}:
+                connection.execute(
+                    """
+                    UPDATE agent_operations
+                    SET status = ?, updated_at = ?
+                    WHERE operation_id = ?
+                    """,
+                    (OperationStatus.CANCEL_REQUESTED.value, now, operation_id),
+                )
+
+            updated_row = connection.execute(
+                "SELECT * FROM agent_operations WHERE operation_id = ?",
+                (operation_id,),
+            ).fetchone()
+            return self._row_to_operation(updated_row)
+
+    def is_cancellation_requested(self, operation_id: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT status FROM agent_operations WHERE operation_id = ?",
+                (operation_id,),
+            ).fetchone()
+            if not row:
+                return False
+            status = row["status"]
+            return status in (
+                OperationStatus.CANCEL_REQUESTED.value,
+                OperationStatus.CANCELLED.value,
+            )
+
+    def reconcile_operations(
+        self, run_id: str | None = None
+    ) -> list[OperationRecord]:
+        now = _utc_now()
+        now_dt = datetime.fromisoformat(now.replace("Z", "+00:00"))
+        reconciled: list[OperationRecord] = []
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            query = """
+                SELECT * FROM agent_operations
+                WHERE status IN (?, ?)
+            """
+            params: list[Any] = [OperationStatus.RUNNING.value, OperationStatus.CANCEL_REQUESTED.value]
+            if run_id:
+                query += " AND run_id = ?"
+                params.append(run_id)
+
+            rows = connection.execute(query, params).fetchall()
+            for row in rows:
+                op_run_id = row["run_id"]
+                lease_row = connection.execute(
+                    "SELECT expires_at FROM agent_run_leases WHERE run_id = ?",
+                    (op_run_id,),
+                ).fetchone()
+
+                is_lease_dead = False
+                if not lease_row:
+                    is_lease_dead = True
+                else:
+                    exp_dt = datetime.fromisoformat(lease_row["expires_at"].replace("Z", "+00:00"))
+                    if now_dt > exp_dt:
+                        is_lease_dead = True
+
+                if is_lease_dead:
+                    op_id = row["operation_id"]
+                    connection.execute(
+                        """
+                        UPDATE agent_operations
+                        SET status = ?, error_code = ?, error_message = ?, updated_at = ?
+                        WHERE operation_id = ?
+                        """,
+                        (
+                            OperationStatus.RECOVERY_REQUIRED.value,
+                            ToolErrorCode.RECOVERY_REQUIRED.value,
+                            "Worker lease expired or missing while operation was running; requires recovery",
+                            now,
+                            op_id,
+                        ),
+                    )
+                    updated = connection.execute(
+                        "SELECT * FROM agent_operations WHERE operation_id = ?",
+                        (op_id,),
+                    ).fetchone()
+                    reconciled.append(self._row_to_operation(updated))
+
+        return reconciled
+
+    def get_active_reserved_budget(self, run_id: str) -> dict[str, Any]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT reserved_budget_json FROM agent_operations
+                WHERE run_id = ? AND status IN (?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    OperationStatus.PENDING.value,
+                    OperationStatus.QUEUED.value,
+                    OperationStatus.RUNNING.value,
+                    OperationStatus.CANCEL_REQUESTED.value,
+                ),
+            ).fetchall()
+
+            totals: dict[str, Any] = {
+                "experiments": 0,
+                "trials": 0,
+                "duration_seconds": 0.0,
+                "llm_calls": 0,
+                "tokens": 0,
+                "fits": 0,
+            }
+            for row in rows:
+                budget_data = json.loads(row["reserved_budget_json"])
+                for k, v in budget_data.items():
+                    if isinstance(v, (int, float)):
+                        totals[k] = totals.get(k, 0) + v
+            return totals
+
+    def acquire_run_lease(
+        self, run_id: str, owner_id: str, ttl_seconds: float = 60.0
+    ) -> bool:
+        now = _utc_now()
+        now_dt = datetime.fromisoformat(now.replace("Z", "+00:00"))
+        expires_at = (now_dt + timedelta(seconds=ttl_seconds)).isoformat()
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM agent_run_leases WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+
+            if not row:
+                connection.execute(
+                    """
+                    INSERT INTO agent_run_leases (
+                        run_id, owner_id, acquired_at, expires_at, heartbeat_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (run_id, owner_id, now, expires_at, now),
+                )
+                return True
+
+            current_owner = row["owner_id"]
+            current_expires_at = row["expires_at"]
+            is_expired = now_dt > datetime.fromisoformat(current_expires_at.replace("Z", "+00:00"))
+
+            if current_owner == owner_id:
+                connection.execute(
+                    """
+                    UPDATE agent_run_leases
+                    SET expires_at = ?, heartbeat_at = ?
+                    WHERE run_id = ?
+                    """,
+                    (expires_at, now, run_id),
+                )
+                return True
+
+            if is_expired:
+                connection.execute(
+                    """
+                    UPDATE agent_run_leases
+                    SET owner_id = ?, acquired_at = ?, expires_at = ?, heartbeat_at = ?
+                    WHERE run_id = ?
+                    """,
+                    (owner_id, now, expires_at, now, run_id),
+                )
+                return True
+
+            return False
+
+    def release_run_lease(self, run_id: str, owner_id: str) -> bool:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT owner_id FROM agent_run_leases WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            if not row or row["owner_id"] != owner_id:
+                return False
+            connection.execute(
+                "DELETE FROM agent_run_leases WHERE run_id = ? AND owner_id = ?",
+                (run_id, owner_id),
+            )
+            return True
+
+    def heartbeat_run_lease(
+        self, run_id: str, owner_id: str, ttl_seconds: float = 60.0
+    ) -> bool:
+        now = _utc_now()
+        now_dt = datetime.fromisoformat(now.replace("Z", "+00:00"))
+        expires_at = (now_dt + timedelta(seconds=ttl_seconds)).isoformat()
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT owner_id, expires_at FROM agent_run_leases WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            if not row or row["owner_id"] != owner_id:
+                return False
+
+            if now_dt > datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")):
+                return False
+
+            connection.execute(
+                """
+                UPDATE agent_run_leases
+                SET expires_at = ?, heartbeat_at = ?
+                WHERE run_id = ? AND owner_id = ?
+                """,
+                (expires_at, now, run_id, owner_id),
+            )
+            return True
+
+    def get_run_lease(self, run_id: str) -> RunLease | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM agent_run_leases WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return RunLease(
+                run_id=row["run_id"],
+                owner_id=row["owner_id"],
+                acquired_at=row["acquired_at"],
+                expires_at=row["expires_at"],
+                heartbeat_at=row["heartbeat_at"],
+            )
 
     def save_approval(self, req: ApprovalRequest) -> None:
         now = _utc_now()
