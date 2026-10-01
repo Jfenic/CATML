@@ -325,6 +325,22 @@ class SqliteAgentLedger(AgentLedgerPort):
             ).fetchone()
             return self._row_to_approval(updated_row)
 
+    def list_approvals(
+        self, run_id: str | None = None, status: ApprovalStatus | None = None
+    ) -> list[ApprovalRequest]:
+        with self._connect() as connection:
+            query = "SELECT * FROM agent_approvals WHERE 1=1"
+            params: list[Any] = []
+            if run_id:
+                query += " AND run_id = ?"
+                params.append(run_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status.value)
+            query += " ORDER BY created_at DESC"
+            rows = connection.execute(query, params).fetchall()
+            return [self._row_to_approval(r) for r in rows]
+
     def save_hypothesis(self, hyp: Hypothesis) -> None:
         now = _utc_now()
         if not hyp.created_at:
