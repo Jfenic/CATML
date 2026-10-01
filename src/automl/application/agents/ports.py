@@ -45,7 +45,8 @@ class AgentLedgerPort(Protocol):
         self, run_id: str | None = None, status: OperationStatus | None = None
     ) -> list[OperationRecord]:
         """List operation records, optionally filtered by run_id or status."""
-        
+        ...
+
     def request_operation_cancellation(self, operation_id: str) -> OperationRecord:
         """Request cooperative cancellation of a running or queued operation."""
         ...

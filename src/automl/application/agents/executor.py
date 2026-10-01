@@ -565,7 +565,7 @@ class ToolExecutor:
                     execution_time_seconds=time.perf_counter() - start_time,
                 )
 
-        # 8. Check deadline and cooperative cancellation before handler execution
+        # 8. Check deadline before handler execution ("Timeout no se presenta como cancelación")
         if invocation.context.deadline is not None and time.time() > invocation.context.deadline:
             if self.ledger and operation_id:
                 self.ledger.update_operation_status(
@@ -574,14 +574,6 @@ class ToolExecutor:
                     error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
                     error_message="Operation exceeded invocation context deadline before execution",
                 )
-        # 8. Check cooperative cancellation before dispatching handler
-        if self.ledger and operation_id and self.ledger.is_cancellation_requested(operation_id):
-            self.ledger.update_operation_status(
-                operation_id=operation_id,
-                status=OperationStatus.CANCELLED,
-                error_code=ToolErrorCode.CANCELLED.value,
-                error_message="Operation cancelled prior to execution",
-            )
             return ToolResult(
                 request_id=req_id,
                 tool_name=invocation.tool_name,
@@ -590,16 +582,22 @@ class ToolExecutor:
                 error=ToolError(
                     code=ToolErrorCode.DEADLINE_EXCEEDED,
                     message="Operation deadline exceeded",
-                    code=ToolErrorCode.CANCELLED,
-                    message="Operation cancelled prior to execution",
                     correlation_id=invocation.context.correlation_id,
                 ),
                 execution_time_seconds=time.perf_counter() - start_time,
             )
 
+        # Check cooperative cancellation before dispatching handler
         if self.ledger and operation_id:
-            current_op = self.ledger.get_operation(operation_id)
-            if current_op and current_op.status in (OperationStatus.CANCEL_REQUESTED, OperationStatus.CANCELLED):
+            is_cancelled = False
+            if hasattr(self.ledger, "is_cancellation_requested") and self.ledger.is_cancellation_requested(operation_id):
+                is_cancelled = True
+            else:
+                current_op = self.ledger.get_operation(operation_id)
+                if current_op and current_op.status in (OperationStatus.CANCEL_REQUESTED, OperationStatus.CANCELLED):
+                    is_cancelled = True
+
+            if is_cancelled:
                 self.ledger.update_operation_status(
                     operation_id=operation_id,
                     status=OperationStatus.CANCELLED,
@@ -626,7 +624,7 @@ class ToolExecutor:
                 active_budget.consume(cost_estimate)
 
             if self.ledger and operation_id:
-                if self.ledger.is_cancellation_requested(operation_id):
+                if hasattr(self.ledger, "is_cancellation_requested") and self.ledger.is_cancellation_requested(operation_id):
                     self.ledger.update_operation_status(
                         operation_id=operation_id,
                         status=OperationStatus.CANCELLED,
@@ -673,6 +671,20 @@ class ToolExecutor:
                     operation_id=operation_id,
                     status=OperationStatus.TIMED_OUT,
                     error_code=ToolErrorCode.DEADLINE_EXCEEDED.value,
+                    error_message=err_msg,
+                )
+            return ToolResult(
+                request_id=req_id,
+                tool_name=invocation.tool_name,
+                success=False,
+                operation_id=operation_id,
+                error=ToolError(
+                    code=ToolErrorCode.DEADLINE_EXCEEDED,
+                    message=err_msg,
+                    correlation_id=invocation.context.correlation_id,
+                ),
+                execution_time_seconds=time.perf_counter() - start_time,
+            )
         except (InterruptedError, KeyboardInterrupt):
             err_msg = f"Operation '{invocation.tool_name}' was interrupted or cancelled"
             if self.ledger and operation_id:
@@ -688,7 +700,6 @@ class ToolExecutor:
                 success=False,
                 operation_id=operation_id,
                 error=ToolError(
-                    code=ToolErrorCode.DEADLINE_EXCEEDED,
                     code=ToolErrorCode.CANCELLED,
                     message=err_msg,
                     correlation_id=invocation.context.correlation_id,

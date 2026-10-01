@@ -313,6 +313,7 @@ class SqliteAgentLedger(AgentLedgerPort):
                 OperationStatus.SUCCEEDED,
                 OperationStatus.FAILED,
                 OperationStatus.CANCELLED,
+                OperationStatus.TIMED_OUT,
             }:
                 return self._row_to_operation(row)
 
