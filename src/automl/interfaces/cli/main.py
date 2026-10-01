@@ -664,6 +664,10 @@ def main(argv: list[str] | None = None) -> int:
     mcp_parser.add_argument("--workspace", help="Path to workspace root directory (default: auto)")
     mcp_parser.set_defaults(func=mcp_cli)
 
+    agent_parser = sub.add_parser("agent", help="LLM Agent governance, approvals, and audit ledger")
+    from automl.interfaces.cli.agent_cli import register_agent_subparser
+    register_agent_subparser(agent_parser)
+
     args = parser.parse_args(argv)
     return args.func(args)
 
