@@ -59,8 +59,8 @@ export class CompareView {
             <span class="text-4xl text-slate-600 block">⇄</span>
             <h3 class="text-base font-bold text-slate-200">No Experiments Found to Compare</h3>
             <p class="text-xs text-slate-400 max-w-sm mx-auto">You need at least 2 completed or active experiments in the workspace to perform side-by-side comparison.</p>
-            <button id="btnNewExpCompareEmpty" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-600/20">
-              + Create First Experiment
+            <button id="btnNewExpCompareEmpty" class="btn-signal">
+              + CREATE FIRST EXPERIMENT
             </button>
           </div>
         </div>
@@ -77,21 +77,21 @@ export class CompareView {
     this.container.innerHTML = `
       <div class="space-y-6">
         <!-- Top Selector Row -->
-        <div class="workbench-card p-4 bg-slate-900/80 border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="workbench-card p-4 bg-[#16171c] border-[#27272e] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
-            <span class="text-indigo-400 font-bold text-lg">⇄</span>
+            <span class="text-[#E5512D] font-mono font-bold text-lg">⇄</span>
             <div>
-              <h2 class="text-base font-bold text-slate-100">Experiment Comparison & Lineage</h2>
-              <p class="text-xs text-slate-400">Selecciona dos o más experimentos para inspeccionar diferencias algorítmicas y ganancias métricas</p>
+              <h2 class="text-base font-bold font-mono text-[#F1EFE9]">EXPERIMENT COMPARISON & LINEAGE</h2>
+              <p class="text-xs text-[#D8D6CF]/70 font-mono">Selecciona dos o más experimentos para inspeccionar diferencias algorítmicas y ganancias métricas</p>
             </div>
           </div>
 
           <!-- Experiment Checkboxes -->
-          <div class="flex flex-wrap items-center gap-2 text-xs">
+          <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
             ${this.experiments.map(exp => `
-              <label class="flex items-center space-x-1.5 cursor-pointer bg-slate-950 px-3 py-1.5 rounded border ${this.selected.includes(exp.id) ? 'border-indigo-600/60 text-indigo-300' : 'border-slate-800 text-slate-400'}">
-                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded text-indigo-600 focus:ring-0 bg-slate-800" data-exp-id="${exp.id}">
-                <span class="font-mono">${exp.name || exp.id}</span>
+              <label class="flex items-center space-x-1.5 cursor-pointer px-3 py-1.5 rounded-sm border ${this.selected.includes(exp.id) ? 'border-[#E5512D] text-[#F1EFE9] bg-[#1c1d24]' : 'border-[#27272e] text-[#D8D6CF]/60 bg-[#111111]'}">
+                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded-sm text-[#E5512D] focus:ring-0 bg-[#111111]" data-exp-id="${exp.id}">
+                <span>${exp.name || exp.id}</span>
               </label>
             `).join("")}
           </div>

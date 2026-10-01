@@ -1,5 +1,7 @@
 # Progress
 
+Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
+- Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
 
 Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 Cerrado)**:
 - Rol: **Persona B** (Interfaces, Integración y Orquestación).
@@ -18,16 +20,27 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Persona B (Hito H2 / Paquete B2 
 Active Track: **Ensemble Weight Optimization, Rank Averaging & Optuna Pruning**:
 - Rama: `feat/ensemble-weight-optimization-and-pruning`.
 - Entregable completado:
-  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`): parametrización softmax no acotada $\vec{w} = \text{softmax}(\vec{\theta})$ garantizando pesos estrictamente no negativos y suma 1.0, con regularización suave de Brier para superar plateaus discretos en métricas de ranking (ROC-AUC) y clasificación.
-  - Rank-Averaging Blending (`rank_average_predictions` y `method="rank"` en `blend_predictions`): conversión a rangos percentiles fraccionarios libres de escala $(rank - 1)/(N - 1)$, eliminando distorsiones por descalibración probabilística entre modelos heterogéneos (GBDTs, redes neuronales, lineales).
-  - Integración en `VotingEnsembleEstimator`: soporte de `voting="rank"`, `optimize_weights=True` y `metric`, optimizando pesos automáticamente sobre datos de validación / OOF con `self.weights_` y `self.optimal_score_`.
-  - Exposición en `VotingEnsemblePlugin` y `SearchSpaceBuilder`: parámetros `voting` ("soft", "hard", "rank") y `optimize_weights` explorables en HPO.
-  - Multi-fidelity Early Pruning en `OptunaOptimizer`: integración de `optuna.pruners.MedianPruner` (startup 5, warmup 2), método `report_step(trial_number, step, value)` y registro de `TrialState.PRUNED` en `observe(..., pruned=True)`.
-  - Validación completa: 294 tests pasando (20 tests en `tests/test_ensemble_plugin.py`, 14 tests en `tests/test_v04_optimizer.py`), 8 skipped, 0 fallos, 86.40% cobertura de código (supera el umbral de 85%).
+  - Extensión de contratos de dominio (`ColumnProfile`, `DatasetProfile` en `src/automl/domain/datasets/profile.py`): incorporación de campos estadísticos numéricos (`mean`, `std`, `min`, `max`, `median`, `q25`, `q75`, `skew`, `target_correlation`, `top_categories`), `histogram` (10 bins), `box_plot` (estadísticas globales y desglosadas por clases del target), `correlation_matrix` completa ($r \in [-1, 1]$), muestra de datos crudos (`preview_rows`) y recomendaciones automáticas (`recommendations`), preservando pureza hexagonal sin dependencias externas.
+  - Motor de perfilado (`dataset_profiler.py`): cálculo de estadísticas descriptivas, correlación de Pearson frente al target (numérico o texto adaptado), detección de multicolinealidad cruzada ($|r| > 0.88$), cálculo de frecuencias categóricas con tasa de propensión al target (`target_rate`), generación de cajas y bigotes desglosados por clase de objetivo, e histogramas bivariantes.
+  - Deserialización en persistencia (`sqlite_repository.py`): soporte transparente para los nuevos campos estadísticos, matriz de correlación y recomendaciones en SQLite, con filtrado seguro de atributos para garantizar retrocompatibilidad.
+  - Vistas frontend interactivas:
+    - `datasets.js`: Pestaña dedicada a la **Matriz de Correlación** (mapa de calor interactivo de Pearson entre todas las variables numéricas y el target, con detección visual de colinealidad); botones `[📊 Ver]` en cada fila de las tablas de Schema y Estadísticas Descriptivas; **Modal de Análisis Visual y Patrones de Variable** con 3 modos: Diagrama de Caja y Bigotes (Box Plot SVG comparativo por clase de target y métricas IQR/Mediana), Histograma de Distribución (10 bins con diagnóstico de asimetría/skewness), y Patrones frente a la Variable Objetivo (tasa de conversión % por categoría o comparativa de medias por clase).
+    - `new_experiment.js`: Previsualización interactiva con badges y recuento de variables seleccionadas; propagación de `feature_names` en la creación de experimentos.
+    - `studio.js`: Barra superior de lanzamiento rápido (LightGBM, XGBoost, CatBoost, Ensemble Blender), filtros por familia de modelos y modal para inspección de hiperparámetros de cada trial.
+  - Sistema de Diseño UI Neo-Industrial (Visual ML Lab):
+    - Especificación oficial de diseño en `docs/design/neo-industrial-ui-spec.md` y registro arquitectónico `docs/decisions/005-neo-industrial-visual-ml-lab-ui.md`.
+    - Regla 8 añadida a `AGENTS.md` y directrices en `DEVELOPER_GUIDE.md` para que cualquier agente o desarrollador futuro preserve estrictamente este estándar.
+    - Tipografía dual (`Space Grotesk` para títulos/interfaz y `IBM Plex Mono` para datos/métricas/IDs/logs).
+    - Paleta modular técnica: `#111111` (negro carbón), `#16171c` / `#1c1d24` (paneles modulares), `#D8D6CF` (cemento), `#F1EFE9` (blanco cálido), con `#E5512D` (naranja señal) reservado exclusivamente para acciones y CTAs principales de ejecución.
+    - Navegación lateral numerada (`01 Dashboard`, `02 Datasets`, `03 Experiments`, `04 Models`, `05 Pipelines`, `06 Deployments`).
+    - Eliminación de bordes redondeados tipo SaaS (radios estrictos $\le 4$px, bordes de 1px) y modernización integral de `index.html`, `workbench.css`, `app.js`, `overview.js`, `new_experiment.js`, `studio.js`, `compare.js`, `datasets.js`.
+  - Pruebas y cobertura: 295 tests pasando (incluyendo `tests/test_web_dashboard.py` enriquecido con aserciones para `box_plot`, `histogram`, `target_rate` y `correlation_matrix`), 8 skipped, 0 fallos, 86.45% cobertura global (superando el umbral de 85%). Pruebas JS (`node --test tests/js/jobs.test.mjs`) passing al 100%.
 
 
 ## Completed
 
+- Ensemble Weight Optimization, Rank Averaging & Optuna Pruning (2026-09-30):
+  - Nelder-Mead Simplex Weight Optimization (`optimize_ensemble_weights` en `src/automl/engine/ensemble/blender.py`), Rank-Averaging Blending, y Multi-fidelity Early Pruning en `OptunaOptimizer`. PR #31 integrado en main.
 - Paquete B2 completado (Persona B, 2026-09-30):
   - Exposición de tools mutantes en MCP stdio (`create_experiment`, `prioritize_feature`, `run_experiment`).
   - Retorno no bloqueante de `PENDING_APPROVAL` con `approval_id`.

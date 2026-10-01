@@ -348,7 +348,8 @@ class SQLiteExperimentRepository:
         if row is None:
             return None
         data = json.loads(row["profile_json"])
-        columns = [ColumnProfile(**c) for c in data["columns"]]
+        col_fields = set(ColumnProfile.__dataclass_fields__.keys())
+        columns = [ColumnProfile(**{k: v for k, v in c.items() if k in col_fields}) for c in data["columns"]]
         return DatasetProfile(
             dataset_id=data["dataset_id"],
             row_count=data["row_count"],
@@ -356,6 +357,9 @@ class SQLiteExperimentRepository:
             target_column=data["target_column"],
             task_type=data["task_type"],
             columns=columns,
+            preview_rows=data.get("preview_rows", []),
+            recommendations=data.get("recommendations", []),
+            correlation_matrix=data.get("correlation_matrix", {}),
         )
 
     # --- features ---
