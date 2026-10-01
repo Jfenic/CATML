@@ -242,3 +242,11 @@ Con run fixture y baseline: consultar perfil/modelos → crear hipótesis candid
 - [ ] Núcleo utilizable sin extras ni credenciales.
 
 Riesgos por resolver: atomicidad ledger/repositorio (H0/H2), cancelación durante entrenamiento (H3), metadata insuficiente para comparar (H4), compatibilidad SDK/Python (H0/H1/H5) y deriva de schemas (todos los hitos). Cada uno tiene prueba/criterio asociado. No se promete ejecución distribuida ni recuperación automática cuando el efecto de una operación sea indeterminado.
+
+## 14. Expansión futura: Telemetría Agéntica y Puente en Vivo con AutoML Web Workbench
+
+Propuesta de integración para conectar la mensajería y operaciones agénticas (vía MCP o ciclo local) directamente con el Workbench Web:
+1. **Stream de Actividad en Tiempo Real:** El drawer lateral `agent.js` se suscribe a `/api/agent/stream` (SSE o polling) para reflejar las operaciones y evaluaciones (`CandidateProposal`, `EvaluationFeedback`) almacenadas en el `SqliteAgentLedger`.
+2. **Aprobación Interactiva en Web:** Presentar tarjetas interactivas con diseño Neo-Industrial para solicitudes `ApprovalRequest` en estado `PENDING`, permitiendo al operador humano autorizar o rechazar corridas costosas con un clic (`[✓ AUTORIZAR EXPERIMENTO]`, `[✕ RECHAZAR]`) desde el navegador.
+3. **Widget de Chat Agéntico:** Permitir el envío de objetivos o hipótesis conversacionales desde la interfaz web hacia el orquestador agéntico, visualizando el razonamiento de los especialistas (`Planner`, `FeatureAdvisor`, `Critic`) y gráficos comparativos en tiempo real.
+

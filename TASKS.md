@@ -45,6 +45,10 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [ ] H5 — V1.0 Proveedor real, LangGraph duradero y recuperación (Integración final A5 + B5):
   - [ ] Track Persona A (Paquete A5): Adaptador LLM agnóstico con validación de respuesta, timeouts/reintentos acotados, redacción y auditoría de tokens.
   - [ ] Track Persona B (Paquete B5): Checkpointer LangGraph SQLite, reanudación tras fallo y tests E2E de orquestación.
+- [ ] Future Expansion: Telemetría Agéntica & Conexión en Vivo con AutoML Web Workbench:
+  - [ ] Stream de actividad en tiempo real: conectar el cajón lateral `agent.js` a `/api/agent/stream` (SSE/polling) leyendo hipótesis y operaciones del `SqliteAgentLedger`.
+  - [ ] Aprobación interactiva en UI: tarjetas interactivas Neo-Industrial (`[✓ AUTORIZAR EXPERIMENTO]`, `[✕ RECHAZAR]`) para solicitudes `PENDING` de `ApprovalRequest`, desbloqueando corridas del agente MCP o autónomo desde el navegador.
+  - [ ] Widget de Chat Agéntico en Workbench: permitir ingresar directivas de experimentación en la interfaz web y enviarlas al orquestador agéntico con renderizado de progreso y comparativa de métricas en vivo.
 - [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
 
 - [x] Stacking with a trained meta-estimator (distinct from voting/blending).

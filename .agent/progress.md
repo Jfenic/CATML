@@ -27,6 +27,7 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Hito H4: Ciclo Determinista y Es
     - `Critic`: Evaluación empírica de métricas, diagnóstico de varianza y recomendaciones objetivas (`accept`, `reject`, `explore_alternative`).
     - `FakeLLMProvider`: Mock determinista en `infrastructure/llm/` con soporte de respuestas canned, schemas JSON y simulación de errores/latencia.
     - Validación: 31 tests unitarios y de integración pasando en `tests/test_v10_specialists.py` con 94% de cobertura del paquete; 386 tests pasando en la suite global con 87.35% de cobertura total.
+    - Propuesta de Backlog Documentada: Telemetría Agéntica & Puente en Vivo con AutoML Web Workbench (Stream en tiempo real de hipótesis/operaciones, aprobaciones interactivas en UI Neo-Industrial y chat widget) registrada en `TASKS.md` y `docs/features/agentic-system/plan.md` §14.
 - **Track Persona B (Paquete B4):**
   - Rol: **Persona B** (Interfaces, Integración y Orquestación).
   - Subdirectorios propios: `src/automl/application/agents/orchestrator/` (`state_machine.py`, `session_manager.py`), `src/automl/interfaces/cli/agent_session_cli.py`, y `tests/test_v10_orchestrator.py`.
