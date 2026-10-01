@@ -1,18 +1,23 @@
 """Technical application ports for persistence, audit ledger, and agent state storage."""
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from automl.domain.agents.entities import ApprovalStatus, Hypothesis, OperationStatus, RunLease
 from automl.application.agents.contracts import (
     AgentSessionState,
     ApprovalRequest,
+    CandidateProposal,
+    ContextPayload,
+    EvaluationFeedback,
+    LLMResponse,
     OperationRecord,
 )
 
 
-class AgentLedgerPort(Protocol):
-    """Protocol for transactional audit ledger, approval tracking, hypotheses, sessions, and run leases."""
+@runtime_checkable
+class AgentOperationStorePort(Protocol):
+    """Protocol for managing operations lifecycle, locks, leases, and cancellation."""
 
     def record_operation(self, op: OperationRecord) -> None:
         """Record a new operation in pending state with idempotency check."""
@@ -39,7 +44,6 @@ class AgentLedgerPort(Protocol):
     ) -> OperationRecord:
         """Transition operation status, updating consumed budget or error details."""
         ...
-
 
     def list_operations(
         self, run_id: str | None = None, status: OperationStatus | None = None
@@ -85,6 +89,11 @@ class AgentLedgerPort(Protocol):
         """Retrieve current lease for a run."""
         ...
 
+
+@runtime_checkable
+class AgentApprovalStorePort(Protocol):
+    """Protocol for human-in-the-loop approvals."""
+
     def save_approval(self, req: ApprovalRequest) -> None:
         """Persist a new approval request."""
         ...
@@ -105,6 +114,11 @@ class AgentLedgerPort(Protocol):
         """List approval requests, optionally filtered by run_id or status."""
         ...
 
+
+@runtime_checkable
+class AgentSessionStorePort(Protocol):
+    """Protocol for agent session checkpoints, memory, and hypotheses."""
+
     def save_hypothesis(self, hyp: Hypothesis) -> None:
         """Save a proposed or evaluated hypothesis."""
         ...
@@ -124,4 +138,47 @@ class AgentLedgerPort(Protocol):
     def get_session_state(self, session_id: str) -> AgentSessionState | None:
         """Retrieve agent session state by session ID."""
         ...
+
+
+@runtime_checkable
+class SpecialistPort(Protocol):
+    """Protocol for domain specialists (Planner, FeatureAdvisor, Critic)."""
+
+    @property
+    def name(self) -> str:
+        """Unique identifier of the specialist."""
+        ...
+
+    def analyze(
+        self, context: ContextPayload, **kwargs: Any
+    ) -> CandidateProposal | EvaluationFeedback:
+        """Analyze structured context payload and emit proposal or feedback."""
+        ...
+
+
+@runtime_checkable
+class LLMProviderPort(Protocol):
+    """Provider port for LLM completion and structured parsing."""
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        response_schema: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """Generate response from provider given prompt and optional schema."""
+        ...
+
+
+@runtime_checkable
+class AgentLedgerPort(
+    AgentOperationStorePort,
+    AgentApprovalStorePort,
+    AgentSessionStorePort,
+    Protocol,
+):
+    """Unified ledger protocol combining operation, approval, and session stores for backward compatibility."""
+    ...
+
 

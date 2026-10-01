@@ -368,3 +368,125 @@ class AgentSessionState:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AgentSessionState:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class CandidateProposal:
+    """Actionable scientific proposal emitted by a specialist (Propose != Accept)."""
+    proposal_id: str
+    specialist_name: str
+    run_id: str
+    hypothesis: str
+    action_type: str
+    action_payload: dict[str, Any]
+    verification_plan: dict[str, Any] = field(default_factory=dict)
+    estimated_cost: dict[str, Any] = field(default_factory=dict)
+    confidence: float = 1.0
+    created_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CandidateProposal:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class EvaluationFeedback:
+    """Critical evaluation of an executed experiment or trial against evidence and baselines."""
+    feedback_id: str
+    run_id: str
+    specialist_name: str
+    is_improvement: bool
+    metric_name: str
+    experiment_id: str | None = None
+    baseline_score: float | None = None
+    current_score: float | None = None
+    variance_observation: str | None = None
+    recommendation: str = "explore_alternative"
+    evidence_summary: dict[str, Any] = field(default_factory=dict)
+    created_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> EvaluationFeedback:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class ContextPayload:
+    """Bounded, redacted, and structured evidence payload supplied to specialists."""
+    run_id: str
+    dataset_id: str
+    task_type: str
+    target_metric: str
+    metric_direction: str = "maximize"
+    dataset_profile: dict[str, Any] = field(default_factory=dict)
+    feature_evidence: list[dict[str, Any]] = field(default_factory=list)
+    leaderboard: list[dict[str, Any]] = field(default_factory=list)
+    budget_status: dict[str, Any] = field(default_factory=dict)
+    history: list[dict[str, Any]] = field(default_factory=list)
+    omissions: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ContextPayload:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class SessionStepResult:
+    """Execution and transition outcome for a single autonomous session step."""
+    session_id: str
+    step_number: int
+    state: str
+    action_taken: str | None = None
+    proposal: CandidateProposal | None = None
+    feedback: EvaluationFeedback | None = None
+    operation_id: str | None = None
+    stop_reason: str | None = None
+    checkpoint_id: str | None = None
+    created_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        res = asdict(self)
+        if self.proposal:
+            res["proposal"] = self.proposal.to_dict()
+        if self.feedback:
+            res["feedback"] = self.feedback.to_dict()
+        return res
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SessionStepResult:
+        prop_data = data.get("proposal")
+        feed_data = data.get("feedback")
+        proposal = CandidateProposal.from_dict(prop_data) if isinstance(prop_data, dict) else prop_data
+        feedback = EvaluationFeedback.from_dict(feed_data) if isinstance(feed_data, dict) else feed_data
+        clean = {k: v for k, v in data.items() if k in cls.__dataclass_fields__ and k not in ("proposal", "feedback")}
+        return cls(proposal=proposal, feedback=feedback, **clean)
+
+
+@dataclass
+class LLMResponse:
+    """Structured response from an LLM provider adapter."""
+    content: str
+    provider: str
+    model: str
+    parsed: dict[str, Any] | None = None
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    latency_seconds: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LLMResponse:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
