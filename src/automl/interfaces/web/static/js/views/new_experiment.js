@@ -5,6 +5,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class NewExperimentModal {
   constructor() {
@@ -40,7 +41,7 @@ export class NewExperimentModal {
               <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Create New Experiment</h3>
               <p class="text-xs text-[#8B95A7] font-sans">Evidence-guided rapid AutoML experiment configuration</p>
             </div>
-            <button id="btnCloseModal" class="text-[#8B95A7] hover:text-[#F7F8FA] text-lg">✕</button>
+            <button id="btnCloseModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors">${icon("x", "icon-sm")}</button>
           </div>
 
           <!-- Dataset Card -->
@@ -62,17 +63,17 @@ export class NewExperimentModal {
             <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">How should CATML operate?</label>
             <div class="grid grid-cols-3 gap-3">
               <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'auto' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="auto">
-                <div class="font-bold text-[#F7F8FA] font-sans">● Auto</div>
+                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("zap", "icon-sm text-[#4F67FF]")} <span>Auto</span></div>
                 <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Autonomous model selection, feature engineering, and Bayesian HPO.</div>
               </div>
 
               <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'guided' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="guided">
-                <div class="font-bold text-[#F7F8FA] font-sans">○ Guided</div>
+                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("compass", "icon-sm text-[#6956E8]")} <span>Guided</span></div>
                 <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">CATML proposes candidates; you configure constraints and models.</div>
               </div>
 
               <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'manual' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="manual">
-                <div class="font-bold text-[#F7F8FA] font-sans">○ Manual</div>
+                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("sliders-horizontal", "icon-sm text-[#8B95A7]")} <span>Manual</span></div>
                 <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Full step-by-step pipeline control and manual selection.</div>
               </div>
             </div>
@@ -109,7 +110,7 @@ export class NewExperimentModal {
           <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-2 text-xs font-sans">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#4F67FF]">⚡</span>
+                <span class="text-[#4F67FF]">${icon("sparkles", "icon-sm")}</span>
                 <span class="font-semibold text-[#F7F8FA]">Feature Set Selection:</span>
               </div>
               <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-bold">${customFeatures && customFeatures.length > 0 ? `${customFeatures.length} Custom Features` : 'All Recommended'}</span>
@@ -150,7 +151,7 @@ export class NewExperimentModal {
               CANCEL
             </button>
             <button id="btnStartAutoML" ${!hasTarget ? "disabled" : ""} class="btn-signal ${!hasTarget ? 'opacity-50 cursor-not-allowed' : ''}">
-              <span>▶ START TRAINING</span>
+              <span class="inline-flex items-center gap-1.5">${icon("play", "icon-sm")} <span>START TRAINING</span></span>
             </button>
           </div>
         </div>
@@ -215,7 +216,7 @@ export class NewExperimentModal {
                 <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               <!-- Center pulse icon -->
-              <div class="absolute inset-0 flex items-center justify-center text-lg animate-pulse">⚡</div>
+              <div class="absolute inset-0 flex items-center justify-center text-[#4F67FF] animate-pulse">${icon("zap", "icon-lg", 24)}</div>
             </div>
 
             <div class="space-y-2">

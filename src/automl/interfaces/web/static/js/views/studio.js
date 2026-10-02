@@ -5,6 +5,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class StudioView {
   constructor() {
@@ -30,7 +31,7 @@ export class StudioView {
   renderLoading() {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
-        <div class="animate-catml-spin text-2xl text-[#4F67FF]">◇</div>
+        <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
         <div class="text-sm font-medium font-sans">Loading Experiment Studio, plans, and validation metrics...</div>
       </div>
     `;
@@ -68,11 +69,11 @@ export class StudioView {
     if (!activeRun) {
       this.container.innerHTML = `
         <div class="workbench-card p-12 text-center space-y-4">
-          <span class="text-4xl text-slate-600 block">⚗</span>
+          <div class="text-[#8B95A7]/40 flex justify-center">${icon("flask-conical", "icon-xl", 36)}</div>
           <h3 class="text-base font-bold text-slate-200">No Experiment Runs Found</h3>
           <p class="text-xs text-slate-400 max-w-sm mx-auto">Create a new experiment run to inspect the AutoML planner, HPO search progress, and model leaderboard.</p>
-          <button id="btnNewExpFromStudioEmpty" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-600/20">
-            + New Experiment
+          <button id="btnNewExpFromStudioEmpty" class="btn-signal">
+            <span class="inline-flex items-center gap-1.5">${icon("plus", "icon-sm")} <span>New Experiment</span></span>
           </button>
         </div>
       `;
@@ -131,41 +132,41 @@ export class StudioView {
     if (isRunning) {
       actionControlsHtml = `
         <button id="btnPauseRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10 transition-colors">
-          <span>⏸</span><span>Pause</span>
+          ${icon("pause", "icon-sm")}<span>Pause</span>
         </button>
         <button id="btnStopRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-rose-400 border-rose-500/30 hover:bg-rose-500/10 transition-colors">
-          <span>■</span><span>Stop</span>
+          ${icon("square", "icon-sm")}<span>Stop</span>
         </button>
       `;
     } else if (isPaused) {
       actionControlsHtml = `
         <button id="btnResumeRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 transition-colors">
-          <span>▶</span><span>Resume</span>
+          ${icon("play", "icon-sm")}<span>Resume</span>
         </button>
         <button id="btnStopRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-rose-400 border-rose-500/30 hover:bg-rose-500/10 transition-colors">
-          <span>■</span><span>Stop</span>
+          ${icon("square", "icon-sm")}<span>Stop</span>
         </button>
       `;
     } else if (activeRun.status === "COMPLETED") {
       actionControlsHtml = `
         <button id="btnRunAgain" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Launch a new experiment run with active dataset">
-          <span>↻</span><span>Run again</span>
+          ${icon("refresh-cw", "icon-sm")}<span>Run again</span>
         </button>
         <button id="btnCloneRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Clone experiment into a new run">
-          <span>⧉</span><span>Clone</span>
+          ${icon("copy", "icon-sm")}<span>Clone</span>
         </button>
         <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Download autonomous ModelArtifact (.pkl)">
-          <span>⬇</span><span>Export best model</span>
+          ${icon("download", "icon-sm")}<span>Export best model</span>
         </a>
       `;
     } else {
       // FAILED, CANCELLED, IDLE
       actionControlsHtml = `
         <button id="btnRunAgain" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Launch a new experiment run with active dataset">
-          <span>↻</span><span>Run again</span>
+          ${icon("refresh-cw", "icon-sm")}<span>Run again</span>
         </button>
         <button id="btnCloneRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Clone experiment into a new run">
-          <span>⧉</span><span>Clone</span>
+          ${icon("copy", "icon-sm")}<span>Clone</span>
         </button>
       `;
     }
@@ -198,7 +199,7 @@ export class StudioView {
             `).join("")}
           </div>
           <div class="text-center text-[11px] text-[#8B95A7] font-sans flex items-center justify-center gap-1.5 pt-1">
-            <span class="text-[#4F67FF]">◇</span>
+            <span class="text-[#4F67FF]">${icon("chart-line", "icon-sm")}</span>
             <span>Optimization curve activates automatically once ≥ 4 trials are recorded (${trialsList.length}/4 tested).</span>
           </div>
         </div>
@@ -206,7 +207,7 @@ export class StudioView {
     } else {
       optimizationProgressContent = `
         <div class="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-2">
-          <span class="text-3xl text-[#8B95A7]/40 block">📈</span>
+          <div class="text-[#8B95A7]/40 flex justify-center">${icon("chart-line", "icon-xl", 32)}</div>
           <div class="text-xs font-semibold text-[#F7F8FA] font-sans">No optimization trials recorded yet</div>
           <p class="text-[11px] text-[#8B95A7] font-sans max-w-xs">Run a preset above or launch a guided experiment to record hyperparameter trials.</p>
         </div>
@@ -275,7 +276,7 @@ export class StudioView {
             </div>
             <div class="flex items-center space-x-2">
               <button id="btnNewExpFromHeader" class="btn-signal text-xs flex items-center space-x-1.5" title="Agent-assisted search with human-in-the-loop parameter and feature gating">
-                <span>◇</span>
+                ${icon("bot", "icon-sm")}
                 <span>Guided Experiment</span>
               </button>
               <span class="text-[10px] text-[#8B95A7] hidden sm:inline font-mono">Agent-assisted</span>
@@ -302,8 +303,8 @@ export class StudioView {
                   <div class="p-3 rounded-xl ${isStepRunning ? 'bg-[#4F67FF]/10 border border-[#4F67FF]/30' : 'bg-[#151B26] border border-[#252C38]'} flex items-start justify-between">
                     <div class="space-y-1">
                       <div class="flex items-center space-x-2">
-                        <span class="${isCompleted ? 'text-[#22C55E]' : isStepRunning ? 'text-[#4F67FF] animate-pulse' : 'text-[#8B95A7]'} font-bold">
-                          ${step.step} ${isCompleted ? '✓' : isStepRunning ? '●' : '○'}
+                        <span class="inline-flex items-center gap-1 font-mono font-bold ${isCompleted ? 'text-[#22C55E]' : isStepRunning ? 'text-[#4F67FF] animate-pulse' : 'text-[#8B95A7]'}">
+                          ${step.step} ${isCompleted ? icon("check", "icon-sm") : isStepRunning ? '<span class="w-1.5 h-1.5 rounded-full bg-[#4F67FF]"></span>' : '<span class="w-1.5 h-1.5 rounded-full border border-[#8B95A7]"></span>'}
                         </span>
                         <span class="text-xs font-semibold text-[#F7F8FA] font-sans">${step.name}</span>
                       </div>
@@ -319,7 +320,7 @@ export class StudioView {
                 `;
               }).join("") : `
                 <div class="text-center py-8 px-4 space-y-2">
-                  <span class="text-2xl text-[#8B95A7]/40 block">◇</span>
+                  <div class="text-[#8B95A7]/40 flex justify-center">${icon("compass", "icon-lg", 28)}</div>
                   <div class="text-xs font-semibold text-[#F7F8FA] font-sans">No planning decisions recorded for this run</div>
                   <p class="text-[11px] text-[#8B95A7] font-sans max-w-xs mx-auto leading-relaxed">
                     Decisions appear here when autonomous heuristics or agent policies prune search space, select candidate features, or adapt validation folds.
@@ -333,7 +334,7 @@ export class StudioView {
           <div class="lg:col-span-7 workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#22C55E]">📈</span>
+                <span class="text-[#22C55E]">${icon("chart-line", "icon-sm")}</span>
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Optimization Progress (${activeRun.metric || 'ROC-AUC'} over Trials)</span>
               </div>
               <span class="text-xs font-mono text-[#8B95A7]">Best: ${bestScoreText}</span>
@@ -352,18 +353,22 @@ export class StudioView {
 
         <!-- Bottom Tabs: Models | HPO | Resources | Logs -->
         <div class="workbench-card">
-          <div class="border-b border-slate-800 px-4 flex items-center space-x-6 text-xs font-medium">
-            <button class="tab-btn py-3 border-b-2 ${this.activeTab === 'models' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="models">
-              📊 Models & Leaderboard
+          <div class="border-b border-[#242A36] px-4 flex items-center space-x-6 text-xs font-medium overflow-x-auto">
+            <button class="tab-btn py-3 border-b-2 flex items-center space-x-1.5 ${this.activeTab === 'models' ? 'border-[#4F67FF] text-[#4F67FF]' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="models">
+              ${icon("bar-chart-3", "icon-sm")}
+              <span>Models & Leaderboard</span>
             </button>
-            <button class="tab-btn py-3 border-b-2 ${this.activeTab === 'hpo' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="hpo">
-              🎯 HPO & Hyperparameters
+            <button class="tab-btn py-3 border-b-2 flex items-center space-x-1.5 ${this.activeTab === 'hpo' ? 'border-[#4F67FF] text-[#4F67FF]' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="hpo">
+              ${icon("sliders-horizontal", "icon-sm")}
+              <span>HPO & Hyperparameters</span>
             </button>
-            <button class="tab-btn py-3 border-b-2 ${this.activeTab === 'resources' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="resources">
-              ⚙ Resources & Workers
+            <button class="tab-btn py-3 border-b-2 flex items-center space-x-1.5 ${this.activeTab === 'resources' ? 'border-[#4F67FF] text-[#4F67FF]' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="resources">
+              ${icon("cpu", "icon-sm")}
+              <span>Resources & Workers</span>
             </button>
-            <button class="tab-btn py-3 border-b-2 ${this.activeTab === 'logs' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'}" data-tab="logs">
-              📜 Logs & Events
+            <button class="tab-btn py-3 border-b-2 flex items-center space-x-1.5 ${this.activeTab === 'logs' ? 'border-[#4F67FF] text-[#4F67FF]' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="logs">
+              ${icon("scroll-text", "icon-sm")}
+              <span>Logs & Events</span>
             </button>
           </div>
 
@@ -375,15 +380,15 @@ export class StudioView {
 
       <!-- Why Modal Dialog -->
       <div id="whyModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="workbench-card max-w-lg w-full p-6 space-y-4 border-purple-800/60 shadow-2xl">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div class="workbench-card max-w-lg w-full p-6 space-y-4 border-[#252C38] shadow-2xl">
+          <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
             <div class="flex items-center space-x-2">
-              <span class="text-purple-400 text-lg">🟣</span>
-              <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wide">CATML Planner Explicability</h3>
+              <span class="text-[#6956E8]">${icon("bot", "icon-lg")}</span>
+              <h3 class="text-sm font-bold text-[#F7F8FA] uppercase tracking-wide font-sans">CATML Planner Explicability</h3>
             </div>
-            <button id="btnCloseWhyModal" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+            <button id="btnCloseWhyModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors">${icon("x", "icon-sm")}</button>
           </div>
-          <div id="whyModalBody" class="text-xs text-slate-300 space-y-2"></div>
+          <div id="whyModalBody" class="text-xs text-[#8B95A7] space-y-2"></div>
         </div>
       </div>
 
@@ -392,10 +397,10 @@ export class StudioView {
         <div class="workbench-card max-w-lg w-full p-6 space-y-4 border-[#252C38] shadow-2xl">
           <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
             <div class="flex items-center space-x-2">
-              <span class="text-[#4F67FF] text-lg">🔍</span>
+              <span class="text-[#4F67FF]">${icon("search", "icon-lg")}</span>
               <h3 class="text-sm font-semibold text-[#F7F8FA] uppercase tracking-wide font-sans" id="trialParamsModalTitle">Model Hyperparameters</h3>
             </div>
-            <button id="btnCloseTrialParamsModal" class="text-[#8B95A7] hover:text-[#F7F8FA] text-lg">✕</button>
+            <button id="btnCloseTrialParamsModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors">${icon("x", "icon-sm")}</button>
           </div>
           <div id="trialParamsModalBody" class="text-xs text-[#8B95A7] space-y-3"></div>
         </div>
@@ -474,7 +479,7 @@ export class StudioView {
                     <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Optimal' : 'Verified'}</span></td>
                     <td class="text-right">
                       <button data-inspect-model="${row.model_id}" class="btn-inspect-model-params text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 px-2.5 py-0.5 rounded font-mono transition-colors">
-                        🔍 Params
+                        <span class="inline-flex items-center gap-1">${icon("search", "icon-sm")} <span>Params</span></span>
                       </button>
                     </td>
                   </tr>
@@ -504,8 +509,8 @@ export class StudioView {
               <h4 class="text-sm font-bold text-slate-200">HYPERPARAMETER SEARCH (Optuna TPE)</h4>
               <p class="text-xs text-slate-400">Best Trial: <span class="font-mono text-emerald-400 font-bold">${bestTrial ? bestTrial.trial_id : "#1"}</span> • Score: <span class="font-mono text-emerald-400 font-bold">${bestTrial ? bestTrial.score.toFixed(5) : "—"}</span></p>
             </div>
-            <button id="btnStopHPOAndPromote" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg font-semibold transition-colors shadow-lg shadow-indigo-600/20">
-              ⚡ Promote Best Parameters
+            <button id="btnStopHPOAndPromote" class="btn-signal">
+              <span class="inline-flex items-center gap-1.5">${icon("zap", "icon-sm")} <span>Promote Best Parameters</span></span>
             </button>
           </div>
 
@@ -554,23 +559,23 @@ export class StudioView {
             <div class="space-y-1.5 font-mono">
               <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
                 <span>Worker Fold 1</span>
-                <span class="text-emerald-400">● Completed</span>
+                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
               </div>
               <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
                 <span>Worker Fold 2</span>
-                <span class="text-emerald-400">● Completed</span>
+                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
               </div>
               <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
                 <span>Worker Fold 3</span>
-                <span class="text-emerald-400">● Completed</span>
+                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
               </div>
               <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
                 <span>Worker Fold 4</span>
-                <span class="text-emerald-400">● Completed</span>
+                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
               </div>
               <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
                 <span>Worker Fold 5</span>
-                <span class="text-emerald-400">● Completed</span>
+                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
               </div>
             </div>
           </div>
@@ -715,7 +720,7 @@ export class StudioView {
         if (!this.activeRun || !modelId) return;
         const oldText = btn.innerHTML;
         btn.disabled = true;
-        btn.textContent = "⏳ Running...";
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">${icon("refresh-cw", "icon-sm")}</span><span>Running...</span>`;
         try {
           await api.runExperiment({
             run_id: this.activeRun.id,
@@ -826,7 +831,7 @@ export class StudioView {
           } else {
             paramsModalBody.innerHTML = `
               <div class="p-6 text-center text-[#8B95A7] space-y-2">
-                <span class="text-2xl text-[#8B95A7]/50 block">⚙</span>
+                <div class="text-[#8B95A7]/50 flex justify-center">${icon("settings", "icon-lg", 28)}</div>
                 <p class="text-xs font-sans">This model was trained with default CATML hyperparameter priors or does not yet have an individual trial recorded in SQLite.</p>
                 <div class="font-mono text-[11px] text-[#4F67FF] bg-[#090C12] p-2 rounded-lg border border-[#252C38]">
                   Model: ${modelId} • Mode: Default Canonical Estimator

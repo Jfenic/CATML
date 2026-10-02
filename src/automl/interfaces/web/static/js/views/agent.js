@@ -6,6 +6,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class AgentDrawer {
   constructor() {
@@ -29,13 +30,13 @@ export class AgentDrawer {
         <!-- Top Drawer Header -->
         <div class="p-4 border-b border-[#242A36] bg-[#080A0F] flex items-center justify-between">
           <div class="flex items-center space-x-2.5">
-            <span class="text-[#4F67FF] text-base font-bold">◇</span>
+            <span class="text-[#6956E8]">${icon("bot", "icon-md", 18)}</span>
             <div>
               <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">CATML Agent</h3>
               <p class="text-[11px] text-[#8B95A7] font-sans">Autonomous AutoML Co-pilot</p>
             </div>
           </div>
-          <button id="btnCloseAgentDrawer" class="text-[#8B95A7] hover:text-[#F7F8FA] text-sm p-1.5 rounded-lg hover:bg-[#161B26] transition-colors" title="Close Drawer">✕</button>
+          <button id="btnCloseAgentDrawer" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded-lg hover:bg-[#161B26] transition-colors" title="Close Drawer">${icon("x", "icon-sm")}</button>
         </div>
 
         <!-- Hypotheses & Interactive Stream Container -->
@@ -46,7 +47,7 @@ export class AgentDrawer {
             <div class="space-y-1.5 font-mono text-xs">
               <div class="flex justify-between"><span class="text-[#8B95A7]">Dataset:</span> <span class="text-[#F7F8FA] font-semibold">${dsName}</span></div>
               <div class="flex justify-between"><span class="text-[#8B95A7]">Task:</span> <span class="text-[#F7F8FA]">${taskType}</span></div>
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Status:</span> <span class="text-[#22C55E] font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>● Ready</span></div>
+              <div class="flex justify-between"><span class="text-[#8B95A7]">Status:</span> <span class="text-[#22C55E] font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>Ready</span></div>
             </div>
           </div>
 
@@ -63,8 +64,9 @@ export class AgentDrawer {
               <button id="btnAgentReviewPlan" class="flex-1 bg-[#11151E] hover:bg-[#1A202C] text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg text-xs font-medium transition-colors">
                 Review plan
               </button>
-              <button id="btnAgentRunPlan" class="flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm">
-                Run
+              <button id="btnAgentRunPlan" class="flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1">
+                ${icon("play", "icon-sm")}
+                <span>Run</span>
               </button>
             </div>
           </div>
@@ -79,7 +81,7 @@ export class AgentDrawer {
           <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
             <div class="flex items-center justify-between">
               <span class="font-mono font-semibold text-[#F7F8FA]">Hypothesis #12</span>
-              <span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-medium">✓ Promoted</span>
+              <span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-medium flex items-center gap-1">${icon("check", "icon-sm")} <span>Promoted</span></span>
             </div>
 
             <div class="space-y-1">
@@ -109,7 +111,7 @@ export class AgentDrawer {
           <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
             <div class="flex items-center justify-between">
               <span class="font-mono font-semibold text-[#F7F8FA]">Hypothesis #13</span>
-              <span class="badge-err text-[10px] px-2 py-0.5 rounded font-mono font-medium">✕ Rejected</span>
+              <span class="badge-err text-[10px] px-2 py-0.5 rounded font-mono font-medium flex items-center gap-1">${icon("x", "icon-sm")} <span>Rejected</span></span>
             </div>
 
             <div class="space-y-1">
@@ -133,7 +135,7 @@ export class AgentDrawer {
           <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
             <div class="flex items-center justify-between">
               <span class="font-mono font-semibold text-[#F7F8FA]">Hypothesis #14</span>
-              <span class="badge-warn text-[10px] px-2 py-0.5 rounded font-mono font-medium">● Proposed</span>
+              <span class="badge-warn text-[10px] px-2 py-0.5 rounded font-mono font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span> <span>Proposed</span></span>
             </div>
 
             <div class="space-y-1">
@@ -148,11 +150,13 @@ export class AgentDrawer {
 
             <!-- Action buttons -->
             <div class="flex items-center space-x-2 pt-2 border-t border-[#242A36]">
-              <button class="btn-hyp-action flex-1 bg-[#11151E] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg font-medium text-xs transition-colors" data-hyp="14" data-action="reject">
-                Reject
+              <button class="btn-hyp-action flex-1 bg-[#11151E] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg font-medium text-xs transition-colors flex items-center justify-center gap-1" data-hyp="14" data-action="reject">
+                ${icon("x", "icon-sm")}
+                <span>Reject</span>
               </button>
-              <button class="btn-hyp-action flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors shadow-sm" data-hyp="14" data-action="approve">
-                Approve Run
+              <button class="btn-hyp-action flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors shadow-sm flex items-center justify-center gap-1" data-hyp="14" data-action="approve">
+                ${icon("check", "icon-sm")}
+                <span>Approve Run</span>
               </button>
             </div>
           </div>

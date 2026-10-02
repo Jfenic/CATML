@@ -214,6 +214,9 @@ class App {
     }
 
     this.currentViewInstance.mount(this.mainCanvas);
+    if (window.lucide && typeof window.lucide.createIcons === "function") {
+      window.lucide.createIcons();
+    }
   }
 }
 

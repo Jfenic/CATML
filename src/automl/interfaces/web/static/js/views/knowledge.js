@@ -5,6 +5,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class KnowledgeView {
   constructor() {
@@ -23,7 +24,7 @@ export class KnowledgeView {
   renderLoading() {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
-        <div class="animate-catml-spin text-2xl text-[#6956E8]">◇</div>
+        <div class="animate-spin text-[#6956E8] inline-block">${icon("refresh-cw", "icon-lg")}</div>
         <div class="text-sm font-medium font-sans">Retrieving meta-statistical footprint and CATML knowledge base...</div>
       </div>
     `;
@@ -81,7 +82,7 @@ export class KnowledgeView {
         <!-- V0.8 Meta-Learning Header -->
         <div class="workbench-card p-4 bg-purple-950/20 border-purple-900/60 flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <span class="text-purple-400 font-bold text-xl">🧠</span>
+            <span class="text-[#6956E8]">${icon("brain", "icon-xl", 24)}</span>
             <div>
               <div class="flex items-center space-x-2">
                 <h2 class="text-base font-bold text-slate-100">CATML Meta-Learning Knowledge (V0.8)</h2>
@@ -199,8 +200,8 @@ export class KnowledgeView {
               </div>
 
               <div class="flex justify-end">
-                <button id="btnUseWarmStart" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg font-semibold transition-colors shadow-lg shadow-indigo-600/20">
-                  ⚡ Use Warm Start in Next HPO
+                <button id="btnUseWarmStart" class="btn-signal">
+                  <span class="inline-flex items-center gap-1.5">${icon("zap", "icon-sm")} <span>Use Warm Start in Next HPO</span></span>
                 </button>
               </div>
             </div>

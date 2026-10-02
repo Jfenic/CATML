@@ -5,6 +5,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class CompareView {
   constructor() {
@@ -25,7 +26,7 @@ export class CompareView {
   renderLoading() {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
-        <div class="animate-spin text-2xl text-[#4F67FF]">◇</div>
+        <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
         <div class="text-sm font-medium font-sans">Loading experiments for comparison...</div>
       </div>
     `;
@@ -56,11 +57,11 @@ export class CompareView {
       this.container.innerHTML = `
         <div class="space-y-6">
           <div class="workbench-card p-12 text-center space-y-4">
-            <span class="text-3xl text-[#8B95A7]/40 block">⇄</span>
+            <div class="text-[#8B95A7]/40 flex justify-center">${icon("arrow-left-right", "icon-xl", 32)}</div>
             <h3 class="text-base font-semibold text-[#F7F8FA] font-sans">No experiments found to compare</h3>
             <p class="text-xs text-[#8B95A7] max-w-sm mx-auto font-sans">You need at least 2 completed or active experiments in the workspace to perform side-by-side comparison.</p>
             <button id="btnNewExpCompareEmpty" class="btn-signal">
-              + Create first experiment
+              <span class="inline-flex items-center gap-1.5">${icon("plus", "icon-sm")} <span>Create first experiment</span></span>
             </button>
           </div>
         </div>
@@ -79,7 +80,7 @@ export class CompareView {
         <!-- Top Selector Row -->
         <div class="workbench-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
-            <span class="text-[#4F67FF] font-bold text-lg">⇄</span>
+            <span class="text-[#4F67FF]">${icon("arrow-left-right", "icon-lg")}</span>
             <div>
               <h2 class="text-base font-semibold font-sans text-[#F7F8FA]">Experiment Comparison & Lineage</h2>
               <p class="text-xs text-[#8B95A7] font-sans">Select two or more experiments to inspect algorithmic differences and metric gains.</p>
@@ -100,7 +101,10 @@ export class CompareView {
         <!-- Comparative Table -->
         <div class="workbench-card overflow-hidden">
           <div class="workbench-panel-header flex items-center justify-between">
-            <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Side-by-Side Metrics & Architectures</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[#8B95A7]">${icon("boxes", "icon-sm")}</span>
+              <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Side-by-Side Metrics & Architectures</span>
+            </div>
             <span class="text-xs font-mono text-[#8B95A7]">Metric: ${metricName}</span>
           </div>
 
@@ -158,7 +162,7 @@ export class CompareView {
                   ${selectedExps.map(e => `
                     <td>
                       <a href="/api/models/export?experiment_id=${e.id}" class="btn-signal text-[11px] py-1 px-2.5 inline-flex items-center space-x-1" title="Download autonomous artifact (.pkl)">
-                        <span>⬇</span>
+                        ${icon("download", "icon-sm")}
                         <span>Download .pkl</span>
                       </a>
                     </td>
@@ -174,7 +178,10 @@ export class CompareView {
           <!-- Progression Chart -->
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
-              <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Evolution Progression</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[#8B95A7]">${icon("chart-line", "icon-sm")}</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Evolution Progression</span>
+              </div>
               <span class="text-xs font-mono text-[#22C55E]">${metricName}</span>
             </div>
             <div class="p-5 flex-1 flex flex-col justify-between">
@@ -193,6 +200,7 @@ export class CompareView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
+                <span class="text-[#8B95A7]">${icon("scan-search", "icon-sm")}</span>
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Differences Inspector</span>
               </div>
               ${selectedExps.length >= 2 && selectedExps[0].best_score != null && selectedExps[1].best_score != null ? `

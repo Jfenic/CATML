@@ -7,6 +7,7 @@
  */
 import { store } from "../store.js";
 import { bus } from "../bus.js";
+import { icon } from "../icons.js";
 
 export class OverviewView {
   constructor() {
@@ -92,12 +93,13 @@ export class OverviewView {
           </div>
 
           <div class="pt-2 flex flex-wrap justify-between items-center gap-3">
-            <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs" title="Download autonomous inference artifact (zero workspace dependencies)">
+            <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs flex items-center space-x-1.5" title="Download autonomous inference artifact (zero workspace dependencies)">
+              ${icon("download", "icon-sm")}
               <span>Export winning model (.pkl)</span>
             </a>
-            <button id="btnOpenStudioFromRun" class="btn-technical text-xs">
+            <button id="btnOpenStudioFromRun" class="btn-technical text-xs flex items-center space-x-1.5">
               <span>Open Experiment Studio</span>
-              <span>→</span>
+              ${icon("arrow-right", "icon-sm text-[#8B95A7]")}
             </button>
           </div>
         </div>
@@ -105,11 +107,12 @@ export class OverviewView {
     } else {
       zone1Html = `
         <div class="p-8 text-center space-y-3">
-          <span class="text-2xl text-[#8B95A7]/40 block">◇</span>
+          <span class="text-[#8B95A7]/40 block">${icon("flask-conical", "icon-xl mx-auto")}</span>
           <p class="text-sm font-sans font-medium text-[#F7F8FA]">No active experiment in workspace</p>
           <p class="text-xs text-[#8B95A7] max-w-sm mx-auto font-sans">Create a new experiment or select a dataset to launch autonomous model search, feature selection and HPO.</p>
-          <button id="btnNewExpOverviewEmpty" class="btn-signal mt-2">
-            + New Experiment
+          <button id="btnNewExpOverviewEmpty" class="btn-signal mt-2 flex items-center space-x-1.5 mx-auto">
+            ${icon("plus", "icon-sm")}
+            <span>New Experiment</span>
           </button>
         </div>
       `;
@@ -129,7 +132,7 @@ export class OverviewView {
             <td class="font-mono font-bold text-[#22C55E] text-sm">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
             <td class="text-right">
               <a href="/api/models/export?run_id=${r.id}" onclick="event.stopPropagation()" class="px-2.5 py-1 text-[11px] font-mono font-semibold text-[#4F67FF] hover:text-white bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/25 rounded-md transition-all inline-flex items-center space-x-1" title="Download ModelArtifact (.pkl)">
-                <span>⬇</span>
+                ${icon("download", "icon-sm")}
                 <span>.pkl</span>
               </a>
             </td>
@@ -147,7 +150,7 @@ export class OverviewView {
     const datasets = overview.recent_datasets || [];
     const datasetsHtml = datasets.length > 0
       ? datasets.slice(0, 4).map(ds => `
-          <div class="flex items-center justify-between p-3 rounded-xl bg-[#161B26] border border-[#242A36] cursor-pointer hover:border-[#4F67FF]/40 transition-colors dataset-item-card" data-dataset-id="${ds.id}">
+          <div class="flex items-center justify-between p-3 rounded-xl bg-[#161B26] border border-[#252C38] cursor-pointer hover:border-[#4F67FF]/40 transition-colors dataset-item-card" data-dataset-id="${ds.id}">
             <div>
               <div class="font-mono font-semibold text-xs text-[#F7F8FA]">${ds.name}</div>
               <div class="text-[11px] text-[#8B95A7] font-sans mt-0.5">${ds.task_type || "Classification"} • ${ds.rows != null ? Number(ds.rows).toLocaleString() : "—"} rows</div>
@@ -168,7 +171,7 @@ export class OverviewView {
       ? activityFeed.map(act => {
           const badgeClass = act.type === "ACCEPT" ? "badge-gain" : act.type === "REJECT" ? "badge-err" : act.type === "PLAN" ? "badge-intel" : "badge-sys";
           return `
-            <div class="flex items-start space-x-3 p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="flex items-start space-x-3 p-3 rounded-xl bg-[#161B26] border border-[#252C38]">
               <span class="${badgeClass} px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">${act.type || "INFO"}</span>
               <div class="flex-1 font-sans text-xs">
                 <span class="text-[#F7F8FA] font-medium">${act.title}:</span>
@@ -191,8 +194,8 @@ export class OverviewView {
             <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Local-first • Agent-native • Production-ready model artifacts</p>
           </div>
           <div>
-            <button id="btnNewExpOverview" class="btn-signal">
-              <span>+</span>
+            <button id="btnNewExpOverview" class="btn-signal flex items-center space-x-1.5">
+              ${icon("plus", "icon-sm")}
               <span>New Experiment</span>
             </button>
           </div>
@@ -234,6 +237,7 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
+                ${icon("zap", "icon-sm text-[#F59E0B]")}
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Active Experiment</span>
               </div>
               <span class="badge-warn text-[10px] px-2 py-0.5 rounded font-mono font-medium">Live</span>
@@ -247,6 +251,7 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
+                ${icon("trophy", "icon-sm text-[#22C55E]")}
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Model Leaderboard</span>
               </div>
               <span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-medium">Verified by CV</span>
@@ -274,6 +279,7 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
+                ${icon("database", "icon-sm text-[#4F67FF]")}
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Datasets Inventory</span>
               </div>
               <button id="btnViewAllDatasets" class="text-xs font-sans text-[#4F67FF] hover:underline font-medium">View all →</button>
@@ -287,6 +293,7 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
+                ${icon("bot", "icon-sm text-[#6956E8]")}
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Audit & Planner Decisions</span>
               </div>
               <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-medium">Hypothesis</span>
