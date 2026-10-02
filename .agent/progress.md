@@ -1,8 +1,15 @@
 
 # Progress
 
-
-Active Track: **Safe Feature Calculator & Derived Column Engine**:
+Active Track: **Sprint 1: Productization P0 — Ergonomic Facade & Standalone Model Artifacts**:
+- Rama: `feat/productization-facade-and-artifacts`.
+- Entregables completados:
+  - `ModelArtifact` (`src/automl/artifacts/model_artifact.py`): Artefacto autónomo y portable con `.save("model.pkl")`, `.load()`, `.predict()`, `.predict_proba()` y soporte para inversión de target encoding.
+  - `AutoML` & `AutoMLResult` (`src/automl/facade.py`): Fachada ergonómica de alto nivel con soporte para `fit(df, target="churn")`, `fit(X, y)`, `.leaderboard()`, `.predict()`, `.summary()`.
+  - Exportaciones top-level: `from automl import AutoML, AutoMLResult, ModelArtifact` y alias package `src/catml/` (`from catml import AutoML`).
+  - Dependencia: Agregado `joblib>=1.3` y script console entry point `catml` en `pyproject.toml`.
+  - Specs y Planes: `docs/features/productization/spec.md` y `plan.md`.
+  - Testing y Calidad: 11 tests nuevos (5 en `test_model_artifact.py`, 6 en `test_facade.py`); 432 tests pasando en la suite global con 87.36% de cobertura de código.
 - Rama: `feat/derived-feature-calculator`.
 - Entregable completado:
   - Dominio puro: `DerivedFeatureDefinition`, `DerivedFeatureType`, `FeatureEvaluationResult` en `src/automl/domain/features/derived_feature.py`.

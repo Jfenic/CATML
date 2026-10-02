@@ -2,7 +2,15 @@
 
 Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí; no mantienen una segunda lista de tareas. Las fases V0.x son hitos de diseño; la versión del paquete se define en `src/automl/__init__.py`.
 
-## Now (Active Phase — AutoML Workbench & Kaggle Playground Series S6E9)
+## Now (Active Phase — Sprint 1: Productization P0 — Ergonomic Facade & Model Artifacts)
+
+- [x] Feature: Standalone `ModelArtifact` (`src/automl/artifacts/model_artifact.py`) with `save(path)` and `load(path)`.
+- [x] Feature: `AutoML` and `AutoMLResult` facade (`src/automl/facade.py`) supporting `fit(df, target=...)` and `fit(X, y)`.
+- [x] Feature: Top-level exports in `src/automl/__init__.py` and alias package `src/catml/`.
+- [x] Dependency: Add `joblib>=1.3` to `pyproject.toml`.
+- [x] Tests: Comprehensive test suite in `tests/test_model_artifact.py` and `tests/test_facade.py` with full coverage >= 85% (432 tests passing, 87.36% coverage).
+
+## Active Components (Workbench & Kaggle Playground Series S6E9)
 
 - [x] Feature: CATML AutoML Workbench Server (`src/automl/interfaces/web/server.py`): Hexagonal interface adapter with zero external dependencies (`ThreadingHTTPServer`), exposing REST endpoints via `CommandBus`, `QueryBus`, and `AutoMLWorkspace` for Mission Control, run lifecycle controls (`pause`, `resume`, `cancel`, `clone`), dataset inspection, planner explicability, meta-learning knowledge, agent hypotheses, and Kaggle validation checklist.
 - [x] Feature: Frontend Modular Architecture & Design Patterns (`src/automl/interfaces/web/static/`):

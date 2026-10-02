@@ -209,16 +209,14 @@ class SklearnTrainer(TrainerPort):
             training_time_seconds=elapsed,
         )
 
-    def fit_and_predict(
+    def fit_pipeline(
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series | np.ndarray,
-        X_test: pd.DataFrame,
         model_id: str,
         task_type: str = "binary_classification",
         parameters: dict[str, Any] | None = None,
-        predict_proba: bool = False,
-    ) -> np.ndarray:
+    ) -> tuple[Pipeline, Any]:
         if self.plugin_registry and self.plugin_registry.has(model_id):
             model_plugin = self.plugin_registry.get_model_plugin(model_id)
             if model_plugin:
@@ -236,6 +234,25 @@ class SklearnTrainer(TrainerPort):
 
         pipeline = _build_pipeline(X_train, model)
         pipeline.fit(X_train, y_train_adapted)
+        return pipeline, adapter
+
+    def fit_and_predict(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series | np.ndarray,
+        X_test: pd.DataFrame,
+        model_id: str,
+        task_type: str = "binary_classification",
+        parameters: dict[str, Any] | None = None,
+        predict_proba: bool = False,
+    ) -> np.ndarray:
+        pipeline, adapter = self.fit_pipeline(
+            X_train=X_train,
+            y_train=y_train,
+            model_id=model_id,
+            task_type=task_type,
+            parameters=parameters,
+        )
 
         if predict_proba and hasattr(pipeline, "predict_proba"):
             probs = pipeline.predict_proba(X_test)
