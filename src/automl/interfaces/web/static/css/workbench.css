@@ -7,16 +7,16 @@
 
 :root {
   /* Brand System — Tech Minimalista Premium Palette */
-  --catml-black: #0B0D12;
-  --catml-graphite: #171A22;
+  --catml-black: #080A0F;
+  --catml-graphite: #11151E;
   --catml-white: #FFFFFF;
   --catml-offwhite: #F7F8FA;
   --catml-border: #E5E7EB;
-  --catml-border-dark: #232733;
+  --catml-border-dark: #242A36;
   --catml-muted: #667085;
-  --catml-muted-dark: #94A3B8;
+  --catml-muted-dark: #8B95A7;
 
-  /* Identification & Accent Family */
+  /* Identification & Accent Family (Strict 80/20 Rule) */
   --catml-blue: #4F67FF;       /* CATML Electric Blue (Primary Action & Brand) */
   --catml-indigo: #6956E8;     /* Intelligence / Secondary Tone */
   --catml-cyan: #53C8FF;       /* Data / Agent Connections */
@@ -24,17 +24,24 @@
   --catml-warning: #F59E0B;    /* Running / In Progress / Attention */
   --catml-danger: #EF4444;     /* Error / Destructive */
 
-  /* Dark Theme Surfaces (Visual ML Lab / Workbench) */
-  --color-bg-base: #0B0D12;
-  --color-bg-panel: #11141B;
-  --color-bg-card: #171A22;
-  --color-border: #232733;
-  --color-border-hover: #363C4E;
-  --color-text-main: #FFFFFF;
-  --color-text-muted: #94A3B8;
+  /* Dark Theme Surfaces Hierarchy (4 Architectural Levels) */
+  --color-bg-base: #080A0F;    /* App Background */
+  --color-bg-bar: #0D1017;     /* Sidebar & Top Navigation Bar */
+  --color-bg-panel: #11151E;   /* Main Content Panels & Containers */
+  --color-bg-card: #161B26;    /* Elevated Surface Cards & Hover */
+  --color-border: #242A36;     /* Subtle Architectural Border */
+  --color-border-hover: #363E4E;
+  --color-text-main: #F7F8FA;  /* High Legibility Primary Text */
+  --color-text-muted: #8B95A7; /* Technical Secondary Metadata */
+
+  /* Precision Radii */
+  --radius-btn: 8px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-panel: 14px;
 
   /* Typography */
-  --font-sans: 'Geist', 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'Geist Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Functional Semantic Aliases */
@@ -42,7 +49,7 @@
   --catml-gain: var(--catml-success);
   --catml-warn: var(--catml-warning);
   --catml-err: var(--catml-danger);
-  --catml-sys: var(--catml-cyan);
+  --catml-sys: var(--catml-blue);
   --catml-intel: var(--catml-indigo);
 
   /* Electric Gradient (Strictly for Intelligence, Agents & Processing) */
@@ -57,7 +64,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Monospace technical data */
+/* Monospace technical data & numbers */
 .font-mono-num,
 .font-mono {
   font-family: var(--font-mono);
@@ -70,68 +77,122 @@ body {
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #111111;
+  background: #080A0F;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272e;
-  border-radius: 2px;
+  background: #242A36;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3d3e48;
+  background: #363E4E;
 }
 
 /* Modular Panels & Engineering Equipment Blocks */
 .workbench-card {
   background-color: var(--color-bg-panel);
   border: 1px solid var(--color-border);
-  border-radius: 2px;
-  transition: border-color 0.15s ease;
+  border-radius: var(--radius-card);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .workbench-card:hover {
   border-color: var(--color-border-hover);
 }
 
+.workbench-card-elevated {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  transition: border-color 0.15s ease;
+}
+
+.workbench-card-elevated:hover {
+  border-color: var(--color-border-hover);
+}
+
 .workbench-panel-header {
-  background: #111111;
+  background: var(--color-bg-bar);
   border-bottom: 1px solid var(--color-border);
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem;
+  font-family: var(--font-sans);
+  border-top-left-radius: var(--radius-card);
+  border-top-right-radius: var(--radius-card);
+}
+
+/* Sidebar Navigation Item */
+.nav-item {
+  color: var(--color-text-muted);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-btn);
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.nav-item:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-bg-card);
+}
+
+.nav-item .nav-num {
   font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  opacity: 0.65;
+  font-size: 0.75rem;
+}
+
+.nav-item.active {
+  background-color: var(--color-bg-card);
+  color: var(--color-text-main);
+  border-left-color: var(--catml-blue);
+  font-weight: 500;
+}
+
+.nav-item.active .nav-num {
+  color: var(--catml-blue);
+  opacity: 1;
+  font-weight: 700;
 }
 
 /* Tech Minimalista Button Suite */
-.btn-signal {
+.btn-signal,
+.btn-primary {
   background-color: var(--catml-blue);
   color: #ffffff;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-btn);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
 }
 
-.btn-signal:hover {
+.btn-signal:hover,
+.btn-primary:hover {
   background-color: #3d56ff;
-  box-shadow: 0 0 16px rgba(79, 103, 255, 0.45);
+  box-shadow: 0 0 16px rgba(79, 103, 255, 0.35);
 }
 
-.btn-technical {
+.btn-signal:active,
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-technical,
+.btn-secondary {
   background-color: var(--color-bg-card);
-  border: 1px solid #333333;
+  border: 1px solid var(--color-border);
   color: var(--color-text-main);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   padding: 0.45rem 0.85rem;
-  border-radius: 2px;
+  border-radius: var(--radius-btn);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -139,99 +200,105 @@ body {
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.btn-technical:hover {
-  border-color: var(--color-text-muted);
-  background-color: #27272e;
+.btn-technical:hover,
+.btn-secondary:hover {
+  border-color: var(--color-border-hover);
+  background-color: #1E2536;
 }
 
 .btn-ghost {
   background-color: transparent;
-  border: 1px solid rgba(216, 214, 207, 0.25);
+  border: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
   padding: 0.45rem 0.85rem;
-  border-radius: 2px;
+  border-radius: var(--radius-btn);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-ghost:hover {
-  border-color: var(--color-text-main);
+  border-color: var(--color-border-hover);
   color: var(--color-text-main);
   background-color: rgba(255, 255, 255, 0.03);
 }
 
-/* Functional Semantic Status Badges */
-.badge-gain {
-  background-color: rgba(99, 212, 154, 0.12);
-  border: 1px solid rgba(99, 212, 154, 0.35);
-  color: #63D49A;
-  border-radius: 2px;
+/* Functional Semantic Status Badges (Refined, Non-screaming) */
+.badge-gain,
+.badge-success {
+  background-color: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #22C55E;
+  border-radius: 6px;
 }
 
-.badge-sys {
-  background-color: rgba(92, 120, 255, 0.12);
-  border: 1px solid rgba(92, 120, 255, 0.35);
-  color: #5C78FF;
-  border-radius: 2px;
+.badge-sys,
+.badge-blue {
+  background-color: rgba(79, 103, 255, 0.10);
+  border: 1px solid rgba(79, 103, 255, 0.25);
+  color: #4F67FF;
+  border-radius: 6px;
 }
 
-.badge-warn {
-  background-color: rgba(231, 200, 75, 0.12);
-  border: 1px solid rgba(231, 200, 75, 0.35);
-  color: #E7C84B;
-  border-radius: 2px;
+.badge-warn,
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #F59E0B;
+  border-radius: 6px;
 }
 
-.badge-err {
-  background-color: rgba(216, 84, 84, 0.12);
-  border: 1px solid rgba(216, 84, 84, 0.35);
-  color: #D85454;
-  border-radius: 2px;
+.badge-err,
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #EF4444;
+  border-radius: 6px;
 }
 
-.badge-intel {
-  background-color: rgba(156, 124, 255, 0.12);
-  border: 1px solid rgba(156, 124, 255, 0.35);
-  color: #9C7CFF;
-  border-radius: 2px;
+.badge-intel,
+.badge-violet {
+  background-color: rgba(105, 86, 232, 0.10);
+  border: 1px solid rgba(105, 86, 232, 0.25);
+  color: #6956E8;
+  border-radius: 6px;
 }
 
 /* Leaderboard Champion Highlight */
 .champion-lead {
-  border-left: 3px solid var(--catml-signal) !important;
+  border-left: 3px solid var(--catml-blue) !important;
 }
 
 /* Large Technical Metric Blocks */
 .metric-block {
-  background: var(--color-bg-panel);
+  background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   padding: 1.25rem;
 }
 
 .metric-block .metric-val {
   font-family: var(--font-mono);
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 700;
   line-height: 1.1;
   color: var(--color-text-main);
 }
 
 .metric-block .metric-lbl {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
   margin-top: 0.35rem;
 }
 
 /* Lateral Agent Drawer Animation */
 #agentDrawer {
-  background: #14151a;
+  background: var(--color-bg-bar);
   border-left: 1px solid var(--color-border);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -248,7 +315,7 @@ body {
 .dag-node {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: 2px;
+  border-radius: var(--radius-btn);
   padding: 0.625rem 0.875rem;
   min-width: 140px;
   cursor: pointer;
@@ -256,8 +323,8 @@ body {
 }
 
 .dag-node:hover, .dag-node.active {
-  border-color: var(--catml-signal);
-  box-shadow: 0 0 8px rgba(229, 81, 45, 0.3);
+  border-color: var(--catml-blue);
+  box-shadow: 0 0 12px rgba(79, 103, 255, 0.25);
   transform: translateY(-1px);
 }
 
@@ -274,24 +341,25 @@ body {
 }
 
 .wb-table th {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  padding: 0.625rem 0.875rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-border);
-  background: #111111;
+  background: var(--color-bg-bar);
 }
 
 .wb-table td {
-  padding: 0.625rem 0.875rem;
-  border-bottom: 1px solid rgba(39, 39, 46, 0.6);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(36, 42, 54, 0.6);
   font-size: 0.8125rem;
 }
 
 .wb-table tr:hover td {
-  background-color: rgba(39, 39, 46, 0.35);
+  background-color: rgba(22, 27, 38, 0.6);
 }
 
 /* Training Indicator & Live Animation */
@@ -302,7 +370,7 @@ body {
 
 @keyframes pulse-signal {
   0%, 100% { box-shadow: 0 0 10px rgba(79, 103, 255, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(79, 103, 255, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(79, 103, 255, 0.45); }
 }
 
 .animate-catml-spin {
@@ -311,7 +379,7 @@ body {
 
 .training-card-active {
   animation: pulse-signal 2s infinite;
-  border-color: var(--catml-signal) !important;
+  border-color: var(--catml-blue) !important;
 }
 
 .progress-striped {

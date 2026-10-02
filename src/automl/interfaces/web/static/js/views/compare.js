@@ -24,9 +24,9 @@ export class CompareView {
 
   renderLoading() {
     this.container.innerHTML = `
-      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
-        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
-        <div class="text-sm font-medium">Cargando experimentos para comparación...</div>
+      <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
+        <div class="animate-spin text-2xl text-[#4F67FF]">◇</div>
+        <div class="text-sm font-medium font-sans">Loading experiments for comparison...</div>
       </div>
     `;
   }
@@ -56,11 +56,11 @@ export class CompareView {
       this.container.innerHTML = `
         <div class="space-y-6">
           <div class="workbench-card p-12 text-center space-y-4">
-            <span class="text-4xl text-slate-600 block">⇄</span>
-            <h3 class="text-base font-bold text-slate-200">No Experiments Found to Compare</h3>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto">You need at least 2 completed or active experiments in the workspace to perform side-by-side comparison.</p>
+            <span class="text-3xl text-[#8B95A7]/40 block">⇄</span>
+            <h3 class="text-base font-semibold text-[#F7F8FA] font-sans">No experiments found to compare</h3>
+            <p class="text-xs text-[#8B95A7] max-w-sm mx-auto font-sans">You need at least 2 completed or active experiments in the workspace to perform side-by-side comparison.</p>
             <button id="btnNewExpCompareEmpty" class="btn-signal">
-              + CREATE FIRST EXPERIMENT
+              + Create first experiment
             </button>
           </div>
         </div>
@@ -77,20 +77,20 @@ export class CompareView {
     this.container.innerHTML = `
       <div class="space-y-6">
         <!-- Top Selector Row -->
-        <div class="workbench-card p-4 bg-[#16171c] border-[#27272e] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="workbench-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
-            <span class="text-[#4F67FF] font-mono font-bold text-lg">⇄</span>
+            <span class="text-[#4F67FF] font-bold text-lg">⇄</span>
             <div>
-              <h2 class="text-base font-bold font-mono text-[#FFFFFF]">EXPERIMENT COMPARISON & LINEAGE</h2>
-              <p class="text-xs text-[#94A3B8]/70 font-mono">Selecciona dos o más experimentos para inspeccionar diferencias algorítmicas y ganancias métricas</p>
+              <h2 class="text-base font-semibold font-sans text-[#F7F8FA]">Experiment Comparison & Lineage</h2>
+              <p class="text-xs text-[#8B95A7] font-sans">Select two or more experiments to inspect algorithmic differences and metric gains.</p>
             </div>
           </div>
 
           <!-- Experiment Checkboxes -->
           <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
             ${this.experiments.map(exp => `
-              <label class="flex items-center space-x-1.5 cursor-pointer px-3 py-1.5 rounded-sm border ${this.selected.includes(exp.id) ? 'border-[#4F67FF] text-[#FFFFFF] bg-[#1c1d24]' : 'border-[#27272e] text-[#94A3B8]/60 bg-[#111111]'}">
-                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded-sm text-[#4F67FF] focus:ring-0 bg-[#111111]" data-exp-id="${exp.id}">
+              <label class="flex items-center space-x-1.5 cursor-pointer px-3 py-1.5 rounded-lg border ${this.selected.includes(exp.id) ? 'border-[#4F67FF] text-[#F7F8FA] bg-[#161B26]' : 'border-[#242A36] text-[#8B95A7] bg-[#11151E]'}">
+                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded text-[#4F67FF] focus:ring-0 bg-[#080A0F] border border-[#242A36]" data-exp-id="${exp.id}">
                 <span>${exp.name || exp.id}</span>
               </label>
             `).join("")}
@@ -100,8 +100,8 @@ export class CompareView {
         <!-- Comparative Table -->
         <div class="workbench-card overflow-hidden">
           <div class="workbench-panel-header flex items-center justify-between">
-            <span class="text-sm font-semibold text-slate-200">Side-by-Side Metrics & Architectures</span>
-            <span class="text-xs text-slate-400">Metric: ${metricName}</span>
+            <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Side-by-Side Metrics & Architectures</span>
+            <span class="text-xs font-mono text-[#8B95A7]">Metric: ${metricName}</span>
           </div>
 
           <div class="overflow-x-auto">
@@ -110,56 +110,56 @@ export class CompareView {
                 <tr>
                   <th class="w-48">Dimension</th>
                   ${selectedExps.map(e => `
-                    <th class="font-mono text-slate-200">${e.name || e.id}</th>
+                    <th class="font-mono text-[#F7F8FA]">${e.name || e.id}</th>
                   `).join("")}
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td class="font-medium text-slate-300">Validation Score</td>
+                  <td class="font-medium text-[#8B95A7]">Validation Score</td>
                   ${selectedExps.map(e => `
-                    <td class="font-mono font-bold text-emerald-400">
+                    <td class="font-mono font-bold text-[#22C55E]">
                       ${e.best_score != null ? Number(e.best_score).toFixed(5) : "—"}
                     </td>
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Models / Family</td>
+                  <td class="font-medium text-[#8B95A7]">Models / Family</td>
                   ${selectedExps.map(e => `
-                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs uppercase">${(e.model_ids || []).join(", ") || "N/A"}</span></td>
+                    <td><span class="badge-sys px-2 py-0.5 rounded text-xs font-mono uppercase">${(e.model_ids || []).join(", ") || "N/A"}</span></td>
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Features Count</td>
+                  <td class="font-medium text-[#8B95A7]">Features Count</td>
                   ${selectedExps.map(e => `
-                    <td class="font-mono text-slate-300">${e.features_count || (e.feature_names ? e.feature_names.length : 0)} features</td>
+                    <td class="font-mono text-[#F7F8FA]">${e.features_count || (e.feature_names ? e.feature_names.length : 0)} features</td>
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Optimization Trials</td>
+                  <td class="font-medium text-[#8B95A7]">Optimization Trials</td>
                   ${selectedExps.map(e => `
-                    <td class="font-mono text-slate-300">${e.trials_count != null ? e.trials_count : (e.trials ? e.trials.length : 0)} trials</td>
+                    <td class="font-mono text-[#F7F8FA]">${e.trials_count != null ? e.trials_count : (e.trials ? e.trials.length : 0)} trials</td>
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Execution Status</td>
+                  <td class="font-medium text-[#8B95A7]">Execution Status</td>
                   ${selectedExps.map(e => `
-                    <td><span class="${e.status === 'COMPLETED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${e.status}</span></td>
+                    <td><span class="${e.status === 'COMPLETED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${e.status}</span></td>
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Hypothesis / Rationale</td>
+                  <td class="font-medium text-[#8B95A7]">Hypothesis / Rationale</td>
                   ${selectedExps.map(e => `
-                    <td class="text-xs text-slate-400 max-w-xs truncate">${e.hypothesis || "Baseline model training"}</td>
+                    <td class="text-xs text-[#8B95A7] max-w-xs truncate font-sans">${e.hypothesis || "Baseline model training"}</td>
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-slate-300">Artifact Export</td>
+                  <td class="font-medium text-[#8B95A7]">Artifact Export</td>
                   ${selectedExps.map(e => `
                     <td>
-                      <a href="/api/models/export?experiment_id=${e.id}" class="btn-signal text-[11px] py-1 px-2.5 inline-flex items-center space-x-1" title="Descargar artefacto autónomo (.pkl) para este experimento">
+                      <a href="/api/models/export?experiment_id=${e.id}" class="btn-signal text-[11px] py-1 px-2.5 inline-flex items-center space-x-1" title="Download autonomous artifact (.pkl)">
                         <span>⬇</span>
-                        <span>DOWNLOAD .PKL</span>
+                        <span>Download .pkl</span>
                       </a>
                     </td>
                   `).join("")}
@@ -174,14 +174,14 @@ export class CompareView {
           <!-- Progression Chart -->
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
-              <span class="text-sm font-semibold text-slate-200">Evolution Progression</span>
-              <span class="text-xs font-mono text-emerald-400">${metricName}</span>
+              <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Evolution Progression</span>
+              <span class="text-xs font-mono text-[#22C55E]">${metricName}</span>
             </div>
-            <div class="p-4 flex-1 flex flex-col justify-between">
+            <div class="p-5 flex-1 flex flex-col justify-between">
               <div class="h-64 w-full relative">
                 <canvas id="compareEvolutionChart"></canvas>
               </div>
-              <div class="mt-3 flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+              <div class="mt-3 flex justify-between text-xs text-[#8B95A7] pt-2 border-t border-[#242A36]">
                 ${selectedExps.map((e, idx) => `
                   <span>#${idx + 1}: ${e.name || e.id}</span>
                 `).join("")}
@@ -193,11 +193,10 @@ export class CompareView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-amber-400">🔍</span>
-                <span class="text-sm font-semibold text-slate-200">Differences Inspector</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Differences Inspector</span>
               </div>
               ${selectedExps.length >= 2 && selectedExps[0].best_score != null && selectedExps[1].best_score != null ? `
-                <span class="badge-gain text-xs px-2 py-0.5 rounded font-mono font-bold">
+                <span class="badge-gain text-xs px-2 py-0.5 rounded font-mono font-medium">
                   Δ: ${(selectedExps[1].best_score - selectedExps[0].best_score >= 0 ? '+' : '') + (selectedExps[1].best_score - selectedExps[0].best_score).toFixed(5)}
                 </span>
               ` : ''}
@@ -205,21 +204,21 @@ export class CompareView {
             <div class="p-5 space-y-4 flex-1 text-xs">
               ${selectedExps.length >= 2 ? `
                 <div class="space-y-1.5">
-                  <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Model Architecture Differences</div>
-                  <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-slate-300">
-                    <div>Exp 1: <span class="text-indigo-400 font-bold">${selectedExps[0].name}</span> (${(selectedExps[0].model_ids || []).join(", ")})</div>
-                    <div>Exp 2: <span class="text-purple-400 font-bold">${selectedExps[1].name}</span> (${(selectedExps[1].model_ids || []).join(", ")})</div>
+                  <div class="text-[#8B95A7] uppercase font-sans font-medium tracking-wider text-[10px]">Model Architecture Differences</div>
+                  <div class="bg-[#161B26] p-3 rounded-xl border border-[#242A36] font-mono space-y-1 text-[#F7F8FA]">
+                    <div>Exp 1: <span class="text-[#4F67FF] font-semibold">${selectedExps[0].name}</span> (${(selectedExps[0].model_ids || []).join(", ")})</div>
+                    <div>Exp 2: <span class="text-[#6956E8] font-semibold">${selectedExps[1].name}</span> (${(selectedExps[1].model_ids || []).join(", ")})</div>
                   </div>
                 </div>
 
                 <div class="space-y-1.5">
-                  <div class="text-slate-400 uppercase font-semibold tracking-wider text-[10px]">Hypothesis Evaluation</div>
-                  <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono space-y-1 text-slate-300">
+                  <div class="text-[#8B95A7] uppercase font-sans font-medium tracking-wider text-[10px]">Hypothesis Evaluation</div>
+                  <div class="bg-[#161B26] p-3 rounded-xl border border-[#242A36] font-sans space-y-1 text-[#8B95A7]">
                     <div>${selectedExps[1].hypothesis || "Optuna Bayesian hyperparameter search exploration"}</div>
                   </div>
                 </div>
               ` : `
-                <div class="text-center text-slate-500 py-12">Select at least 2 experiments above to inspect differences.</div>
+                <div class="text-center text-[#8B95A7]/60 py-12 font-sans">Select at least 2 experiments above to inspect differences.</div>
               `}
             </div>
           </div>
@@ -268,9 +267,9 @@ export class CompareView {
           {
             label: `${this.activeRun ? this.activeRun.metric : 'Score'} Progression`,
             data: data,
-            borderColor: "#6366f1",
-            backgroundColor: "rgba(99, 102, 241, 0.15)",
-            pointBackgroundColor: ["#94a3b8", "#6366f1", "#a855f7", "#10b981"],
+            borderColor: "#4F67FF",
+            backgroundColor: "rgba(79, 103, 255, 0.12)",
+            pointBackgroundColor: ["#8B95A7", "#4F67FF", "#6956E8", "#22C55E"],
             pointRadius: 6,
             pointHoverRadius: 8,
             fill: true,
@@ -291,14 +290,14 @@ export class CompareView {
         },
         scales: {
           x: {
-            grid: { color: "rgba(51, 65, 85, 0.2)" },
-            ticks: { color: "#94a3b8", font: { size: 10 } },
+            grid: { color: "rgba(36, 42, 54, 0.4)" },
+            ticks: { color: "#8B95A7", font: { size: 10 } },
           },
           y: {
             min: Math.max(0, minScore - pad),
             max: Math.min(1.0, maxScore + pad),
-            grid: { color: "rgba(51, 65, 85, 0.2)" },
-            ticks: { color: "#94a3b8", font: { size: 10 } },
+            grid: { color: "rgba(36, 42, 54, 0.4)" },
+            ticks: { color: "#8B95A7", font: { size: 10 } },
           },
         },
       },

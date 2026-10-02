@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CATML — Visual ML Lab & AutoML Workbench</title>
+  <title>CATML — Agent-Native AutoML Workbench</title>
   <!-- Google Fonts: Geist, Geist Mono, Space Grotesk & IBM Plex Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,33 +18,24 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Geist"', '"Space Grotesk"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            sans: ['"Geist"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             mono: ['"Geist Mono"', '"IBM Plex Mono"', 'ui-monospace', 'Menlo', 'monospace'],
           },
           colors: {
-            brand: {
+            catml: {
+              black: '#080A0F',
+              bar: '#0D1017',
+              panel: '#11151E',
+              card: '#161B26',
+              border: '#242A36',
+              text: '#F7F8FA',
+              muted: '#8B95A7',
               blue: '#4F67FF',
               indigo: '#6956E8',
               cyan: '#53C8FF',
-            },
-            carbon: {
-              base: '#0B0D12',
-              panel: '#11141B',
-              card: '#171A22',
-              border: '#232733',
-            },
-            cement: {
-              DEFAULT: '#94A3B8',
-              light: '#FFFFFF',
-              dark: '#64748B',
-            },
-            signal: {
-              orange: '#4F67FF',
-              green: '#22C55E',
-              yellow: '#F59E0B',
-              red: '#EF4444',
-              blue: '#4F67FF',
-              violet: '#6956E8',
+              success: '#22C55E',
+              warning: '#F59E0B',
+              danger: '#EF4444',
             }
           }
         }
@@ -53,124 +44,126 @@
   </script>
   <link rel="stylesheet" href="/static/css/workbench.css">
 </head>
-<body class="bg-[#0B0D12] text-[#FFFFFF] min-h-screen flex flex-col font-sans select-none antialiased">
+<body class="bg-[#080A0F] text-[#F7F8FA] min-h-screen flex flex-col font-sans select-none antialiased">
 
   <!-- Top Mission Control Bar -->
-  <header class="bg-[#11141B] border-b border-[#232733] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
+  <header class="bg-[#0D1017] border-b border-[#242A36] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
     <div class="flex items-center space-x-6">
       <div class="flex items-center space-x-2.5 cursor-pointer" onclick="location.reload()">
-        <span class="bg-[#0B0D12] text-[#4F67FF] border border-[#4F67FF]/40 font-bold text-xs px-2.5 py-1 rounded-sm tracking-wider font-mono">⚡ CATML</span>
-        <span class="font-bold text-xs text-[#94A3B8] tracking-widest uppercase font-mono hidden sm:inline">WORKBENCH</span>
+        <span class="font-bold text-base text-[#F7F8FA] tracking-tight font-sans">CATML</span>
+        <span class="text-xs text-[#8B95A7] font-medium border-l border-[#242A36] pl-2.5">Workbench</span>
       </div>
 
-      <div class="hidden md:flex items-center space-x-2 text-xs border-l border-[#27272e] pl-6 font-mono">
-        <span class="text-[#D8D6CF]/60 text-[11px] uppercase tracking-wider">PROJECT:</span>
-        <span id="projectNameLabel" class="font-bold text-[#F1EFE9]">ACTIVE WORKSPACE</span>
+      <div class="hidden md:flex items-center space-x-2 text-xs border-l border-[#242A36] pl-6 font-sans">
+        <span class="text-[#8B95A7] text-[11px] uppercase tracking-wider font-mono">PROJECT:</span>
+        <span id="projectNameLabel" class="font-medium text-[#F7F8FA]">Active Workspace</span>
       </div>
 
-      <div class="hidden lg:flex items-center space-x-3 text-xs border-l border-[#27272e] pl-6 font-mono">
-        <span id="globalStatusBadge" class="badge-gain px-2.5 py-0.5 rounded-sm font-mono text-[11px] font-semibold flex items-center space-x-1.5">
-          <span>● READY</span>
+      <div class="hidden lg:flex items-center space-x-3 text-xs border-l border-[#242A36] pl-6">
+        <span id="globalStatusBadge" class="badge-gain px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+          <span>READY</span>
         </span>
-        <span id="sysHardwareHeader" class="text-[11px] text-[#D8D6CF]/70">SYS / ONLINE</span>
+        <span id="sysHardwareHeader" class="text-[11px] text-[#8B95A7] font-sans">Engine Online</span>
       </div>
     </div>
 
     <!-- Actions & Agent Button -->
     <div class="flex items-center space-x-3 text-xs">
-      <div class="hidden sm:flex items-center space-x-1.5 bg-[#111111] px-3 py-1 rounded-sm border border-[#27272e] text-[#D8D6CF] font-mono text-[11px]">
-        <span class="text-[#D8D6CF]/60">WORKSPACE:</span>
-        <span id="workspaceLabel" class="text-[#5C78FF] font-bold truncate max-w-xs">CONNECTING...</span>
+      <div class="hidden sm:flex items-center space-x-1.5 bg-[#11151E] px-3 py-1.5 rounded-lg border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">
+        <span class="text-[#8B95A7]/70">WORKSPACE:</span>
+        <span id="workspaceLabel" class="text-[#4F67FF] font-semibold truncate max-w-xs">Connecting...</span>
       </div>
 
-      <button id="btnRefresh" class="bg-[#1c1d24] hover:bg-[#27272e] text-[#F1EFE9] px-3 py-1.5 rounded-sm border border-[#27272e] font-mono font-medium transition-colors text-[11px] flex items-center space-x-1.5">
+      <button id="btnRefresh" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] px-3 py-1.5 rounded-lg border border-[#242A36] font-sans font-medium transition-colors text-xs flex items-center space-x-1.5">
         <span>↻</span>
-        <span>SYNC</span>
+        <span>Sync</span>
       </button>
 
-      <button id="btnToggleAgent" class="bg-[#6956E8]/10 hover:bg-[#6956E8]/20 text-[#6956E8] border border-[#6956E8]/30 px-3 py-1.5 rounded-sm font-mono font-semibold flex items-center space-x-1.5 transition-colors text-[11px]">
-        <span>✦</span>
-        <span>AGENT</span>
+      <button id="btnToggleAgent" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] hover:border-[#4F67FF]/50 px-3.5 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-2 transition-all text-xs">
+        <span class="text-[#4F67FF] font-bold">◇</span>
+        <span>Agent</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
       </button>
     </div>
   </header>
 
   <!-- App Body: Sidebar + Main Canvas -->
   <div class="flex-1 flex overflow-hidden">
-    <!-- Left Definitive Navigation Sidebar -->
-    <aside class="w-64 bg-[#11141B] border-r border-[#232733] p-3 flex flex-col justify-between hidden md:flex">
+    <!-- Left Navigation Sidebar -->
+    <aside class="w-64 bg-[#0D1017] border-r border-[#242A36] p-3 flex flex-col justify-between hidden md:flex">
       <div class="space-y-1">
-        <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#94A3B8]/60 px-3 py-2 border-b border-[#232733] mb-2 flex justify-between items-center">
-          <span>NAVIGATION</span>
-          <span class="text-[#22C55E]">SYS / ON</span>
+        <div class="text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 py-2 mb-1 flex justify-between items-center">
+          <span>Navigation</span>
+          <span class="text-[#22C55E] font-mono text-[10px] flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-[#22C55E]"></span>ON</span>
         </div>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="overview">
-          <span class="text-[#4F67FF] font-bold">01</span>
-          <span class="font-sans font-medium text-sm">Dashboard</span>
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="overview">
+          <span class="nav-num">01</span>
+          <span class="font-sans font-medium">Dashboard</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="datasets">
-          <span class="text-[#5C78FF] font-bold">02</span>
-          <span class="font-sans font-medium text-sm">Datasets</span>
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="datasets">
+          <span class="nav-num">02</span>
+          <span class="font-sans font-medium">Datasets</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="studio">
-          <span class="text-[#E7C84B] font-bold">03</span>
-          <span class="font-sans font-medium text-sm">Experiments</span>
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="studio">
+          <span class="nav-num">03</span>
+          <span class="font-sans font-medium">Experiments</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="compare">
-          <span class="text-[#9C7CFF] font-bold">04</span>
-          <span class="font-sans font-medium text-sm">Models</span>
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="compare">
+          <span class="nav-num">04</span>
+          <span class="font-sans font-medium">Models</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="pipelines">
-          <span class="text-[#D8D6CF] font-bold">05</span>
-          <span class="font-sans font-medium text-sm">Pipelines</span>
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="pipelines">
+          <span class="nav-num">05</span>
+          <span class="font-sans font-medium">Pipelines</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="kaggle">
+        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="kaggle">
           <div class="flex items-center space-x-3">
-            <span class="text-[#63D49A] font-bold">06</span>
-            <span class="font-sans font-medium text-sm" id="kaggleNavLabel">Deployments</span>
+            <span class="nav-num">06</span>
+            <span class="font-sans font-medium" id="kaggleNavLabel">Deployments</span>
           </div>
-          <span id="kaggleNavBadge" class="badge-gain text-[9px] px-1.5 py-0.2 rounded-sm font-mono font-bold">—</span>
+          <span id="kaggleNavBadge" class="badge-gain text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">—</span>
         </a>
 
-        <div class="pt-4 pb-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#D8D6CF]/60 px-3 border-t border-[#27272e] mt-4">
-          INTELLIGENCE
+        <div class="pt-4 pb-1 text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 border-t border-[#242A36] mt-4">
+          Intelligence
         </div>
 
-        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-sm text-xs font-medium border-l-2 border-transparent transition-all text-[#9C7CFF] hover:text-[#9C7CFF]/80" data-nav="knowledge">
-          <div class="flex items-center space-x-3 font-mono">
-            <span class="text-xs">🧠</span>
-            <span class="font-sans">Knowledge</span>
+        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="knowledge">
+          <div class="flex items-center space-x-3">
+            <span class="text-xs text-[#8B95A7]">🧠</span>
+            <span class="font-sans font-medium">Knowledge</span>
           </div>
-          <span class="badge-intel text-[9px] px-1.5 py-0.2 rounded-sm font-mono font-bold">V0.8</span>
+          <span class="badge-intel text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V0.8</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-sm text-xs font-medium border-l-2 border-transparent transition-all text-[#9C7CFF] hover:text-[#9C7CFF]/80" data-nav="agent">
-          <div class="flex items-center space-x-3 font-mono">
-            <span class="text-xs">✦</span>
-            <span class="font-sans">Agent Drawer</span>
+        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="agent">
+          <div class="flex items-center space-x-3">
+            <span class="text-xs text-[#4F67FF]">◇</span>
+            <span class="font-sans font-medium">Agent Drawer</span>
           </div>
-          <span class="badge-intel text-[9px] px-1.5 py-0.2 rounded-sm font-mono font-bold">V1.0</span>
+          <span class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V1.0</span>
         </a>
       </div>
 
       <!-- Version footer -->
-      <div class="pt-3 border-t border-[#27272e] text-[11px] text-[#D8D6CF]/60 space-y-1 font-mono">
+      <div class="pt-3 border-t border-[#242A36] text-[11px] text-[#8B95A7] space-y-1 font-mono">
         <div class="flex justify-between">
-          <span>CATML LAB</span>
-          <span class="text-[#D8D6CF] font-semibold">V0.7.0</span>
+          <span class="font-sans text-[#8B95A7]">CATML Workbench</span>
+          <span class="text-[#F7F8FA] font-medium">v0.7.0</span>
         </div>
-        <div class="text-[10px] text-[#D8D6CF]/40">HEXAGONAL • CQRS ENGINE</div>
+        <div class="text-[10px] text-[#8B95A7]/60">HEXAGONAL • CQRS ENGINE</div>
       </div>
     </aside>
 
     <!-- Main Content Canvas -->
-    <main class="flex-1 overflow-y-auto p-6 relative bg-[#111111]" id="mainContent">
+    <main class="flex-1 overflow-y-auto p-6 md:p-8 relative bg-[#080A0F]" id="mainContent">
       <!-- Injected dynamically by App Router -->
     </main>
 
@@ -179,7 +172,6 @@
       <!-- Injected by AgentDrawer component -->
     </div>
   </div>
-
 
   <!-- Global Modal Container -->
   <div id="modalContainer"></div>
