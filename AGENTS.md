@@ -9,7 +9,7 @@
 - **Short-Term Memory & Progress:** See [`.agent/progress.md`](.agent/progress.md).
 - **Developer Extension Guide:** See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 - **Active Feature Specs & Plans:** See [`docs/features/`](docs/features/) (e.g. [`docs/features/feature-discovery/spec.md`](docs/features/feature-discovery/spec.md) and [`plan.md`](docs/features/feature-discovery/plan.md)).
-- **UI Design System (Neo-Industrial):** See [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md) and [`docs/decisions/005-neo-industrial-visual-ml-lab-ui.md`](docs/decisions/005-neo-industrial-visual-ml-lab-ui.md).
+- **UI Design System (Tech Minimalista Premium):** See [`docs/design/tech-minimalist-brand-system.md`](docs/design/tech-minimalist-brand-system.md), [`docs/decisions/006-tech-minimalist-premium-brand-system.md`](docs/decisions/006-tech-minimalist-premium-brand-system.md) and historical spec [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
 - **Architectural Decisions (ADRs):** See [`docs/decisions/`](docs/decisions/).
 - **Original Architectural Notes:** See [`planning.txt`](planning.txt).
 
@@ -68,9 +68,10 @@ The entire current test suite must pass before completing any task. Test coverag
        gh issue create --title "[FINDING/IMPROVEMENT] Short title" --body "### Context\n...\n### Finding / Limitation\n...\n### Affected Modules\n...\n### Suggested Resolution\n..." --label "blackboard"
        ```
    - When an issue on the blackboard is addressed, close it via `gh issue close <id> --comment "Addressed in commit/PR <ref>"`.
-8. **Neo-Industrial UI Standards:**
-   - Any work on web interfaces (`src/automl/interfaces/web/`) must strictly comply with [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
-   - Use the visual ML lab paradigm: palette (`#111111`, `#D8D6CF`, `#F1EFE9`, `#E5512D`), typography (`Space Grotesk` + `IBM Plex Mono`), modular 1px visible borders, sharp corners (`0px`-`4px`), and signal orange strictly reserved for primary execution CTAs.
+8. **Brand System & UI Standards (Tech Minimalista Premium):**
+   - Any work on web interfaces (`src/automl/interfaces/web/`), documentation, marketing, or visual assets must strictly comply with [`docs/design/tech-minimalist-brand-system.md`](docs/design/tech-minimalist-brand-system.md) and [`docs/decisions/006-tech-minimalist-premium-brand-system.md`](docs/decisions/006-tech-minimalist-premium-brand-system.md).
+   - Use the 80/20 rule (80% structural sobriety, 20% technological impact). Palette: `--catml-black` (`#0B0D12`), `--catml-graphite` (`#171A22`), `--catml-white` (`#FFFFFF`), `--catml-offwhite` (`#F7F8FA`), `--catml-blue` (`#4F67FF` Electric Blue), `--catml-indigo` (`#6956E8`), `--catml-cyan` (`#53C8FF`).
+   - Typography: `Geist` (primary UI/titles) + `Geist Mono` / `IBM Plex Mono` (code, tables, metrics, parameters). High information density, 1px crisp borders, and electric blue strictly reserved for primary execution CTAs, active states, and agent connections. No generic AI illustrations.
 9. **Multi-Agent / Two-Person Concurrency & Conflict Prevention:**
    - When collaborating concurrently across Persona A and Persona B (or multiple developers/agents), strictly adhere to the isolation protocol in [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md):
      - **Subdirectory Ownership:** Work exclusively within assigned subdirectories (e.g. `specialists/` vs `orchestrator/`).

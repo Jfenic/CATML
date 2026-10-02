@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CATML — Visual ML Lab & AutoML Workbench</title>
-  <!-- Google Fonts: Space Grotesk & IBM Plex Mono -->
+  <!-- Google Fonts: Geist, Geist Mono, Space Grotesk & IBM Plex Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
@@ -18,28 +18,33 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Space Grotesk"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            mono: ['"IBM Plex Mono"', 'ui-monospace', 'Menlo', 'monospace'],
+            sans: ['"Geist"', '"Space Grotesk"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"Geist Mono"', '"IBM Plex Mono"', 'ui-monospace', 'Menlo', 'monospace'],
           },
           colors: {
+            brand: {
+              blue: '#4F67FF',
+              indigo: '#6956E8',
+              cyan: '#53C8FF',
+            },
             carbon: {
-              base: '#111111',
-              panel: '#16171c',
-              card: '#1c1d24',
-              border: '#27272e',
+              base: '#0B0D12',
+              panel: '#11141B',
+              card: '#171A22',
+              border: '#232733',
             },
             cement: {
-              DEFAULT: '#D8D6CF',
-              light: '#F1EFE9',
-              dark: '#8E8C85',
+              DEFAULT: '#94A3B8',
+              light: '#FFFFFF',
+              dark: '#64748B',
             },
             signal: {
-              orange: '#E5512D',
-              green: '#63D49A',
-              yellow: '#E7C84B',
-              red: '#D85454',
-              blue: '#5C78FF',
-              violet: '#9C7CFF',
+              orange: '#4F67FF',
+              green: '#22C55E',
+              yellow: '#F59E0B',
+              red: '#EF4444',
+              blue: '#4F67FF',
+              violet: '#6956E8',
             }
           }
         }
@@ -48,14 +53,14 @@
   </script>
   <link rel="stylesheet" href="/static/css/workbench.css">
 </head>
-<body class="bg-[#111111] text-[#F1EFE9] min-h-screen flex flex-col font-sans select-none antialiased">
+<body class="bg-[#0B0D12] text-[#FFFFFF] min-h-screen flex flex-col font-sans select-none antialiased">
 
-  <!-- Top Industrial Mission Control Bar -->
-  <header class="bg-[#16171c] border-b border-[#27272e] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
+  <!-- Top Mission Control Bar -->
+  <header class="bg-[#11141B] border-b border-[#232733] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
     <div class="flex items-center space-x-6">
       <div class="flex items-center space-x-2.5 cursor-pointer" onclick="location.reload()">
-        <span class="bg-[#111111] text-[#E5512D] border border-[#E5512D]/40 font-bold text-xs px-2.5 py-1 rounded-sm tracking-wider font-mono">⚡ AUTO/ML LAB</span>
-        <span class="font-bold text-xs text-[#D8D6CF] tracking-widest uppercase font-mono hidden sm:inline">WORKBENCH</span>
+        <span class="bg-[#0B0D12] text-[#4F67FF] border border-[#4F67FF]/40 font-bold text-xs px-2.5 py-1 rounded-sm tracking-wider font-mono">⚡ CATML</span>
+        <span class="font-bold text-xs text-[#94A3B8] tracking-widest uppercase font-mono hidden sm:inline">WORKBENCH</span>
       </div>
 
       <div class="hidden md:flex items-center space-x-2 text-xs border-l border-[#27272e] pl-6 font-mono">
@@ -83,7 +88,7 @@
         <span>SYNC</span>
       </button>
 
-      <button id="btnToggleAgent" class="bg-[#9C7CFF]/10 hover:bg-[#9C7CFF]/20 text-[#9C7CFF] border border-[#9C7CFF]/30 px-3 py-1.5 rounded-sm font-mono font-semibold flex items-center space-x-1.5 transition-colors text-[11px]">
+      <button id="btnToggleAgent" class="bg-[#6956E8]/10 hover:bg-[#6956E8]/20 text-[#6956E8] border border-[#6956E8]/30 px-3 py-1.5 rounded-sm font-mono font-semibold flex items-center space-x-1.5 transition-colors text-[11px]">
         <span>✦</span>
         <span>AGENT</span>
       </button>
@@ -93,15 +98,15 @@
   <!-- App Body: Sidebar + Main Canvas -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Definitive Navigation Sidebar -->
-    <aside class="w-64 bg-[#16171c] border-r border-[#27272e] p-3 flex flex-col justify-between hidden md:flex">
+    <aside class="w-64 bg-[#11141B] border-r border-[#232733] p-3 flex flex-col justify-between hidden md:flex">
       <div class="space-y-1">
-        <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#D8D6CF]/60 px-3 py-2 border-b border-[#27272e] mb-2 flex justify-between items-center">
+        <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#94A3B8]/60 px-3 py-2 border-b border-[#232733] mb-2 flex justify-between items-center">
           <span>NAVIGATION</span>
-          <span class="text-[#63D49A]">SYS / ON</span>
+          <span class="text-[#22C55E]">SYS / ON</span>
         </div>
 
         <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-sm text-xs font-mono border-l-2 border-transparent transition-all" data-nav="overview">
-          <span class="text-[#E5512D] font-bold">01</span>
+          <span class="text-[#4F67FF] font-bold">01</span>
           <span class="font-sans font-medium text-sm">Dashboard</span>
         </a>
 
