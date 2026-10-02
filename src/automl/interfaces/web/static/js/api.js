@@ -226,6 +226,20 @@ export class CATMLApiClient {
       body: JSON.stringify({ dataset_id: datasetId }),
     });
   }
+
+  getModelExportUrl(runId, experimentId, trialId) {
+    let url = `/api/models/export?run_id=${encodeURIComponent(runId || '')}`;
+    if (experimentId) url += `&experiment_id=${encodeURIComponent(experimentId)}`;
+    if (trialId) url += `&trial_id=${encodeURIComponent(trialId)}`;
+    return url;
+  }
+
+  async getModelExportInfo(runId, experimentId, trialId) {
+    let url = `/api/models/export-info?run_id=${encodeURIComponent(runId || '')}`;
+    if (experimentId) url += `&experiment_id=${encodeURIComponent(experimentId)}`;
+    if (trialId) url += `&trial_id=${encodeURIComponent(trialId)}`;
+    return this._fetch(url);
+  }
 }
 
 export const api = new CATMLApiClient();

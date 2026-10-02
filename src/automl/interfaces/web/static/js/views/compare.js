@@ -79,18 +79,18 @@ export class CompareView {
         <!-- Top Selector Row -->
         <div class="workbench-card p-4 bg-[#16171c] border-[#27272e] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
-            <span class="text-[#E5512D] font-mono font-bold text-lg">⇄</span>
+            <span class="text-[#4F67FF] font-mono font-bold text-lg">⇄</span>
             <div>
-              <h2 class="text-base font-bold font-mono text-[#F1EFE9]">EXPERIMENT COMPARISON & LINEAGE</h2>
-              <p class="text-xs text-[#D8D6CF]/70 font-mono">Selecciona dos o más experimentos para inspeccionar diferencias algorítmicas y ganancias métricas</p>
+              <h2 class="text-base font-bold font-mono text-[#FFFFFF]">EXPERIMENT COMPARISON & LINEAGE</h2>
+              <p class="text-xs text-[#94A3B8]/70 font-mono">Selecciona dos o más experimentos para inspeccionar diferencias algorítmicas y ganancias métricas</p>
             </div>
           </div>
 
           <!-- Experiment Checkboxes -->
           <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
             ${this.experiments.map(exp => `
-              <label class="flex items-center space-x-1.5 cursor-pointer px-3 py-1.5 rounded-sm border ${this.selected.includes(exp.id) ? 'border-[#E5512D] text-[#F1EFE9] bg-[#1c1d24]' : 'border-[#27272e] text-[#D8D6CF]/60 bg-[#111111]'}">
-                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded-sm text-[#E5512D] focus:ring-0 bg-[#111111]" data-exp-id="${exp.id}">
+              <label class="flex items-center space-x-1.5 cursor-pointer px-3 py-1.5 rounded-sm border ${this.selected.includes(exp.id) ? 'border-[#4F67FF] text-[#FFFFFF] bg-[#1c1d24]' : 'border-[#27272e] text-[#94A3B8]/60 bg-[#111111]'}">
+                <input type="checkbox" ${this.selected.includes(exp.id) ? "checked" : ""} class="exp-compare-chk rounded-sm text-[#4F67FF] focus:ring-0 bg-[#111111]" data-exp-id="${exp.id}">
                 <span>${exp.name || exp.id}</span>
               </label>
             `).join("")}
@@ -151,6 +151,17 @@ export class CompareView {
                   <td class="font-medium text-slate-300">Hypothesis / Rationale</td>
                   ${selectedExps.map(e => `
                     <td class="text-xs text-slate-400 max-w-xs truncate">${e.hypothesis || "Baseline model training"}</td>
+                  `).join("")}
+                </tr>
+                <tr>
+                  <td class="font-medium text-slate-300">Artifact Export</td>
+                  ${selectedExps.map(e => `
+                    <td>
+                      <a href="/api/models/export?experiment_id=${e.id}" class="btn-signal text-[11px] py-1 px-2.5 inline-flex items-center space-x-1" title="Descargar artefacto autónomo (.pkl) para este experimento">
+                        <span>⬇</span>
+                        <span>DOWNLOAD .PKL</span>
+                      </a>
+                    </td>
                   `).join("")}
                 </tr>
               </tbody>

@@ -369,3 +369,71 @@ def test_web_dashboard_dataset_profile_enrichment_and_custom_features(running_we
         assert created_exp["feature_names"] == ["num_x"]
         assert created_exp["features_count"] == 1
 
+
+def test_web_dashboard_export_model_artifact(running_web_server):
+    import io
+    import joblib
+    from automl.artifacts.model_artifact import ModelArtifact
+
+    base = running_web_server["base_url"]
+    csv_path = running_web_server["csv_path"]
+
+    # 1. Register dataset
+    reg_payload = json.dumps({
+        "path": csv_path,
+        "name": "export_test_ds",
+        "target": "target",
+        "task_type": "binary_classification",
+    }).encode("utf-8")
+    req = Request(f"{base}/api/dataset/register", data=reg_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        assert resp.status == 200
+        reg_data = json.loads(resp.read().decode("utf-8"))
+        run_id = reg_data["run_id"]
+
+    # 2. Run quick experiment
+    exp_payload = json.dumps({
+        "run_id": run_id,
+        "mode": "quick",
+        "models": ["logistic_regression"],
+        "name": "export_quick_exp",
+    }).encode("utf-8")
+    req = Request(f"{base}/api/experiment/create_and_run", data=exp_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        assert resp.status == 200
+
+    # 3. Test /api/models/export-info
+    with urlopen(f"{base}/api/models/export-info?run_id={run_id}") as resp:
+        assert resp.status == 200
+        info = json.loads(resp.read().decode("utf-8"))
+        assert info["model_id"] == "logistic_regression"
+        assert "score" in info
+        assert "feature_names" in info
+        assert "/api/models/export" in info["download_url"]
+
+    # 4. Test /api/models/export downloading .pkl
+    with urlopen(f"{base}/api/models/export?run_id={run_id}") as resp:
+        assert resp.status == 200
+        assert resp.headers.get("Content-Type") == "application/octet-stream"
+        disposition = resp.headers.get("Content-Disposition", "")
+        assert "attachment" in disposition
+        assert ".pkl" in disposition
+
+        raw_bytes = resp.read()
+        assert len(raw_bytes) > 0
+
+        # Load artifact and verify standalone inference
+        artifact = joblib.load(io.BytesIO(raw_bytes))
+        assert isinstance(artifact, ModelArtifact)
+        assert artifact.model_id == "logistic_regression"
+        assert artifact.task_type in ("binary_classification", "multiclass_classification", "regression")
+
+        # Test predict with sample data
+        sample_df = pd.DataFrame({
+            "feat_a": [0.1, -0.5],
+            "feat_b": [25.0, 80.0],
+        })
+        preds = artifact.predict(sample_df)
+        assert len(preds) == 2
+
+
