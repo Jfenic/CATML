@@ -94,58 +94,169 @@ export class StudioView {
       || (this.leaderboard.length > 0 ? this.leaderboard[0].model_id : (overview.best_model || "None"));
 
     const trialsCount = activeRun.trials_count != null ? activeRun.trials_count : (overview.total_trials || 0);
-
     const steps = (this.plan && this.plan.steps) ? this.plan.steps : [];
+
+    // Collect all trial scores from experiments or leaderboard
+    const trialsList = [];
+    for (const e of this.experiments) {
+      for (const t of (e.trials || [])) {
+        if (t.score != null) {
+          trialsList.push({
+            id: t.trial_id || `trial_${trialsList.length + 1}`,
+            model: t.model_id || e.model_id || "model",
+            score: t.score,
+            time: t.time_s != null ? t.time_s : null,
+            params: t.params || {},
+          });
+        }
+      }
+    }
+
+    if (trialsList.length === 0 && this.leaderboard.length > 0) {
+      for (const lb of this.leaderboard) {
+        if (lb.score != null) {
+          trialsList.push({
+            id: `trial_${trialsList.length + 1}`,
+            model: lb.model_id,
+            score: lb.score,
+            time: lb.training_time_seconds,
+            params: {},
+          });
+        }
+      }
+    }
+
+    // Determine semantic action controls according to active run status
+    let actionControlsHtml = "";
+    if (isRunning) {
+      actionControlsHtml = `
+        <button id="btnPauseRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10 transition-colors">
+          <span>⏸</span><span>Pause</span>
+        </button>
+        <button id="btnStopRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-rose-400 border-rose-500/30 hover:bg-rose-500/10 transition-colors">
+          <span>■</span><span>Stop</span>
+        </button>
+      `;
+    } else if (isPaused) {
+      actionControlsHtml = `
+        <button id="btnResumeRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 transition-colors">
+          <span>▶</span><span>Resume</span>
+        </button>
+        <button id="btnStopRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 text-rose-400 border-rose-500/30 hover:bg-rose-500/10 transition-colors">
+          <span>■</span><span>Stop</span>
+        </button>
+      `;
+    } else if (activeRun.status === "COMPLETED") {
+      actionControlsHtml = `
+        <button id="btnRunAgain" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Launch a new experiment run with active dataset">
+          <span>↻</span><span>Run again</span>
+        </button>
+        <button id="btnCloneRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Clone experiment into a new run">
+          <span>⧉</span><span>Clone</span>
+        </button>
+        <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Download autonomous ModelArtifact (.pkl)">
+          <span>⬇</span><span>Export best model</span>
+        </a>
+      `;
+    } else {
+      // FAILED, CANCELLED, IDLE
+      actionControlsHtml = `
+        <button id="btnRunAgain" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Launch a new experiment run with active dataset">
+          <span>↻</span><span>Run again</span>
+        </button>
+        <button id="btnCloneRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Clone experiment into a new run">
+          <span>⧉</span><span>Clone</span>
+        </button>
+      `;
+    }
+
+    // Determine optimization progress content: Chart if >= 4 trials, discrete cards if 1-3 trials, or empty state
+    let optimizationProgressContent = "";
+    if (trialsList.length >= 4) {
+      optimizationProgressContent = `
+        <div class="h-64 w-full relative">
+          <canvas id="performanceChart"></canvas>
+        </div>
+      `;
+    } else if (trialsList.length > 0) {
+      optimizationProgressContent = `
+        <div class="flex-1 flex flex-col justify-center space-y-4 py-3">
+          <div class="grid grid-cols-1 sm:grid-cols-${Math.min(trialsList.length, 3)} gap-3">
+            ${trialsList.map((t, idx) => `
+              <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-2 hover:border-[#4F67FF]/40 transition-colors">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-mono uppercase tracking-wider text-[#8B95A7]">Trial #${idx + 1}</span>
+                  ${idx === 0 ? '<span class="badge-gain text-[9px] px-1.5 py-0.5 rounded font-mono font-bold">Best</span>' : '<span class="badge-sys text-[9px] px-1.5 py-0.5 rounded font-mono font-medium">Verified</span>'}
+                </div>
+                <div class="text-sm font-semibold text-[#F7F8FA] font-mono capitalize truncate">${t.model}</div>
+                <div class="text-xl font-bold font-mono text-[#22C55E]">${Number(t.score).toFixed(5)}</div>
+                <div class="text-[10px] font-mono text-[#8B95A7] flex justify-between pt-2 border-t border-[#252C38]">
+                  <span>${activeRun.metric || 'CV'}</span>
+                  <span>${t.time != null ? Number(t.time).toFixed(1) + 's' : '5-Fold CV'}</span>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+          <div class="text-center text-[11px] text-[#8B95A7] font-sans flex items-center justify-center gap-1.5 pt-1">
+            <span class="text-[#4F67FF]">◇</span>
+            <span>Optimization curve activates automatically once ≥ 4 trials are recorded (${trialsList.length}/4 tested).</span>
+          </div>
+        </div>
+      `;
+    } else {
+      optimizationProgressContent = `
+        <div class="flex-1 flex flex-col items-center justify-center py-10 text-center space-y-2">
+          <span class="text-3xl text-[#8B95A7]/40 block">📈</span>
+          <div class="text-xs font-semibold text-[#F7F8FA] font-sans">No optimization trials recorded yet</div>
+          <p class="text-[11px] text-[#8B95A7] font-sans max-w-xs">Run a preset above or launch a guided experiment to record hyperparameter trials.</p>
+        </div>
+      `;
+    }
 
     this.container.innerHTML = `
       <div class="space-y-6">
         <!-- Top Sticky Control Header -->
-        <div class="workbench-card p-4 bg-slate-900/90 border-slate-800">
+        <div class="workbench-card p-4 bg-[#10151E] border-[#252C38]">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div class="flex items-center space-x-3">
-                <h2 class="text-lg font-bold text-slate-100">Run: ${activeRun.id} / ${activeRun.dataset_name || "Active Dataset"}</h2>
+                <h2 class="text-lg font-bold font-sans text-[#F7F8FA]">Run: ${activeRun.id} / ${activeRun.dataset_name || "Active Dataset"}</h2>
                 <span id="runStatusBadge" class="${isRunning ? 'badge-sys' : isPaused ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-1 rounded-full font-mono font-semibold flex items-center space-x-1.5">
-                  ${isRunning ? '<svg class="animate-spin h-3.5 w-3.5 text-indigo-400 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : ''}
+                  ${isRunning ? '<svg class="animate-spin h-3.5 w-3.5 text-[#4F67FF] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : ''}
                   <span>● ${activeRun.status || "IDLE"}</span>
                 </span>
               </div>
-              <p class="text-xs text-slate-400 mt-0.5">AutoML Pipeline • Metric: ${activeRun.metric || 'ROC-AUC'} • 5-Fold Stratified Cross-Validation</p>
+              <p class="text-xs text-[#8B95A7] font-sans mt-0.5">AutoML Pipeline • Metric: ${activeRun.metric || 'ROC-AUC'} • 5-Fold Stratified Cross-Validation</p>
             </div>
 
             <!-- Key metrics row -->
             <div class="flex items-center space-x-6">
               <div>
-                <div class="text-[11px] uppercase tracking-wider text-slate-400">Best CV</div>
-                <div class="text-lg font-bold font-mono-num text-emerald-400">
+                <div class="text-[11px] uppercase tracking-wider text-[#8B95A7] font-sans font-semibold">Best CV</div>
+                <div class="text-lg font-bold font-mono-num text-[#22C55E]">
                   ${bestScoreText}
                 </div>
               </div>
               <div>
-                <div class="text-[11px] uppercase tracking-wider text-slate-400">Best Model</div>
-                <div class="text-base font-semibold text-slate-200 capitalize">
+                <div class="text-[11px] uppercase tracking-wider text-[#8B95A7] font-sans font-semibold">Best Model</div>
+                <div class="text-base font-semibold text-[#F7F8FA] capitalize font-mono">
                   ${bestModelText}
                 </div>
               </div>
               <div>
-                <div class="text-[11px] uppercase tracking-wider text-slate-400">Trials</div>
-                <div class="text-base font-mono font-semibold text-indigo-400">
-                  ${trialsCount}
+                <div class="text-[11px] uppercase tracking-wider text-[#8B95A7] font-sans font-semibold">Trials</div>
+                <div class="text-base font-mono font-semibold text-[#4F67FF]">
+                  ${trialsList.length || trialsCount}
                 </div>
               </div>
               <div>
-                <div class="text-[11px] uppercase tracking-wider text-slate-400">Workers</div>
-                <div class="text-xs font-mono text-slate-300">${isRunning ? '5 Folds Active' : 'Ready'}</div>
+                <div class="text-[11px] uppercase tracking-wider text-[#8B95A7] font-sans font-semibold">Workers</div>
+                <div class="text-xs font-mono text-[#F7F8FA]">${isRunning ? '5 Folds Active' : 'Ready'}</div>
               </div>
 
               <!-- Action Controls -->
-              <div class="flex items-center space-x-2 pl-2 border-l border-slate-800">
-                ${
-                  isRunning
-                    ? `<button id="btnPauseRun" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-600/40 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">⏸ Pause</button>`
-                    : `<button id="btnResumeRun" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">▶ Resume</button>`
-                }
-                <button id="btnStopRun" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-600/40 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">■ Stop</button>
+              <div class="flex items-center space-x-2 pl-3 border-l border-[#252C38]">
+                ${actionControlsHtml}
               </div>
             </div>
           </div>
@@ -153,15 +264,22 @@ export class StudioView {
           <!-- Quick Action Launcher Bar -->
           <div class="mt-3 pt-3 border-t border-[#242A36] flex flex-wrap items-center justify-between gap-3 text-xs">
             <div class="flex items-center space-x-2">
-              <span class="text-[#8B95A7] font-medium font-sans uppercase text-[11px]">Quick run:</span>
-              <button data-quick-model="lightgbm" class="btn-quick-run btn-technical text-xs">LightGBM</button>
-              <button data-quick-model="xgboost" class="btn-quick-run btn-technical text-xs">XGBoost</button>
-              <button data-quick-model="catboost" class="btn-quick-run btn-technical text-xs">CatBoost</button>
-              <button data-quick-model="voting_ensemble" class="btn-quick-run btn-technical text-xs border-[#4F67FF]/30 text-[#4F67FF]">Ensemble</button>
+              <span class="text-[#8B95A7] font-medium font-sans uppercase text-[11px] flex items-center gap-1.5" title="Launches a new independent experiment run with this model preset">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#4F67FF]"></span>
+                New run preset:
+              </span>
+              <button data-quick-model="lightgbm" class="btn-quick-run btn-technical text-xs" title="Launch new experiment with LightGBM">+ LightGBM</button>
+              <button data-quick-model="xgboost" class="btn-quick-run btn-technical text-xs" title="Launch new experiment with XGBoost">+ XGBoost</button>
+              <button data-quick-model="catboost" class="btn-quick-run btn-technical text-xs" title="Launch new experiment with CatBoost">+ CatBoost</button>
+              <button data-quick-model="voting_ensemble" class="btn-quick-run btn-technical text-xs border-[#4F67FF]/30 text-[#4F67FF]" title="Launch new experiment with Voting Ensemble">+ Ensemble</button>
             </div>
-            <button id="btnNewExpFromHeader" class="btn-signal text-xs">
-              <span>+ Guided Experiment</span>
-            </button>
+            <div class="flex items-center space-x-2">
+              <button id="btnNewExpFromHeader" class="btn-signal text-xs flex items-center space-x-1.5" title="Agent-assisted search with human-in-the-loop parameter and feature gating">
+                <span>◇</span>
+                <span>Guided Experiment</span>
+              </button>
+              <span class="text-[10px] text-[#8B95A7] hidden sm:inline font-mono">Agent-assisted</span>
+            </div>
           </div>
         </div>
 
@@ -181,26 +299,32 @@ export class StudioView {
                 const isCompleted = step.status === "COMPLETED";
                 const isStepRunning = step.status === "RUNNING";
                 return `
-                  <div class="p-3 rounded-lg ${isStepRunning ? 'bg-indigo-950/40 border border-indigo-700/60' : 'bg-slate-900/60 border border-slate-800'} flex items-start justify-between">
+                  <div class="p-3 rounded-xl ${isStepRunning ? 'bg-[#4F67FF]/10 border border-[#4F67FF]/30' : 'bg-[#151B26] border border-[#252C38]'} flex items-start justify-between">
                     <div class="space-y-1">
                       <div class="flex items-center space-x-2">
-                        <span class="${isCompleted ? 'text-emerald-400 font-bold' : isStepRunning ? 'text-indigo-400 font-bold animate-pulse' : 'text-slate-500'} font-bold">
+                        <span class="${isCompleted ? 'text-[#22C55E]' : isStepRunning ? 'text-[#4F67FF] animate-pulse' : 'text-[#8B95A7]'} font-bold">
                           ${step.step} ${isCompleted ? '✓' : isStepRunning ? '●' : '○'}
                         </span>
-                        <span class="text-xs font-bold text-slate-200">${step.name}</span>
+                        <span class="text-xs font-semibold text-[#F7F8FA] font-sans">${step.name}</span>
                       </div>
-                      <div class="text-[11px] text-slate-400 flex items-center space-x-2">
-                        ${step.score != null ? `<span class="font-mono text-emerald-400">${activeRun.metric || 'CV'}: ${step.score.toFixed(5)}</span>` : `<span class="text-slate-500 font-mono">${step.status}</span>`}
-                        <span class="badge-sys text-[9px] px-1 py-0.2 rounded font-mono font-medium">${step.priority || 'NORMAL'}</span>
+                      <div class="text-[11px] text-[#8B95A7] font-sans flex items-center space-x-2">
+                        ${step.score != null ? `<span class="font-mono text-[#22C55E]">${activeRun.metric || 'CV'}: ${step.score.toFixed(5)}</span>` : `<span class="text-[#8B95A7] font-mono">${step.status}</span>`}
+                        <span class="badge-sys text-[9px] px-1.5 py-0.2 rounded font-mono font-medium">${step.priority || 'NORMAL'}</span>
                       </div>
                     </div>
-                    <button data-step-idx="${idx}" class="btn-why-dynamic badge-intel hover:bg-purple-900/40 text-[10px] px-2 py-0.5 rounded transition-colors">
+                    <button data-step-idx="${idx}" class="btn-why-dynamic badge-intel hover:bg-[#6956E8]/30 text-[10px] px-2 py-0.5 rounded transition-colors font-mono">
                       Why this?
                     </button>
                   </div>
                 `;
               }).join("") : `
-                <div class="text-center text-slate-500 py-12 text-xs">No roadmap steps found for active run.</div>
+                <div class="text-center py-8 px-4 space-y-2">
+                  <span class="text-2xl text-[#8B95A7]/40 block">◇</span>
+                  <div class="text-xs font-semibold text-[#F7F8FA] font-sans">No planning decisions recorded for this run</div>
+                  <p class="text-[11px] text-[#8B95A7] font-sans max-w-xs mx-auto leading-relaxed">
+                    Decisions appear here when autonomous heuristics or agent policies prune search space, select candidate features, or adapt validation folds.
+                  </p>
+                </div>
               `}
             </div>
           </div>
@@ -209,20 +333,18 @@ export class StudioView {
           <div class="lg:col-span-7 workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-emerald-400">📈</span>
-                <span class="text-sm font-semibold text-slate-200">Optimization Progress (${activeRun.metric || 'ROC-AUC'} over Trials)</span>
+                <span class="text-[#22C55E]">📈</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Optimization Progress (${activeRun.metric || 'ROC-AUC'} over Trials)</span>
               </div>
-              <span class="text-xs font-mono text-slate-400">Best: ${bestScoreText}</span>
+              <span class="text-xs font-mono text-[#8B95A7]">Best: ${bestScoreText}</span>
             </div>
 
             <div class="p-4 flex-1 flex flex-col justify-between">
-              <div class="h-64 w-full relative">
-                <canvas id="performanceChart"></canvas>
-              </div>
+              ${optimizationProgressContent}
 
-              <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-                <div>Modelos evaluados: <span class="text-slate-200 font-mono">${this.leaderboard.map(l => l.model_id).join(", ") || activeRun.best_model || "None"}</span></div>
-                <div class="text-indigo-400 font-mono text-[11px]">${trialsCount} trials registrados</div>
+              <div class="mt-4 pt-3 border-t border-[#252C38] flex items-center justify-between text-xs text-[#8B95A7] font-sans">
+                <div>Tested models: <span class="text-[#F7F8FA] font-mono font-medium">${this.leaderboard.map(l => l.model_id).join(", ") || activeRun.best_model || "None"}</span></div>
+                <div class="text-[#4F67FF] font-mono text-[11px]">${trialsList.length || trialsCount} recorded trials</div>
               </div>
             </div>
           </div>
@@ -357,7 +479,7 @@ export class StudioView {
                     </td>
                   </tr>
                 `).join("") : `
-                  <tr><td colspan="7" class="text-center text-slate-500 py-6 text-xs">No hay modelos que coincidan con el filtro seleccionado.</td></tr>
+                  <tr><td colspan="7" class="text-center text-[#8B95A7] py-6 text-xs font-sans">No models match the selected filter.</td></tr>
                 `}
               </tbody>
             </table>
@@ -527,6 +649,10 @@ export class StudioView {
       }
     });
 
+    this.container.querySelector("#btnRunAgain")?.addEventListener("click", () => {
+      bus.emit("modal:new-experiment");
+    });
+
     this.container.querySelector("#btnCloneRun")?.addEventListener("click", async () => {
       if (this.activeRun) {
         try {
@@ -589,7 +715,7 @@ export class StudioView {
         if (!this.activeRun || !modelId) return;
         const oldText = btn.innerHTML;
         btn.disabled = true;
-        btn.textContent = "⏳ Ejecutando...";
+        btn.textContent = "⏳ Running...";
         try {
           await api.runExperiment({
             run_id: this.activeRun.id,
@@ -721,26 +847,33 @@ export class StudioView {
 
     if (this.chart) {
       this.chart.destroy();
+      this.chart = null;
     }
 
     // Collect all trial scores from experiments or leaderboard
-    const allTrials = [];
+    const trials = [];
     for (const e of this.experiments) {
       for (const t of (e.trials || [])) {
         if (t.score != null) {
-          allTrials.push(t.score);
+          trials.push({
+            model: t.model_id || e.model_id || "model",
+            score: t.score,
+          });
         }
       }
     }
 
-    if (allTrials.length === 0 && this.leaderboard.length > 0) {
+    if (trials.length === 0 && this.leaderboard.length > 0) {
       for (const lb of this.leaderboard) {
-        if (lb.score != null) allTrials.push(lb.score);
+        if (lb.score != null) trials.push({ model: lb.model_id, score: lb.score });
       }
     }
 
-    const scores = allTrials.length > 0 ? allTrials : [0.9312, 0.9411, 0.9437, 0.9462];
-    const labels = scores.map((_, i) => `Trial ${i + 1}`);
+    // Only render full line chart if >= 4 trials exist
+    if (trials.length < 4) return;
+
+    const scores = trials.map(t => t.score);
+    const labels = trials.map((t, i) => `Trial ${i + 1} (${t.model})`);
 
     const minScore = Math.min(...scores);
     const maxScore = Math.max(...scores);
@@ -754,13 +887,13 @@ export class StudioView {
           {
             label: `${this.activeRun ? this.activeRun.metric : 'Score'} Progression`,
             data: scores,
-            borderColor: "#10b981",
-            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            borderColor: "#22C55E",
+            backgroundColor: "rgba(34, 197, 94, 0.08)",
             fill: true,
             tension: 0.25,
-            pointRadius: 3,
+            pointRadius: 4,
             pointHoverRadius: 6,
-            pointBackgroundColor: "#10b981",
+            pointBackgroundColor: "#22C55E",
           },
         ],
       },
@@ -777,14 +910,14 @@ export class StudioView {
         },
         scales: {
           x: {
-            grid: { color: "rgba(51, 65, 85, 0.2)" },
-            ticks: { color: "#94a3b8", font: { size: 10 } },
+            grid: { color: "rgba(37, 44, 56, 0.6)" },
+            ticks: { color: "#8B95A7", font: { size: 10 } },
           },
           y: {
             min: Math.max(0, minScore - pad),
             max: Math.min(1.0, maxScore + pad),
-            grid: { color: "rgba(51, 65, 85, 0.2)" },
-            ticks: { color: "#94a3b8", font: { size: 10 } },
+            grid: { color: "rgba(37, 44, 56, 0.6)" },
+            ticks: { color: "#8B95A7", font: { size: 10 } },
           },
         },
       },
