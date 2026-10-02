@@ -1660,6 +1660,92 @@ class AutoMLWorkspace:
         return self._write_submission(run_id, test_dataset_path, output_path, preds,
                                       id_column, template_path, predict_proba)
 
+    def export_model_artifact(
+        self,
+        run_id: str,
+        experiment_id: str | None = None,
+        trial_id: str | None = None,
+    ) -> Any:
+        """
+        Fits and exports a standalone, portable ModelArtifact for the specified or winning trial.
+        """
+        run = self._get_run(run_id)
+        dataset = self._get_dataset(run.dataset_id)
+
+        target_exp_id = experiment_id
+        target_trial_id = trial_id
+
+        if target_exp_id is None:
+            leaderboard = self.repository.get_leaderboard(run_id)
+            if not leaderboard:
+                raise ValueError(
+                    f"No completed trials found in run '{run_id}'. Cannot export artifact."
+                )
+            best_trial_res = leaderboard[0]
+            target_exp_id = best_trial_res.experiment_id
+            target_trial_id = best_trial_res.trial_id
+
+        experiment = self.repository.get_experiment(target_exp_id)
+        if experiment is None:
+            raise KeyError(f"Experiment '{target_exp_id}' not found.")
+
+        target_trial = None
+        if target_trial_id:
+            target_trial = self.repository.get_trial(target_trial_id)
+        if target_trial is None:
+            trial_results = self.repository.list_trial_results(target_exp_id)
+            if trial_results:
+                target_trial = self.repository.get_trial(trial_results[0].trial_id)
+
+        if target_trial is None:
+            raise ValueError(f"No trial found for experiment '{target_exp_id}'.")
+
+        from automl.engine.profiling.dataset_profiler import load_dataframe
+
+        train_df = load_dataframe(dataset.path)
+        feature_names = experiment.feature_names
+        X_train = train_df[feature_names]
+        y_train = train_df[dataset.target_column]
+
+        from automl.engine.training.sklearn_trainer import SklearnTrainer
+
+        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
+        pipeline, adapter = trainer.fit_pipeline(
+            X_train=X_train,
+            y_train=y_train,
+            model_id=target_trial.model_id,
+            task_type=dataset.task_type,
+            parameters=target_trial.parameters,
+        )
+
+        from automl.artifacts.model_artifact import ModelArtifact
+
+        score = 0.0
+        metric = "score"
+        leaderboard = self.repository.get_leaderboard(run_id)
+        for res in leaderboard:
+            if res.trial_id == target_trial.id:
+                score = res.primary_score
+                metric = res.primary_metric
+                break
+
+        return ModelArtifact(
+            pipeline=pipeline,
+            model_id=target_trial.model_id,
+            task_type=dataset.task_type,
+            feature_names=feature_names,
+            target_name=dataset.target_column,
+            target_adapter=adapter,
+            metric=metric,
+            score=score,
+            parameters=target_trial.parameters or {},
+            metadata={
+                "run_id": run_id,
+                "experiment_id": target_exp_id,
+                "trial_id": target_trial.id,
+            },
+        )
+
     def _write_submission(
         self, run_id, test_dataset_path, output_path, preds,
         id_column=None, template_path=None, predict_proba=False,
