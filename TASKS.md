@@ -2,6 +2,13 @@
 
 Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí; no mantienen una segunda lista de tareas. Las fases V0.x son hitos de diseño; la versión del paquete se define en `src/automl/__init__.py`.
 
+### Track Landing — Public homepage (independent of Workbench)
+
+- [x] Implementar homepage en `website/` con Vite, React y TypeScript; tokens Tech Minimalista, responsive 320–1440 px y accesibilidad comprobada.
+- [x] Integrar captura real del Workbench de `e4a2286` con dataset sintético, snippets acordes a la API, licencia MIT, instalación desde GitHub y Platform identificada como planificación.
+- [x] Preparar build estático, OpenGraph, favicon, tipografías locales, guía Vercel y comprobaciones en navegador.
+- [ ] Integrar la rama `feat/public-landing` y desplegar; conectar dominio y configurar URLs SEO absolutas cuando se conozca el destino.
+
 ## Now (Active Phase — Sprint 3: Brand Identity & Tech Minimalista Design System)
 
 - [x] Spec: Complete Tech Minimalista Premium Brand System specification saved in `docs/design/tech-minimalist-brand-system.md` (Electric Blue `#4F67FF`, Graphite, 80/20 rule, Geist typography, light docs/dark product).

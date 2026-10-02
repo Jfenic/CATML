@@ -1,6 +1,16 @@
 
 # Progress
 
+### Track Landing — 2026-10-02
+
+- Rama propia `feat/public-landing` desde `origin/main` (`e4a2286`), checkout `/tmp/catml-landing`. La tarea no cambia la rama ni los archivos del checkout principal; el usuario continúa el Workbench por separado.
+- Cambios de producto limitados a `website/`: homepage React/TypeScript/Vite clara, tokens de marca, fuentes locales, snippets, ejemplos etiquetados, Community MIT y Platform planned. No se modificó Workbench ni núcleo Python.
+- Captura real del Dataset Inspector de main con dataset sintético en workspace temporal; scripts reproducibles para screenshot y tarjeta OpenGraph.
+- Build y comprobaciones Chromium/axe pasan en 320, 390, 768, 1024 y 1440 px; teclado, menú, portapapeles y movimiento reducido comprobados.
+- Primera suite completa: 460 passed, 1 timeout MCP, 87.53% coverage. Hallazgo ajeno a la landing registrado en [blackboard #52](https://github.com/Jfenic/CATML/issues/52); handshake pasa aislado. Segunda suite completa: 461 passed, 87.53% coverage (237.66 s). No se cambió Python; el timeout inicial permanece documentado como hallazgo de estabilidad.
+- Despliegue/dominio pendientes; configuración Vercel y guía incluidas.
+
+
 ## Revisión del proyecto — 2026-10-02
 
 - Auditoría posterior de ramas: referencias actualizadas con `git fetch origin`; `main` y `origin/main` en `6279276`, sin divergencia. 28 ramas locales, 43 referencias remotas y un único worktree. Las 41 PR consultadas están fusionadas, sin PR abiertas. Conservar para revisión `feat/workbench-live-experiments` (commit WIP `fd55380`, sin PR, 60 commits detrás) y los commits documentales `843c966`/`186593a` posteriores a PR #40. Varias ramas fusionadas mediante squash conservan commits que no son ancestros de main; esto no prueba que falte su implementación. No se fusionaron ni borraron ramas.
