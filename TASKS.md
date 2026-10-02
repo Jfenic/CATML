@@ -46,6 +46,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ## Next (Roadmap Phases)
 
+- [ ] Sincronizar el índice y los planes con las capacidades actuales: H4, stacking y OOF multi-modelo ya implementados; actualizar las referencias al diseño vigente (revisión 2026-10-02).
+- [ ] Auditar `feat/workbench-live-experiments` (WIP sin PR, 60 commits detrás de main) y los commits documentales posteriores a PR #40 en `feat/agentic-a4-specialists` antes de limpiar ramas históricas.
+
 > **Sistema agéntico — empieza aquí:** [`docs/features/agentic-system/README.md`](docs/features/agentic-system/README.md). Elige Persona A o B; prepara A0 o B0 y acuerda H0 antes de pasar a A1/B1.
 
 - [x] Documentar entrada para colaboradores, orden de lectura, elección A/B y primeras entregas en la guía del sistema agéntico.
