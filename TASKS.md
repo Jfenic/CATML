@@ -2,7 +2,14 @@
 
 Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí; no mantienen una segunda lista de tareas. Las fases V0.x son hitos de diseño; la versión del paquete se define en `src/automl/__init__.py`.
 
-## Now (Active Phase — Sprint 1: Productization P0 — Ergonomic Facade & Model Artifacts)
+## Now (Active Phase — Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README)
+
+- [x] Feature: CLI Command `catml fit <dataset> --target <col>` (`src/automl/interfaces/cli/main.py`) with leaderboard output and artifact generation.
+- [x] Feature: `examples/quickstart.py` (2-minute end-to-end runnable script with dataset generation and standalone inference).
+- [x] Docs: Complete product-first redesign of `README.md` (value proposition, 4-line quickstart, MCP agent configuration, architecture).
+- [x] Tests: CLI and quickstart automated tests (`tests/test_cli_fit.py`) (436 tests passing, 87.39% coverage).
+
+## Completed Phase: Sprint 1 (Ergonomic Facade & Model Artifacts)
 
 - [x] Feature: Standalone `ModelArtifact` (`src/automl/artifacts/model_artifact.py`) with `save(path)` and `load(path)`.
 - [x] Feature: `AutoML` and `AutoMLResult` facade (`src/automl/facade.py`) supporting `fit(df, target=...)` and `fit(X, y)`.
