@@ -1,5 +1,12 @@
-
 # Progress
+
+### Track Persona A (Especialistas & Políticas)
+
+- 2026-10-02 — A5 en worktree `/tmp/catml-a5`, rama `feat/agentic-a5-llm-provider`, desde `a7e5195`; Workbench y archivos centrales compartidos fuera del cambio.
+- Adaptadores HTTP opcionales para OpenAI, Claude, Ollama y servidores OpenAI-compatible; modelo explícito, selección por configuración/entorno y factory sin llamadas al construir. Modo fake intacto y sin dependencias añadidas.
+- Respuestas JSON validadas localmente, rechazos/incompletos no aceptados, reintentos solo ante HTTP transitorio, redirecciones rechazadas, tamaño y socket I/O acotados, secretos explícitos redactados. Auditoría en memoria de 256 llamadas; uso desconocido `None`, sin prompts/cuerpos/credenciales. No se presenta como ledger ni presupuesto monetario.
+- Validación final: 508 tests pasando, 87,72 % de cobertura; CLI help/task list y diff checks correctos. Avisos existentes de convergencia/deprecaciones; ningún test omitido ni petición de pago.
+- Tests de contrato de cuatro proveedores y consumo, errores, fallback determinista y transporte HTTP local. No se han enviado peticiones de pago; smoke test real y revisión cruzada pendientes. CLI/Workbench y B5 mantienen su composición actual; H5 no se marca completo.
 
 ### Track Landing — 2026-10-02
 
