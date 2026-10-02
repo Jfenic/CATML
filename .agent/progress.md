@@ -1,6 +1,17 @@
 
 # Progress
- 
+
+## Revisión del proyecto — 2026-10-02
+
+- Auditoría posterior de ramas: referencias actualizadas con `git fetch origin`; `main` y `origin/main` en `6279276`, sin divergencia. 28 ramas locales, 43 referencias remotas y un único worktree. Las 41 PR consultadas están fusionadas, sin PR abiertas. Conservar para revisión `feat/workbench-live-experiments` (commit WIP `fd55380`, sin PR, 60 commits detrás) y los commits documentales `843c966`/`186593a` posteriores a PR #40. Varias ramas fusionadas mediante squash conservan commits que no son ancestros de main; esto no prueba que falte su implementación. No se fusionaron ni borraron ramas.
+
+- Revisados backlog, arquitectura, planes y código de agentes, ensembles y Workbench. Blackboard de GitHub sin incidencias abiertas; checkout inicialmente limpio en `main`.
+- Pendientes principales: H5 (proveedor LLM real y LangGraph duradero), evaluación independiente OOF/stacking, manifiestos por trial, benchmark `feature_selection_v05`, meta-learning, motor temporal y configurador visual de ensembles/validación.
+- Knowledge conserva rankings y similitudes ilustrativos. El índice y los planes mantienen referencias desactualizadas a H4, stacking y diseño anterior; seguimiento añadido en TASKS.md.
+- CLI `--help` y `task list` correctos. Suite completa con cobertura intentada: ejecución en sandbox bloqueada por sockets y detenida; repetición fuera del sandbox agotó 180 s sin finalizar. Reintento posterior detenido sin resultado completo. No se acredita suite verde ni cobertura actual; cifras previas permanecen históricas.
+- Sin cambios de implementación; revisión y seguimiento documental únicamente.
+- Publicación de la revisión: rama `docs/project-and-branch-review` para PR contra `main`. Validación repetida fuera del sandbox con un hilo por biblioteca numérica: avanzó más allá del 78% sin mostrar fallos, pero agotó 180 s sin informe final de cobertura. PR preparada como borrador hasta completar los checks.
+
 Active Track: **Sprint 3: Brand Identity, Tech Minimalista & UI Capabilities**:
 - Rama: `feat/ui-standalone-artifact-export`.
 - Entregables completados:
