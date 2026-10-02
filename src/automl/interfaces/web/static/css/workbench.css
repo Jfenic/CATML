@@ -1,30 +1,52 @@
 /* ==========================================================================
-   CATML AutoML Workbench — Neo-Industrial Design System
-   Visual ML Laboratory: Technical, Modular, Precise, Visual, Experimental
-   Specification: docs/design/neo-industrial-ui-spec.md
+   CATML — Tech Minimalista Premium Brand & Workbench Design System
+   Visual ML Laboratory: Technical, Modular, Precise, Developer-First
+   Specification: docs/design/tech-minimalist-brand-system.md
+   ADR: docs/decisions/006-tech-minimalist-premium-brand-system.md
    ========================================================================== */
 
 :root {
-  /* Architectural Base Palette */
-  --color-bg-base: #111111;
-  --color-bg-panel: #16171c;
-  --color-bg-card: #1c1d24;
-  --color-border: #27272e;
-  --color-border-hover: #3d3e48;
-  --color-text-main: #F1EFE9;
-  --color-text-muted: #D8D6CF;
+  /* Brand System — Tech Minimalista Premium Palette */
+  --catml-black: #0B0D12;
+  --catml-graphite: #171A22;
+  --catml-white: #FFFFFF;
+  --catml-offwhite: #F7F8FA;
+  --catml-border: #E5E7EB;
+  --catml-border-dark: #232733;
+  --catml-muted: #667085;
+  --catml-muted-dark: #94A3B8;
+
+  /* Identification & Accent Family */
+  --catml-blue: #4F67FF;       /* CATML Electric Blue (Primary Action & Brand) */
+  --catml-indigo: #6956E8;     /* Intelligence / Secondary Tone */
+  --catml-cyan: #53C8FF;       /* Data / Agent Connections */
+  --catml-success: #22C55E;    /* Success / Metric Validated */
+  --catml-warning: #F59E0B;    /* Running / In Progress / Attention */
+  --catml-danger: #EF4444;     /* Error / Destructive */
+
+  /* Dark Theme Surfaces (Visual ML Lab / Workbench) */
+  --color-bg-base: #0B0D12;
+  --color-bg-panel: #11141B;
+  --color-bg-card: #171A22;
+  --color-border: #232733;
+  --color-border-hover: #363C4E;
+  --color-text-main: #FFFFFF;
+  --color-text-muted: #94A3B8;
 
   /* Typography */
-  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: 'Geist', 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Functional Semantic Accents */
-  --catml-signal: #E5512D;     /* Signal Orange: Primary Action CTA & Champion Highlight */
-  --catml-gain: #63D49A;       /* Completed / Success / Metric Validated */
-  --catml-warn: #E7C84B;       /* Running / In Progress / Attention */
-  --catml-err: #D85454;        /* Error / Failed / Destructive */
-  --catml-sys: #5C78FF;        /* Data / Dataset / Informational */
-  --catml-intel: #9C7CFF;      /* AI / Knowledge / Agent */
+  /* Functional Semantic Aliases */
+  --catml-signal: var(--catml-blue);
+  --catml-gain: var(--catml-success);
+  --catml-warn: var(--catml-warning);
+  --catml-err: var(--catml-danger);
+  --catml-sys: var(--catml-cyan);
+  --catml-intel: var(--catml-indigo);
+
+  /* Electric Gradient (Strictly for Intelligence, Agents & Processing) */
+  --catml-gradient: linear-gradient(135deg, var(--catml-blue) 0%, var(--catml-indigo) 55%, var(--catml-cyan) 100%);
 }
 
 /* Base resets & typography */
@@ -77,9 +99,9 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Neo-Industrial Button Suite */
+/* Tech Minimalista Button Suite */
 .btn-signal {
-  background-color: var(--catml-signal);
+  background-color: var(--catml-blue);
   color: #ffffff;
   font-family: var(--font-mono);
   font-weight: 700;
@@ -87,8 +109,8 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0.5rem 1rem;
-  border-radius: 2px;
-  border: 1px solid #ff6740;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -97,8 +119,8 @@ body {
 }
 
 .btn-signal:hover {
-  background-color: #ff5c35;
-  box-shadow: 0 0 12px rgba(229, 81, 45, 0.45);
+  background-color: #3d56ff;
+  box-shadow: 0 0 16px rgba(79, 103, 255, 0.45);
 }
 
 .btn-technical {
@@ -279,8 +301,8 @@ body {
 }
 
 @keyframes pulse-signal {
-  0%, 100% { box-shadow: 0 0 10px rgba(229, 81, 45, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(229, 81, 45, 0.5); }
+  0%, 100% { box-shadow: 0 0 10px rgba(79, 103, 255, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(79, 103, 255, 0.5); }
 }
 
 .animate-catml-spin {

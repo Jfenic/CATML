@@ -1,8 +1,19 @@
 
 # Progress
+ 
+Active Track: **Sprint 3: Brand Identity & Tech Minimalista Design System**:
+- Rama: `feat/brand-system-tech-minimalist`.
+- Entregables completados:
+  - Especificación de diseño completa: `docs/design/tech-minimalist-brand-system.md` (identidad Tech Minimalista Premium, paleta `--catml-*`, Electric Blue `#4F67FF`, Geist / Geist Mono, regla 80/20, dualidad light docs / dark product).
+  - Registro de decisión arquitectónica: `docs/decisions/006-tech-minimalist-premium-brand-system.md` (ADR 006).
+  - Regla 8 actualizada en `AGENTS.md` para prescribir Tech Minimalista a todos los agentes y desarrolladores.
+  - Sincronización a repositorio privado `catml-platform`: especificación y ADR espejados.
+- Próximos pasos en el sprint:
+  - Armonización de tokens CSS en `src/automl/interfaces/web/static/css/workbench.css`.
+  - Validación de tests y merge a `main`.
 
-Active Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
-- Rama: `feat/productization-quickstart-and-readme`.
+Completed Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
+- Rama: `feat/productization-quickstart-and-readme` (Merged via PR #46).
 - Entregables completados:
   - Comando CLI `catml fit <dataset> --target <col>` con tabla formateada de leaderboard, preprocesamiento y guardado de `model.pkl`.
   - Script de ejemplo `examples/quickstart.py` (< 2 minutos) con dataset real/sintético, entrenamiento, leaderboard e inferencia autónoma.
