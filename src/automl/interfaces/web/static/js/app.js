@@ -175,11 +175,11 @@ class App {
     document.querySelectorAll(".nav-item").forEach(item => {
       const id = item.getAttribute("data-nav");
       if (id === navId) {
-        item.classList.add("bg-[#1c1d24]", "text-[#F1EFE9]", "border-[#E5512D]");
-        item.classList.remove("text-[#D8D6CF]/70", "hover:bg-[#1c1d24]/50", "border-transparent");
+        item.classList.add("bg-[#1c1d24]", "text-[#FFFFFF]", "border-[#4F67FF]");
+        item.classList.remove("text-[#94A3B8]/70", "hover:bg-[#1c1d24]/50", "border-transparent");
       } else if (id !== "agent") {
-        item.classList.remove("bg-[#1c1d24]", "text-[#F1EFE9]", "border-[#E5512D]");
-        item.classList.add("text-[#D8D6CF]/70", "hover:bg-[#1c1d24]/50", "border-transparent");
+        item.classList.remove("bg-[#1c1d24]", "text-[#FFFFFF]", "border-[#4F67FF]");
+        item.classList.add("text-[#94A3B8]/70", "hover:bg-[#1c1d24]/50", "border-transparent");
       }
     });
 

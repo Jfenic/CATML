@@ -294,6 +294,79 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json(lb)
             return
 
+        elif path == "/api/models/export":
+            run_id = query_params.get("run_id", [""])[0]
+            if not run_id:
+                active_run = ws.get_active_run()
+                if active_run:
+                    run_id = active_run.id
+                else:
+                    runs = ws.list_runs()
+                    if runs:
+                        run_id = runs[0].id
+            if not run_id:
+                self._send_json({"error": "run_id parameter required or no runs available"}, HTTPStatus.BAD_REQUEST)
+                return
+
+            exp_id = query_params.get("experiment_id", [None])[0]
+            trial_id = query_params.get("trial_id", [None])[0]
+
+            try:
+                import io
+                import joblib
+
+                artifact = ws.export_model_artifact(run_id=run_id, experiment_id=exp_id, trial_id=trial_id)
+                buf = io.BytesIO()
+                joblib.dump(artifact, buf)
+                data = buf.getvalue()
+
+                filename = f"catml_{artifact.model_id}.pkl"
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            except Exception as e:
+                self._send_json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
+                return
+
+        elif path == "/api/models/export-info":
+            run_id = query_params.get("run_id", [""])[0]
+            if not run_id:
+                active_run = ws.get_active_run()
+                if active_run:
+                    run_id = active_run.id
+                else:
+                    runs = ws.list_runs()
+                    if runs:
+                        run_id = runs[0].id
+            if not run_id:
+                self._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            exp_id = query_params.get("experiment_id", [None])[0]
+            trial_id = query_params.get("trial_id", [None])[0]
+            try:
+                artifact = ws.export_model_artifact(run_id=run_id, experiment_id=exp_id, trial_id=trial_id)
+                self._send_json({
+                    "model_id": artifact.model_id,
+                    "task_type": artifact.task_type,
+                    "metric": artifact.metric,
+                    "score": artifact.score,
+                    "feature_names": artifact.feature_names,
+                    "target_name": artifact.target_name,
+                    "parameters": artifact.parameters,
+                    "download_url": f"/api/models/export?run_id={run_id}" + (f"&experiment_id={exp_id}" if exp_id else "") + (f"&trial_id={trial_id}" if trial_id else ""),
+                })
+                return
+            except Exception as e:
+                self._send_json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
+                return
+
         elif path == "/api/dataset/profile":
             dataset_id = query_params.get("dataset_id", [""])[0]
             if not dataset_id:

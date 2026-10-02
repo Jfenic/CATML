@@ -7,8 +7,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Spec: Complete Tech Minimalista Premium Brand System specification saved in `docs/design/tech-minimalist-brand-system.md` (Electric Blue `#4F67FF`, Graphite, 80/20 rule, Geist typography, light docs/dark product).
 - [x] ADR: Formalize architectural decision in `docs/decisions/006-tech-minimalist-premium-brand-system.md` (and mirrored in `catml-platform/docs/decisions/002-tech-minimalist-premium-brand-system.md`).
 - [x] Rule 8: Update UI & brand standards in `AGENTS.md` to enforce Tech Minimalista guidelines across all agents and developers.
-- [ ] Theme Tokens & Workbench CSS: Harmonize CSS tokens (`--catml-*`, colors, typography, borders, shadows) in `src/automl/interfaces/web/static/css/workbench.css` with the new design system.
-- [ ] Platform Sync: Mirror brand system specifications, tokens and roadmap milestones into `catml-platform`.
+- [x] Theme Tokens & Workbench CSS: Harmonize CSS tokens (`--catml-*`, colors, typography, borders, shadows) in `src/automl/interfaces/web/static/css/workbench.css` with the new design system.
+- [x] Platform Sync: Mirror brand system specifications, tokens and roadmap milestones into `catml-platform`.
+- [x] Standalone Artifact UI & Color Cleanup: Expose `/api/models/export` (.pkl download) and `/api/models/export-info` in `server.py`, integrate 1-click artifact download buttons in `overview.js` and `compare.js`, and eliminate legacy `#E5512D` colors across all views in favor of `#4F67FF` Electric Blue (437 tests passing, 87.23% coverage).
 
 ## Completed Phase: Sprint 2 (Productization P0 — CLI Fit, Quickstart & Product README)
 

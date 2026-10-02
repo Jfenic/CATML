@@ -1,16 +1,18 @@
 
 # Progress
  
-Active Track: **Sprint 3: Brand Identity & Tech Minimalista Design System**:
-- Rama: `feat/brand-system-tech-minimalist`.
+Active Track: **Sprint 3: Brand Identity, Tech Minimalista & UI Capabilities**:
+- Rama: `feat/ui-standalone-artifact-export`.
 - Entregables completados:
   - Especificación de diseño completa: `docs/design/tech-minimalist-brand-system.md` (identidad Tech Minimalista Premium, paleta `--catml-*`, Electric Blue `#4F67FF`, Geist / Geist Mono, regla 80/20, dualidad light docs / dark product).
   - Registro de decisión arquitectónica: `docs/decisions/006-tech-minimalist-premium-brand-system.md` (ADR 006).
   - Regla 8 actualizada en `AGENTS.md` para prescribir Tech Minimalista a todos los agentes y desarrolladores.
-  - Sincronización a repositorio privado `catml-platform`: especificación y ADR espejados.
-- Próximos pasos en el sprint:
-  - Armonización de tokens CSS en `src/automl/interfaces/web/static/css/workbench.css`.
-  - Validación de tests y merge a `main`.
+  - Sincronización a repositorio privado `catml-platform`: especificación y ADR espejados (ADR 002).
+  - Armonización de tokens CSS en `src/automl/interfaces/web/static/css/workbench.css` e `index.html`.
+  - Capacidad en Interfaz Web: Endpoints `/api/models/export` y `/api/models/export-info` para descarga de `ModelArtifact` (`.pkl`).
+  - Botones de exportación directa de modelos en `overview.js` y `compare.js`.
+  - Eliminación total de residuos `#E5512D` a favor del Electric Blue `#4F67FF` en `overview.js`, `compare.js`, `datasets.js` y `app.js`.
+  - Suite de tests ampliada (`test_web_dashboard_export_model_artifact`); 437 tests pasando con 87.23% de cobertura.
 
 Completed Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
 - Rama: `feat/productization-quickstart-and-readme` (Merged via PR #46).

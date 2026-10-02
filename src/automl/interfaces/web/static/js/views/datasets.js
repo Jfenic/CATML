@@ -269,22 +269,22 @@ export class DatasetsView {
         <!-- 4. Multi-Tab Exploration Equipment Module -->
         <div class="workbench-card overflow-hidden">
           <div class="border-b border-[#27272e] px-4 flex items-center space-x-6 text-xs font-mono font-medium bg-[#111111] overflow-x-auto">
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'schema' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="schema">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="schema">
               ▦ SCHEMA & SELECCIÓN
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'stats' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="stats">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="stats">
               📊 ESTADÍSTICAS DESCRIPTIVAS
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'preview' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="preview">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="preview">
               🔍 MUESTRA RAW
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'categories' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="categories">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="categories">
               🏷️ DISTRIBUCIÓN CATEGÓRICA
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="correlation">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="correlation">
               🔗 MATRIZ DE CORRELACIÓN
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'calculator' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="calculator">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="calculator">
               ⚡ CALCULADORA DE FEATURES
             </button>
           </div>
@@ -1084,19 +1084,19 @@ export class DatasetsView {
         <div class="p-4 rounded border border-[#27272e] bg-[#1a1a20] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="text-[#E5512D] text-base">⚡</span>
-              <h3 class="text-sm font-bold text-[#F1EFE9] font-mono uppercase tracking-wider">Calculadora de Características & Motor de Columnas Derivadas</h3>
+              <span class="text-[#4F67FF] text-base">⚡</span>
+              <h3 class="text-sm font-bold text-[#FFFFFF] font-mono uppercase tracking-wider">Calculadora de Características & Motor de Columnas Derivadas</h3>
             </div>
-            <p class="text-xs text-[#D8D6CF]/70 font-mono">
+            <p class="text-xs text-[#94A3B8]/70 font-mono">
               Genera nuevas features complejas mediante fórmulas o código Python sandboxed con aislamiento de división por cero y comprobación de tipos.
             </p>
           </div>
 
           <div class="flex items-center space-x-2">
-            <button id="btnCalcModeFormula" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'formula' ? 'bg-[#E5512D] text-white border-[#E5512D] font-bold' : 'bg-[#111111] text-[#D8D6CF]/70 border-[#27272e] hover:text-[#F1EFE9]'}">
+            <button id="btnCalcModeFormula" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'formula' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-bold' : 'bg-[#111111] text-[#94A3B8]/70 border-[#27272e] hover:text-[#FFFFFF]'}">
               🧮 MODO FÓRMULA
             </button>
-            <button id="btnCalcModePython" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'python_code' ? 'bg-[#E5512D] text-white border-[#E5512D] font-bold' : 'bg-[#111111] text-[#D8D6CF]/70 border-[#27272e] hover:text-[#F1EFE9]'}">
+            <button id="btnCalcModePython" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'python_code' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-bold' : 'bg-[#111111] text-[#94A3B8]/70 border-[#27272e] hover:text-[#FFFFFF]'}">
               🐍 CÓDIGO PYTHON
             </button>
             <button id="btnCalcSuggest" class="px-3 py-1.5 text-xs font-mono rounded border border-indigo-500/60 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/50 transition-colors font-semibold flex items-center space-x-1">
@@ -1110,38 +1110,38 @@ export class DatasetsView {
           <!-- Left Column: Name & Expression Editor -->
           <div class="lg:col-span-2 space-y-4">
             <div class="space-y-1.5">
-              <label class="text-xs font-mono text-[#D8D6CF] uppercase font-bold tracking-wider">Nombre de la Nueva Característica:</label>
-              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="ej: debt_to_income_ratio" class="w-full bg-[#111111] border border-[#27272e] text-[#F1EFE9] text-xs font-mono px-3 py-2 rounded focus:border-[#E5512D] outline-none">
+              <label class="text-xs font-mono text-[#94A3B8] uppercase font-bold tracking-wider">Nombre de la Nueva Característica:</label>
+              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="ej: debt_to_income_ratio" class="w-full bg-[#111111] border border-[#27272e] text-[#FFFFFF] text-xs font-mono px-3 py-2 rounded focus:border-[#4F67FF] outline-none">
             </div>
 
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <label class="text-xs font-mono text-[#D8D6CF] uppercase font-bold tracking-wider">
+                <label class="text-xs font-mono text-[#94A3B8] uppercase font-bold tracking-wider">
                   ${this.calcMode === 'formula' ? 'Expresión Matemática / Fórmula:' : 'Función Python Sandboxed (df):'}
                 </label>
-                <span class="text-[10px] text-[#D8D6CF]/60 font-mono">
+                <span class="text-[10px] text-[#94A3B8]/60 font-mono">
                   ${this.calcMode === 'formula' ? 'Auto-protección contra división por 0 activa' : 'Restringido a numpy y pandas'}
                 </span>
               </div>
-              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'ej: debt / (income + 1e-5)'}" class="w-full bg-[#111111] border border-[#27272e] text-[#F1EFE9] text-xs font-mono p-3 rounded focus:border-[#E5512D] outline-none">${this.calcExpression || ''}</textarea>
+              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'ej: debt / (income + 1e-5)'}" class="w-full bg-[#111111] border border-[#27272e] text-[#FFFFFF] text-xs font-mono p-3 rounded focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
             </div>
 
             <!-- Quick Operators Toolbar (Formula Mode) -->
             ${this.calcMode === 'formula' ? `
               <div class="space-y-2">
-                <span class="text-[11px] font-mono text-[#D8D6CF]/70 font-semibold uppercase">Operadores y Funciones Rápidas:</span>
+                <span class="text-[11px] font-mono text-[#94A3B8]/70 font-semibold uppercase">Operadores y Funciones Rápidas:</span>
                 <div class="flex flex-wrap gap-1.5 text-xs font-mono">
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" + ">+</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" - ">-</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" * ">*</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" / ">/</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" ** 2">**2</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="log1p()">log1p()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="sqrt()">sqrt()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="clip(col, 0, 100)">clip()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="zscore()">zscore()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="if_else(cond, x, y)">if_else()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="fillna(col, 0)">fillna()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" + ">+</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" - ">-</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" * ">*</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" / ">/</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" ** 2">**2</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="log1p()">log1p()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="sqrt()">sqrt()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="clip(col, 0, 100)">clip()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="zscore()">zscore()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="if_else(cond, x, y)">if_else()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="fillna(col, 0)">fillna()</button>
                 </div>
               </div>
             ` : ""}
@@ -1167,17 +1167,17 @@ export class DatasetsView {
               <div class="text-[10px] font-mono text-[#D8D6CF]/70 font-semibold uppercase">Numéricas:</div>
               <div class="flex flex-wrap gap-1.5">
                 ${numCols.map(c => `
-                  <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-indigo-300 font-mono text-xs hover:border-[#E5512D] hover:text-[#F1EFE9] transition-colors" data-col="${c.name}">
+                  <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-indigo-300 font-mono text-xs hover:border-[#4F67FF] hover:text-[#FFFFFF] transition-colors" data-col="${c.name}">
                     ${c.name}
                   </button>
                 `).join("")}
               </div>
 
               ${catCols.length > 0 ? `
-                <div class="text-[10px] font-mono text-[#D8D6CF]/70 font-semibold uppercase pt-2">Otras / Categóricas:</div>
+                <div class="text-[10px] font-mono text-[#94A3B8]/70 font-semibold uppercase pt-2">Otras / Categóricas:</div>
                 <div class="flex flex-wrap gap-1.5">
                   ${catCols.map(c => `
-                    <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-purple-300 font-mono text-xs hover:border-[#E5512D] hover:text-[#F1EFE9] transition-colors" data-col="${c.name}">
+                    <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-purple-300 font-mono text-xs hover:border-[#4F67FF] hover:text-[#FFFFFF] transition-colors" data-col="${c.name}">
                       ${c.name}
                     </button>
                   `).join("")}

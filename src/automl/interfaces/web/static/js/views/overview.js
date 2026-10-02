@@ -82,16 +82,20 @@ export class OverviewView {
 
           <!-- Industrial Progress Bar -->
           <div class="space-y-1.5 pt-2 border-t border-[#27272e]">
-            <div class="flex justify-between text-[11px] font-mono text-[#D8D6CF]/70">
+            <div class="flex justify-between text-[11px] font-mono text-[#94A3B8]/70">
               <span>EXPLORATION STATE</span>
               <span>${isRunning ? 'SEARCHING SPACE (72%)' : 'EXECUTION COMPLETED (100%)'}</span>
             </div>
             <div class="w-full bg-[#111111] h-2 border border-[#27272e] overflow-hidden">
-              <div class="${isRunning ? 'bg-[#E5512D] progress-striped w-2/3' : 'bg-[#63D49A] w-full'} h-full"></div>
+              <div class="${isRunning ? 'bg-[#4F67FF] progress-striped w-2/3' : 'bg-[#22C55E] w-full'} h-full"></div>
             </div>
           </div>
 
-          <div class="pt-2 flex justify-end">
+          <div class="pt-2 flex justify-between items-center">
+            <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs flex items-center space-x-1.5" title="Descargar artefacto de inferencia autónomo (sin dependencias de workspace)">
+              <span>⚡</span>
+              <span>EXPORT WINNING MODEL (.PKL)</span>
+            </a>
             <button id="btnOpenStudioFromRun" class="btn-technical text-xs flex items-center space-x-1.5">
               <span>OPEN EXPERIMENT STUDIO</span>
               <span>→</span>
@@ -102,9 +106,9 @@ export class OverviewView {
     } else {
       zone1Html = `
         <div class="border border-[#27272e] bg-[#16171c] p-8 text-center space-y-3">
-          <span class="text-3xl text-[#D8D6CF]/40 block font-mono">⚡</span>
-          <p class="text-sm font-mono font-medium text-[#F1EFE9]">NO ACTIVE EXPERIMENT IN WORKSPACE</p>
-          <p class="text-xs text-[#D8D6CF]/60 max-w-sm mx-auto">Create a new experiment or select a dataset to launch autonomous model search, feature selection and HPO.</p>
+          <span class="text-3xl text-[#94A3B8]/40 block font-mono">⚡</span>
+          <p class="text-sm font-mono font-medium text-[#FFFFFF]">NO ACTIVE EXPERIMENT IN WORKSPACE</p>
+          <p class="text-xs text-[#94A3B8]/60 max-w-sm mx-auto">Create a new experiment or select a dataset to launch autonomous model search, feature selection and HPO.</p>
           <button id="btnNewExpOverviewEmpty" class="btn-signal mt-2">
             + NEW EXPERIMENT
           </button>
@@ -116,19 +120,25 @@ export class OverviewView {
     const runsRows = runs.length > 0
       ? runs.map((r, idx) => `
           <tr class="cursor-pointer hover:bg-[#1c1d24] run-row-item ${idx === 0 ? 'champion-lead bg-[#1c1d24]/50' : ''}" data-run-id="${r.id}">
-            <td class="font-mono text-xs font-bold text-[#F1EFE9]">
-              ${idx === 0 ? '<span class="text-[#E5512D] mr-1">▌01</span>' : `<span class="text-[#D8D6CF]/40 mr-1">${String(idx + 1).padStart(2, '0')}</span>`}
+            <td class="font-mono text-xs font-bold text-[#FFFFFF]">
+              ${idx === 0 ? '<span class="text-[#4F67FF] mr-1">▌01</span>' : `<span class="text-[#94A3B8]/40 mr-1">${String(idx + 1).padStart(2, '0')}</span>`}
               ${r.dataset_name || r.id}
             </td>
-            <td><span class="text-xs text-[#D8D6CF]/70 font-mono capitalize">${(r.task_type || "Classification").replace("_", " ")}</span></td>
+            <td><span class="text-xs text-[#94A3B8]/70 font-mono capitalize">${(r.task_type || "Classification").replace("_", " ")}</span></td>
             <td><span class="badge-sys px-2 py-0.5 rounded-sm text-xs font-mono uppercase">${r.best_model || "—"}</span></td>
-            <td class="font-mono text-xs text-[#D8D6CF]/80">${r.metric || "CV"}</td>
-            <td class="font-mono font-bold text-[#63D49A] text-sm">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
+            <td class="font-mono text-xs text-[#94A3B8]/80">${r.metric || "CV"}</td>
+            <td class="font-mono font-bold text-[#22C55E] text-sm">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
+            <td class="text-right">
+              <a href="/api/models/export?run_id=${r.id}" onclick="event.stopPropagation()" class="px-2 py-1 text-[11px] font-mono font-bold text-[#4F67FF] hover:text-[#FFFFFF] bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/30 rounded transition-colors inline-flex items-center space-x-1" title="Descargar ModelArtifact autónomo (.pkl)">
+                <span>⬇</span>
+                <span>.PKL</span>
+              </a>
+            </td>
           </tr>
         `).join("")
       : `
           <tr>
-            <td colspan="5" class="text-center text-[#D8D6CF]/50 py-6 text-xs font-mono">NO EXPERIMENT RUNS RECORDED YET.</td>
+            <td colspan="6" class="text-center text-[#94A3B8]/50 py-6 text-xs font-mono">NO EXPERIMENT RUNS RECORDED YET.</td>
           </tr>
         `;
 
@@ -175,9 +185,9 @@ export class OverviewView {
         <!-- Hero Industrial Header -->
         <div class="border-b border-[#27272e] pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div class="text-[10px] font-mono text-[#E5512D] uppercase tracking-widest font-bold">AUTOML LAB / WORKSPACE</div>
-            <h1 class="text-2xl font-bold font-sans text-[#F1EFE9] tracking-tight mt-1">Build better models without losing control.</h1>
-            <p class="text-xs text-[#D8D6CF]/70 font-mono mt-0.5">Hypothesis-driven automated exploration • Full human-in-the-loop auditability</p>
+            <div class="text-[10px] font-mono text-[#4F67FF] uppercase tracking-widest font-bold">CATML WORKSPACE / AGENT-NATIVE AUTOML</div>
+            <h1 class="text-2xl font-bold font-sans text-[#FFFFFF] tracking-tight mt-1">Train better models. Keep control.</h1>
+            <p class="text-xs text-[#94A3B8]/70 font-mono mt-0.5">Local-first • Agent-native • Production-ready model artifacts</p>
           </div>
           <div>
             <button id="btnNewExpOverview" class="btn-signal">
@@ -223,8 +233,8 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#E5512D] font-mono font-bold text-xs">MOD / 01</span>
-                <span class="text-xs font-mono font-bold text-[#F1EFE9] uppercase tracking-wider">ACTIVE EXPERIMENT</span>
+                <span class="text-[#4F67FF] font-mono font-bold text-xs">MOD / 01</span>
+                <span class="text-xs font-mono font-bold text-[#FFFFFF] uppercase tracking-wider">ACTIVE EXPERIMENT</span>
               </div>
               <span class="badge-warn text-[10px] px-2 py-0.5 rounded-sm font-mono font-semibold">LIVE</span>
             </div>
@@ -237,10 +247,10 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#63D49A] font-mono font-bold text-xs">MOD / 02</span>
-                <span class="text-xs font-mono font-bold text-[#F1EFE9] uppercase tracking-wider">MODEL LEADERBOARD</span>
+                <span class="text-[#22C55E] font-mono font-bold text-xs">MOD / 02</span>
+                <span class="text-xs font-mono font-bold text-[#FFFFFF] uppercase tracking-wider">MODEL LEADERBOARD</span>
               </div>
-              <span class="text-[10px] font-mono text-[#D8D6CF]/60 uppercase">VERIFIED BY CV</span>
+              <span class="text-[10px] font-mono text-[#94A3B8]/60 uppercase">VERIFIED BY CV</span>
             </div>
             <div class="p-0 overflow-x-auto flex-1">
               <table class="w-full wb-table text-left">
@@ -251,6 +261,7 @@ export class OverviewView {
                     <th>BEST MODEL</th>
                     <th>METRIC</th>
                     <th>SCORE</th>
+                    <th class="text-right">EXPORT</th>
                   </tr>
                 </thead>
                 <tbody>
