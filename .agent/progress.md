@@ -24,6 +24,16 @@ Active Track: **Sprint 3: Brand Identity, Tech Minimalista & UI Capabilities**:
   - Botones de exportación directa de modelos en `overview.js` y `compare.js`.
   - Eliminación total de residuos `#E5512D` a favor del Electric Blue `#4F67FF` en `overview.js`, `compare.js`, `datasets.js` y `app.js`.
   - Suite de tests ampliada (`test_web_dashboard_export_model_artifact`); 437 tests pasando con 87.23% de cobertura.
+- Rama: `feat/workbench-tech-minimalist-refinement`.
+- Entregables completados:
+  - Jerarquía de 4 superficies oscuras: `--catml-surface-app` (`#080A0F`), `--catml-surface-sidebar` (`#0D1017`), `--catml-surface-panel` (`#11151E`), `--catml-surface-card` (`#161B26`), con borde neutro sutil `#242A36` y radios de 8px a 14px.
+  - Domesticación tipográfica: Geist/Inter para toda la UI, títulos y navegación; Geist Mono estrictamente reservado para IDs, métricas, código y rutas.
+  - Domesticación de color (80/20): Paleta unificada con CATML Electric Blue (`#4F67FF`), acentos semánticos discretos (Success `#22C55E`, Warning `#F59E0B`, Danger `#EF4444`) y eliminación de bordes saturados y competencia visual cromática.
+  - Navegación lateral monocromática con números `01`-`06` atenuados y resaltado exclusivo en el ítem activo (`.active`).
+  - Rediseño de Dataset Understanding: 8 KPI cards sobrias y planas, tarjetas de recomendaciones limpias con badges discretos, y CTA principal "Apply recommendations".
+  - Unificación a inglés técnico profesional en todas las vistas del Workbench y en los mensajes del profiler (`dataset_profiler.py`).
+  - Rediseño del Agent Drawer con badge `◇ Agent ● Ready`, tarjeta de contexto activo (`Active Context`), sugerencia de próxima acción estructurada (`Suggested Next Action` con botones `Review plan` y `Run`), e hipótesis claras.
+  - Validación completa: 461 tests pasando, 0 fallos, 87.53% de cobertura de código.
 
 Completed Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
 - Rama: `feat/productization-quickstart-and-readme` (Merged via PR #46).

@@ -70,15 +70,15 @@ export class PipelineView {
 
     this.container.innerHTML = `
       <div class="space-y-6">
-        <div class="workbench-card p-4 bg-slate-900/80 border-slate-800 flex items-center justify-between">
+        <div class="workbench-card p-4 flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <span class="text-indigo-400 font-bold text-lg">◇</span>
+            <span class="text-[#4F67FF] font-bold text-lg">◇</span>
             <div>
-              <h2 class="text-base font-bold text-slate-100">Visual Pipeline DAG — ${dsDisplayName}</h2>
-              <p class="text-xs text-slate-400">Grafo reproducible de ingestión, preprocesamiento, generación de features y ensamblado</p>
+              <h2 class="text-base font-semibold text-[#F7F8FA] font-sans">Visual Pipeline DAG — ${dsDisplayName}</h2>
+              <p class="text-xs text-[#8B95A7] font-sans">Reproducible DAG for data ingestion, preprocessing, feature generation, and ensemble orchestration.</p>
             </div>
           </div>
-          <span class="badge-gain text-xs px-3 py-1 rounded-full font-mono font-bold">DAG Validated</span>
+          <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">DAG Validated</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -151,16 +151,16 @@ export class StudioView {
           </div>
 
           <!-- Quick Action Launcher Bar -->
-          <div class="mt-3 pt-3 border-t border-[#27272e] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div class="mt-3 pt-3 border-t border-[#242A36] flex flex-wrap items-center justify-between gap-3 text-xs">
             <div class="flex items-center space-x-2">
-              <span class="text-[#D8D6CF]/60 font-semibold uppercase text-[10px]">LANZAMIENTO RÁPIDO:</span>
-              <button data-quick-model="lightgbm" class="btn-quick-run btn-technical text-xs">⚡ LightGBM</button>
-              <button data-quick-model="xgboost" class="btn-quick-run btn-technical text-xs">🔥 XGBoost</button>
-              <button data-quick-model="catboost" class="btn-quick-run btn-technical text-xs">🐱 CatBoost</button>
-              <button data-quick-model="voting_ensemble" class="btn-quick-run btn-technical text-xs border-[#9C7CFF]/50 text-[#9C7CFF]">🗳️ Ensemble</button>
+              <span class="text-[#8B95A7] font-medium font-sans uppercase text-[11px]">Quick run:</span>
+              <button data-quick-model="lightgbm" class="btn-quick-run btn-technical text-xs">LightGBM</button>
+              <button data-quick-model="xgboost" class="btn-quick-run btn-technical text-xs">XGBoost</button>
+              <button data-quick-model="catboost" class="btn-quick-run btn-technical text-xs">CatBoost</button>
+              <button data-quick-model="voting_ensemble" class="btn-quick-run btn-technical text-xs border-[#4F67FF]/30 text-[#4F67FF]">Ensemble</button>
             </div>
             <button id="btnNewExpFromHeader" class="btn-signal text-xs">
-              <span>＋ EXPERIMENTO GUIADO</span>
+              <span>+ Guided Experiment</span>
             </button>
           </div>
         </div>
@@ -171,10 +171,9 @@ export class StudioView {
           <div class="lg:col-span-5 workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-purple-400 font-bold">🧠</span>
-                <span class="text-sm font-semibold text-slate-200">AUTOML PLAN & DECISIONS</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">AutoML Plan & Decisions</span>
               </div>
-              <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono">Explicable</span>
+              <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-medium">Explainable</span>
             </div>
 
             <div class="p-4 space-y-3 flex-1 overflow-y-auto max-h-[480px]">

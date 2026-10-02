@@ -1,5 +1,5 @@
 /**
- * OverviewView — Neo-Industrial Mission Control & Visual ML Lab
+ * OverviewView — Mission Control & Visual ML Lab
  * Zone 1: Active Experiment Equipment Block
  * Zone 2: Best Results Leaderboard
  * Zone 3: Recent Datasets Inventory
@@ -48,56 +48,55 @@ export class OverviewView {
     let zone1Html = "";
     if (activeRun) {
       zone1Html = `
-        <div class="border border-[#27272e] bg-[#16171c] p-4 space-y-4">
-          <div class="flex items-start justify-between border-b border-[#27272e] pb-3">
+        <div class="space-y-4">
+          <div class="flex items-start justify-between border-b border-[#242A36] pb-3">
             <div>
-              <div class="text-[10px] font-mono text-[#D8D6CF]/60 uppercase tracking-widest">EXPERIMENT / ID: ${activeRun.id}</div>
-              <h3 class="text-base font-bold font-mono text-[#F1EFE9] uppercase tracking-wide mt-0.5">${activeRun.dataset_name || activeRun.id}</h3>
-              <p class="text-xs text-[#D8D6CF]/70 font-mono mt-0.5">TASK: ${(activeRun.task_type || "Classification").toUpperCase()} • METRIC: ${activeRun.metric || "CV"}</p>
+              <div class="text-[10px] font-mono text-[#8B95A7] uppercase tracking-wider">Experiment / ID: ${activeRun.id}</div>
+              <h3 class="text-base font-semibold font-sans text-[#F7F8FA] mt-0.5">${activeRun.dataset_name || activeRun.id}</h3>
+              <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Task: ${(activeRun.task_type || "Classification").replace("_", " ")} • Metric: ${activeRun.metric || "CV"}</p>
             </div>
-            <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-1 rounded-sm font-mono uppercase tracking-wider font-semibold flex items-center space-x-1.5">
-              ${isRunning ? '<svg class="animate-spin h-3 w-3 text-[#E7C84B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : ''}
-              <span>● ${activeRun.status || "READY"}</span>
+            <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1.5">
+              ${isRunning ? '<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : '<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>'}
+              <span>${activeRun.status || "READY"}</span>
             </span>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1 font-mono text-xs">
-            <div class="border-l-2 border-[#63D49A] pl-2">
-              <span class="text-[10px] text-[#D8D6CF]/60 uppercase block">BEST CV SCORE</span>
-              <span class="text-[#63D49A] font-bold text-sm">${activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—"}</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1 text-xs">
+            <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Best CV Score</span>
+              <span class="text-[#22C55E] font-mono font-bold text-sm mt-0.5 block">${activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—"}</span>
             </div>
-            <div class="border-l-2 border-[#9C7CFF] pl-2">
-              <span class="text-[10px] text-[#D8D6CF]/60 uppercase block">BEST MODEL</span>
-              <span class="text-[#F1EFE9] font-medium uppercase text-sm">${activeRun.best_model || "None"}</span>
+            <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Best Model</span>
+              <span class="text-[#F7F8FA] font-sans font-medium text-sm mt-0.5 block truncate">${activeRun.best_model || "None"}</span>
             </div>
-            <div class="border-l-2 border-[#5C78FF] pl-2">
-              <span class="text-[10px] text-[#D8D6CF]/60 uppercase block">STATUS</span>
-              <span class="text-[#5C78FF] font-medium text-sm">${activeRun.status || "READY"}</span>
+            <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Status</span>
+              <span class="text-[#4F67FF] font-mono font-medium text-sm mt-0.5 block">${activeRun.status || "READY"}</span>
             </div>
-            <div class="border-l-2 border-[#E7C84B] pl-2">
-              <span class="text-[10px] text-[#D8D6CF]/60 uppercase block">TRIALS TESTED</span>
-              <span class="text-[#F1EFE9] font-bold text-sm">${activeRun.trials_count != null ? activeRun.trials_count : 0}</span>
-            </div>
-          </div>
-
-          <!-- Industrial Progress Bar -->
-          <div class="space-y-1.5 pt-2 border-t border-[#27272e]">
-            <div class="flex justify-between text-[11px] font-mono text-[#94A3B8]/70">
-              <span>EXPLORATION STATE</span>
-              <span>${isRunning ? 'SEARCHING SPACE (72%)' : 'EXECUTION COMPLETED (100%)'}</span>
-            </div>
-            <div class="w-full bg-[#111111] h-2 border border-[#27272e] overflow-hidden">
-              <div class="${isRunning ? 'bg-[#4F67FF] progress-striped w-2/3' : 'bg-[#22C55E] w-full'} h-full"></div>
+            <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Trials Tested</span>
+              <span class="text-[#F7F8FA] font-mono font-bold text-sm mt-0.5 block">${activeRun.trials_count != null ? activeRun.trials_count : 0}</span>
             </div>
           </div>
 
-          <div class="pt-2 flex justify-between items-center">
-            <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs flex items-center space-x-1.5" title="Descargar artefacto de inferencia autónomo (sin dependencias de workspace)">
-              <span>⚡</span>
-              <span>EXPORT WINNING MODEL (.PKL)</span>
+          <!-- Progress Bar -->
+          <div class="space-y-1.5 pt-2 border-t border-[#242A36]">
+            <div class="flex justify-between text-[11px] font-sans text-[#8B95A7]">
+              <span>Exploration State</span>
+              <span class="font-mono">${isRunning ? 'Searching space (72%)' : 'Execution completed (100%)'}</span>
+            </div>
+            <div class="w-full bg-[#080A0F] h-1.5 rounded-full overflow-hidden border border-[#242A36]">
+              <div class="${isRunning ? 'bg-[#4F67FF] progress-striped w-2/3' : 'bg-[#22C55E] w-full'} h-full rounded-full"></div>
+            </div>
+          </div>
+
+          <div class="pt-2 flex flex-wrap justify-between items-center gap-3">
+            <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs" title="Download autonomous inference artifact (zero workspace dependencies)">
+              <span>Export winning model (.pkl)</span>
             </a>
-            <button id="btnOpenStudioFromRun" class="btn-technical text-xs flex items-center space-x-1.5">
-              <span>OPEN EXPERIMENT STUDIO</span>
+            <button id="btnOpenStudioFromRun" class="btn-technical text-xs">
+              <span>Open Experiment Studio</span>
               <span>→</span>
             </button>
           </div>
@@ -105,12 +104,12 @@ export class OverviewView {
       `;
     } else {
       zone1Html = `
-        <div class="border border-[#27272e] bg-[#16171c] p-8 text-center space-y-3">
-          <span class="text-3xl text-[#94A3B8]/40 block font-mono">⚡</span>
-          <p class="text-sm font-mono font-medium text-[#FFFFFF]">NO ACTIVE EXPERIMENT IN WORKSPACE</p>
-          <p class="text-xs text-[#94A3B8]/60 max-w-sm mx-auto">Create a new experiment or select a dataset to launch autonomous model search, feature selection and HPO.</p>
+        <div class="p-8 text-center space-y-3">
+          <span class="text-2xl text-[#8B95A7]/40 block">◇</span>
+          <p class="text-sm font-sans font-medium text-[#F7F8FA]">No active experiment in workspace</p>
+          <p class="text-xs text-[#8B95A7] max-w-sm mx-auto font-sans">Create a new experiment or select a dataset to launch autonomous model search, feature selection and HPO.</p>
           <button id="btnNewExpOverviewEmpty" class="btn-signal mt-2">
-            + NEW EXPERIMENT
+            + New Experiment
           </button>
         </div>
       `;
@@ -119,126 +118,127 @@ export class OverviewView {
     // Zone 2 markup (Best Results Leaderboard)
     const runsRows = runs.length > 0
       ? runs.map((r, idx) => `
-          <tr class="cursor-pointer hover:bg-[#1c1d24] run-row-item ${idx === 0 ? 'champion-lead bg-[#1c1d24]/50' : ''}" data-run-id="${r.id}">
-            <td class="font-mono text-xs font-bold text-[#FFFFFF]">
-              ${idx === 0 ? '<span class="text-[#4F67FF] mr-1">▌01</span>' : `<span class="text-[#94A3B8]/40 mr-1">${String(idx + 1).padStart(2, '0')}</span>`}
+          <tr class="cursor-pointer hover:bg-[#161B26]/60 run-row-item ${idx === 0 ? 'champion-lead bg-[#161B26]/30' : ''}" data-run-id="${r.id}">
+            <td class="font-mono text-xs font-semibold text-[#F7F8FA]">
+              ${idx === 0 ? '<span class="text-[#4F67FF] mr-1">▌01</span>' : `<span class="text-[#8B95A7]/60 mr-1">${String(idx + 1).padStart(2, '0')}</span>`}
               ${r.dataset_name || r.id}
             </td>
-            <td><span class="text-xs text-[#94A3B8]/70 font-mono capitalize">${(r.task_type || "Classification").replace("_", " ")}</span></td>
-            <td><span class="badge-sys px-2 py-0.5 rounded-sm text-xs font-mono uppercase">${r.best_model || "—"}</span></td>
-            <td class="font-mono text-xs text-[#94A3B8]/80">${r.metric || "CV"}</td>
+            <td><span class="text-xs text-[#8B95A7] font-sans capitalize">${(r.task_type || "Classification").replace("_", " ")}</span></td>
+            <td><span class="badge-sys px-2 py-0.5 rounded text-xs font-mono uppercase">${r.best_model || "—"}</span></td>
+            <td class="font-mono text-xs text-[#8B95A7]">${r.metric || "CV"}</td>
             <td class="font-mono font-bold text-[#22C55E] text-sm">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
             <td class="text-right">
-              <a href="/api/models/export?run_id=${r.id}" onclick="event.stopPropagation()" class="px-2 py-1 text-[11px] font-mono font-bold text-[#4F67FF] hover:text-[#FFFFFF] bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/30 rounded transition-colors inline-flex items-center space-x-1" title="Descargar ModelArtifact autónomo (.pkl)">
+              <a href="/api/models/export?run_id=${r.id}" onclick="event.stopPropagation()" class="px-2.5 py-1 text-[11px] font-mono font-semibold text-[#4F67FF] hover:text-white bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/25 rounded-md transition-all inline-flex items-center space-x-1" title="Download ModelArtifact (.pkl)">
                 <span>⬇</span>
-                <span>.PKL</span>
+                <span>.pkl</span>
               </a>
             </td>
           </tr>
         `).join("")
       : `
           <tr>
-            <td colspan="6" class="text-center text-[#94A3B8]/50 py-6 text-xs font-mono">NO EXPERIMENT RUNS RECORDED YET.</td>
+            <td colspan="6" class="text-center text-[#8B95A7]/60 py-6 text-xs font-sans">
+              No completed runs found in workspace.
+            </td>
           </tr>
         `;
 
     // Zone 3 markup (Recent Datasets)
-    const recentDatasets = overview.recent_datasets || [];
-    const datasetsHtml = recentDatasets.length > 0
-      ? recentDatasets.map(d => `
-          <div class="flex items-center justify-between p-3 bg-[#111111] border border-[#27272e] hover:border-[#D8D6CF]/40 cursor-pointer dataset-item-card transition-colors" data-dataset-id="${d.id}">
+    const datasets = overview.recent_datasets || [];
+    const datasetsHtml = datasets.length > 0
+      ? datasets.slice(0, 4).map(ds => `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-[#161B26] border border-[#242A36] cursor-pointer hover:border-[#4F67FF]/40 transition-colors dataset-item-card" data-dataset-id="${ds.id}">
             <div>
-              <div class="text-xs font-mono font-bold text-[#F1EFE9]">${d.name}</div>
-              <div class="text-[11px] font-mono text-[#D8D6CF]/60 mt-0.5">${d.rows ? Number(d.rows).toLocaleString() + ' ROWS • ' : ''}${d.features ? d.features + ' FEATURES • ' : ''}TARGET: ${d.target || d.target_column || "—"}</div>
+              <div class="font-mono font-semibold text-xs text-[#F7F8FA]">${ds.name}</div>
+              <div class="text-[11px] text-[#8B95A7] font-sans mt-0.5">${ds.task_type || "Classification"} • ${ds.rows != null ? Number(ds.rows).toLocaleString() : "—"} rows</div>
             </div>
-            <span class="badge-sys text-[10px] px-2 py-0.5 rounded-sm font-mono font-bold">PROFILED</span>
+            <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono">${ds.features != null ? `${ds.features} cols` : "Ready"}</span>
           </div>
         `).join("")
       : `
-          <div class="text-center text-[#D8D6CF]/50 py-8 text-xs font-mono space-y-2">
-            <p>NO DATASETS REGISTERED IN WORKSPACE.</p>
-            <button id="btnRegisterDSOverview" class="text-[#5C78FF] hover:underline font-semibold">REGISTER DATASET →</button>
+          <div class="text-center text-[#8B95A7]/60 py-6 text-xs font-sans">
+            No datasets registered yet.
+            <button id="btnRegisterDSOverview" class="text-[#4F67FF] hover:underline font-semibold ml-1">Register dataset →</button>
           </div>
         `;
 
-    // Zone 4 markup (CATML Activity & Planner Decisions)
+    // Zone 4 markup (Activity & Planner Decisions)
     const activityFeed = overview.activity_feed || [];
     const activityHtml = activityFeed.length > 0
       ? activityFeed.map(act => {
           const badgeClass = act.type === "ACCEPT" ? "badge-gain" : act.type === "REJECT" ? "badge-err" : act.type === "PLAN" ? "badge-intel" : "badge-sys";
           return `
-            <div class="flex items-start space-x-3 p-2.5 bg-[#111111] border border-[#27272e]">
-              <span class="${badgeClass} px-1.5 py-0.5 rounded-sm font-mono font-bold text-[10px]">${act.type || "INFO"}</span>
-              <div class="flex-1 font-mono text-xs">
-                <span class="text-[#F1EFE9] font-semibold">${act.title}:</span>
-                <span class="text-[#D8D6CF]/70 ml-1">${act.description}</span>
+            <div class="flex items-start space-x-3 p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <span class="${badgeClass} px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">${act.type || "INFO"}</span>
+              <div class="flex-1 font-sans text-xs">
+                <span class="text-[#F7F8FA] font-medium">${act.title}:</span>
+                <span class="text-[#8B95A7] ml-1">${act.description}</span>
               </div>
             </div>
           `;
         }).join("")
       : `
-          <div class="text-center text-[#D8D6CF]/50 py-6 text-xs font-mono">NO PLANNER AUDIT ENTRIES RECORDED.</div>
+          <div class="text-center text-[#8B95A7]/60 py-6 text-xs font-sans">No planner audit entries recorded.</div>
         `;
 
     this.container.innerHTML = `
       <div class="space-y-6">
-        <!-- Hero Industrial Header -->
-        <div class="border-b border-[#27272e] pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <!-- Hero Header -->
+        <div class="border-b border-[#242A36] pb-5 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div class="text-[10px] font-mono text-[#4F67FF] uppercase tracking-widest font-bold">CATML WORKSPACE / AGENT-NATIVE AUTOML</div>
-            <h1 class="text-2xl font-bold font-sans text-[#FFFFFF] tracking-tight mt-1">Train better models. Keep control.</h1>
-            <p class="text-xs text-[#94A3B8]/70 font-mono mt-0.5">Local-first • Agent-native • Production-ready model artifacts</p>
+            <div class="text-[11px] font-mono text-[#4F67FF] uppercase tracking-wider font-semibold">Workspace • Agent-Native AutoML</div>
+            <h1 class="text-2xl font-bold font-sans text-[#F7F8FA] tracking-tight mt-1">Train better models. Keep control.</h1>
+            <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Local-first • Agent-native • Production-ready model artifacts</p>
           </div>
           <div>
             <button id="btnNewExpOverview" class="btn-signal">
               <span>+</span>
-              <span>NEW EXPERIMENT</span>
+              <span>New Experiment</span>
             </button>
           </div>
         </div>
 
-        <!-- Top KPI row: Large Numbers in Monospace -->
+        <!-- Top KPI row -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div class="metric-block">
-            <div class="metric-lbl">BEST VALIDATED SCORE</div>
-            <div class="metric-val text-[#63D49A] mt-1">${bestScoreText}</div>
-            <div class="text-[11px] font-mono text-[#D8D6CF]/60 mt-1 uppercase">MODEL: <span class="text-[#F1EFE9] font-medium">${bestModelText}</span></div>
+            <div class="metric-lbl">Best Validated Score</div>
+            <div class="metric-val text-[#22C55E] mt-1">${bestScoreText}</div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1">Model: <span class="text-[#F7F8FA] font-medium font-mono">${bestModelText}</span></div>
           </div>
 
           <div class="metric-block">
-            <div class="metric-lbl">ACTIVE EXPERIMENT</div>
-            <div class="metric-val text-[#F1EFE9] mt-1 flex items-center space-x-2">
-              <span class="inline-block w-2.5 h-2.5 rounded-sm ${isRunning ? 'bg-[#E7C84B] animate-pulse' : (activeRun ? 'bg-[#63D49A]' : 'bg-[#27272e]')}"></span>
+            <div class="metric-lbl">Active Experiment</div>
+            <div class="metric-val text-[#F7F8FA] mt-1 flex items-center space-x-2">
+              <span class="inline-block w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-[#F59E0B] animate-pulse' : (activeRun ? 'bg-[#22C55E]' : 'bg-[#242A36]')}"></span>
               <span class="text-xl">${activeRun ? activeRun.status : "IDLE"}</span>
             </div>
-            <div class="text-[11px] font-mono text-[#D8D6CF]/60 mt-1 truncate uppercase">${activeRun ? `${activeRun.dataset_name || activeRun.id}` : "NO ACTIVE RUN"}</div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1 truncate">${activeRun ? `${activeRun.dataset_name || activeRun.id}` : "No active run"}</div>
           </div>
 
           <div class="metric-block">
-            <div class="metric-lbl">MODELS TESTED</div>
-            <div class="metric-val text-[#5C78FF] mt-1">${trialsCount}</div>
-            <div class="text-[11px] font-mono text-[#D8D6CF]/60 mt-1 uppercase">${runs.length} RUNS RECORDED</div>
+            <div class="metric-lbl">Models Tested</div>
+            <div class="metric-val text-[#4F67FF] mt-1">${trialsCount}</div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1">${runs.length} runs recorded</div>
           </div>
 
           <div class="metric-block">
-            <div class="metric-lbl">COMPUTE HARDWARE</div>
-            <div class="metric-val text-[#F1EFE9] mt-1 text-xl">${isRunning ? 'RUNNING' : 'ONLINE'}</div>
-            <div class="text-[11px] font-mono text-[#D8D6CF]/60 mt-1 uppercase">STRATIFIED CV • 4 WORKERS</div>
+            <div class="metric-lbl">Compute Engine</div>
+            <div class="metric-val text-[#F7F8FA] mt-1 text-xl">${isRunning ? 'RUNNING' : 'ONLINE'}</div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1">Stratified CV • Local Folds</div>
           </div>
         </div>
 
         <!-- 4 Equipment Modules Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Zone 1: Active Runs Equipment Module -->
+          <!-- Zone 1: Active Runs Module -->
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#4F67FF] font-mono font-bold text-xs">MOD / 01</span>
-                <span class="text-xs font-mono font-bold text-[#FFFFFF] uppercase tracking-wider">ACTIVE EXPERIMENT</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Active Experiment</span>
               </div>
-              <span class="badge-warn text-[10px] px-2 py-0.5 rounded-sm font-mono font-semibold">LIVE</span>
+              <span class="badge-warn text-[10px] px-2 py-0.5 rounded font-mono font-medium">Live</span>
             </div>
-            <div class="p-4 space-y-4 flex-1">
+            <div class="p-5 space-y-4 flex-1">
               ${zone1Html}
             </div>
           </div>
@@ -247,21 +247,20 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#22C55E] font-mono font-bold text-xs">MOD / 02</span>
-                <span class="text-xs font-mono font-bold text-[#FFFFFF] uppercase tracking-wider">MODEL LEADERBOARD</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Model Leaderboard</span>
               </div>
-              <span class="text-[10px] font-mono text-[#94A3B8]/60 uppercase">VERIFIED BY CV</span>
+              <span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-medium">Verified by CV</span>
             </div>
             <div class="p-0 overflow-x-auto flex-1">
               <table class="w-full wb-table text-left">
                 <thead>
                   <tr>
-                    <th>DATASET / ID</th>
-                    <th>TASK</th>
-                    <th>BEST MODEL</th>
-                    <th>METRIC</th>
-                    <th>SCORE</th>
-                    <th class="text-right">EXPORT</th>
+                    <th>Dataset / ID</th>
+                    <th>Task</th>
+                    <th>Best Model</th>
+                    <th>Metric</th>
+                    <th>Score</th>
+                    <th class="text-right">Export</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -275,26 +274,24 @@ export class OverviewView {
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#5C78FF] font-mono font-bold text-xs">MOD / 03</span>
-                <span class="text-xs font-mono font-bold text-[#F1EFE9] uppercase tracking-wider">DATASETS REPOSITORY</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Datasets Inventory</span>
               </div>
-              <button id="btnViewAllDatasets" class="text-xs font-mono text-[#5C78FF] hover:underline uppercase">VIEW ALL →</button>
+              <button id="btnViewAllDatasets" class="text-xs font-sans text-[#4F67FF] hover:underline font-medium">View all →</button>
             </div>
-            <div class="p-4 space-y-2 flex-1">
+            <div class="p-5 space-y-2.5 flex-1">
               ${datasetsHtml}
             </div>
           </div>
 
-          <!-- Zone 4: CATML Activity & Decisions -->
+          <!-- Zone 4: Activity & Decisions -->
           <div class="workbench-card flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-[#9C7CFF] font-mono font-bold text-xs">MOD / 04</span>
-                <span class="text-xs font-mono font-bold text-[#F1EFE9] uppercase tracking-wider">AUDIT & PLANNER DECISIONS</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Audit & Planner Decisions</span>
               </div>
-              <span class="badge-intel text-[10px] px-2 py-0.5 rounded-sm font-mono font-bold">HYPOTHESIS</span>
+              <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-medium">Hypothesis</span>
             </div>
-            <div class="p-4 space-y-2 flex-1 text-xs">
+            <div class="p-5 space-y-2.5 flex-1 text-xs">
               ${activityHtml}
             </div>
           </div>

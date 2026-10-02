@@ -237,48 +237,48 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     "type": "exclude",
                     "badge": "Identifier",
                     "severity": "danger",
-                    "title": f"Excluir identificador '{name}'",
-                    "description": f"Tiene alta cardinalidad ({unique_count} valores únicos / {card_ratio:.1%}). Debe excluirse para prevenir memorización.",
+                    "title": f"Exclude identifier '{name}'",
+                    "description": f"High cardinality ({unique_count} unique values · {card_ratio:.1%}). Exclude to prevent memorization.",
                     "action": "exclude",
                 })
             elif unique_count <= 1 and row_count > 10:
                 recommendations.append({
                     "column": name,
                     "type": "exclude",
-                    "badge": "Varianza Cero",
+                    "badge": "Zero Variance",
                     "severity": "danger",
-                    "title": f"Excluir columna constante '{name}'",
-                    "description": "Todos los valores son idénticos o nulos; no aporta varianza predictiva.",
+                    "title": f"Exclude constant feature '{name}'",
+                    "description": "Constant or null values across all rows. No predictive variance.",
                     "action": "exclude",
                 })
             elif null_count > 0 and (null_count / row_count) > 0.50:
                 recommendations.append({
                     "column": name,
                     "type": "warn",
-                    "badge": "Muchos Nulos",
+                    "badge": "High Nulls",
                     "severity": "warning",
-                    "title": f"Alta tasa de nulos en '{name}' ({null_count / row_count:.1%})",
-                    "description": f"Contiene {null_count} valores ausentes. Se recomienda imputación o descartar.",
+                    "title": f"High missing rate in '{name}' ({null_count / row_count:.1%})",
+                    "description": f"Contains {null_count} missing entries. Imputation or exclusion recommended.",
                     "action": "impute",
                 })
             elif target_corr is not None and abs(target_corr) >= 0.25:
                 recommendations.append({
                     "column": name,
                     "type": "recommend",
-                    "badge": "Señal Fuerte",
+                    "badge": "Strong Signal",
                     "severity": "success",
-                    "title": f"Fuerte correlación con target en '{name}' (r = {target_corr:+.3f})",
-                    "description": "Característica candidata prioritaria para modelos lineales y árboles.",
+                    "title": f"Strong target correlation in '{name}' (r = {target_corr:+.3f})",
+                    "description": "High linear dependency with target. Prime candidate feature.",
                     "action": "keep",
                 })
             elif is_high_card:
                 recommendations.append({
                     "column": name,
                     "type": "transform",
-                    "badge": "Alta Cardinalidad",
+                    "badge": "High Cardinality",
                     "severity": "info",
-                    "title": f"Alta cardinalidad categórica en '{name}' ({unique_count} categorías)",
-                    "description": "Se recomienda Target Encoding o Frequency Encoding para evitar explosión de One-Hot.",
+                    "title": f"High categorical cardinality in '{name}' ({unique_count} categories)",
+                    "description": "Target or frequency encoding recommended to prevent high-dimensional sparsity.",
                     "action": "keep",
                 })
 
@@ -338,10 +338,10 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                             recommendations.append({
                                 "column": c2,
                                 "type": "collinear",
-                                "badge": "Colinealidad",
+                                "badge": "Collinearity",
                                 "severity": "warning",
-                                "title": f"Colinealidad entre '{c1}' y '{c2}' (r = {val:+.2f})",
-                                "description": f"Alta redundancia detectada. CATML recomienda evaluar descartar '{c2}'.",
+                                "title": f"Collinearity between '{c1}' and '{c2}' (r = {val:+.2f})",
+                                "description": f"High feature redundancy detected. Consider pruning '{c2}' to reduce variance.",
                                 "action": "warn",
                             })
         except Exception:

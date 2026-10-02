@@ -106,34 +106,34 @@ export class DatasetsView {
     this.container.innerHTML = `
       <div class="space-y-6">
         <!-- Architecture Concept Banner & Dataset Switcher -->
-        <div class="workbench-card p-4 bg-indigo-950/20 border-indigo-900/60">
+        <div class="workbench-card p-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-center space-x-3 text-xs">
-              <span class="text-slate-400 font-semibold uppercase">Flujo Conceptual:</span>
-              <span class="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 font-mono">1. Raw Dataset</span>
-              <span class="text-indigo-400 font-bold">➔</span>
-              <span class="px-2 py-1 rounded bg-purple-950/50 border border-purple-800 text-purple-300 font-mono font-bold">2. CATML Understanding</span>
-              <span class="text-indigo-400 font-bold">➔</span>
-              <span class="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 font-mono">3. Feature Selection & Plan</span>
+            <div class="flex flex-wrap items-center space-x-2 text-xs">
+              <span class="text-[#8B95A7] font-medium font-sans uppercase text-[11px] tracking-wide">Flow:</span>
+              <span class="px-2.5 py-1 rounded-md bg-[#161B26] border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">1. Raw Dataset</span>
+              <span class="text-[#4F67FF] font-bold">→</span>
+              <span class="px-2.5 py-1 rounded-md bg-[#4F67FF]/10 border border-[#4F67FF]/25 text-[#4F67FF] font-mono text-[11px] font-semibold">2. Understanding</span>
+              <span class="text-[#4F67FF] font-bold">→</span>
+              <span class="px-2.5 py-1 rounded-md bg-[#161B26] border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">3. Feature Plan</span>
             </div>
 
             <div class="flex items-center space-x-3">
               ${this.datasets.length > 1 ? `
-                <select id="datasetSelect" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:border-indigo-500 font-mono">
+                <select id="datasetSelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] font-mono outline-none">
                   ${this.datasets.map(d => `
                     <option value="${d.id}" ${d.id === this.activeDatasetId ? "selected" : ""}>${d.name}</option>
                   `).join("")}
                 </select>
               ` : `
-                <span class="font-mono text-xs text-indigo-300 font-semibold bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">${datasetName}</span>
+                <span class="font-mono text-xs text-[#F7F8FA] font-medium bg-[#161B26] px-3 py-1 rounded-lg border border-[#242A36]">${datasetName}</span>
               `}
 
-              <button id="btnToggleRegisterForm" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition-colors">
+              <button id="btnToggleRegisterForm" class="btn-technical text-xs">
                 + Register New
               </button>
 
-              <button id="btnNewExperimentFromDS" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-colors shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5">
-                <span>⚡ Create Experiment</span>
+              <button id="btnNewExperimentFromDS" class="btn-signal text-xs">
+                <span>Create Experiment</span>
               </button>
             </div>
           </div>
@@ -142,85 +142,92 @@ export class DatasetsView {
         ${this.showRegisterForm ? this._getRegisterFormHtml() : ""}
 
         <!-- Diagnostic Metrics Grid -->
-        <div class="workbench-card p-6 space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div class="flex items-center space-x-3">
-              <span class="text-purple-400 text-xl font-bold">🟣</span>
-              <div>
-                <h3 class="text-base font-bold text-slate-100 uppercase tracking-wide">CATML Interpretation — ${datasetName}</h3>
-                <p class="text-xs text-slate-400">Diagnóstico estadístico, roles de columnas y selección guiada por evidencias</p>
+        <div class="workbench-card p-6 space-y-5">
+          <div class="flex items-center justify-between border-b border-[#242A36] pb-4">
+            <div>
+              <div class="flex items-center space-x-2.5">
+                <h3 class="text-base font-semibold text-[#F7F8FA] font-sans">Dataset understanding</h3>
+                <span class="font-mono text-xs text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded-md border border-[#242A36]">${datasetName}</span>
               </div>
+              <p class="text-xs text-[#8B95A7] mt-0.5 font-sans">Statistical profile, feature roles, and evidence-based recommendations.</p>
             </div>
-            <span class="badge-gain text-xs px-3 py-1 rounded-full font-mono font-bold">Profiled</span>
+            <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Profiled</span>
           </div>
 
-          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Task</div>
-              <div class="text-xs font-bold text-slate-100 mt-1 truncate capitalize">${(p.task_type || "Classification").replace("_", " ")}</div>
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-left">
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Task</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] mt-1 truncate capitalize">${(p.task_type || "Classification").replace("_", " ")}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Target</div>
-              <div class="text-xs font-bold text-indigo-400 font-mono mt-1 truncate">${p.target_column || "—"}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Target</div>
+              <div class="text-sm font-semibold text-[#4F67FF] font-mono mt-1 truncate">${p.target_column || "—"}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Metric</div>
-              <div class="text-xs font-bold text-emerald-400 font-mono mt-1">${(p.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC"}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Metric</div>
+              <div class="text-sm font-semibold text-[#22C55E] font-mono mt-1">${(p.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC"}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Rows</div>
-              <div class="text-xs font-bold text-slate-100 font-mono-num mt-1">${p.row_count != null ? Number(p.row_count).toLocaleString() : "—"}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Rows</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${p.row_count != null ? Number(p.row_count).toLocaleString() : "—"}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Features</div>
-              <div class="text-xs font-bold text-slate-100 font-mono-num mt-1">${featureCols.length}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Features</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${featureCols.length}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Numerical</div>
-              <div class="text-xs font-bold text-slate-200 font-mono-num mt-1">${numCols}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Numerical</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${numCols}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Categorical</div>
-              <div class="text-xs font-bold text-slate-200 font-mono-num mt-1">${catCols}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Categorical</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${catCols}</div>
             </div>
 
-            <div class="p-3 rounded-lg bg-rose-950/20 border border-rose-800/40">
-              <div class="text-[10px] uppercase text-rose-300 font-semibold tracking-wider">Excluded</div>
-              <div class="text-xs font-bold text-rose-400 font-mono-num mt-1">${excludedCount}</div>
+            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Excluded</div>
+              <div class="text-sm font-semibold text-[#EF4444] font-mono mt-1">${excludedCount}</div>
             </div>
           </div>
         </div>
 
-        <!-- 2. CATML Smart Recommendations Panel -->
+        <!-- 2. Smart Recommendations Panel -->
         ${recommendations.length > 0 ? `
-          <div class="workbench-card p-5 space-y-3 border-indigo-900/40 bg-gradient-to-r from-slate-900/80 to-indigo-950/30">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-              <div class="flex items-center space-x-2">
-                <span class="text-amber-400">💡</span>
-                <span class="text-sm font-bold text-slate-200 uppercase tracking-wide">Recomendaciones del Motor Estadístico</span>
-                <span class="text-xs font-mono text-indigo-300 bg-slate-800 px-2 py-0.5 rounded">${recommendations.length} detectadas</span>
+          <div class="workbench-card p-5 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#242A36] pb-3">
+              <div class="flex items-center space-x-2.5">
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Statistical recommendations</span>
+                <span class="text-xs font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded-md border border-[#242A36]">${recommendations.length} detected</span>
               </div>
-              <button id="btnApplyRecommendations" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/50 text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1.5">
-                <span>⚡ Aplicar Recomendaciones Automáticas</span>
+              <button id="btnApplyRecommendations" class="btn-signal text-xs">
+                <span>Apply recommendations</span>
               </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-              ${recommendations.slice(0, 6).map(r => `
-                <div class="p-3 rounded-lg bg-slate-900/90 border ${r.severity === 'danger' ? 'border-rose-800/60 text-rose-300' : r.severity === 'warning' ? 'border-amber-800/60 text-amber-300' : r.severity === 'success' ? 'border-emerald-800/60 text-emerald-300' : 'border-indigo-800/60 text-indigo-300'} space-y-1 text-xs">
-                  <div class="flex items-center justify-between">
-                    <span class="font-bold text-slate-200">${r.title}</span>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded font-mono uppercase font-bold ${r.severity === 'danger' ? 'bg-rose-950 text-rose-400' : r.severity === 'warning' ? 'bg-amber-950 text-amber-400' : r.severity === 'success' ? 'bg-emerald-950 text-emerald-400' : 'bg-indigo-950 text-indigo-400'}">${r.badge}</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+              ${recommendations.slice(0, 6).map(r => {
+                const isDanger = r.severity === 'danger' || r.type === 'exclude';
+                const isSuccess = r.severity === 'success' || r.type === 'recommend';
+                const isWarning = r.severity === 'warning' || r.type === 'warn';
+                const badgeClass = isDanger ? 'badge-err' : isSuccess ? 'badge-gain' : isWarning ? 'badge-warn' : 'badge-intel';
+                const badgeText = isDanger ? '⚠ Identifier' : isSuccess ? '✦ Strong Signal' : isWarning ? '⚑ Attention' : '⚙ Encoding';
+                return `
+                  <div class="p-4 rounded-xl bg-[#161B26] border border-[#242A36] space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${r.badge || badgeText}</span>
+                      ${r.column ? `<code class="text-[11px] font-mono text-[#8B95A7]">${r.column}</code>` : ""}
+                    </div>
+                    <h4 class="font-sans font-semibold text-xs text-[#F7F8FA]">${r.title}</h4>
+                    <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">${r.description}</p>
                   </div>
-                  <p class="text-[11px] text-slate-400">${r.description}</p>
-                </div>
-              `).join("")}
+                `;
+              }).join("")}
             </div>
           </div>
         ` : ""}
@@ -230,62 +237,62 @@ export class DatasetsView {
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <!-- Search & Type Filter Pills -->
             <div class="flex flex-wrap items-center gap-2">
-              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filtrar características por nombre..." class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:border-indigo-500 w-52 font-mono">
+              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filter features by name..." class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-56 font-mono outline-none">
 
-              <div class="flex items-center space-x-1 text-xs">
-                <button data-filter="all" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors ${this.filterType === 'all' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Todas (${featureCols.length})</button>
-                <button data-filter="numeric" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors ${this.filterType === 'numeric' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Numéricas (${numCols})</button>
-                <button data-filter="categorical" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors ${this.filterType === 'categorical' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Categóricas (${catCols})</button>
-                <button data-filter="selected" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors ${this.filterType === 'selected' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Seleccionadas (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
+              <div class="flex items-center space-x-1.5 text-xs">
+                <button data-filter="all" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'all' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">All (${featureCols.length})</button>
+                <button data-filter="numeric" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'numeric' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">Numeric (${numCols})</button>
+                <button data-filter="categorical" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'categorical' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">Categorical (${catCols})</button>
+                <button data-filter="selected" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'selected' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">Selected (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
               </div>
             </div>
 
             <!-- Batch Selection Controls -->
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[11px] text-slate-400 uppercase font-semibold">Selección:</span>
-              <button id="btnSelectAll" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">✓ Todas</button>
-              <button id="btnDeselectAll" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">✕ Ninguna</button>
-              <button id="btnSelectTop5" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">🎯 Top 5 Señal</button>
-              <button id="btnSelectTop10" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">🎯 Top 10 Señal</button>
-              <button id="btnOpenCalculator" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/50 text-xs px-2.5 py-1 rounded transition-colors font-semibold flex items-center space-x-1"><span>⚡ Calculadora de Features</span></button>
+              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium">Selection:</span>
+              <button id="btnSelectAll" class="btn-technical text-xs py-1 px-2.5">All</button>
+              <button id="btnDeselectAll" class="btn-technical text-xs py-1 px-2.5">None</button>
+              <button id="btnSelectTop5" class="btn-technical text-xs py-1 px-2.5">Top 5 Signal</button>
+              <button id="btnSelectTop10" class="btn-technical text-xs py-1 px-2.5">Top 10 Signal</button>
+              <button id="btnOpenCalculator" class="btn-technical text-xs py-1 px-2.5 border-[#4F67FF]/30 text-[#4F67FF]">Feature Calculator</button>
             </div>
           </div>
 
           <!-- Bottom Status Counter & Launch CTA -->
-          <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="flex items-center space-x-2 text-xs">
-              <span class="text-slate-400">Estado de selección:</span>
-              <span id="selectionLiveCount" class="font-mono font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/80 px-2.5 py-1 rounded">
-                ${this.selectedFeatures.size} de ${featureCols.length} características seleccionadas (${featureCols.length - this.selectedFeatures.size} excluidas)
+          <div class="pt-3 border-t border-[#242A36] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center space-x-2 text-xs font-sans">
+              <span class="text-[#8B95A7]">Selection status:</span>
+              <span id="selectionLiveCount" class="font-mono font-medium text-[#F7F8FA] bg-[#161B26] border border-[#242A36] px-2.5 py-1 rounded-md">
+                ${this.selectedFeatures.size} of ${featureCols.length} features selected (${featureCols.length - this.selectedFeatures.size} excluded)
               </span>
             </div>
 
             <button id="btnLaunchWithSelection" class="btn-signal">
-              <span>▶ LANZAR EXPERIMENTO (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
+              <span>Launch Experiment (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
             </button>
           </div>
         </div>
 
         <!-- 4. Multi-Tab Exploration Equipment Module -->
         <div class="workbench-card overflow-hidden">
-          <div class="border-b border-[#27272e] px-4 flex items-center space-x-6 text-xs font-mono font-medium bg-[#111111] overflow-x-auto">
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="schema">
-              ▦ SCHEMA & SELECCIÓN
+          <div class="border-b border-[#242A36] px-4 flex items-center space-x-6 text-xs font-sans font-medium bg-[#0D1017] overflow-x-auto">
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="schema">
+              Schema & Selection
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="stats">
-              📊 ESTADÍSTICAS DESCRIPTIVAS
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="stats">
+              Descriptive Statistics
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="preview">
-              🔍 MUESTRA RAW
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="preview">
+              Raw Sample
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="categories">
-              🏷️ DISTRIBUCIÓN CATEGÓRICA
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="categories">
+              Categorical Distributions
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="correlation">
-              🔗 MATRIZ DE CORRELACIÓN
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="correlation">
+              Correlation Matrix
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#FFFFFF] font-bold' : 'border-transparent text-[#94A3B8]/70 hover:text-[#FFFFFF]'}" data-tab="calculator">
-              ⚡ CALCULADORA DE FEATURES
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="calculator">
+              Feature Calculator
             </button>
           </div>
 
@@ -348,16 +355,16 @@ export class DatasetsView {
           <thead>
             <tr>
               <th class="w-10 text-center">
-                <input type="checkbox" id="checkSelectAllRows" class="rounded text-indigo-600 bg-slate-800" ${this.selectedFeatures.size > 0 ? "checked" : ""}>
+                <input type="checkbox" id="checkSelectAllRows" class="rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36]" ${this.selectedFeatures.size > 0 ? "checked" : ""}>
               </th>
               <th>Feature</th>
-              <th>Tipo</th>
+              <th>Type</th>
               <th>Missing %</th>
-              <th>Valores Únicos</th>
-              <th>Correlación (r)</th>
-              <th>Acción CATML</th>
-              <th>Justificación del Motor</th>
-              <th class="text-center">Gráficos</th>
+              <th>Unique Values</th>
+              <th>Target Correlation (r)</th>
+              <th>Engine Action</th>
+              <th>Rationale</th>
+              <th class="text-center">Visuals</th>
             </tr>
           </thead>
           <tbody>
@@ -367,49 +374,49 @@ export class DatasetsView {
               const corr = c.target_correlation;
 
               return `
-                <tr class="${isChecked ? 'bg-indigo-950/10' : 'opacity-75'}">
+                <tr class="${isChecked ? 'bg-[#161B26]/40' : 'opacity-70'}">
                   <td class="text-center">
-                    ${isTarget ? `<span class="text-slate-500 font-mono text-xs">🎯</span>` : `
-                      <input type="checkbox" data-col="${c.name}" class="col-toggle-checkbox rounded text-indigo-600 bg-slate-800 cursor-pointer" ${isChecked ? "checked" : ""}>
+                    ${isTarget ? `<span class="text-[#8B95A7] font-mono text-xs">🎯</span>` : `
+                      <input type="checkbox" data-col="${c.name}" class="col-toggle-checkbox rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36] cursor-pointer" ${isChecked ? "checked" : ""}>
                     `}
                   </td>
-                  <td class="font-mono font-medium text-slate-100 flex items-center space-x-2">
+                  <td class="font-mono font-medium text-[#F7F8FA] flex items-center space-x-2">
                     <span>${c.name}</span>
-                    ${isTarget ? `<span class="badge-sys text-[9px] px-1.5 py-0.2 rounded font-bold">TARGET</span>` : ""}
+                    ${isTarget ? `<span class="badge-sys text-[9px] px-1.5 py-0.2 rounded font-mono font-medium">TARGET</span>` : ""}
                   </td>
                   <td>
-                    <span class="text-xs ${c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'text-indigo-300' : 'text-purple-300'} font-mono">
+                    <span class="text-xs ${c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'text-[#4F67FF]' : 'text-[#6956E8]'} font-mono">
                       ${c.is_identifier ? 'Identifier' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numerical' : 'Categorical')}
                     </span>
                   </td>
-                  <td class="font-mono text-xs ${c.null_count > 0 ? 'text-amber-400 font-bold' : 'text-slate-400'}">
+                  <td class="font-mono text-xs ${c.null_count > 0 ? 'text-[#F59E0B] font-semibold' : 'text-[#8B95A7]'}">
                     ${p.row_count ? ((c.null_count / p.row_count) * 100).toFixed(1) + '%' : '0.0%'}
                   </td>
-                  <td class="font-mono text-xs text-slate-300">
+                  <td class="font-mono text-xs text-[#F7F8FA]">
                     ${c.unique_count != null ? Number(c.unique_count).toLocaleString() : '—'}
                   </td>
                   <td class="font-mono text-xs">
                     ${corr != null ? `
-                      <span class="${Math.abs(corr) >= 0.25 ? 'text-emerald-400 font-bold' : 'text-slate-400'}">
+                      <span class="${Math.abs(corr) >= 0.25 ? 'text-[#22C55E] font-semibold' : 'text-[#8B95A7]'}">
                         ${corr > 0 ? '+' : ''}${corr.toFixed(3)}
                       </span>
-                    ` : '<span class="text-slate-600">—</span>'}
+                    ` : '<span class="text-[#8B95A7]/50">—</span>'}
                   </td>
                   <td>
                     ${
                       isTarget
-                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-bold">Target</span>`
+                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium">Target</span>`
                         : c.catml_action === "Exclude" || c.is_identifier
-                        ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-bold">Exclude</span>`
+                        ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-medium">Exclude</span>`
                         : c.catml_action === "Encode"
-                        ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-bold">Encode</span>`
-                        : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-bold">Keep</span>`
+                        ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-medium">Encode</span>`
+                        : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-medium">Keep</span>`
                     }
                   </td>
-                  <td class="text-xs text-slate-400">${c.action_reason || (isTarget ? "Variable objetivo a predecir" : "Característica predictiva")}</td>
+                  <td class="text-xs text-[#8B95A7] font-sans">${c.action_reason || (isTarget ? "Target prediction objective" : "Predictive feature")}</td>
                   <td class="text-center">
-                    <button class="btn-visualize-var bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 hover:text-white px-2 py-1 rounded text-[11px] font-mono transition-colors" data-var="${c.name}">
-                      📊 Ver
+                    <button class="btn-visualize-var btn-technical text-[11px] py-0.5 px-2" data-var="${c.name}">
+                      View
                     </button>
                   </td>
                 </tr>
@@ -430,19 +437,19 @@ export class DatasetsView {
           <thead>
             <tr>
               <th>Feature</th>
-              <th>Tipo</th>
+              <th>Type</th>
               <th>Count</th>
-              <th>Nulos %</th>
-              <th>Media (Mean)</th>
+              <th>Missing %</th>
+              <th>Mean</th>
               <th>Std</th>
-              <th>Mín</th>
+              <th>Min</th>
               <th>25%</th>
-              <th>Mediana (50%)</th>
+              <th>Median (50%)</th>
               <th>75%</th>
-              <th>Máx</th>
+              <th>Max</th>
               <th>Skewness</th>
               <th>Target r</th>
-              <th class="text-center">Gráficos</th>
+              <th class="text-center">Visuals</th>
             </tr>
           </thead>
           <tbody>
@@ -451,24 +458,24 @@ export class DatasetsView {
               const hasStats = c.mean != null;
               return `
                 <tr>
-                  <td class="font-mono font-medium text-slate-100">${c.name} ${isTarget ? '🎯' : ''}</td>
-                  <td class="font-mono text-xs text-indigo-300">${c.dtype}</td>
-                  <td class="font-mono text-xs text-slate-300">${p.row_count ? (p.row_count - c.null_count).toLocaleString() : '—'}</td>
-                  <td class="font-mono text-xs ${c.null_count > 0 ? 'text-amber-400' : 'text-slate-400'}">${p.row_count ? ((c.null_count / p.row_count) * 100).toFixed(1) + '%' : '0%'}</td>
-                  <td class="font-mono text-xs text-slate-200">${hasStats ? c.mean.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs text-slate-400">${hasStats ? c.std.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs text-slate-300">${hasStats ? c.min.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs text-slate-400">${hasStats ? c.q25.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs text-indigo-300 font-bold">${hasStats ? c.median.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs text-slate-400">${hasStats ? c.q75.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs text-slate-300">${hasStats ? c.max.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs ${c.skew != null && Math.abs(c.skew) > 1.5 ? 'text-amber-400' : 'text-slate-400'}">${c.skew != null ? c.skew.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-xs ${c.target_correlation != null && Math.abs(c.target_correlation) >= 0.25 ? 'text-emerald-400 font-bold' : 'text-slate-500'}">
+                  <td class="font-mono font-medium text-[#F7F8FA]">${c.name} ${isTarget ? '🎯' : ''}</td>
+                  <td class="font-mono text-xs text-[#4F67FF]">${c.dtype}</td>
+                  <td class="font-mono text-xs text-[#F7F8FA]">${p.row_count ? (p.row_count - c.null_count).toLocaleString() : '—'}</td>
+                  <td class="font-mono text-xs ${c.null_count > 0 ? 'text-[#F59E0B]' : 'text-[#8B95A7]'}">${p.row_count ? ((c.null_count / p.row_count) * 100).toFixed(1) + '%' : '0%'}</td>
+                  <td class="font-mono text-xs text-[#F7F8FA]">${hasStats ? c.mean.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs text-[#8B95A7]">${hasStats ? c.std.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs text-[#F7F8FA]">${hasStats ? c.min.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs text-[#8B95A7]">${hasStats ? c.q25.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs text-[#4F67FF] font-semibold">${hasStats ? c.median.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs text-[#8B95A7]">${hasStats ? c.q75.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs text-[#F7F8FA]">${hasStats ? c.max.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs ${c.skew != null && Math.abs(c.skew) > 1.5 ? 'text-[#F59E0B]' : 'text-[#8B95A7]'}">${c.skew != null ? c.skew.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-xs ${c.target_correlation != null && Math.abs(c.target_correlation) >= 0.25 ? 'text-[#22C55E] font-semibold' : 'text-[#8B95A7]'}">
                     ${c.target_correlation != null ? (c.target_correlation > 0 ? '+' : '') + c.target_correlation.toFixed(3) : '—'}
                   </td>
                   <td class="text-center">
-                    <button class="btn-visualize-var bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 hover:text-white px-2 py-1 rounded text-[11px] font-mono transition-colors" data-var="${c.name}">
-                      📊 Ver
+                    <button class="btn-visualize-var btn-technical text-[11px] py-0.5 px-2" data-var="${c.name}">
+                      View
                     </button>
                   </td>
                 </tr>
@@ -486,34 +493,34 @@ export class DatasetsView {
 
     if (rows.length === 0) {
       return `
-        <div class="p-8 text-center text-slate-500 text-xs">
-          No hay filas de previsualización disponibles para este dataset.
+        <div class="p-8 text-center text-[#8B95A7] text-xs">
+          No raw preview rows available for this dataset.
         </div>
       `;
     }
 
     return `
       <div class="p-4 space-y-2">
-        <div class="text-xs text-slate-400">Muestra de las primeras 8 filas reales del dataset:</div>
-        <div class="overflow-x-auto border border-slate-800 rounded-lg">
+        <div class="text-xs text-[#8B95A7]">First 8 sampled rows from source dataset:</div>
+        <div class="overflow-x-auto border border-[#242A36] rounded-xl">
           <table class="w-full wb-table text-left">
             <thead>
-              <tr class="bg-slate-900/80">
-                <th class="w-12 text-slate-500 text-center font-mono">#</th>
+              <tr class="bg-[#0D1017]">
+                <th class="w-12 text-[#8B95A7] text-center font-mono">#</th>
                 ${columns.map(c => `
-                  <th class="font-mono text-xs ${c.name === p.target_column ? 'text-indigo-400' : 'text-slate-300'}">${c.name}</th>
+                  <th class="font-mono text-xs ${c.name === p.target_column ? 'text-[#4F67FF]' : 'text-[#8B95A7]'}">${c.name}</th>
                 `).join("")}
               </tr>
             </thead>
             <tbody>
               ${rows.map((row, idx) => `
                 <tr>
-                  <td class="text-center font-mono text-xs text-slate-500">${idx + 1}</td>
+                  <td class="text-center font-mono text-xs text-[#8B95A7]">${idx + 1}</td>
                   ${columns.map(c => {
                     const val = row[c.name];
                     const isTarget = c.name === p.target_column;
                     return `
-                      <td class="font-mono text-xs ${isTarget ? 'text-indigo-300 font-bold bg-indigo-950/20' : val === null ? 'text-slate-600 italic' : 'text-slate-200'}">
+                      <td class="font-mono text-xs ${isTarget ? 'text-[#4F67FF] font-semibold bg-[#4F67FF]/10' : val === null ? 'text-[#8B95A7]/40 italic' : 'text-[#F7F8FA]'}">
                         ${val !== null && val !== undefined ? String(val) : 'null'}
                       </td>
                     `;
@@ -532,8 +539,8 @@ export class DatasetsView {
 
     if (catCols.length === 0) {
       return `
-        <div class="p-8 text-center text-slate-500 text-xs">
-          No se detectaron características categóricas con distribución de frecuencias.
+        <div class="p-8 text-center text-[#8B95A7] text-xs">
+          No categorical features detected with discrete frequency distributions.
         </div>
       `;
     }
@@ -541,21 +548,21 @@ export class DatasetsView {
     return `
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         ${catCols.map(c => `
-          <div class="workbench-card p-4 space-y-3 bg-slate-900/60 border-slate-800">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span class="font-mono font-bold text-slate-200 text-xs">${c.name}</span>
-              <span class="text-[10px] font-mono text-purple-400 bg-purple-950/40 px-2 py-0.5 rounded">${c.unique_count} categorías</span>
+          <div class="workbench-card p-4 space-y-3 bg-[#161B26] border-[#242A36]">
+            <div class="flex items-center justify-between border-b border-[#242A36] pb-2">
+              <span class="font-mono font-medium text-[#F7F8FA] text-xs">${c.name}</span>
+              <span class="text-[10px] font-mono text-[#6956E8] bg-[#6956E8]/10 border border-[#6956E8]/20 px-2 py-0.5 rounded">${c.unique_count} categories</span>
             </div>
 
             <div class="space-y-2">
               ${c.top_categories.map(cat => `
                 <div class="space-y-1">
                   <div class="flex justify-between text-[11px] font-mono">
-                    <span class="text-slate-300 truncate max-w-[150px]">${cat.value}</span>
-                    <span class="text-slate-400">${cat.pct}% (${cat.count})</span>
+                    <span class="text-[#F7F8FA] truncate max-w-[150px]">${cat.value}</span>
+                    <span class="text-[#8B95A7]">${cat.pct}% (${cat.count})</span>
                   </div>
-                  <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-indigo-500 h-1.5 rounded-full" style="width: ${Math.min(cat.pct, 100)}%"></div>
+                  <div class="w-full bg-[#11151E] rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-[#4F67FF] h-1.5 rounded-full" style="width: ${Math.min(cat.pct, 100)}%"></div>
                   </div>
                 </div>
               `).join("")}
@@ -570,9 +577,9 @@ export class DatasetsView {
     const cm = p.correlation_matrix;
     if (!cm || !cm.columns || !cm.columns.length) {
       return `
-        <div class="p-8 text-center text-slate-400 space-y-2">
-          <p class="text-sm font-semibold">No se computó matriz de correlación numérica.</p>
-          <p class="text-xs text-slate-500">Se requieren al menos 2 características numéricas en el dataset.</p>
+        <div class="p-8 text-center text-[#8B95A7] space-y-2">
+          <p class="text-sm font-semibold">Numerical correlation matrix not computed.</p>
+          <p class="text-xs text-[#8B95A7]/70">Requires at least 2 numerical features in dataset.</p>
         </div>
       `;
     }
@@ -584,51 +591,51 @@ export class DatasetsView {
       <div class="p-4 space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
           <div>
-            <span class="font-bold text-slate-200">Matriz de Correlación de Pearson ($r \\in [-1, 1]$)</span>
-            <p class="text-[11px] text-slate-400">Analiza patrones bivariantes, covarianza con la variable objetivo y detecta pares multicolineales.</p>
+            <span class="font-semibold text-[#F7F8FA] font-sans">Pearson Correlation Matrix ($r \\in [-1, 1]$)</span>
+            <p class="text-[11px] text-[#8B95A7]">Bivariate linear dependency, target covariance, and collinear feature detection.</p>
           </div>
           <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono">
-            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-emerald-600 inline-block"></span><span>Positiva fuerte (&gt; 0.5)</span></span>
-            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-slate-800 border border-slate-700 inline-block"></span><span>Neutra (-0.2 a 0.2)</span></span>
-            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-rose-600 inline-block"></span><span>Negativa (&lt; -0.2)</span></span>
-            <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded ring-1 ring-amber-400 bg-amber-950 inline-block"></span><span>Colinealidad (&gt; 0.88)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#22C55E] inline-block"></span><span class="text-[#8B95A7]">Strong Positive (&gt; 0.5)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#161B26] border border-[#242A36] inline-block"></span><span class="text-[#8B95A7]">Neutral (-0.2 to 0.2)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#EF4444] inline-block"></span><span class="text-[#8B95A7]">Negative (&lt; -0.2)</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-sm ring-1 ring-[#F59E0B] bg-[#F59E0B]/20 inline-block"></span><span class="text-[#8B95A7]">Collinear (&gt; 0.88)</span></span>
           </div>
         </div>
 
-        <div class="overflow-x-auto max-h-[580px] border border-slate-800 rounded-lg">
+        <div class="overflow-x-auto max-h-[580px] border border-[#242A36] rounded-xl">
           <table class="w-full text-center text-xs border-collapse">
-            <thead class="sticky top-0 bg-slate-950 z-10 border-b border-slate-800">
+            <thead class="sticky top-0 bg-[#0D1017] z-10 border-b border-[#242A36]">
               <tr>
-                <th class="p-2.5 text-left font-mono text-[11px] text-slate-400 bg-slate-950 sticky left-0 z-20 border-r border-slate-800 min-w-[130px]">Variable</th>
+                <th class="p-2.5 text-left font-mono text-[11px] text-[#8B95A7] bg-[#0D1017] sticky left-0 z-20 border-r border-[#242A36] min-w-[130px]">Feature</th>
                 ${cols.map(c => `
-                  <th class="p-2 font-mono text-[11px] text-slate-300 min-w-[70px] max-w-[110px] truncate" title="${c}">
+                  <th class="p-2 font-mono text-[11px] text-[#8B95A7] min-w-[70px] max-w-[110px] truncate" title="${c}">
                     ${c === p.target_column ? '🎯 ' + c : c}
                   </th>
                 `).join("")}
-                <th class="p-2 font-mono text-[11px] text-slate-400">Análisis</th>
+                <th class="p-2 font-mono text-[11px] text-[#8B95A7]">Visuals</th>
               </tr>
             </thead>
             <tbody>
               ${cols.map((rowName, rIdx) => `
-                <tr class="border-b border-slate-900 hover:bg-slate-900/50">
-                  <td class="p-2 text-left font-mono font-medium text-slate-200 bg-slate-950/95 sticky left-0 z-10 border-r border-slate-800 truncate max-w-[150px]" title="${rowName}">
+                <tr class="border-b border-[#242A36]/60 hover:bg-[#161B26]/50">
+                  <td class="p-2 text-left font-mono font-medium text-[#F7F8FA] bg-[#0D1017]/95 sticky left-0 z-10 border-r border-[#242A36] truncate max-w-[150px]" title="${rowName}">
                     ${rowName === p.target_column ? '🎯 ' + rowName : rowName}
                   </td>
                   ${cols.map((colName, cIdx) => {
                     const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
                     const isDiag = (rIdx === cIdx);
-                    let cellBg = "bg-slate-950 text-slate-400";
+                    let cellBg = "bg-[#080A0F] text-[#8B95A7]";
                     let ringStyle = "";
                     if (!isDiag) {
-                      if (val >= 0.70) cellBg = "bg-emerald-800 text-white font-bold";
-                      else if (val >= 0.40) cellBg = "bg-emerald-950 text-emerald-300 font-semibold";
-                      else if (val >= 0.15) cellBg = "bg-emerald-950/40 text-emerald-400";
-                      else if (val <= -0.50) cellBg = "bg-rose-900 text-white font-bold";
-                      else if (val <= -0.20) cellBg = "bg-rose-950 text-rose-300 font-semibold";
-                      else if (val <= -0.10) cellBg = "bg-amber-950/30 text-amber-400";
-                      if (Math.abs(val) >= 0.88) ringStyle = "ring-1 ring-amber-400 ring-inset";
+                      if (val >= 0.70) cellBg = "bg-emerald-950 text-emerald-300 font-bold";
+                      else if (val >= 0.40) cellBg = "bg-emerald-950/60 text-emerald-400 font-semibold";
+                      else if (val >= 0.15) cellBg = "bg-emerald-950/20 text-emerald-400";
+                      else if (val <= -0.50) cellBg = "bg-rose-950 text-rose-300 font-bold";
+                      else if (val <= -0.20) cellBg = "bg-rose-950/60 text-rose-400 font-semibold";
+                      else if (val <= -0.10) cellBg = "bg-amber-950/20 text-amber-400";
+                      if (Math.abs(val) >= 0.88) ringStyle = "ring-1 ring-[#F59E0B] ring-inset";
                     } else {
-                      cellBg = "bg-slate-900 text-slate-500 font-bold";
+                      cellBg = "bg-[#11151E] text-[#8B95A7] font-semibold";
                     }
 
                     return `
@@ -637,9 +644,9 @@ export class DatasetsView {
                       </td>
                     `;
                   }).join("")}
-                  <td class="p-1.5 bg-slate-950/60 text-center">
-                    <button class="btn-visualize-var bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-mono" data-var="${rowName}">
-                      📊 Ver
+                  <td class="p-1.5 bg-[#0D1017]/60 text-center">
+                    <button class="btn-visualize-var btn-technical text-[10px] py-0.5 px-2" data-var="${rowName}">
+                      View
                     </button>
                   </td>
                 </tr>
