@@ -24,9 +24,9 @@ export class PipelineView {
 
   renderLoading() {
     this.container.innerHTML = `
-      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
-        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
-        <div class="text-sm font-medium">Construyendo grafo visual del pipeline de ejecución...</div>
+      <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
+        <div class="animate-catml-spin text-2xl text-[#4F67FF]">◇</div>
+        <div class="text-sm font-medium font-sans">Building visual execution pipeline graph...</div>
       </div>
     `;
   }

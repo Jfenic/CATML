@@ -1,7 +1,7 @@
 /**
- * DatasetsView — Dataset Inspector & Interactive Feature Selection
- * Diagnóstico estadístico sólido, exploración de variables, recomendaciones inteligentes,
- * y selección de columnas tanto manual como automática para experimentos.
+ * DatasetsView — Dataset Understanding & Interactive Feature Selection
+ * Statistical profiling, variable exploration, evidence-based recommendations,
+ * and column selection for experiment planning.
  */
 import { store } from "../store.js";
 import { bus } from "../bus.js";
@@ -147,7 +147,7 @@ export class DatasetsView {
             <div>
               <div class="flex items-center space-x-2.5">
                 <h3 class="text-base font-semibold text-[#F7F8FA] font-sans">Dataset understanding</h3>
-                <span class="font-mono text-xs text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded-md border border-[#242A36]">${datasetName}</span>
+                <span class="font-mono text-xs text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md border border-[#252C38]">${datasetName}</span>
               </div>
               <p class="text-xs text-[#8B95A7] mt-0.5 font-sans">Statistical profile, feature roles, and evidence-based recommendations.</p>
             </div>
@@ -155,42 +155,42 @@ export class DatasetsView {
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-left">
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Task</div>
               <div class="text-sm font-semibold text-[#F7F8FA] mt-1 truncate capitalize">${(p.task_type || "Classification").replace("_", " ")}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Target</div>
               <div class="text-sm font-semibold text-[#4F67FF] font-mono mt-1 truncate">${p.target_column || "—"}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Metric</div>
               <div class="text-sm font-semibold text-[#22C55E] font-mono mt-1">${(p.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC"}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Rows</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${p.row_count != null ? Number(p.row_count).toLocaleString() : "—"}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Features</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${featureCols.length}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Numerical</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${numCols}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Categorical</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${catCols}</div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-[#161B26] border border-[#242A36]">
+            <div class="p-3.5 rounded-xl bg-[#151B26]">
               <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Excluded</div>
               <div class="text-sm font-semibold text-[#EF4444] font-mono mt-1">${excludedCount}</div>
             </div>
@@ -200,12 +200,12 @@ export class DatasetsView {
         <!-- 2. Smart Recommendations Panel -->
         ${recommendations.length > 0 ? `
           <div class="workbench-card p-5 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#242A36] pb-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
               <div class="flex items-center space-x-2.5">
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Statistical recommendations</span>
-                <span class="text-xs font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded-md border border-[#242A36]">${recommendations.length} detected</span>
+                <span class="text-xs font-mono text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md">${recommendations.length} detected</span>
               </div>
-              <button id="btnApplyRecommendations" class="btn-signal text-xs">
+              <button id="btnApplyRecommendations" class="btn-technical text-xs font-sans">
                 <span>Apply recommendations</span>
               </button>
             </div>
@@ -216,11 +216,29 @@ export class DatasetsView {
                 const isSuccess = r.severity === 'success' || r.type === 'recommend';
                 const isWarning = r.severity === 'warning' || r.type === 'warn';
                 const badgeClass = isDanger ? 'badge-err' : isSuccess ? 'badge-gain' : isWarning ? 'badge-warn' : 'badge-intel';
-                const badgeText = isDanger ? '⚠ Identifier' : isSuccess ? '✦ Strong Signal' : isWarning ? '⚑ Attention' : '⚙ Encoding';
+                let badgeText = isDanger ? 'IDENTIFIER' : isSuccess ? 'HIGH RELEVANCE' : isWarning ? 'ATTENTION' : 'ENCODING';
+                if (r.badge) {
+                  const bLower = r.badge.toLowerCase();
+                  if (bLower.includes('strong signal') || bLower.includes('high relevance') || bLower.includes('señal')) {
+                    badgeText = 'HIGH RELEVANCE';
+                  } else if (bLower.includes('zero variance')) {
+                    badgeText = 'ZERO VARIANCE';
+                  } else if (bLower.includes('null')) {
+                    badgeText = 'HIGH NULLS';
+                  } else if (bLower.includes('collinear')) {
+                    badgeText = 'COLLINEARITY';
+                  } else if (bLower.includes('cardinal')) {
+                    badgeText = 'HIGH CARDINALITY';
+                  } else if (bLower.includes('identifier') || bLower.includes('identificador')) {
+                    badgeText = 'IDENTIFIER';
+                  } else {
+                    badgeText = r.badge.toUpperCase();
+                  }
+                }
                 return `
-                  <div class="p-4 rounded-xl bg-[#161B26] border border-[#242A36] space-y-2">
+                  <div class="p-4 rounded-xl bg-[#151B26] hover:bg-[#1A2230] transition-colors space-y-2">
                     <div class="flex items-center justify-between">
-                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${r.badge || badgeText}</span>
+                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${badgeText}</span>
                       ${r.column ? `<code class="text-[11px] font-mono text-[#8B95A7]">${r.column}</code>` : ""}
                     </div>
                     <h4 class="font-sans font-semibold text-xs text-[#F7F8FA]">${r.title}</h4>
@@ -235,39 +253,41 @@ export class DatasetsView {
         <!-- 3. Interactive Selection & Exploration Toolbar -->
         <div class="workbench-card p-4 space-y-3">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Search & Type Filter Pills -->
-            <div class="flex flex-wrap items-center gap-2">
-              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filter features by name..." class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-56 font-mono outline-none">
+            <!-- Search & Segmented Filter Pills -->
+            <div class="flex flex-wrap items-center gap-3">
+              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filter features..." class="bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-48 font-mono outline-none">
 
-              <div class="flex items-center space-x-1.5 text-xs">
-                <button data-filter="all" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'all' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">All (${featureCols.length})</button>
-                <button data-filter="numeric" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'numeric' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">Numeric (${numCols})</button>
-                <button data-filter="categorical" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'categorical' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">Categorical (${catCols})</button>
-                <button data-filter="selected" class="filter-pill px-2.5 py-1 rounded-md border text-[11px] font-sans font-medium transition-colors ${this.filterType === 'selected' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#161B26] text-[#8B95A7] border-[#242A36] hover:text-[#F7F8FA]'}">Selected (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
+              <div class="segmented-track">
+                <button data-filter="all" class="segmented-pill ${this.filterType === 'all' ? 'active-signal' : ''}">All (${featureCols.length})</button>
+                <button data-filter="numeric" class="segmented-pill ${this.filterType === 'numeric' ? 'active-signal' : ''}">Numeric (${numCols})</button>
+                <button data-filter="categorical" class="segmented-pill ${this.filterType === 'categorical' ? 'active-signal' : ''}">Categorical (${catCols})</button>
+                <button data-filter="selected" class="segmented-pill ${this.filterType === 'selected' ? 'active-signal' : ''}">Selected (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
               </div>
             </div>
 
             <!-- Batch Selection Controls -->
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium">Selection:</span>
-              <button id="btnSelectAll" class="btn-technical text-xs py-1 px-2.5">All</button>
-              <button id="btnDeselectAll" class="btn-technical text-xs py-1 px-2.5">None</button>
-              <button id="btnSelectTop5" class="btn-technical text-xs py-1 px-2.5">Top 5 Signal</button>
-              <button id="btnSelectTop10" class="btn-technical text-xs py-1 px-2.5">Top 10 Signal</button>
-              <button id="btnOpenCalculator" class="btn-technical text-xs py-1 px-2.5 border-[#4F67FF]/30 text-[#4F67FF]">Feature Calculator</button>
+            <div class="flex items-center gap-1 text-xs">
+              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium mr-1.5">Select:</span>
+              <button id="btnSelectAll" class="btn-ghost text-xs py-1 px-2">All</button>
+              <button id="btnDeselectAll" class="btn-ghost text-xs py-1 px-2">None</button>
+              <span class="text-[#252C38] px-1">·</span>
+              <button id="btnSelectTop5" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 5 Signal</button>
+              <button id="btnSelectTop10" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 10 Signal</button>
+              <span class="text-[#252C38] px-1">·</span>
+              <button id="btnOpenCalculator" class="btn-ghost text-xs py-1 px-2 text-[#6956E8] hover:text-white">Feature Calculator</button>
             </div>
           </div>
 
-          <!-- Bottom Status Counter & Launch CTA -->
-          <div class="pt-3 border-t border-[#242A36] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="flex items-center space-x-2 text-xs font-sans">
-              <span class="text-[#8B95A7]">Selection status:</span>
-              <span id="selectionLiveCount" class="font-mono font-medium text-[#F7F8FA] bg-[#161B26] border border-[#242A36] px-2.5 py-1 rounded-md">
-                ${this.selectedFeatures.size} of ${featureCols.length} features selected (${featureCols.length - this.selectedFeatures.size} excluded)
+          <!-- Bottom Status Counter & Dominant Launch CTA -->
+          <div class="pt-3 border-t border-[#252C38]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center space-x-2 text-xs font-sans text-[#8B95A7]">
+              <span>Selection status:</span>
+              <span id="selectionLiveCount" class="font-mono text-xs text-[#F7F8FA]">
+                <strong class="text-[#4F67FF]">${this.selectedFeatures.size}</strong> of ${featureCols.length} features selected (${featureCols.length - this.selectedFeatures.size} excluded)
               </span>
             </div>
 
-            <button id="btnLaunchWithSelection" class="btn-signal">
+            <button id="btnLaunchWithSelection" class="btn-signal font-sans font-semibold text-xs px-5 py-2 shadow-md shadow-[#4F67FF]/20">
               <span>Launch Experiment (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
             </button>
           </div>
@@ -673,32 +693,32 @@ export class DatasetsView {
           <div class="flex items-start justify-between border-b border-slate-800 pb-3">
             <div>
               <div class="flex items-center space-x-2">
-                <span class="text-xs font-mono px-2 py-0.5 rounded font-bold ${isNumeric ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-purple-950 text-purple-300 border border-purple-800'}">
-                  ${isNumeric ? 'NUMÉRICA' : 'CATEGÓRICA'}
+                <span class="text-xs font-mono px-2 py-0.5 rounded font-bold ${isNumeric ? 'bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20' : 'bg-[#6956E8]/10 text-[#6956E8] border border-[#6956E8]/20'}">
+                  ${isNumeric ? 'NUMERIC' : 'CATEGORICAL'}
                 </span>
-                <h3 class="text-lg font-bold text-slate-100 font-mono">${col.name}</h3>
+                <h3 class="text-base font-bold text-[#F7F8FA] font-mono">${col.name}</h3>
                 ${isTarget ? `<span class="badge-sys text-[10px] px-2 py-0.5 rounded font-bold">TARGET</span>` : ""}
               </div>
-              <p class="text-xs text-slate-400 mt-1">
-                Tipo: <span class="font-mono text-slate-300">${col.dtype}</span> •
-                Nulos: <span class="font-mono ${col.null_count > 0 ? 'text-amber-400' : 'text-slate-300'}">${col.null_count} (${((col.null_count / (this.profile.row_count || 1)) * 100).toFixed(1)}%)</span> •
-                Únicos: <span class="font-mono text-slate-300">${col.unique_count != null ? col.unique_count.toLocaleString() : '—'}</span>
-                ${col.target_correlation != null ? ` • Correlación con Target: <span class="font-mono font-bold ${Math.abs(col.target_correlation) >= 0.25 ? 'text-emerald-400' : 'text-slate-300'}">${col.target_correlation > 0 ? '+' : ''}${col.target_correlation.toFixed(3)}</span>` : ""}
+              <p class="text-xs text-[#8B95A7] mt-1 font-sans">
+                Type: <span class="font-mono text-[#F7F8FA]">${col.dtype}</span> •
+                Nulls: <span class="font-mono ${col.null_count > 0 ? 'text-[#F59E0B]' : 'text-[#F7F8FA]'}">${col.null_count} (${((col.null_count / (this.profile.row_count || 1)) * 100).toFixed(1)}%)</span> •
+                Unique: <span class="font-mono text-[#F7F8FA]">${col.unique_count != null ? col.unique_count.toLocaleString() : '—'}</span>
+                ${col.target_correlation != null ? ` • Target correlation: <span class="font-mono font-bold ${Math.abs(col.target_correlation) >= 0.25 ? 'text-[#22C55E]' : 'text-[#F7F8FA]'}">${col.target_correlation > 0 ? '+' : ''}${col.target_correlation.toFixed(3)}</span>` : ""}
               </p>
             </div>
-            <button id="btnCloseVarModal" class="text-slate-400 hover:text-white p-1 text-lg leading-none">✕</button>
+            <button id="btnCloseVarModal" class="text-[#8B95A7] hover:text-white p-1 text-lg leading-none">✕</button>
           </div>
 
           <!-- Modal Tabs -->
-          <div class="flex items-center space-x-2 border-b border-slate-800 pb-2 text-xs">
-            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'boxplot' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}" data-modal-tab="boxplot">
-              📦 Diagrama de Caja y Bigotes (Box Plot)
+          <div class="flex items-center space-x-2 border-b border-[#252C38] pb-2 text-xs font-sans">
+            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'boxplot' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="boxplot">
+              Box Plot (IQR Separation)
             </button>
-            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'histogram' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}" data-modal-tab="histogram">
-              📊 Histograma & Distribución
+            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'histogram' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="histogram">
+              Histogram & Distribution
             </button>
-            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'pattern' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}" data-modal-tab="pattern">
-              🎯 Relación con el Target
+            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'pattern' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="pattern">
+              Target Association
             </button>
           </div>
 
@@ -726,10 +746,10 @@ export class DatasetsView {
     const bp = col.box_plot;
     if (!bp || bp.min == null || bp.max == null) {
       return `
-        <div class="p-8 text-center text-slate-400 space-y-2">
-          <span class="text-2xl text-slate-500 block">📦</span>
-          <p class="text-sm">El diagrama de caja y bigotes está diseñado para variables numéricas cuantitativas.</p>
-          <p class="text-xs text-slate-500">Para variables categóricas, consulta las pestañas de Histograma o Relación con Target.</p>
+        <div class="p-8 text-center text-[#8B95A7] space-y-2">
+          <span class="text-2xl text-[#8B95A7]/50 block">📦</span>
+          <p class="text-sm font-medium">Box plots are designed for quantitative numerical features.</p>
+          <p class="text-xs text-[#8B95A7]/70">For categorical features, inspect the Distribution or Target Association tabs.</p>
         </div>
       `;
     }
@@ -753,7 +773,7 @@ export class DatasetsView {
     if (hasTargetSplit) {
       byTarget.forEach((t, idx) => {
         const yCenter = 45 + idx * 55;
-        const color = idx === 0 ? "#6366f1" : (idx === 1 ? "#10b981" : "#f59e0b");
+        const color = idx === 0 ? "#4F67FF" : (idx === 1 ? "#22C55E" : "#F59E0B");
         const xMin = scaleX(t.min);
         const xQ1 = scaleX(t.q25);
         const xMed = scaleX(t.median);
@@ -763,7 +783,7 @@ export class DatasetsView {
 
         svgRows += `
           <text x="${padL - 10}" y="${yCenter + 4}" fill="${color}" font-size="11" font-weight="bold" font-family="monospace" text-anchor="end">
-            Clase ${t.class_label}
+            Class ${t.class_label}
           </text>
           <line x1="${xMin}" y1="${yCenter}" x2="${xMax}" y2="${yCenter}" stroke="${color}" stroke-width="2" stroke-dasharray="3,2" />
           <line x1="${xMin}" y1="${yCenter - 9}" x2="${xMin}" y2="${yCenter + 9}" stroke="${color}" stroke-width="2" />
@@ -777,7 +797,7 @@ export class DatasetsView {
       });
     } else {
       const yCenter = 50;
-      const color = "#6366f1";
+      const color = "#4F67FF";
       const xMin = scaleX(bp.min);
       const xQ1 = scaleX(bp.q25);
       const xMed = scaleX(bp.median);
@@ -787,7 +807,7 @@ export class DatasetsView {
 
       svgRows = `
         <text x="${padL - 10}" y="${yCenter + 4}" fill="${color}" font-size="11" font-weight="bold" font-family="monospace" text-anchor="end">
-          Distribución
+          Distribution
         </text>
         <line x1="${xMin}" y1="${yCenter}" x2="${xMax}" y2="${yCenter}" stroke="${color}" stroke-width="2" stroke-dasharray="3,2" />
         <line x1="${xMin}" y1="${yCenter - 12}" x2="${xMin}" y2="${yCenter + 12}" stroke="${color}" stroke-width="2" />
@@ -805,25 +825,25 @@ export class DatasetsView {
       const val = minVal + frac * range;
       const x = padL + frac * plotW;
       return `
-        <line x1="${x}" y1="${yAxis - 4}" x2="${x}" y2="${yAxis}" stroke="#64748b" stroke-width="1" />
-        <text x="${x}" y="${yAxis + 12}" fill="#94a3b8" font-size="9" font-family="monospace" text-anchor="middle">${val.toFixed(1)}</text>
+        <line x1="${x}" y1="${yAxis - 4}" x2="${x}" y2="${yAxis}" stroke="#384355" stroke-width="1" />
+        <text x="${x}" y="${yAxis + 12}" fill="#8B95A7" font-size="9" font-family="monospace" text-anchor="middle">${val.toFixed(1)}</text>
       `;
     }).join("");
 
     return `
       <div class="space-y-4">
-        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 flex flex-col items-center">
-          <div class="w-full flex items-center justify-between text-[11px] text-slate-400 font-mono mb-2">
-            <span>Visualización Matemática de Dispersión (Tukey Boxplot)</span>
-            <div class="flex items-center space-x-3">
-              <span class="flex items-center space-x-1"><span class="w-2.5 h-0.5 bg-white inline-block"></span><span>Mediana</span></span>
-              <span class="flex items-center space-x-1"><span class="w-2 h-2 rotate-45 bg-amber-400 inline-block"></span><span>Media</span></span>
-              <span class="flex items-center space-x-1"><span class="w-3 h-2 bg-indigo-500/40 border border-indigo-400 inline-block"></span><span>Rango IQR</span></span>
+        <div class="p-3 bg-[#090C12] rounded-xl border border-[#252C38] flex flex-col items-center">
+          <div class="w-full flex items-center justify-between text-[11px] text-[#8B95A7] font-sans mb-2">
+            <span>Tukey Box Plot Dispersion Analysis</span>
+            <div class="flex items-center space-x-3 text-xs">
+              <span class="flex items-center space-x-1"><span class="w-2.5 h-0.5 bg-white inline-block"></span><span>Median</span></span>
+              <span class="flex items-center space-x-1"><span class="w-2 h-2 rotate-45 bg-amber-400 inline-block"></span><span>Mean</span></span>
+              <span class="flex items-center space-x-1"><span class="w-3 h-2 bg-[#4F67FF]/30 border border-[#4F67FF] inline-block"></span><span>IQR Range</span></span>
             </div>
           </div>
 
           <svg viewBox="0 0 ${svgWidth} ${svgHeight}" class="w-full max-w-2xl overflow-visible">
-            <line x1="${padL}" y1="${yAxis}" x2="${padL + plotW}" y2="${yAxis}" stroke="#475569" stroke-width="1" />
+            <line x1="${padL}" y1="${yAxis}" x2="${padL + plotW}" y2="${yAxis}" stroke="#384355" stroke-width="1" />
             ${ticks}
             ${svgRows}
           </svg>
@@ -833,37 +853,37 @@ export class DatasetsView {
           <table class="w-full wb-table text-left text-xs">
             <thead>
               <tr>
-                <th>Segmento / Clase</th>
-                <th>Mínimo</th>
+                <th>Segment / Class</th>
+                <th>Min</th>
                 <th>Q1 (25%)</th>
-                <th>Mediana (50%)</th>
+                <th>Median (50%)</th>
                 <th>Q3 (75%)</th>
-                <th>Máximo</th>
+                <th>Max</th>
                 <th>IQR</th>
-                <th>Media</th>
+                <th>Mean</th>
               </tr>
             </thead>
             <tbody>
               ${hasTargetSplit ? byTarget.map(t => `
                 <tr>
-                  <td class="font-mono font-bold text-slate-200">${this.profile.target_column} = ${t.class_label}</td>
-                  <td class="font-mono text-slate-400">${t.min != null ? t.min.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${t.q25 != null ? t.q25.toFixed(2) : '—'}</td>
-                  <td class="font-mono font-bold text-indigo-300">${t.median != null ? t.median.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${t.q75 != null ? t.q75.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${t.max != null ? t.max.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${t.iqr != null ? t.iqr.toFixed(2) : '—'}</td>
+                  <td class="font-mono font-bold text-[#F7F8FA]">${this.profile.target_column} = ${t.class_label}</td>
+                  <td class="font-mono text-[#8B95A7]">${t.min != null ? t.min.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${t.q25 != null ? t.q25.toFixed(2) : '—'}</td>
+                  <td class="font-mono font-bold text-[#4F67FF]">${t.median != null ? t.median.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${t.q75 != null ? t.q75.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${t.max != null ? t.max.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${t.iqr != null ? t.iqr.toFixed(2) : '—'}</td>
                   <td class="font-mono text-amber-300">${t.mean != null ? t.mean.toFixed(2) : '—'}</td>
                 </tr>
               `).join("") : `
                 <tr>
-                  <td class="font-mono font-bold text-slate-200">Global (${col.name})</td>
-                  <td class="font-mono text-slate-400">${bp.min != null ? bp.min.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${bp.q25 != null ? bp.q25.toFixed(2) : '—'}</td>
-                  <td class="font-mono font-bold text-indigo-300">${bp.median != null ? bp.median.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${bp.q75 != null ? bp.q75.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${bp.max != null ? bp.max.toFixed(2) : '—'}</td>
-                  <td class="font-mono text-slate-400">${bp.iqr != null ? bp.iqr.toFixed(2) : '—'}</td>
+                  <td class="font-mono font-bold text-[#F7F8FA]">Global (${col.name})</td>
+                  <td class="font-mono text-[#8B95A7]">${bp.min != null ? bp.min.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${bp.q25 != null ? bp.q25.toFixed(2) : '—'}</td>
+                  <td class="font-mono font-bold text-[#4F67FF]">${bp.median != null ? bp.median.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${bp.q75 != null ? bp.q75.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${bp.max != null ? bp.max.toFixed(2) : '—'}</td>
+                  <td class="font-mono text-[#8B95A7]">${bp.iqr != null ? bp.iqr.toFixed(2) : '—'}</td>
                   <td class="font-mono text-amber-300">${bp.mean != null ? bp.mean.toFixed(2) : '—'}</td>
                 </tr>
               `}
@@ -872,13 +892,13 @@ export class DatasetsView {
         </div>
 
         ${hasTargetSplit && byTarget.length === 2 ? `
-          <div class="p-3 bg-indigo-950/30 border border-indigo-900/60 rounded-lg text-xs space-y-1">
-            <span class="font-bold text-indigo-300">💡 Interpretación Bivariante frente al Target:</span>
-            <p class="text-slate-300">
-              La diferencia de medianas entre clases es de <span class="font-mono font-bold text-emerald-400">${Math.abs(byTarget[1].median - byTarget[0].median).toFixed(2)}</span>
+          <div class="p-3 bg-[#151B26] border border-[#252C38] rounded-xl text-xs space-y-1">
+            <span class="font-bold text-[#4F67FF] font-sans">Bivariate Target Interpretation:</span>
+            <p class="text-[#8B95A7] font-sans">
+              Inter-class median delta is <span class="font-mono font-bold text-[#22C55E]">${Math.abs(byTarget[1].median - byTarget[0].median).toFixed(2)}</span>
               ${Math.abs(byTarget[1].median - byTarget[0].median) > (bp.iqr * 0.25) ?
-                '(fuerte desplazamiento de distribución, excelente poder separador para LightGBM/XGBoost).' :
-                '(distribuciones con solapamiento moderado; combinar con variables de interacción).'
+                '(strong distribution shift, high discriminative power for tree ensembles).' :
+                '(moderate overlap between distributions; combining with interaction features recommended).'
               }
             </p>
           </div>
@@ -896,16 +916,16 @@ export class DatasetsView {
       return `
         <div class="space-y-4">
           <div class="flex items-center justify-between text-xs">
-            <span class="text-slate-300 font-medium">Histograma de Frecuencias (10 Bins Equidistantes)</span>
+            <span class="text-[#F7F8FA] font-medium font-sans">Frequency Histogram (10 Equidistant Bins)</span>
             ${col.skew != null ? `
-              <span class="font-mono text-xs px-2 py-0.5 rounded font-bold ${Math.abs(col.skew) > 1.0 ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-900 text-slate-300 border border-slate-800'}">
-                Asimetría (Skewness): ${col.skew.toFixed(2)}
+              <span class="font-mono text-xs px-2 py-0.5 rounded font-bold ${Math.abs(col.skew) > 1.0 ? 'badge-warn' : 'badge-neutral'}">
+                Skewness: ${col.skew.toFixed(2)}
               </span>
             ` : ""}
           </div>
 
-          <div class="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
-            <div class="h-44 flex items-end justify-between gap-1.5 pt-6 pb-2 border-b border-slate-800">
+          <div class="p-4 bg-[#090C12] rounded-xl border border-[#252C38] space-y-2">
+            <div class="h-44 flex items-end justify-between gap-1.5 pt-6 pb-2 border-b border-[#252C38]">
               ${h.bins.map((binLabel, i) => {
                 const count = h.counts[i];
                 const pct = h.percentages ? h.percentages[i] : ((count / (col.null_count + count)) * 100).toFixed(1);
@@ -913,29 +933,29 @@ export class DatasetsView {
 
                 return `
                   <div class="flex-1 flex flex-col items-center h-full justify-end group relative">
-                    <span class="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5 text-[10px] font-mono text-indigo-300 bg-slate-900 px-1 rounded border border-slate-800 whitespace-nowrap z-10">
+                    <span class="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5 text-[10px] font-mono text-[#4F67FF] bg-[#151B26] px-1 rounded border border-[#252C38] whitespace-nowrap z-10">
                       ${count.toLocaleString()} (${pct}%)
                     </span>
-                    <div style="height: ${barHeight}%;" class="w-full bg-indigo-600/70 hover:bg-indigo-500 rounded-t transition-all"></div>
+                    <div style="height: ${barHeight}%;" class="w-full bg-[#4F67FF]/70 hover:bg-[#4F67FF] rounded-t transition-all"></div>
                   </div>
                 `;
               }).join("")}
             </div>
 
-            <div class="flex items-center justify-between text-[9px] text-slate-400 font-mono">
+            <div class="flex items-center justify-between text-[9px] text-[#8B95A7] font-mono">
               <span class="truncate max-w-[80px]">${h.bins[0]}</span>
               <span class="truncate max-w-[80px]">${h.bins[Math.floor(h.bins.length / 2)]}</span>
               <span class="truncate max-w-[80px]">${h.bins[h.bins.length - 1]}</span>
             </div>
           </div>
 
-          <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-1">
-            <span class="font-bold text-slate-200">📐 Diagnóstico de Distribución y Asimetría:</span>
-            <p class="text-slate-400">
-              ${col.skew == null ? 'Distribución cuantitativa sin coeficiente de asimetría computado.' :
-                Math.abs(col.skew) <= 0.5 ? 'Distribución aproximadamente simétrica y acampanada. Óptima para modelos lineales y SVM sin transformación previa.' :
-                col.skew > 0.5 ? `Asimetría positiva acentuada (+${col.skew.toFixed(2)}). Concentración de valores a la izquierda con cola larga a la derecha. CATML sugiere transformación logarítmica log1p(x) para estabilizar la varianza.` :
-                `Asimetría negativa (${col.skew.toFixed(2)}). Cola larga a la izquierda. Se sugiere transformación de potencia o escalado robusto.`
+          <div class="p-3 bg-[#151B26] border border-[#252C38] rounded-xl text-xs space-y-1">
+            <span class="font-bold text-[#F7F8FA] font-sans">Distribution & Skewness Diagnostics:</span>
+            <p class="text-[#8B95A7] font-sans">
+              ${col.skew == null ? 'Quantitative distribution without computed skewness.' :
+                Math.abs(col.skew) <= 0.5 ? 'Approximately symmetric and bell-shaped. Optimal for linear models and tree ensembles without transformation.' :
+                col.skew > 0.5 ? `Positive skewness (+${col.skew.toFixed(2)}). Values concentrate on the left with a long right tail. CATML suggests log1p(x) transformation to stabilize variance.` :
+                `Negative skewness (${col.skew.toFixed(2)}). Long left tail. Power transformation or robust scaling recommended.`
               }
             </p>
           </div>
@@ -944,16 +964,16 @@ export class DatasetsView {
     } else if (col.top_categories && col.top_categories.length > 0) {
       return `
         <div class="space-y-4">
-          <div class="text-xs text-slate-300 font-medium">Distribución de Frecuencia Categórica</div>
-          <div class="space-y-2.5 p-4 bg-slate-950 rounded-lg border border-slate-800">
+          <div class="text-xs text-[#F7F8FA] font-medium font-sans">Categorical Frequency Distribution</div>
+          <div class="space-y-2.5 p-4 bg-[#090C12] rounded-xl border border-[#252C38]">
             ${col.top_categories.map(c => `
               <div class="space-y-1">
                 <div class="flex items-center justify-between text-xs">
-                  <span class="font-mono font-medium text-slate-200">${c.value}</span>
-                  <span class="font-mono text-slate-400">${c.count.toLocaleString()} (${c.pct}%)</span>
+                  <span class="font-mono font-medium text-[#F7F8FA]">${c.value}</span>
+                  <span class="font-mono text-[#8B95A7]">${c.count.toLocaleString()} (${c.pct}%)</span>
                 </div>
-                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                  <div class="h-full bg-purple-500 rounded-full" style="width: ${c.pct}%;"></div>
+                <div class="h-1.5 w-full bg-[#151B26] rounded-full overflow-hidden">
+                  <div class="h-full bg-[#6956E8] rounded-full" style="width: ${c.pct}%;"></div>
                 </div>
               </div>
             `).join("")}
@@ -963,8 +983,8 @@ export class DatasetsView {
     }
 
     return `
-      <div class="p-6 text-center text-slate-400 text-xs">
-        No hay datos de distribución o frecuencias disponibles para esta característica.
+      <div class="p-6 text-center text-[#8B95A7] text-xs font-sans">
+        No distribution or frequency data available for this feature.
       </div>
     `;
   }
@@ -973,8 +993,8 @@ export class DatasetsView {
     const isTarget = col.name === this.profile.target_column;
     if (isTarget) {
       return `
-        <div class="p-6 text-center text-slate-400 text-xs">
-          Esta columna es la variable objetivo principal (Target).
+        <div class="p-6 text-center text-[#8B95A7] text-xs font-sans">
+          This column is the primary target variable.
         </div>
       `;
     }
@@ -987,26 +1007,26 @@ export class DatasetsView {
         return `
           <div class="space-y-4">
             <div class="flex items-center justify-between text-xs">
-              <span class="text-slate-300 font-medium">Tasa de Incidencia del Target (%) por Categoría</span>
-              <span class="text-[11px] font-mono text-indigo-400">Patrón de propensión</span>
+              <span class="text-[#F7F8FA] font-medium font-sans">Target Incidence Rate (%) by Category</span>
+              <span class="text-[11px] font-mono text-[#4F67FF]">Propensity pattern</span>
             </div>
 
-            <div class="space-y-3 p-4 bg-slate-950 rounded-lg border border-slate-800">
+            <div class="space-y-3 p-4 bg-[#090C12] rounded-xl border border-[#252C38]">
               ${col.top_categories.map(c => {
                 const rate = c.target_rate != null ? c.target_rate : 0.0;
-                let colorClass = "bg-indigo-600";
-                if (rate >= 60) colorClass = "bg-emerald-500";
-                else if (rate <= 40) colorClass = "bg-rose-500";
+                let colorClass = "bg-[#4F67FF]";
+                if (rate >= 60) colorClass = "bg-[#22C55E]";
+                else if (rate <= 40) colorClass = "bg-[#EF4444]";
 
                 return `
                   <div class="space-y-1">
                     <div class="flex items-center justify-between text-xs">
-                      <span class="font-mono font-medium text-slate-200">${c.value}</span>
-                      <span class="font-mono font-bold ${rate >= 50 ? 'text-emerald-400' : 'text-slate-300'}">
-                        ${rate.toFixed(1)}% tasa positiva (${c.count.toLocaleString()} muestras)
+                      <span class="font-mono font-medium text-[#F7F8FA]">${c.value}</span>
+                      <span class="font-mono font-bold ${rate >= 50 ? 'text-[#22C55E]' : 'text-[#8B95A7]'}">
+                        ${rate.toFixed(1)}% positive rate (${c.count.toLocaleString()} samples)
                       </span>
                     </div>
-                    <div class="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden flex">
+                    <div class="h-2 w-full bg-[#151B26] rounded-full overflow-hidden flex">
                       <div class="h-full ${colorClass} rounded-full transition-all" style="width: ${rate}%;"></div>
                     </div>
                   </div>
@@ -1014,10 +1034,10 @@ export class DatasetsView {
               }).join("")}
             </div>
 
-            <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-1">
-              <span class="font-bold text-slate-200">🎯 Utilidad en Modelado:</span>
-              <p class="text-slate-400">
-                La variación en la tasa positiva entre categorías demuestra que esta variable aporta poder discriminante. CATML aplicará Target Encoding out-of-fold para capturar estas diferencias de propensión sin causar fuga de datos.
+            <div class="p-3 bg-[#151B26] border border-[#252C38] rounded-xl text-xs space-y-1">
+              <span class="font-bold text-[#F7F8FA] font-sans">Modeling Utility:</span>
+              <p class="text-[#8B95A7] font-sans">
+                Variation in positive rate across categories demonstrates discriminative power. CATML will apply out-of-fold Target Encoding to leverage propensity differences without data leakage.
               </p>
             </div>
           </div>
@@ -1031,38 +1051,38 @@ export class DatasetsView {
       return `
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3 text-xs">
-            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-              <span class="text-slate-400 text-[10px] block">Correlación de Pearson con Target</span>
-              <span class="font-mono text-base font-bold ${corr != null && Math.abs(corr) >= 0.25 ? 'text-emerald-400' : 'text-slate-300'}">
-                ${corr != null ? (corr > 0 ? '+' : '') + corr.toFixed(4) : 'No calculada'}
+            <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-1">
+              <span class="text-[#8B95A7] text-[10px] block font-sans uppercase">Pearson Correlation with Target</span>
+              <span class="font-mono text-base font-bold ${corr != null && Math.abs(corr) >= 0.25 ? 'text-[#22C55E]' : 'text-[#F7F8FA]'}">
+                ${corr != null ? (corr > 0 ? '+' : '') + corr.toFixed(4) : 'Not computed'}
               </span>
-              <p class="text-[10px] text-slate-500">
-                ${corr != null && Math.abs(corr) >= 0.4 ? 'Correlación fuerte: candidato prioritario.' :
-                  corr != null && Math.abs(corr) >= 0.2 ? 'Correlación moderada: predictora útil.' :
-                  'Correlación lineal baja: el modelo explotará patrones no lineales mediante árboles.'
+              <p class="text-[10px] text-[#8B95A7] font-sans">
+                ${corr != null && Math.abs(corr) >= 0.4 ? 'Strong correlation: prime predictive candidate.' :
+                  corr != null && Math.abs(corr) >= 0.2 ? 'Moderate correlation: useful predictor.' :
+                  'Low linear correlation: tree models will extract non-linear patterns.'
                 }
               </p>
             </div>
 
-            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-              <span class="text-slate-400 text-[10px] block">Separación Intercuartílica entre Clases</span>
-              <span class="font-mono text-base font-bold text-indigo-300">
+            <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-1">
+              <span class="text-[#8B95A7] text-[10px] block font-sans uppercase">Interquartile Separation Across Classes</span>
+              <span class="font-mono text-base font-bold text-[#4F67FF]">
                 ${byTarget.length === 2 ? Math.abs(byTarget[1].median - byTarget[0].median).toFixed(2) : (bp?.iqr != null ? bp.iqr.toFixed(2) : '—')}
               </span>
-              <p class="text-[10px] text-slate-500">
-                ${byTarget.length === 2 ? 'Delta absoluto entre medianas de clase 0 y clase 1.' : 'Rango intercuartílico (IQR = Q75 - Q25).'}
+              <p class="text-[10px] text-[#8B95A7] font-sans">
+                ${byTarget.length === 2 ? 'Absolute delta between class 0 and class 1 medians.' : 'Interquartile range (IQR = Q75 - Q25).'}
               </p>
             </div>
           </div>
 
           ${byTarget.length >= 2 ? `
-            <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
-              <span class="text-xs font-semibold text-slate-300">Comparativa de Medias por Clase del Target</span>
+            <div class="p-3.5 bg-[#090C12] rounded-xl border border-[#252C38] space-y-2">
+              <span class="text-xs font-semibold text-[#F7F8FA] font-sans">Target Class Distribution Comparison</span>
               <div class="space-y-2">
                 ${byTarget.map(t => `
                   <div class="flex items-center justify-between text-xs font-mono">
-                    <span class="text-slate-400">${this.profile.target_column} = ${t.class_label}:</span>
-                    <span class="font-bold text-slate-200">Media = ${t.mean.toFixed(2)} • Mediana = ${t.median.toFixed(2)} (${t.count.toLocaleString()} registros)</span>
+                    <span class="text-[#8B95A7]">${this.profile.target_column} = ${t.class_label}:</span>
+                    <span class="font-bold text-[#F7F8FA]">Mean = ${t.mean.toFixed(2)} • Median = ${t.median.toFixed(2)} (${t.count.toLocaleString()} rows)</span>
                   </div>
                 `).join("")}
               </div>
@@ -1073,8 +1093,8 @@ export class DatasetsView {
     }
 
     return `
-      <div class="p-6 text-center text-slate-400 text-xs">
-        No hay datos bivariantes suficientes para correlacionar con la variable objetivo.
+      <div class="p-6 text-center text-[#8B95A7] text-xs font-sans">
+        Insufficient bivariate data to correlate with target.
       </div>
     `;
   }
@@ -1088,26 +1108,26 @@ export class DatasetsView {
     return `
       <div class="p-6 space-y-6">
         <!-- Header Banner -->
-        <div class="p-4 rounded border border-[#27272e] bg-[#1a1a20] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-4 rounded-xl border border-[#252C38] bg-[#151B26] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
               <span class="text-[#4F67FF] text-base">⚡</span>
-              <h3 class="text-sm font-bold text-[#FFFFFF] font-mono uppercase tracking-wider">Calculadora de Características & Motor de Columnas Derivadas</h3>
+              <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">Feature Calculator & Derived Feature Engine</h3>
             </div>
-            <p class="text-xs text-[#94A3B8]/70 font-mono">
-              Genera nuevas features complejas mediante fórmulas o código Python sandboxed con aislamiento de división por cero y comprobación de tipos.
+            <p class="text-xs text-[#8B95A7] font-sans">
+              Engineers complex tabular features via mathematical formulas or sandboxed Python expressions with division-by-zero isolation and type validation.
             </p>
           </div>
 
           <div class="flex items-center space-x-2">
-            <button id="btnCalcModeFormula" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'formula' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-bold' : 'bg-[#111111] text-[#94A3B8]/70 border-[#27272e] hover:text-[#FFFFFF]'}">
-              🧮 MODO FÓRMULA
+            <button id="btnCalcModeFormula" class="px-3 py-1.5 text-xs font-sans rounded-md border transition-colors ${this.calcMode === 'formula' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-semibold' : 'bg-[#10151E] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">
+              Formula Mode
             </button>
-            <button id="btnCalcModePython" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'python_code' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-bold' : 'bg-[#111111] text-[#94A3B8]/70 border-[#27272e] hover:text-[#FFFFFF]'}">
-              🐍 CÓDIGO PYTHON
+            <button id="btnCalcModePython" class="px-3 py-1.5 text-xs font-sans rounded-md border transition-colors ${this.calcMode === 'python_code' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-semibold' : 'bg-[#10151E] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">
+              Python Mode
             </button>
-            <button id="btnCalcSuggest" class="px-3 py-1.5 text-xs font-mono rounded border border-indigo-500/60 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/50 transition-colors font-semibold flex items-center space-x-1">
-              <span>🤖 Sugerir con IA</span>
+            <button id="btnCalcSuggest" class="btn-technical text-xs text-[#6956E8] border-[#6956E8]/30 hover:border-[#6956E8] flex items-center space-x-1">
+              <span>Suggest with AI</span>
             </button>
           </div>
         </div>
@@ -1117,74 +1137,74 @@ export class DatasetsView {
           <!-- Left Column: Name & Expression Editor -->
           <div class="lg:col-span-2 space-y-4">
             <div class="space-y-1.5">
-              <label class="text-xs font-mono text-[#94A3B8] uppercase font-bold tracking-wider">Nombre de la Nueva Característica:</label>
-              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="ej: debt_to_income_ratio" class="w-full bg-[#111111] border border-[#27272e] text-[#FFFFFF] text-xs font-mono px-3 py-2 rounded focus:border-[#4F67FF] outline-none">
+              <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">Derived Feature Name:</label>
+              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="e.g. debt_to_income_ratio" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono px-3 py-2 rounded-lg focus:border-[#4F67FF] outline-none">
             </div>
 
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <label class="text-xs font-mono text-[#94A3B8] uppercase font-bold tracking-wider">
-                  ${this.calcMode === 'formula' ? 'Expresión Matemática / Fórmula:' : 'Función Python Sandboxed (df):'}
+                <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">
+                  ${this.calcMode === 'formula' ? 'Mathematical Formula:' : 'Sandboxed Python Function (df):'}
                 </label>
-                <span class="text-[10px] text-[#94A3B8]/60 font-mono">
-                  ${this.calcMode === 'formula' ? 'Auto-protección contra división por 0 activa' : 'Restringido a numpy y pandas'}
+                <span class="text-[10px] text-[#8B95A7] font-mono">
+                  ${this.calcMode === 'formula' ? 'Zero-division guard active' : 'Restricted to numpy & pandas'}
                 </span>
               </div>
-              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'ej: debt / (income + 1e-5)'}" class="w-full bg-[#111111] border border-[#27272e] text-[#FFFFFF] text-xs font-mono p-3 rounded focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
+              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'e.g. debt / (income + 1e-5)'}" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono p-3 rounded-lg focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
             </div>
 
             <!-- Quick Operators Toolbar (Formula Mode) -->
             ${this.calcMode === 'formula' ? `
               <div class="space-y-2">
-                <span class="text-[11px] font-mono text-[#94A3B8]/70 font-semibold uppercase">Operadores y Funciones Rápidas:</span>
+                <span class="text-[11px] font-sans text-[#8B95A7] font-semibold uppercase">Quick Operators & Transforms:</span>
                 <div class="flex flex-wrap gap-1.5 text-xs font-mono">
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" + ">+</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" - ">-</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" * ">*</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" / ">/</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op=" ** 2">**2</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="log1p()">log1p()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="sqrt()">sqrt()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="clip(col, 0, 100)">clip()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="zscore()">zscore()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="if_else(cond, x, y)">if_else()</button>
-                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-[#4F67FF]" data-op="fillna(col, 0)">fillna()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" + ">+</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" - ">-</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" * ">*</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" / ">/</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" ** 2">**2</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op="log1p()">log1p()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op="sqrt()">sqrt()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op="clip(col, 0, 100)">clip()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op="zscore()">zscore()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op="if_else(cond, x, y)">if_else()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op="fillna(col, 0)">fillna()</button>
                 </div>
               </div>
             ` : ""}
 
             <!-- Action CTAs -->
             <div class="flex items-center space-x-3 pt-2">
-              <button id="btnCalcValidate" class="px-4 py-2 bg-[#1e1e24] hover:bg-[#27272e] text-[#F1EFE9] border border-[#27272e] text-xs font-mono font-bold rounded flex items-center space-x-2 transition-all">
-                <span>⚡ PROBAR Y PREVISUALIZAR</span>
+              <button id="btnCalcValidate" class="btn-technical text-xs font-semibold">
+                <span>Test & Preview</span>
               </button>
-              <button id="btnCalcApply" class="btn-signal ${evalRes && evalRes.is_valid ? '' : 'opacity-50 cursor-not-allowed'}" ${evalRes && evalRes.is_valid ? '' : 'disabled'}>
-                <span>+ APLICAR AL DATASET Y GUARDAR</span>
+              <button id="btnCalcApply" class="btn-signal text-xs ${evalRes && evalRes.is_valid ? '' : 'opacity-50 cursor-not-allowed'}" ${evalRes && evalRes.is_valid ? '' : 'disabled'}>
+                <span>Apply to Dataset & Save</span>
               </button>
             </div>
           </div>
 
           <!-- Right Column: Available Column Chips -->
-          <div class="space-y-3 p-4 rounded border border-[#27272e] bg-[#141418]">
-            <div class="flex items-center justify-between border-b border-[#27272e] pb-2">
-              <span class="text-xs font-mono text-[#F1EFE9] font-bold uppercase tracking-wider">Columnas Disponibles</span>
-              <span class="text-[10px] font-mono text-[#D8D6CF]/60">Clic para insertar</span>
+          <div class="space-y-3 p-4 rounded-xl border border-[#252C38] bg-[#090C12]">
+            <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
+              <span class="text-xs font-sans text-[#F7F8FA] font-semibold uppercase tracking-wider">Available Features</span>
+              <span class="text-[10px] font-mono text-[#8B95A7]">Click to insert</span>
             </div>
             <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
-              <div class="text-[10px] font-mono text-[#D8D6CF]/70 font-semibold uppercase">Numéricas:</div>
+              <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase">Numeric:</div>
               <div class="flex flex-wrap gap-1.5">
                 ${numCols.map(c => `
-                  <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-indigo-300 font-mono text-xs hover:border-[#4F67FF] hover:text-[#FFFFFF] transition-colors" data-col="${c.name}">
+                  <button class="calc-col-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#4F67FF] font-mono text-xs hover:border-[#4F67FF] hover:text-white transition-colors" data-col="${c.name}">
                     ${c.name}
                   </button>
                 `).join("")}
               </div>
 
               ${catCols.length > 0 ? `
-                <div class="text-[10px] font-mono text-[#94A3B8]/70 font-semibold uppercase pt-2">Otras / Categóricas:</div>
+                <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase pt-2">Categorical / Other:</div>
                 <div class="flex flex-wrap gap-1.5">
                   ${catCols.map(c => `
-                    <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-purple-300 font-mono text-xs hover:border-[#4F67FF] hover:text-[#FFFFFF] transition-colors" data-col="${c.name}">
+                    <button class="calc-col-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#6956E8] font-mono text-xs hover:border-[#4F67FF] hover:text-white transition-colors" data-col="${c.name}">
                       ${c.name}
                     </button>
                   `).join("")}
@@ -1196,32 +1216,32 @@ export class DatasetsView {
 
         <!-- Evaluation Results & Diagnostics Card -->
         ${evalRes ? `
-          <div class="p-5 rounded border ${evalRes.is_valid ? 'border-emerald-800/80 bg-emerald-950/20' : 'border-rose-800/80 bg-rose-950/20'} space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272e] pb-3">
+          <div class="p-5 rounded-xl border ${evalRes.is_valid ? 'border-emerald-800/60 bg-emerald-950/15' : 'border-rose-800/60 bg-rose-950/15'} space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
               <div class="flex items-center space-x-3">
-                <span class="text-xs px-2.5 py-1 rounded font-mono font-bold uppercase ${evalRes.is_valid ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-rose-900/60 text-rose-300 border border-rose-700'}">
-                  ${evalRes.is_valid ? '✓ FÓRMULA VÁLIDA' : '✕ ERROR DE COMPILACIÓN / VALIDACIÓN'}
+                <span class="text-xs px-2.5 py-1 rounded-md font-mono font-bold uppercase ${evalRes.is_valid ? 'badge-gain' : 'badge-err'}">
+                  ${evalRes.is_valid ? '✓ VALID FORMULA' : '✕ VALIDATION ERROR'}
                 </span>
-                <span class="text-sm font-bold font-mono text-[#F1EFE9]">${evalRes.feature_name}</span>
-                <span class="text-xs font-mono text-[#D8D6CF]/70">(${evalRes.dtype || 'unknown'})</span>
+                <span class="text-sm font-bold font-mono text-[#F7F8FA]">${evalRes.feature_name}</span>
+                <span class="text-xs font-mono text-[#8B95A7]">(${evalRes.dtype || 'unknown'})</span>
               </div>
 
               <div class="flex items-center space-x-2 text-xs font-mono">
-                <span class="px-2 py-0.5 rounded bg-[#111111] border border-[#27272e] text-[#D8D6CF]">
-                  Filas: <strong>${evalRes.row_count}</strong>
+                <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] text-[#8B95A7]">
+                  Rows: <strong class="text-[#F7F8FA]">${evalRes.row_count}</strong>
                 </span>
-                <span class="px-2 py-0.5 rounded bg-[#111111] border border-[#27272e] ${evalRes.null_percentage > 0.2 ? 'text-amber-400' : 'text-[#D8D6CF]'}">
-                  Nulos: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
+                <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] ${evalRes.null_percentage > 0.2 ? 'text-amber-400' : 'text-[#8B95A7]'}">
+                  Nulls: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
                 </span>
-                <span class="px-2 py-0.5 rounded bg-[#111111] border border-[#27272e] ${evalRes.zero_division_occurred ? 'text-emerald-400 font-bold' : 'text-[#D8D6CF]'}">
-                  Div/0: ${evalRes.zero_division_occurred ? 'Aislada (0.0/eps)' : 'Ninguna'}
+                <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] ${evalRes.zero_division_occurred ? 'text-[#22C55E] font-bold' : 'text-[#8B95A7]'}">
+                  Zero-div: ${evalRes.zero_division_occurred ? 'Guarded (0.0/eps)' : 'None'}
                 </span>
               </div>
             </div>
 
             ${evalRes.error_message ? `
-              <div class="p-3 rounded bg-rose-950/40 border border-rose-800 text-rose-300 font-mono text-xs space-y-1">
-                <div class="font-bold">Detalle del Fallo de Validación:</div>
+              <div class="p-3 rounded-lg bg-rose-950/30 border border-rose-800/60 text-rose-300 font-mono text-xs space-y-1">
+                <div class="font-bold">Validation Failure Details:</div>
                 <div>${evalRes.error_message}</div>
               </div>
             ` : ""}
@@ -1240,34 +1260,34 @@ export class DatasetsView {
             ${evalRes.is_valid ? `
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono pt-1">
                 <!-- Summary Stats -->
-                <div class="p-3 rounded bg-[#111111] border border-[#27272e] space-y-2">
-                  <div class="text-[10px] text-[#D8D6CF]/70 uppercase font-bold tracking-wider">Estadísticas Descriptivas:</div>
+                <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
+                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Descriptive Statistics:</div>
                   <div class="grid grid-cols-4 gap-2 text-center">
-                    <div class="p-1.5 rounded bg-[#1e1e24]">
-                      <div class="text-[10px] text-[#D8D6CF]/60">Mín</div>
-                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.min != null ? evalRes.summary_stats.min.toFixed(3) : '-'}</div>
+                    <div class="p-1.5 rounded-lg bg-[#151B26]">
+                      <div class="text-[10px] text-[#8B95A7]">Min</div>
+                      <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.min != null ? evalRes.summary_stats.min.toFixed(3) : '-'}</div>
                     </div>
-                    <div class="p-1.5 rounded bg-[#1e1e24]">
-                      <div class="text-[10px] text-[#D8D6CF]/60">Media</div>
-                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.mean != null ? evalRes.summary_stats.mean.toFixed(3) : '-'}</div>
+                    <div class="p-1.5 rounded-lg bg-[#151B26]">
+                      <div class="text-[10px] text-[#8B95A7]">Mean</div>
+                      <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.mean != null ? evalRes.summary_stats.mean.toFixed(3) : '-'}</div>
                     </div>
-                    <div class="p-1.5 rounded bg-[#1e1e24]">
-                      <div class="text-[10px] text-[#D8D6CF]/60">Std</div>
-                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.std != null ? evalRes.summary_stats.std.toFixed(3) : '-'}</div>
+                    <div class="p-1.5 rounded-lg bg-[#151B26]">
+                      <div class="text-[10px] text-[#8B95A7]">Std</div>
+                      <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.std != null ? evalRes.summary_stats.std.toFixed(3) : '-'}</div>
                     </div>
-                    <div class="p-1.5 rounded bg-[#1e1e24]">
-                      <div class="text-[10px] text-[#D8D6CF]/60">Máx</div>
-                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.max != null ? evalRes.summary_stats.max.toFixed(3) : '-'}</div>
+                    <div class="p-1.5 rounded-lg bg-[#151B26]">
+                      <div class="text-[10px] text-[#8B95A7]">Max</div>
+                      <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.max != null ? evalRes.summary_stats.max.toFixed(3) : '-'}</div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Sample Preview -->
-                <div class="p-3 rounded bg-[#111111] border border-[#27272e] space-y-2">
-                  <div class="text-[10px] text-[#D8D6CF]/70 uppercase font-bold tracking-wider">Muestra de Valores Calculados (Primeras 5 Filas):</div>
+                <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
+                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Sample Computed Values (First 5 Rows):</div>
                   <div class="flex items-center space-x-2">
                     ${(evalRes.sample_values || []).map((val, idx) => `
-                      <span class="px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#F1EFE9] font-bold">
+                      <span class="px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#F7F8FA] font-bold">
                         #${idx + 1}: ${val != null ? val : 'NaN'}
                       </span>
                     `).join("")}
@@ -1280,24 +1300,24 @@ export class DatasetsView {
 
         <!-- AI Feature Suggestions Card -->
         ${this.calcSuggestions && this.calcSuggestions.length > 0 ? `
-          <div class="p-4 rounded border border-indigo-900/60 bg-indigo-950/20 space-y-3">
-            <div class="flex items-center justify-between border-b border-indigo-900/40 pb-2">
-              <span class="text-xs font-mono font-bold text-indigo-300 uppercase tracking-wider">💡 Hipótesis de Features Propuestas por la IA:</span>
-              <span class="text-[10px] font-mono text-[#D8D6CF]/70">${this.calcSuggestions.length} sugerencias validadas</span>
+          <div class="p-4 rounded-xl border border-indigo-900/40 bg-indigo-950/15 space-y-3">
+            <div class="flex items-center justify-between border-b border-indigo-900/30 pb-2">
+              <span class="text-xs font-sans font-semibold text-indigo-300 uppercase tracking-wider">Feature Hypotheses Proposed by AI</span>
+              <span class="text-[10px] font-mono text-[#8B95A7]">${this.calcSuggestions.length} validated proposals</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               ${this.calcSuggestions.map(sugg => `
-                <div class="p-3 rounded bg-[#111111] border border-[#27272e] space-y-2">
+                <div class="p-3 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-mono font-bold text-indigo-300">${sugg.definition.name}</span>
-                    <button class="btn-load-suggestion px-2 py-0.5 rounded bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-200 border border-indigo-500/50 text-[10px] font-mono font-semibold" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
-                      Usar en Calculadora ➔
+                    <button class="btn-load-suggestion px-2.5 py-0.5 rounded-md bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 text-[11px] font-sans font-medium" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
+                      Load in Calculator ➔
                     </button>
                   </div>
-                  <div class="text-[11px] font-mono text-[#F1EFE9] bg-[#1a1a20] px-2 py-1 rounded border border-[#27272e] overflow-x-auto">
+                  <div class="text-[11px] font-mono text-[#F7F8FA] bg-[#151B26] px-2 py-1 rounded-md border border-[#252C38] overflow-x-auto">
                     ${sugg.definition.expression}
                   </div>
-                  <p class="text-[10px] text-[#D8D6CF]/70 font-mono">${sugg.definition.description || ''}</p>
+                  <p class="text-[10px] text-[#8B95A7] font-sans">${sugg.definition.description || ''}</p>
                 </div>
               `).join("")}
             </div>
@@ -1350,7 +1370,7 @@ export class DatasetsView {
       const name = this.container.querySelector("#calcFeatureName")?.value.trim();
       const expr = this.container.querySelector("#calcExpression")?.value.trim();
       if (!name || !expr) {
-        alert("Por favor introduce el nombre y la expresión de la característica.");
+        alert("Please enter both the feature name and expression.");
         return;
       }
       this.calcFeatureName = name;
@@ -1365,7 +1385,7 @@ export class DatasetsView {
         this.calcEvaluationResult = res.result;
         this.render();
       } catch (err) {
-        alert(`Error al validar: ${err.message}`);
+        alert(`Validation error: ${err.message}`);
       }
     });
 
@@ -1376,7 +1396,7 @@ export class DatasetsView {
       if (!name || !expr) return;
 
       const btn = this.container.querySelector("#btnCalcApply");
-      if (btn) btn.textContent = "⏳ APLICANDO AL DATASET...";
+      if (btn) btn.textContent = "Applying to Dataset...";
 
       try {
         await api.applyDerivedFeature({
@@ -1393,7 +1413,7 @@ export class DatasetsView {
         this.calcEvaluationResult = null;
         this.render();
       } catch (err) {
-        alert(`Error al aplicar la característica: ${err.message}`);
+        alert(`Failed to apply derived feature: ${err.message}`);
         this.render();
       }
     });
@@ -1458,7 +1478,7 @@ export class DatasetsView {
 
     const liveCount = this.container.querySelector("#selectionLiveCount");
     if (liveCount) {
-      liveCount.textContent = `${this.selectedFeatures.size} de ${featureCols.length} características seleccionadas (${featureCols.length - this.selectedFeatures.size} excluidas)`;
+      liveCount.innerHTML = `<strong class="text-[#4F67FF]">${this.selectedFeatures.size}</strong> of ${featureCols.length} features selected (${featureCols.length - this.selectedFeatures.size} excluded)`;
     }
 
     const pillCount = this.container.querySelector("#pillSelectedCount");
@@ -1676,7 +1696,7 @@ export class DatasetsView {
     });
 
     // Filter pills
-    this.container.querySelectorAll(".filter-pill").forEach(btn => {
+    this.container.querySelectorAll(".segmented-pill, .filter-pill").forEach(btn => {
       btn.addEventListener("click", () => {
         this.filterType = btn.getAttribute("data-filter");
         this.render();

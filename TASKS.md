@@ -11,6 +11,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Platform Sync: Mirror brand system specifications, tokens and roadmap milestones into `catml-platform`.
 - [x] Standalone Artifact UI & Color Cleanup: Expose `/api/models/export` (.pkl download) and `/api/models/export-info` in `server.py`, integrate 1-click artifact download buttons in `overview.js` and `compare.js`, and eliminate legacy `#E5512D` colors across all views in favor of `#4F67FF` Electric Blue (437 tests passing, 87.23% coverage).
 - [x] UI Refinement: Comprehensive transformation of Workbench frontend and dataset profiler to 100% Tech Minimalista Premium (4-level surface hierarchy `#080A0F`/`#0D1017`/`#11151E`/`#161B26`, monochrome sidebar with muted 01-06 indicators, Geist/Inter sans-serif UI, discrete badges, English unification, clean Agent drawer, 461 tests passing, 87.53% coverage).
+- [x] Workbench Elevation & Container De-nesting: Elimination of nested container soup (`panel -> panel -> control -> badge`) across Dataset Understanding, studio, and modals; segmented pill track for filters; clear visual action hierarchy with dominant primary CTA "Launch Experiment (N)" and secondary "Apply recommendations"; 100% professional technical English across all views and background jobs widget; discrete badges (`HIGH RELEVANCE`, `HIGH SIGNAL`); full test suite green (461 passed, 87.53% coverage).
 
 ## Completed Phase: Sprint 2 (Productization P0 — CLI Fit, Quickstart & Product README)
 

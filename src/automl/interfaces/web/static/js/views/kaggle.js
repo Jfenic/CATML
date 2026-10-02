@@ -25,7 +25,7 @@ export class KaggleView {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
         <div class="animate-spin text-2xl text-indigo-400">⚡</div>
-        <div class="text-sm font-medium">Cargando estado de competencia y verificaciones pre-flight...</div>
+        <div class="text-sm font-medium">Loading competition state and pre-flight verifications...</div>
       </div>
     `;
   }
@@ -192,7 +192,7 @@ export class KaggleView {
             <!-- Action Buttons -->
             <div class="space-y-2 pt-2 border-t border-slate-800">
               <label class="flex items-center gap-2 text-xs text-slate-300">
-                <input type="checkbox" id="useOOF" checked class="rounded text-indigo-600 bg-slate-800" /> Promediar 5 folds (OOF Ensemble)
+                <input type="checkbox" id="useOOF" checked class="rounded text-indigo-600 bg-slate-800" /> Average 5 folds (OOF Ensemble)
               </label>
               <button id="btnGenerateSubmission" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20">
                 <span>⚡ Generate & Validate submission.csv</span>
@@ -234,7 +234,7 @@ export class KaggleView {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>⏳ Generando inferencias...</span>
+          <span>⏳ Generating inferences...</span>
         `;
 
         const res = await api.generateSubmission({
@@ -249,7 +249,7 @@ export class KaggleView {
         });
 
         btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
-        btn.innerHTML = `<span>✓ ¡Generado con éxito! (${res.row_count} filas)</span>`;
+        btn.innerHTML = `<span>✓ Generated successfully! (${res.row_count} rows)</span>`;
 
         setTimeout(() => {
           btn.disabled = false;
@@ -271,7 +271,7 @@ export class KaggleView {
     this.container.querySelector("#btnSubmitKaggleCLI")?.addEventListener("click", () => {
       const outputPath = this.container.querySelector("#inputOutputPath")?.value.trim() || "submission.csv";
       const compSlug = (st && st.competition) ? st.competition.toLowerCase().replace(/\s+/g, "-") : "dataset-competition";
-      alert(`Comando Kaggle CLI sugerido:\n\nkaggle competitions submit -c ${compSlug} -f ${outputPath} -m 'CATML AutoML Submission'\n\nListo para ejecutar vía CLI o terminal.`);
+      alert(`Suggested Kaggle CLI command:\n\nkaggle competitions submit -c ${compSlug} -f ${outputPath} -m 'CATML AutoML Submission'\n\nReady to run via CLI or terminal.`);
     });
   }
 

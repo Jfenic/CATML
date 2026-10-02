@@ -1,24 +1,25 @@
 import { api } from "../api.js";
 
 const labels = {
-  queued: "En cola", running: "En ejecución", pause_requested: "Pausa solicitada",
-  cancel_requested: "Cancelación solicitada", paused: "Pausado", cancelled: "Cancelado",
-  completed: "Completado", failed: "Fallido", interrupted: "Interrumpido",
+  queued: "Queued", running: "Running", pause_requested: "Pause requested",
+  cancel_requested: "Cancel requested", paused: "Paused", cancelled: "Cancelled",
+  completed: "Completed", failed: "Failed", interrupted: "Interrupted",
 };
 const actions = {
   queued: ["pause", "cancel"], running: ["pause", "cancel"], pause_requested: ["cancel"],
   paused: ["resume", "cancel"], failed: ["retry", "cancel"], interrupted: ["retry", "cancel"],
 };
-const actionLabels = { pause: "Pausar", cancel: "Cancelar", resume: "Continuar", retry: "Reintentar" };
+const actionLabels = { pause: "Pause", cancel: "Cancel", resume: "Resume", retry: "Retry" };
 
 /** Persistent activity is recovered from the server on every page load. */
 export class JobsPanel {
   mount() {
     this.panel = document.createElement("details");
-    this.panel.className = "fixed bottom-4 left-4 z-50 bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-200 shadow-xl";
+    this.panel.className = "fixed bottom-4 left-4 z-50 bg-[#10151E] border border-[#252C38] rounded-xl p-3 text-xs text-slate-200 shadow-xl";
     this.panel.style.width = "min(360px, calc(100vw - 32px))";
     this.summary = document.createElement("summary");
-    this.summary.textContent = "Trabajos";
+    this.summary.className = "cursor-pointer font-semibold text-slate-300 hover:text-white select-none";
+    this.summary.textContent = "Jobs";
     this.content = document.createElement("div");
     this.content.style.maxHeight = "45vh";
     this.content.style.overflowY = "auto";
@@ -36,13 +37,13 @@ export class JobsPanel {
     try {
       const jobs = await api.getJobs();
       const active = jobs.filter(job => !["completed", "cancelled", "failed", "interrupted"].includes(job.status));
-      this.summary.textContent = `Trabajos (${active.length} pendientes)`;
+      this.summary.textContent = `Jobs (${active.length} pending)`;
       this.content.replaceChildren();
-      if (!jobs.length) this.content.textContent = "Todavía no hay trabajos.";
+      if (!jobs.length) this.content.textContent = "No background jobs running.";
       const recent = jobs.filter(job => !active.includes(job)).slice(0, 10);
       for (const job of [...active, ...recent]) this.content.append(this._renderJob(job));
     } catch (error) {
-      this.summary.textContent = "Trabajos: conexión pendiente";
+      this.summary.textContent = "Jobs: connection pending";
     } finally {
       this.refreshing = false;
     }
@@ -50,13 +51,15 @@ export class JobsPanel {
 
   _renderJob(job) {
     const row = document.createElement("div");
-    row.className = "border-t border-slate-700 mt-3 pt-3 space-y-2";
+    row.className = "border-t border-[#252C38] mt-3 pt-3 space-y-2";
     const heading = document.createElement("p");
-    heading.textContent = `${job.operation} · ${labels[job.status] || job.status} · intento ${job.attempt}`;
+    heading.className = "font-medium text-slate-200";
+    heading.textContent = `${job.operation} · ${labels[job.status] || job.status} · attempt ${job.attempt}`;
     const identity = document.createElement("p");
-    identity.className = "text-slate-400 break-all";
+    identity.className = "text-slate-400 break-all font-mono text-[11px]";
     identity.textContent = job.id;
     const detail = document.createElement("p");
+    detail.className = "text-slate-400 text-xs";
     detail.textContent = job.error || job.message;
     row.append(heading, identity, detail);
     if (job.total) {
@@ -65,17 +68,19 @@ export class JobsPanel {
       progress.value = job.completed;
       progress.className = "w-full";
       const counts = document.createElement("span");
-      counts.textContent = `${job.completed}/${job.total} pasos terminados`;
+      counts.className = "text-[11px] text-slate-400 font-mono";
+      counts.textContent = `${job.completed}/${job.total} steps completed`;
       row.append(progress, counts);
     }
     if (job.status === "completed") {
       const result = document.createElement("p");
-      result.textContent = job.result.output_path || `Experimento: ${job.result.experiment_id}`;
+      result.className = "text-xs font-mono text-emerald-400";
+      result.textContent = job.result.output_path || `Experiment: ${job.result.experiment_id}`;
       row.append(result);
     }
     for (const action of actions[job.status] || []) {
       const button = document.createElement("button");
-      button.className = "bg-slate-700 rounded px-2 py-1 mr-2 hover:bg-slate-600";
+      button.className = "bg-[#151B26] border border-[#252C38] rounded px-2.5 py-1 mr-2 hover:bg-[#1A2230] text-slate-300 hover:text-white transition-colors text-xs font-medium";
       button.textContent = actionLabels[action];
       button.addEventListener("click", async () => {
         button.disabled = true;

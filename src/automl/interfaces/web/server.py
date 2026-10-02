@@ -169,15 +169,15 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
             # CATML activity feed (explanations, rule applications, validations)
             activity_feed = [
-                {"type": "PLAN", "title": "Planner autónomo", "description": f"Optimización bayesiana TPE y selección algorítmica para {best_model if best_model != '-' else 'dataset actual'}."},
-                {"type": "ACCEPT", "title": "Verificación empírica", "description": "Modelos y transformaciones validadas por ganancia reproducible en cross-validation."},
-                {"type": "REJECT", "title": "Principio Proponer ≠ Aceptar", "description": "Descartadas características con correlación residual espuria o colinealidad."},
+                {"type": "PLAN", "title": "Autonomous Planner", "description": f"Bayesian TPE optimization and model selection for {best_model if best_model != '-' else 'active dataset'}."},
+                {"type": "ACCEPT", "title": "Empirical Verification", "description": "Models and transformations verified by reproducible gain in cross-validation."},
+                {"type": "REJECT", "title": "Propose ≠ Accept Principle", "description": "Discarded candidate features with spurious residual correlation or collinearity."},
             ]
             if best_score > 0:
                 activity_feed.insert(0, {
                     "type": "ACCEPT",
-                    "title": f"Mejor CV: {best_score:.5f}",
-                    "description": f"Modelo {best_model} lidera el ranking de validación cruzada.",
+                    "title": f"Best CV: {best_score:.5f}",
+                    "description": f"Model {best_model} leads cross-validation leaderboard.",
                 })
 
             self._send_json({
@@ -466,31 +466,31 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 {
                     "name": f"Baseline {rec_models[0].replace('_', ' ').title()}",
                     "priority": "LOW",
-                    "why": f"Establece umbral mínimo de referencia y tiempo ultrarrápido para {task_type}.",
+                    "why": f"Establishes initial benchmark threshold and near-instant training for {task_type}.",
                     "rule": "fast_linear_baseline",
                 },
                 {
                     "name": "Gradient Boosting Optimization (GBDT)",
                     "priority": "HIGH",
-                    "why": f"Modelos basados en árboles manejan no linealidades y optimizan {metric}.",
+                    "why": f"Tree-based models capture non-linearities and optimize {metric}.",
                     "rule": "tree_models_outperform_baseline",
                 },
                 {
                     "name": "Feature Interactions & Selection",
                     "priority": "MEDIUM",
-                    "why": "Generación de ratios A/B y selección de variables bajo regla 'Proponer ≠ Aceptar'.",
+                    "why": "Generates A/B interactions and selects candidate features under Propose ≠ Accept rule.",
                     "rule": "hypothesis_feature_interactions",
                 },
                 {
                     "name": "Hyperparameter Optimization (Optuna HPO)",
                     "priority": "HIGH",
-                    "why": "Exploración bayesiana TPE sobre el espacio de hiperparámetros.",
+                    "why": "Bayesian TPE exploration across hyperparameter search space.",
                     "rule": "bayesian_hpo_tuning",
                 },
                 {
                     "name": "Ensemble Blender & Stacking",
                     "priority": "HIGH",
-                    "why": "Combinación ponderada de predicciones out-of-fold para reducir varianza residual.",
+                    "why": "Weighted combination of out-of-fold predictions to reduce residual variance.",
                     "rule": "diversity_blending",
                 },
             ]
@@ -570,43 +570,43 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/agent/hypotheses":
             self._send_json({
-                "principle": "Proponer ≠ Aceptar",
+                "principle": "Propose ≠ Accept",
                 "hypotheses": [
                     {
                         "id": "hyp_12",
-                        "statement": "Normalización y escalado numérico robusto frente a valores atípicos.",
-                        "action": "Aplicar RobustScaler sobre variables con kurtosis elevada",
-                        "cost": "1 corrida LightGBM 5-fold CV",
+                        "statement": "Robust numerical scaling against extreme outliers.",
+                        "action": "Apply RobustScaler on high-kurtosis numerical features",
+                        "cost": "1 LightGBM 5-fold CV run",
                         "status": "TESTED",
                         "before_score": 0.94110,
                         "after_score": 0.94132,
                         "delta": "+0.00022",
                         "critic_decision": "PROMOTE",
-                        "critic_reason": "Mejora reproducible en folds con reducción de varianza residual.",
+                        "critic_reason": "Reproducible gain across folds with reduced residual variance.",
                     },
                     {
                         "id": "hyp_13",
-                        "statement": "Interacciones polinomiales pairwise exhaustivas sin filtrado.",
-                        "action": "Generar productos cruzados entre variables numéricas",
-                        "cost": "1 corrida LightGBM 5-fold CV",
+                        "statement": "Exhaustive pairwise polynomial interactions without selection filtering.",
+                        "action": "Generate cross-products between numeric features",
+                        "cost": "1 LightGBM 5-fold CV run",
                         "status": "TESTED",
                         "before_score": 0.94110,
                         "after_score": 0.94093,
                         "delta": "-0.00017",
                         "critic_decision": "REJECT",
-                        "critic_reason": "Ruido colineal; degrada score en validación. Rechazado por principio Proponer ≠ Aceptar.",
+                        "critic_reason": "Collinear noise; degraded validation score. Rejected by Propose ≠ Accept rule.",
                     },
                     {
                         "id": "hyp_14",
-                        "statement": "Target encoding suavizado m-estimate para variables categóricas.",
-                        "action": "Calcular out-of-fold target encoding con regularización m=10",
-                        "cost": "1 corrida CatBoost 5-fold CV",
+                        "statement": "Smoothed m-estimate target encoding for categorical features.",
+                        "action": "Compute out-of-fold target encoding with m=10 regularization",
+                        "cost": "1 CatBoost 5-fold CV run",
                         "status": "PROPOSED",
                         "before_score": 0.94110,
                         "after_score": None,
                         "delta": None,
                         "critic_decision": "PENDING",
-                        "critic_reason": "Esperando aprobación en sesión agéntica.",
+                        "critic_reason": "Awaiting approval in agent session.",
                     },
                 ],
             })

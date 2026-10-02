@@ -22,9 +22,9 @@ export class KnowledgeView {
 
   renderLoading() {
     this.container.innerHTML = `
-      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
-        <div class="animate-spin text-2xl text-purple-400">🧠</div>
-        <div class="text-sm font-medium">Recuperando huella meta-estadística y memoria de CATML...</div>
+      <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
+        <div class="animate-catml-spin text-2xl text-[#6956E8]">◇</div>
+        <div class="text-sm font-medium font-sans">Retrieving meta-statistical footprint and CATML knowledge base...</div>
       </div>
     `;
   }
@@ -87,10 +87,10 @@ export class KnowledgeView {
                 <h2 class="text-base font-bold text-slate-100">CATML Meta-Learning Knowledge (V0.8)</h2>
                 <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono">Memory Layer</span>
               </div>
-              <p class="text-xs text-slate-400">Meta-learning autónomo a partir del histórico de experimentos y meta-features tabulares</p>
+              <p class="text-xs text-slate-400">Autonomous meta-learning from historical experiments and tabular meta-features</p>
             </div>
           </div>
-          <span class="badge-sys text-xs px-3 py-1 rounded-full font-mono font-semibold">${similar.length} Datasets en Memoria</span>
+          <span class="badge-sys text-xs px-3 py-1 rounded-full font-mono font-semibold">${similar.length} Datasets in Memory</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -29,9 +29,9 @@ export class StudioView {
 
   renderLoading() {
     this.container.innerHTML = `
-      <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
-        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
-        <div class="text-sm font-medium">Cargando Experiment Studio, planes y métricas de validación...</div>
+      <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
+        <div class="animate-catml-spin text-2xl text-[#4F67FF]">◇</div>
+        <div class="text-sm font-medium font-sans">Loading Experiment Studio, plans, and validation metrics...</div>
       </div>
     `;
   }
@@ -267,15 +267,15 @@ export class StudioView {
 
       <!-- Trial Parameters Modal Dialog -->
       <div id="trialParamsModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="workbench-card max-w-lg w-full p-6 space-y-4 border-indigo-800/60 shadow-2xl">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div class="workbench-card max-w-lg w-full p-6 space-y-4 border-[#252C38] shadow-2xl">
+          <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
             <div class="flex items-center space-x-2">
-              <span class="text-indigo-400 text-lg">🔍</span>
-              <h3 class="text-sm font-bold text-slate-100 uppercase tracking-wide" id="trialParamsModalTitle">Hiperparámetros del Modelo</h3>
+              <span class="text-[#4F67FF] text-lg">🔍</span>
+              <h3 class="text-sm font-semibold text-[#F7F8FA] uppercase tracking-wide font-sans" id="trialParamsModalTitle">Model Hyperparameters</h3>
             </div>
-            <button id="btnCloseTrialParamsModal" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+            <button id="btnCloseTrialParamsModal" class="text-[#8B95A7] hover:text-[#F7F8FA] text-lg">✕</button>
           </div>
-          <div id="trialParamsModalBody" class="text-xs text-slate-300 space-y-3"></div>
+          <div id="trialParamsModalBody" class="text-xs text-[#8B95A7] space-y-3"></div>
         </div>
       </div>
     `;
@@ -316,16 +316,16 @@ export class StudioView {
       return `
         <div class="space-y-4">
           <!-- Filter & Search Toolbar -->
-          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
-            <div class="flex flex-wrap items-center gap-1.5 text-xs">
-              <span class="text-slate-400 text-[11px] uppercase font-semibold mr-1">Familia:</span>
-              <button data-modelfilter="all" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'all' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Todas (${this.leaderboard.length})</button>
-              <button data-modelfilter="gbdt" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'gbdt' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">GBDTs</button>
-              <button data-modelfilter="trees" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'trees' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Random Forest / ET</button>
-              <button data-modelfilter="linear" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'linear' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Lineales & SVM</button>
-              <button data-modelfilter="ensemble" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'ensemble' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'}">Ensambles</button>
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#252C38]">
+            <div class="flex flex-wrap items-center gap-1.5 text-xs font-sans">
+              <span class="text-[#8B95A7] text-[11px] uppercase font-semibold mr-1">Family:</span>
+              <button data-modelfilter="all" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'all' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">All (${this.leaderboard.length})</button>
+              <button data-modelfilter="gbdt" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'gbdt' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">GBDTs</button>
+              <button data-modelfilter="trees" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'trees' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">Random Forest / ET</button>
+              <button data-modelfilter="linear" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'linear' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">Linear & SVM</button>
+              <button data-modelfilter="ensemble" class="model-filter-pill px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${this.modelFilter === 'ensemble' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">Ensembles</button>
             </div>
-            <input type="text" id="modelSearchInput" value="${this.modelSearch}" placeholder="Buscar modelo en leaderboard..." class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1 font-mono w-52 focus:border-indigo-500">
+            <input type="text" id="modelSearchInput" value="${this.modelSearch}" placeholder="Filter models..." class="bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs rounded-lg px-3 py-1 font-mono w-52 focus:border-[#4F67FF] outline-none">
           </div>
 
           <div class="overflow-x-auto">
@@ -338,7 +338,7 @@ export class StudioView {
                   <th>Score</th>
                   <th>Duration</th>
                   <th>Status</th>
-                  <th class="text-right">Inspección</th>
+                  <th class="text-right">Inspect</th>
                 </tr>
               </thead>
               <tbody>
@@ -599,7 +599,7 @@ export class StudioView {
           await this.fetchData();
           this.render();
         } catch (err) {
-          alert("Error al ejecutar experimento rápido: " + err.message);
+          alert("Failed to run quick experiment: " + err.message);
           btn.disabled = false;
           btn.innerHTML = oldText;
         }
@@ -663,34 +663,34 @@ export class StudioView {
 
         if (paramsModal && paramsModalBody) {
           if (paramsModalTitle) {
-            paramsModalTitle.textContent = `Hiperparámetros — ${modelId.toUpperCase()}`;
+            paramsModalTitle.textContent = `Hyperparameters — ${modelId.toUpperCase()}`;
           }
 
           if (foundTrial && foundTrial.params && Object.keys(foundTrial.params).length > 0) {
             paramsModalBody.innerHTML = `
               <div class="space-y-3 font-sans">
-                <div class="flex items-center justify-between p-2.5 rounded bg-slate-900 border border-slate-800 text-xs">
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#151B26] border border-[#252C38] text-xs">
                   <div>
-                    <span class="text-slate-400 block text-[10px]">Score de Validación (${this.activeRun?.metric || 'CV'})</span>
-                    <span class="font-mono text-emerald-400 font-bold text-sm">${foundTrial.score ? foundTrial.score.toFixed(5) : '—'}</span>
+                    <span class="text-[#8B95A7] block text-[10px] font-sans">Validation Score (${this.activeRun?.metric || 'CV'})</span>
+                    <span class="font-mono text-[#22C55E] font-bold text-sm">${foundTrial.score ? foundTrial.score.toFixed(5) : '—'}</span>
                   </div>
                   <div>
-                    <span class="text-slate-400 block text-[10px]">Tiempo de Entrenamiento</span>
-                    <span class="font-mono text-slate-200">${foundTrial.time_s ? foundTrial.time_s + 's' : '—'}</span>
+                    <span class="text-[#8B95A7] block text-[10px] font-sans">Training Duration</span>
+                    <span class="font-mono text-[#F7F8FA]">${foundTrial.time_s ? foundTrial.time_s + 's' : '—'}</span>
                   </div>
                   <div>
-                    <span class="text-slate-400 block text-[10px]">Trial ID</span>
-                    <span class="font-mono text-indigo-300 font-bold">${foundTrial.trial_id || 'trial_1'}</span>
+                    <span class="text-[#8B95A7] block text-[10px] font-sans">Trial ID</span>
+                    <span class="font-mono text-[#4F67FF] font-bold">${foundTrial.trial_id || 'trial_1'}</span>
                   </div>
                 </div>
 
                 <div class="space-y-1.5">
-                  <span class="font-semibold text-slate-300 text-xs">Parámetros Exactos Utilizados:</span>
+                  <span class="font-semibold text-[#F7F8FA] text-xs font-sans">Resolved Parameters:</span>
                   <div class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto">
                     ${Object.entries(foundTrial.params).map(([k, v]) => `
-                      <div class="p-2 rounded bg-slate-950 border border-slate-800/80 font-mono text-xs">
-                        <span class="text-slate-400 text-[10px] block">${k}</span>
-                        <span class="text-indigo-300 font-bold">${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v)}</span>
+                      <div class="p-2 rounded-lg bg-[#090C12] border border-[#252C38] font-mono text-xs">
+                        <span class="text-[#8B95A7] text-[10px] block font-sans">${k}</span>
+                        <span class="text-[#4F67FF] font-bold">${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v)}</span>
                       </div>
                     `).join("")}
                   </div>
@@ -699,11 +699,11 @@ export class StudioView {
             `;
           } else {
             paramsModalBody.innerHTML = `
-              <div class="p-6 text-center text-slate-400 space-y-2">
-                <span class="text-2xl text-slate-500 block">⚙</span>
-                <p class="text-xs">Este modelo fue entrenado con los hiperparámetros por defecto de CATML o aún no registra un trial individual en SQLite.</p>
-                <div class="font-mono text-[11px] text-indigo-300 bg-slate-950 p-2 rounded border border-slate-800">
-                  Modelo: ${modelId} • Modo: Default Canonical Estimator
+              <div class="p-6 text-center text-[#8B95A7] space-y-2">
+                <span class="text-2xl text-[#8B95A7]/50 block">⚙</span>
+                <p class="text-xs font-sans">This model was trained with default CATML hyperparameter priors or does not yet have an individual trial recorded in SQLite.</p>
+                <div class="font-mono text-[11px] text-[#4F67FF] bg-[#090C12] p-2 rounded-lg border border-[#252C38]">
+                  Model: ${modelId} • Mode: Default Canonical Estimator
                 </div>
               </div>
             `;
