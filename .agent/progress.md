@@ -40,10 +40,16 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Hito H4: Ciclo Determinista y Es
     - `Critic`: Evaluación empírica de métricas, diagnóstico de varianza y recomendaciones objetivas (`accept`, `reject`, `explore_alternative`).
     - `FakeLLMProvider`: Mock determinista en `infrastructure/llm/` con soporte de respuestas canned, schemas JSON y simulación de errores/latencia.
     - Validación: 31 tests unitarios y de integración pasando en `tests/test_v10_specialists.py` con 94% de cobertura del paquete; 386 tests pasando en la suite global con 87.35% de cobertura total.
-- **Track Persona B (Paquete B4):**
+- **Track Persona B (Paquete B4 — Completado):**
   - Rol: **Persona B** (Interfaces, Integración y Orquestación).
-  - Subdirectorios propios: `src/automl/application/agents/orchestrator/` (`state_machine.py`, `session_manager.py`), `src/automl/interfaces/cli/agent_session_cli.py`, y `tests/test_v10_orchestrator.py`.
-  - Entregable: Máquina de estados determinista, CLI de sesión (`start`, `step`, `resume`), criterios de parada.
+  - Rama: `feat/agentic-b4-orchestrator`.
+  - Subdirectorios propios: `src/automl/application/agents/orchestrator/` (`__init__.py`, `state_machine.py`, `session_manager.py`, `loop.py`), `src/automl/interfaces/cli/agent_session_cli.py`, y `tests/test_v10_orchestrator.py`.
+  - Entregable completado:
+    - `AgentStateMachine`: Evaluación de transiciones legales de ciclo, detección criptográfica de hipótesis repetidas (`compute_hypothesis_signature`), verificación de presupuestos y criterios de parada.
+    - `AgentSessionManager`: Ciclo determinista completo (`OBSERVE` $\rightarrow$ `PROPOSE` $\rightarrow$ `GATE` $\rightarrow$ `EXECUTE` $\rightarrow$ `CRITIQUE` $\rightarrow$ `CHECK_STOP`), checkpointing persistente en SQLite, preservación estricta de "Proponer ≠ Aceptar" y flujo de aprobaciones pendientes (`PENDING_APPROVAL` no bloqueante, reanudación tras aprobación o rechazo).
+    - `AgentLoop`: Ejecutor autónomo de bucles con hooks de ciclo de vida (`on_step`, `on_approval_needed`, `on_stop`).
+    - CLI de sesión en `agent_session_cli.py`: comandos `automl agent session <start|step|resume|status|stop>`.
+    - Validación: 24 tests unitarios y de integración pasando en `tests/test_v10_orchestrator.py` con 92% de cobertura de paquete; 445 tests pasando en la suite global con 87.78% de cobertura total (superando el umbral de 85%).
 
 ---
 

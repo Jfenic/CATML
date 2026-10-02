@@ -675,7 +675,9 @@ def main(argv: list[str] | None = None) -> int:
 
     agent_parser = sub.add_parser("agent", help="LLM Agent governance, approvals, and audit ledger")
     from automl.interfaces.cli.agent_cli import register_agent_subparser
+    from automl.interfaces.cli.agent_session_cli import register_agent_session_subparser
     register_agent_subparser(agent_parser)
+    register_agent_session_subparser(agent_parser)
 
     args = parser.parse_args(argv)
     return args.func(args)
