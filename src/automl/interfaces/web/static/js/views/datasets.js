@@ -20,6 +20,13 @@ export class DatasetsView {
     this.searchQuery = "";
     this.activeModalVar = null;
     this.activeModalTab = "boxplot"; // 'boxplot' | 'histogram' | 'pattern'
+    this.calcMode = "formula"; // 'formula' | 'python_code'
+    this.calcFeatureName = "";
+    this.calcExpression = "";
+    this.calcEvaluationResult = null;
+    this.calcSuggestions = [];
+    this.calcEvaluating = false;
+    this.calcApplying = false;
   }
 
   async mount(container) {
@@ -240,6 +247,7 @@ export class DatasetsView {
               <button id="btnDeselectAll" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">✕ Ninguna</button>
               <button id="btnSelectTop5" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">🎯 Top 5 Señal</button>
               <button id="btnSelectTop10" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded transition-colors">🎯 Top 10 Señal</button>
+              <button id="btnOpenCalculator" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/50 text-xs px-2.5 py-1 rounded transition-colors font-semibold flex items-center space-x-1"><span>⚡ Calculadora de Features</span></button>
             </div>
           </div>
 
@@ -276,6 +284,9 @@ export class DatasetsView {
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'correlation' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="correlation">
               🔗 MATRIZ DE CORRELACIÓN
             </button>
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap ${this.activeTab === 'calculator' ? 'border-[#E5512D] text-[#F1EFE9] font-bold' : 'border-transparent text-[#D8D6CF]/70 hover:text-[#F1EFE9]'}" data-tab="calculator">
+              ⚡ CALCULADORA DE FEATURES
+            </button>
           </div>
 
           <div class="p-0" id="tabContentContainer">
@@ -302,6 +313,8 @@ export class DatasetsView {
       return this._renderCategoriesTab(p);
     } else if (this.activeTab === "correlation") {
       return this._renderCorrelationTab(p);
+    } else if (this.activeTab === "calculator") {
+      return this._renderCalculatorTab(p);
     }
     return "";
   }
@@ -1059,6 +1072,357 @@ export class DatasetsView {
     `;
   }
 
+  _renderCalculatorTab(p) {
+    const columns = p.columns || [];
+    const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float")));
+    const catCols = columns.filter(c => !numCols.includes(c));
+    const evalRes = this.calcEvaluationResult;
+
+    return `
+      <div class="p-6 space-y-6">
+        <!-- Header Banner -->
+        <div class="p-4 rounded border border-[#27272e] bg-[#1a1a20] flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="text-[#E5512D] text-base">⚡</span>
+              <h3 class="text-sm font-bold text-[#F1EFE9] font-mono uppercase tracking-wider">Calculadora de Características & Motor de Columnas Derivadas</h3>
+            </div>
+            <p class="text-xs text-[#D8D6CF]/70 font-mono">
+              Genera nuevas features complejas mediante fórmulas o código Python sandboxed con aislamiento de división por cero y comprobación de tipos.
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button id="btnCalcModeFormula" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'formula' ? 'bg-[#E5512D] text-white border-[#E5512D] font-bold' : 'bg-[#111111] text-[#D8D6CF]/70 border-[#27272e] hover:text-[#F1EFE9]'}">
+              🧮 MODO FÓRMULA
+            </button>
+            <button id="btnCalcModePython" class="px-3 py-1.5 text-xs font-mono rounded border transition-colors ${this.calcMode === 'python_code' ? 'bg-[#E5512D] text-white border-[#E5512D] font-bold' : 'bg-[#111111] text-[#D8D6CF]/70 border-[#27272e] hover:text-[#F1EFE9]'}">
+              🐍 CÓDIGO PYTHON
+            </button>
+            <button id="btnCalcSuggest" class="px-3 py-1.5 text-xs font-mono rounded border border-indigo-500/60 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/50 transition-colors font-semibold flex items-center space-x-1">
+              <span>🤖 Sugerir con IA</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Inputs Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left Column: Name & Expression Editor -->
+          <div class="lg:col-span-2 space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-mono text-[#D8D6CF] uppercase font-bold tracking-wider">Nombre de la Nueva Característica:</label>
+              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="ej: debt_to_income_ratio" class="w-full bg-[#111111] border border-[#27272e] text-[#F1EFE9] text-xs font-mono px-3 py-2 rounded focus:border-[#E5512D] outline-none">
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-mono text-[#D8D6CF] uppercase font-bold tracking-wider">
+                  ${this.calcMode === 'formula' ? 'Expresión Matemática / Fórmula:' : 'Función Python Sandboxed (df):'}
+                </label>
+                <span class="text-[10px] text-[#D8D6CF]/60 font-mono">
+                  ${this.calcMode === 'formula' ? 'Auto-protección contra división por 0 activa' : 'Restringido a numpy y pandas'}
+                </span>
+              </div>
+              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'ej: debt / (income + 1e-5)'}" class="w-full bg-[#111111] border border-[#27272e] text-[#F1EFE9] text-xs font-mono p-3 rounded focus:border-[#E5512D] outline-none">${this.calcExpression || ''}</textarea>
+            </div>
+
+            <!-- Quick Operators Toolbar (Formula Mode) -->
+            ${this.calcMode === 'formula' ? `
+              <div class="space-y-2">
+                <span class="text-[11px] font-mono text-[#D8D6CF]/70 font-semibold uppercase">Operadores y Funciones Rápidas:</span>
+                <div class="flex flex-wrap gap-1.5 text-xs font-mono">
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" + ">+</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" - ">-</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" * ">*</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" / ">/</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op=" ** 2">**2</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="log1p()">log1p()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="sqrt()">sqrt()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="clip(col, 0, 100)">clip()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="zscore()">zscore()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="if_else(cond, x, y)">if_else()</button>
+                  <button class="calc-op-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#D8D6CF] hover:text-[#F1EFE9] hover:border-[#E5512D]" data-op="fillna(col, 0)">fillna()</button>
+                </div>
+              </div>
+            ` : ""}
+
+            <!-- Action CTAs -->
+            <div class="flex items-center space-x-3 pt-2">
+              <button id="btnCalcValidate" class="px-4 py-2 bg-[#1e1e24] hover:bg-[#27272e] text-[#F1EFE9] border border-[#27272e] text-xs font-mono font-bold rounded flex items-center space-x-2 transition-all">
+                <span>⚡ PROBAR Y PREVISUALIZAR</span>
+              </button>
+              <button id="btnCalcApply" class="btn-signal ${evalRes && evalRes.is_valid ? '' : 'opacity-50 cursor-not-allowed'}" ${evalRes && evalRes.is_valid ? '' : 'disabled'}>
+                <span>+ APLICAR AL DATASET Y GUARDAR</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Column: Available Column Chips -->
+          <div class="space-y-3 p-4 rounded border border-[#27272e] bg-[#141418]">
+            <div class="flex items-center justify-between border-b border-[#27272e] pb-2">
+              <span class="text-xs font-mono text-[#F1EFE9] font-bold uppercase tracking-wider">Columnas Disponibles</span>
+              <span class="text-[10px] font-mono text-[#D8D6CF]/60">Clic para insertar</span>
+            </div>
+            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div class="text-[10px] font-mono text-[#D8D6CF]/70 font-semibold uppercase">Numéricas:</div>
+              <div class="flex flex-wrap gap-1.5">
+                ${numCols.map(c => `
+                  <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-indigo-300 font-mono text-xs hover:border-[#E5512D] hover:text-[#F1EFE9] transition-colors" data-col="${c.name}">
+                    ${c.name}
+                  </button>
+                `).join("")}
+              </div>
+
+              ${catCols.length > 0 ? `
+                <div class="text-[10px] font-mono text-[#D8D6CF]/70 font-semibold uppercase pt-2">Otras / Categóricas:</div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${catCols.map(c => `
+                    <button class="calc-col-chip px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-purple-300 font-mono text-xs hover:border-[#E5512D] hover:text-[#F1EFE9] transition-colors" data-col="${c.name}">
+                      ${c.name}
+                    </button>
+                  `).join("")}
+                </div>
+              ` : ""}
+            </div>
+          </div>
+        </div>
+
+        <!-- Evaluation Results & Diagnostics Card -->
+        ${evalRes ? `
+          <div class="p-5 rounded border ${evalRes.is_valid ? 'border-emerald-800/80 bg-emerald-950/20' : 'border-rose-800/80 bg-rose-950/20'} space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272e] pb-3">
+              <div class="flex items-center space-x-3">
+                <span class="text-xs px-2.5 py-1 rounded font-mono font-bold uppercase ${evalRes.is_valid ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700' : 'bg-rose-900/60 text-rose-300 border border-rose-700'}">
+                  ${evalRes.is_valid ? '✓ FÓRMULA VÁLIDA' : '✕ ERROR DE COMPILACIÓN / VALIDACIÓN'}
+                </span>
+                <span class="text-sm font-bold font-mono text-[#F1EFE9]">${evalRes.feature_name}</span>
+                <span class="text-xs font-mono text-[#D8D6CF]/70">(${evalRes.dtype || 'unknown'})</span>
+              </div>
+
+              <div class="flex items-center space-x-2 text-xs font-mono">
+                <span class="px-2 py-0.5 rounded bg-[#111111] border border-[#27272e] text-[#D8D6CF]">
+                  Filas: <strong>${evalRes.row_count}</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-[#111111] border border-[#27272e] ${evalRes.null_percentage > 0.2 ? 'text-amber-400' : 'text-[#D8D6CF]'}">
+                  Nulos: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-[#111111] border border-[#27272e] ${evalRes.zero_division_occurred ? 'text-emerald-400 font-bold' : 'text-[#D8D6CF]'}">
+                  Div/0: ${evalRes.zero_division_occurred ? 'Aislada (0.0/eps)' : 'Ninguna'}
+                </span>
+              </div>
+            </div>
+
+            ${evalRes.error_message ? `
+              <div class="p-3 rounded bg-rose-950/40 border border-rose-800 text-rose-300 font-mono text-xs space-y-1">
+                <div class="font-bold">Detalle del Fallo de Validación:</div>
+                <div>${evalRes.error_message}</div>
+              </div>
+            ` : ""}
+
+            ${evalRes.warnings && evalRes.warnings.length > 0 ? `
+              <div class="space-y-1">
+                ${evalRes.warnings.map(w => `
+                  <div class="text-xs font-mono text-amber-300 flex items-center space-x-1.5">
+                    <span>⚠️</span>
+                    <span>${w}</span>
+                  </div>
+                `).join("")}
+              </div>
+            ` : ""}
+
+            ${evalRes.is_valid ? `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono pt-1">
+                <!-- Summary Stats -->
+                <div class="p-3 rounded bg-[#111111] border border-[#27272e] space-y-2">
+                  <div class="text-[10px] text-[#D8D6CF]/70 uppercase font-bold tracking-wider">Estadísticas Descriptivas:</div>
+                  <div class="grid grid-cols-4 gap-2 text-center">
+                    <div class="p-1.5 rounded bg-[#1e1e24]">
+                      <div class="text-[10px] text-[#D8D6CF]/60">Mín</div>
+                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.min != null ? evalRes.summary_stats.min.toFixed(3) : '-'}</div>
+                    </div>
+                    <div class="p-1.5 rounded bg-[#1e1e24]">
+                      <div class="text-[10px] text-[#D8D6CF]/60">Media</div>
+                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.mean != null ? evalRes.summary_stats.mean.toFixed(3) : '-'}</div>
+                    </div>
+                    <div class="p-1.5 rounded bg-[#1e1e24]">
+                      <div class="text-[10px] text-[#D8D6CF]/60">Std</div>
+                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.std != null ? evalRes.summary_stats.std.toFixed(3) : '-'}</div>
+                    </div>
+                    <div class="p-1.5 rounded bg-[#1e1e24]">
+                      <div class="text-[10px] text-[#D8D6CF]/60">Máx</div>
+                      <div class="font-bold text-[#F1EFE9]">${evalRes.summary_stats?.max != null ? evalRes.summary_stats.max.toFixed(3) : '-'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sample Preview -->
+                <div class="p-3 rounded bg-[#111111] border border-[#27272e] space-y-2">
+                  <div class="text-[10px] text-[#D8D6CF]/70 uppercase font-bold tracking-wider">Muestra de Valores Calculados (Primeras 5 Filas):</div>
+                  <div class="flex items-center space-x-2">
+                    ${(evalRes.sample_values || []).map((val, idx) => `
+                      <span class="px-2 py-1 rounded bg-[#1e1e24] border border-[#27272e] text-[#F1EFE9] font-bold">
+                        #${idx + 1}: ${val != null ? val : 'NaN'}
+                      </span>
+                    `).join("")}
+                  </div>
+                </div>
+              </div>
+            ` : ""}
+          </div>
+        ` : ""}
+
+        <!-- AI Feature Suggestions Card -->
+        ${this.calcSuggestions && this.calcSuggestions.length > 0 ? `
+          <div class="p-4 rounded border border-indigo-900/60 bg-indigo-950/20 space-y-3">
+            <div class="flex items-center justify-between border-b border-indigo-900/40 pb-2">
+              <span class="text-xs font-mono font-bold text-indigo-300 uppercase tracking-wider">💡 Hipótesis de Features Propuestas por la IA:</span>
+              <span class="text-[10px] font-mono text-[#D8D6CF]/70">${this.calcSuggestions.length} sugerencias validadas</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              ${this.calcSuggestions.map(sugg => `
+                <div class="p-3 rounded bg-[#111111] border border-[#27272e] space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-mono font-bold text-indigo-300">${sugg.definition.name}</span>
+                    <button class="btn-load-suggestion px-2 py-0.5 rounded bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-200 border border-indigo-500/50 text-[10px] font-mono font-semibold" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
+                      Usar en Calculadora ➔
+                    </button>
+                  </div>
+                  <div class="text-[11px] font-mono text-[#F1EFE9] bg-[#1a1a20] px-2 py-1 rounded border border-[#27272e] overflow-x-auto">
+                    ${sugg.definition.expression}
+                  </div>
+                  <p class="text-[10px] text-[#D8D6CF]/70 font-mono">${sugg.definition.description || ''}</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  _bindCalculatorEvents() {
+    // Mode toggles
+    this.container.querySelector("#btnCalcModeFormula")?.addEventListener("click", () => {
+      this.calcMode = "formula";
+      this.calcEvaluationResult = null;
+      this.render();
+    });
+
+    this.container.querySelector("#btnCalcModePython")?.addEventListener("click", () => {
+      this.calcMode = "python_code";
+      this.calcEvaluationResult = null;
+      this.render();
+    });
+
+    // Column chips insertion
+    this.container.querySelectorAll(".calc-col-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const col = btn.getAttribute("data-col");
+        const exprArea = this.container.querySelector("#calcExpression");
+        if (exprArea) {
+          exprArea.value += (exprArea.value.length && !exprArea.value.endsWith(" ") ? " " : "") + col;
+          this.calcExpression = exprArea.value;
+        }
+      });
+    });
+
+    // Operator chips insertion
+    this.container.querySelectorAll(".calc-op-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const op = btn.getAttribute("data-op");
+        const exprArea = this.container.querySelector("#calcExpression");
+        if (exprArea) {
+          exprArea.value += op;
+          this.calcExpression = exprArea.value;
+        }
+      });
+    });
+
+    // Validate & Preview
+    this.container.querySelector("#btnCalcValidate")?.addEventListener("click", async () => {
+      const name = this.container.querySelector("#calcFeatureName")?.value.trim();
+      const expr = this.container.querySelector("#calcExpression")?.value.trim();
+      if (!name || !expr) {
+        alert("Por favor introduce el nombre y la expresión de la característica.");
+        return;
+      }
+      this.calcFeatureName = name;
+      this.calcExpression = expr;
+      try {
+        const res = await api.calculateDerivedFeature({
+          dataset_id: this.activeDatasetId,
+          name: name,
+          expression: expr,
+          expression_type: this.calcMode,
+        });
+        this.calcEvaluationResult = res.result;
+        this.render();
+      } catch (err) {
+        alert(`Error al validar: ${err.message}`);
+      }
+    });
+
+    // Apply & Save to Dataset
+    this.container.querySelector("#btnCalcApply")?.addEventListener("click", async () => {
+      const name = this.calcFeatureName || this.container.querySelector("#calcFeatureName")?.value.trim();
+      const expr = this.calcExpression || this.container.querySelector("#calcExpression")?.value.trim();
+      if (!name || !expr) return;
+
+      const btn = this.container.querySelector("#btnCalcApply");
+      if (btn) btn.textContent = "⏳ APLICANDO AL DATASET...";
+
+      try {
+        await api.applyDerivedFeature({
+          dataset_id: this.activeDatasetId,
+          name: name,
+          expression: expr,
+          expression_type: this.calcMode,
+        });
+
+        // Refetch profile so the new feature is included
+        await this.fetchData();
+        this.selectedFeatures.add(name);
+        this.activeTab = "schema";
+        this.calcEvaluationResult = null;
+        this.render();
+      } catch (err) {
+        alert(`Error al aplicar la característica: ${err.message}`);
+        this.render();
+      }
+    });
+
+    // AI Suggestions
+    this.container.querySelector("#btnCalcSuggest")?.addEventListener("click", async () => {
+      const btn = this.container.querySelector("#btnCalcSuggest");
+      if (btn) btn.textContent = "⏳ Analizando...";
+      try {
+        const res = await api.suggestDerivedFeatures(this.activeDatasetId);
+        this.calcSuggestions = res.suggestions || [];
+        this.render();
+      } catch (err) {
+        alert(`Error al generar sugerencias: ${err.message}`);
+        this.render();
+      }
+    });
+
+    // Load suggestion into calculator
+    this.container.querySelectorAll(".btn-load-suggestion").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this.calcFeatureName = btn.getAttribute("data-name");
+        this.calcExpression = decodeURIComponent(btn.getAttribute("data-expr"));
+        this.calcMode = btn.getAttribute("data-type") || "formula";
+        this.calcEvaluationResult = null;
+        this.render();
+      });
+    });
+
+    // Quick toolbar button jump to calculator
+    this.container.querySelector("#btnOpenCalculator")?.addEventListener("click", () => {
+      this.activeTab = "calculator";
+      this.render();
+    });
+  }
+
   _renderAndMountModal() {
     const modalContainer = this.container.querySelector("#variableModalContainer");
     if (!modalContainer) return;
@@ -1322,6 +1686,7 @@ export class DatasetsView {
 
     this._bindRegisterFormEvents();
     this._bindTabSpecificEvents();
+    this._bindCalculatorEvents();
   }
 
   _bindTabSpecificEvents() {

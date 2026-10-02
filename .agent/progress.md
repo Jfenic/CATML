@@ -2,17 +2,30 @@
 # Progress
 
 
-Active Track: **Pairwise Numerical Differences & Subtraction in InteractionFeatureGenerator**:
-- Rama: `feat/feature-interactions-differences`.
+Active Track: **Safe Feature Calculator & Derived Column Engine**:
+- Rama: `feat/derived-feature-calculator`.
 - Entregable completado:
-  - Extensión de `InteractionFeatureGenerator` (`src/automl/engine/features/generation/interaction_generator.py`):
-    - Parámetro `include_differences: bool = True` en `__init__`.
-    - Detección y propuesta de características tipo `"difference"` (`inter_diff_colA_minus_colB = colA - colB`) para pares numéricos priorizados por varianza, respetando el principio *"Proponer ≠ Aceptar"*.
-    - Transformación determinista y pura en `transform(df, features)` sin mutar el DataFrame original.
-    - Empaquetado automático del conjunto de candidatos `interactions_differences` en `propose_candidate_feature_sets` para experimentación y ablación directa.
-  - Pruebas y cobertura: 8 tests passing en `tests/test_feature_interactions.py` (incorporando pruebas para `difference`, verificación matemática, flag de desactivación y conjunto de candidatos); suite global con 296 tests passing, 8 skipped, 86.42% de cobertura de código.
-Active Track: **Interactive Dataset Analysis, Visual Charts & Smart Feature Selection (AutoML Workbench)**:
-- Rama: `feat/workbench-dataset-analysis-and-feature-selection`.
+  - Dominio puro: `DerivedFeatureDefinition`, `DerivedFeatureType`, `FeatureEvaluationResult` en `src/automl/domain/features/derived_feature.py`.
+  - Motor de cálculo y sandboxing (`src/automl/engine/features/generation/derived_feature_engine.py`):
+    - `SafeFormulaCalculator`: Evaluación matemática basada en AST con lista blanca estricta, aislamiento de división por cero (sustitución por 0.0/epsilon sin crashes), sanitización de infinitos, funciones matemáticas seguras (`log1p`, `sqrt`, `clip`, `zscore`, `if_else`, `fillna`).
+    - `SafePythonEvaluator`: Ejecución sandboxed con namespace restringido (`pd`, `np`, builtins seguros), auditoría AST contra `import`, dunders, o llamadas a sistema, y validación dimensional de salida.
+    - `DerivedFeatureEngine`: Orquestación de validación diagnóstica (nulos %, varianza constante, resumen estadístico) y empaquetado en `FeatureSet` candidato.
+  - Especialista para Agente LLM (`src/automl/application/agents/specialists/feature_advisor.py`):
+    - Conexión de LLM o heurísticas para proponer hipótesis de features según el dominio, con validación determinista y descarte automático de columnas constantes.
+  - Servicios de Aplicación (`AutoMLWorkspace`):
+    - `validate_derived_feature`, `apply_derived_feature`, `suggest_derived_features`.
+  - API REST & Workbench UI:
+    - Endpoints `POST /api/features/calculate`, `POST /api/features/apply`, `POST /api/features/suggest` en `server.py` y `api.js`.
+    - Pestaña interactiva `⚡ CALCULADORA DE FEATURES` y botón de acceso en `datasets.js` con chips de inserción de columnas/operadores, diagnóstico en vivo y carga de sugerencias con 1 clic.
+  - Pruebas y Cobertura: 22 tests passing en `tests/test_derived_feature_engine.py`; 383 tests en toda la suite global, 87.11% de cobertura de código.
+
+Active Track: **Dataset Framing & Problem Context Questionnaire**:
+- Rama: `feat/dataset-framing-questionnaire` (PR #42).
+- Entregable completado:
+  - Entidad de dominio `DatasetQuestionnaire` con enums `ErrorCostPriority`, `TemporalStructure`, `LatencyConstraint`, `ExplainabilityLevel`.
+  - Asesor de encuadre `QuestionnaireAdvisor` con detección heurística (churn, fraude, médico, crédito, time-series, cohortes) y modo LLM.
+  - Persistencia SQLite y paridad en Workspace y API REST (`GET/POST /api/dataset/questionnaire`).
+  - 13 tests passing en `tests/test_dataset_questionnaire.py` (100% cobertura en módulos nuevos).
 
 Active Track: **Sistema Agéntico V0.9/V1.0 — Hito H4: Ciclo Determinista y Especialistas (A4 + B4)**:
 - **Protocolo de Concurrencia Activo:** `two-person-plan.md` §5.1 y Regla 9 en `AGENTS.md`.

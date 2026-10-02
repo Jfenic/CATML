@@ -632,6 +632,109 @@ class AutoMLWorkspace:
         """Explicitly persist an edited or reviewed questionnaire."""
         self.repository.save_dataset_questionnaire(questionnaire)
 
+    def validate_derived_feature(
+        self,
+        dataset_id: str,
+        name: str,
+        expression: str,
+        expression_type: str = "formula",
+    ) -> Any:
+        """Validate and evaluate a derived feature definition on dataset without modifying it."""
+        from automl.domain.features.derived_feature import (
+            DerivedFeatureDefinition,
+            DerivedFeatureType,
+        )
+        from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
+
+        dataset = self._get_dataset(dataset_id)
+        df = load_dataframe(dataset.path)
+
+        def_obj = DerivedFeatureDefinition(
+            name=name,
+            expression_type=DerivedFeatureType(expression_type),
+            expression=expression,
+        )
+        engine = DerivedFeatureEngine()
+        result, _ = engine.evaluate(df, def_obj)
+        return result
+
+    def apply_derived_feature(
+        self,
+        dataset_id: str,
+        name: str,
+        expression: str,
+        expression_type: str = "formula",
+        description: str = "",
+    ) -> tuple[Any, Any]:
+        """Evaluate and apply a derived feature to the dataset, re-profiling the dataset and saving changes."""
+        from automl.domain.features.derived_feature import (
+            DerivedFeatureDefinition,
+            DerivedFeatureType,
+        )
+        from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
+
+        dataset = self._get_dataset(dataset_id)
+        df = load_dataframe(dataset.path)
+
+        def_obj = DerivedFeatureDefinition(
+            name=name,
+            expression_type=DerivedFeatureType(expression_type),
+            expression=expression,
+            description=description,
+        )
+        engine = DerivedFeatureEngine()
+        updated_df, result = engine.apply(df, def_obj)
+
+        # Save updated dataframe to dataset path
+        updated_df.to_csv(dataset.path, index=False)
+
+        # Re-profile dataset so new feature is part of the profile schema and available for experiments
+        profile = profile_dataset(dataset, updated_df)
+        self.repository.save_dataset_profile(profile)
+
+        return result, profile
+
+    def suggest_derived_features(
+        self,
+        dataset_id: str,
+        llm_provider: Any = None,
+    ) -> list[dict[str, Any]]:
+        """Suggest candidate derived features tailored to dataset profile and validate them."""
+        from automl.application.agents.specialists.feature_advisor import FeatureAdvisor
+
+        dataset = self._get_dataset(dataset_id)
+        df = load_dataframe(dataset.path)
+        profile = self.repository.get_dataset_profile(dataset_id)
+
+        all_cols = [c.name for c in profile.columns] if profile else list(df.columns)
+        numeric_cols = [
+            c.name for c in (profile.columns if profile else [])
+            if any(term in str(c.dtype).lower() for term in ("numeric", "float", "int"))
+        ]
+        if not numeric_cols:
+            numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+
+        target_col = getattr(dataset, "target_column", getattr(dataset, "target", ""))
+        questionnaire = self.repository.get_dataset_questionnaire(dataset_id)
+        domain_hint = questionnaire.domain_hint if questionnaire else "general_tabular"
+
+        advisor = FeatureAdvisor(llm_provider=llm_provider)
+        candidates = advisor.propose_features(
+            column_names=all_cols,
+            numeric_columns=numeric_cols,
+            target_column=target_col,
+            domain_hint=domain_hint,
+        )
+        valid_defs, results = advisor.validate_and_filter(df, candidates)
+
+        suggestions = []
+        for prop, res in zip(valid_defs, results):
+            suggestions.append({
+                "definition": prop.to_dict(),
+                "evaluation": res.to_dict(),
+            })
+        return suggestions
+
     def list_task_types(self) -> list[dict]:
         rows = []
         for task in TaskType:
