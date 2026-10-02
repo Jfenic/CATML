@@ -42,6 +42,18 @@ Active Track: **Sprint 3: Brand Identity, Tech Minimalista & UI Capabilities**:
   - Tarjetas de recomendaciones limpias con badges monocromáticos sobrios en mayúsculas (`HIGH RELEVANCE`, `HIGH SIGNAL`, `IDENTIFIER`, `COLLINEARITY`, etc.).
   - Unificación 100% a inglés técnico profesional en todas las vistas, modales y panel de trabajos en segundo plano (`jobs.js`, `kaggle.js`, `knowledge.js`, `new_experiment.js`, `datasets.js`, `studio.js`, `pipeline.js`, `server.py`).
   - Suite de tests 100% verde: 461 tests pasando, 0 fallos, 87.53% de cobertura de código.
+- Rama: `feat/workbench-experiments-ux-coherence`.
+- Entregables completados:
+  - Coherencia semántica de controles de ejecución según el estado del run (`activeRun.status`):
+    - `COMPLETED`: Desaparición de Resume/Stop contradictorios y reemplazo por acciones profesionales `[ ↻ Run again ]`, `[ ⧉ Clone ]` y `[ ⬇ Export best model ]` (descarga directa de `ModelArtifact` `.pkl`).
+    - `RUNNING`: `[ ⏸ Pause ]` y `[ ■ Stop ]`.
+    - `PAUSED`: `[ ▶ Resume ]` y `[ ■ Stop ]`.
+  - Reducción visual y estado vacío explicable de `AutoML Plan & Decisions`: Reducción de espacio vertical y mensaje contextual ("No planning decisions recorded for this run. Decisions appear when autonomous heuristics or agent policies prune search space").
+  - Progreso de optimización adaptativo: Tarjetas/puntos discretos para 1–3 trials (evitando inflar curvas artificiales con pocos datos) y activación automática de curva continua Chart.js a partir de $\ge 4$ trials con nota explicativa.
+  - Claridad de producto en acciones rápidas: Sección "Quick run" reetiquetada como "New run preset: + LightGBM / + XGBoost / + CatBoost / + Ensemble" para clarificar que inicia una nueva ejecución.
+  - Botón "Guided Experiment" con badge y tooltip "Agent-assisted" para guiar la exploración agent-native human-in-the-loop.
+  - Eliminación total de residuos de idiomas mezclados en Studio (`Modelos evaluados` -> `Tested models`, `trials registrados` -> `recorded trials`, `No models match the selected filter`, `⏳ Running...`).
+  - Validación completa: Suite web pasando 100% verde.
 
 Completed Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
 - Rama: `feat/productization-quickstart-and-readme` (Merged via PR #46).
