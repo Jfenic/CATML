@@ -265,10 +265,10 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                 recommendations.append({
                     "column": name,
                     "type": "recommend",
-                    "badge": "Strong Signal",
+                    "badge": "High Relevance",
                     "severity": "success",
-                    "title": f"Strong target correlation in '{name}' (r = {target_corr:+.3f})",
-                    "description": "High linear dependency with target. Prime candidate feature.",
+                    "title": f"High relevance in '{name}' (r = {target_corr:+.3f})",
+                    "description": "Strong target association. Prime candidate feature.",
                     "action": "keep",
                 })
             elif is_high_card:

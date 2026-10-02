@@ -34,6 +34,14 @@ Active Track: **Sprint 3: Brand Identity, Tech Minimalista & UI Capabilities**:
   - Unificación a inglés técnico profesional en todas las vistas del Workbench y en los mensajes del profiler (`dataset_profiler.py`).
   - Rediseño del Agent Drawer con badge `◇ Agent ● Ready`, tarjeta de contexto activo (`Active Context`), sugerencia de próxima acción estructurada (`Suggested Next Action` con botones `Review plan` y `Run`), e hipótesis claras.
   - Validación completa: 461 tests pasando, 0 fallos, 87.53% de cobertura de código.
+- Rama: `feat/workbench-ui-elevation-and-breathing-room`.
+- Entregables completados:
+  - Eliminación de la sopa de contenedores anidados (`panel -> panel -> control -> badge`) y reducción de 15-20% de bordes innecesarios, creando respirabilidad mediante separación de planos de superficie (`#090C12` app base, `#10151E` panel, `#151B26` card, `#1A2230` card hover, `#252C38` border).
+  - Pistas segmentadas (`.segmented-track` y `.segmented-pill`) para filtros de tipo de features en lugar de botones individuales cargados de bordes.
+  - Jerarquía clara de acciones en Dataset Understanding: Dominante CTA primario `Launch Experiment (N)` con resplandor Electric Blue `#4F67FF` y CTA secundario técnico `Apply recommendations`.
+  - Tarjetas de recomendaciones limpias con badges monocromáticos sobrios en mayúsculas (`HIGH RELEVANCE`, `HIGH SIGNAL`, `IDENTIFIER`, `COLLINEARITY`, etc.).
+  - Unificación 100% a inglés técnico profesional en todas las vistas, modales y panel de trabajos en segundo plano (`jobs.js`, `kaggle.js`, `knowledge.js`, `new_experiment.js`, `datasets.js`, `studio.js`, `pipeline.js`, `server.py`).
+  - Suite de tests 100% verde: 461 tests pasando, 0 fallos, 87.53% de cobertura de código.
 
 Completed Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
 - Rama: `feat/productization-quickstart-and-readme` (Merged via PR #46).

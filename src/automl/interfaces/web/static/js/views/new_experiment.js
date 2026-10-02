@@ -37,21 +37,21 @@ export class NewExperimentModal {
         <div class="workbench-card max-w-xl w-full p-6 space-y-5 border-slate-700 shadow-2xl">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
-              <h3 class="text-base font-bold text-slate-100">Create New Experiment</h3>
-              <p class="text-xs text-slate-400">Configuración rápida de experimentación AutoML guiada por evidencias</p>
+              <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Create New Experiment</h3>
+              <p class="text-xs text-[#8B95A7] font-sans">Evidence-guided rapid AutoML experiment configuration</p>
             </div>
-            <button id="btnCloseModal" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+            <button id="btnCloseModal" class="text-[#8B95A7] hover:text-[#F7F8FA] text-lg">✕</button>
           </div>
 
           <!-- Dataset Card -->
-          <div class="p-3.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
-            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Target Dataset</div>
-            <div class="text-sm font-bold text-slate-200">${datasetName}</div>
-            <div class="text-xs text-slate-400 font-mono">Task: <span class="capitalize">${taskType}</span> • Target: <span class="text-indigo-300 font-bold">${targetCol}</span> • Metric: <span class="text-emerald-400 font-bold">${metricName}</span></div>
+          <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-1">
+            <div class="text-[10px] uppercase font-semibold text-[#8B95A7] tracking-wider font-sans">Target Dataset</div>
+            <div class="text-sm font-bold text-[#F7F8FA] font-mono">${datasetName}</div>
+            <div class="text-xs text-[#8B95A7] font-sans">Task: <span class="capitalize text-[#F7F8FA]">${taskType}</span> • Target: <span class="text-[#4F67FF] font-mono font-bold">${targetCol}</span> • Metric: <span class="text-[#22C55E] font-mono font-bold">${metricName}</span></div>
           </div>
 
           ${!hasTarget ? `
-            <div class="p-3 rounded-lg bg-amber-950/30 border border-amber-800/60 text-xs text-amber-300 flex items-center justify-between">
+            <div class="p-3 rounded-lg bg-amber-950/30 border border-amber-800/60 text-xs text-amber-300 flex items-center justify-between font-sans">
               <span>No dataset is currently registered in this workspace.</span>
               <button id="btnGoToDatasets" class="font-bold underline text-amber-200 hover:text-white">Register Dataset →</button>
             </div>
@@ -59,21 +59,21 @@ export class NewExperimentModal {
 
           <!-- How should CATML operate? -->
           <div class="space-y-2">
-            <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">How should CATML operate?</label>
+            <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">How should CATML operate?</label>
             <div class="grid grid-cols-3 gap-3">
-              <div class="mode-card p-3 rounded-lg border cursor-pointer text-xs ${this.mode === 'auto' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-mode="auto">
-                <div class="font-bold text-slate-200">● Auto</div>
-                <div class="text-[11px] text-slate-400 mt-1">CATML decide modelos, features y HPO autónomamente.</div>
+              <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'auto' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="auto">
+                <div class="font-bold text-[#F7F8FA] font-sans">● Auto</div>
+                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Autonomous model selection, feature engineering, and Bayesian HPO.</div>
               </div>
 
-              <div class="mode-card p-3 rounded-lg border cursor-pointer text-xs ${this.mode === 'guided' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-mode="guided">
-                <div class="font-bold text-slate-200">○ Guided</div>
-                <div class="text-[11px] text-slate-400 mt-1">CATML propone candidatos; tú configuras restricciones.</div>
+              <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'guided' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="guided">
+                <div class="font-bold text-[#F7F8FA] font-sans">○ Guided</div>
+                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">CATML proposes candidates; you configure constraints and models.</div>
               </div>
 
-              <div class="mode-card p-3 rounded-lg border cursor-pointer text-xs ${this.mode === 'manual' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-mode="manual">
-                <div class="font-bold text-slate-200">○ Manual</div>
-                <div class="text-[11px] text-slate-400 mt-1">Tú controlas el pipeline completo paso a paso.</div>
+              <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'manual' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="manual">
+                <div class="font-bold text-[#F7F8FA] font-sans">○ Manual</div>
+                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Full step-by-step pipeline control and manual selection.</div>
               </div>
             </div>
           </div>
@@ -82,23 +82,23 @@ export class NewExperimentModal {
           ${
             this.mode === "guided"
               ? `
-            <div class="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 space-y-3 text-xs">
-              <div class="font-semibold text-slate-200">Algorithmic Model Families:</div>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-300">
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="lightgbm" class="model-check rounded text-indigo-600 bg-slate-800"> <span>LightGBM</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="xgboost" class="model-check rounded text-indigo-600 bg-slate-800"> <span>XGBoost</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="catboost" class="model-check rounded text-indigo-600 bg-slate-800"> <span>CatBoost</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="extra_trees" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Extra Trees</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="mlp" class="model-check rounded text-indigo-600 bg-slate-800"> <span>MLP Neural</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="random_forest" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Random Forest</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="logistic_regression" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Logistic/Ridge</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="voting_ensemble" class="model-check rounded text-indigo-600 bg-slate-800"> <span>Ensemble Blender</span></label>
+            <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-3 text-xs font-sans">
+              <div class="font-semibold text-[#F7F8FA]">Algorithmic Model Families:</div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[#8B95A7]">
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="lightgbm" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">LightGBM</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="xgboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">XGBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="catboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">CatBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="extra_trees" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Extra Trees</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="mlp" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">MLP Neural</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="random_forest" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Random Forest</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="logistic_regression" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Logistic/Ridge</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" value="voting_ensemble" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ensemble Blender</span></label>
               </div>
-              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px]">
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Feature engineering</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Optuna Bayesian HPO</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Stratified Cross-Validation</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-indigo-600 bg-slate-800"> <span>Empirical Propose ≠ Accept</span></label>
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#252C38] text-[11px] text-[#8B95A7]">
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Feature engineering</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Optuna Bayesian HPO</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Stratified Cross-Validation</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Empirical Propose ≠ Accept</span></label>
               </div>
             </div>
           `
@@ -106,20 +106,20 @@ export class NewExperimentModal {
           }
 
           <!-- Feature Set Selection -->
-          <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-2 text-xs">
+          <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-2 text-xs font-sans">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-indigo-400">⚡</span>
-                <span class="font-semibold text-slate-300">Feature Set Selection:</span>
+                <span class="text-[#4F67FF]">⚡</span>
+                <span class="font-semibold text-[#F7F8FA]">Feature Set Selection:</span>
               </div>
               <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-bold">${customFeatures && customFeatures.length > 0 ? `${customFeatures.length} Custom Features` : 'All Recommended'}</span>
             </div>
             ${customFeatures && customFeatures.length > 0 ? `
-              <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
-                ${customFeatures.map(f => `<span class="bg-indigo-950/60 text-indigo-300 border border-indigo-800/60 px-1.5 py-0.5 rounded text-[10px] font-mono">${f}</span>`).join("")}
+              <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1.5 bg-[#090C12] rounded-lg border border-[#252C38]">
+                ${customFeatures.map(f => `<span class="bg-[#151B26] text-[#4F67FF] border border-[#252C38] px-1.5 py-0.5 rounded text-[10px] font-mono">${f}</span>`).join("")}
               </div>
             ` : `
-              <div class="text-[11px] text-slate-400">Usando todas las características seleccionadas y recomendadas por el diagnóstico estadístico.</div>
+              <div class="text-[11px] text-[#8B95A7]">Using all features selected and recommended by statistical profiling.</div>
             `}
           </div>
 
@@ -219,15 +219,15 @@ export class NewExperimentModal {
             </div>
 
             <div class="space-y-2">
-              <h3 id="trainingStatusTitle" class="text-base font-bold text-slate-100">Entrenando Pipeline AutoML...</h3>
-              <p id="trainingStatusDesc" class="text-xs text-indigo-300 font-mono">Esperando al worker</p>
+              <h3 id="trainingStatusTitle" class="text-base font-bold text-slate-100">Training AutoML Pipeline...</h3>
+              <p id="trainingStatusDesc" class="text-xs text-indigo-300 font-mono">Waiting for worker</p>
             </div>
 
             <!-- Animated Progress Bar -->
             <div class="space-y-1.5 max-w-md mx-auto">
               <div class="flex justify-between text-[11px] font-mono text-slate-400">
                 <span id="trainingPercentLabel">0%</span>
-                <span class="text-slate-500">Progreso verificado</span>
+                <span class="text-slate-500">Verified progress</span>
               </div>
               <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
                 <div id="trainingProgressBar" class="bg-indigo-500 h-2 rounded-full progress-striped transition-all duration-500 ease-out" style="width: 0%"></div>
@@ -235,7 +235,7 @@ export class NewExperimentModal {
             </div>
 
             <div class="text-[11px] text-slate-400 font-mono bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              Modelos: <span class="text-slate-200 font-bold">${selectedModels.join(", ")}</span> • Budget: <span class="text-indigo-400 font-bold">${this.budget}</span>
+              Models: <span class="text-slate-200 font-bold">${selectedModels.join(", ")}</span> • Budget: <span class="text-indigo-400 font-bold">${this.budget}</span>
             </div>
           </div>
         `;
@@ -261,7 +261,7 @@ export class NewExperimentModal {
         if (percentLabel) percentLabel.textContent = "100%";
         if (statusDesc) {
           statusDesc.className = "text-xs text-emerald-400 font-mono font-bold";
-          statusDesc.textContent = `¡Completado! ${res.primary_metric}: ${res.primary_score.toFixed(5)}`;
+          statusDesc.textContent = `Completed! ${res.primary_metric}: ${res.primary_score.toFixed(5)}`;
         }
 
         setTimeout(() => {

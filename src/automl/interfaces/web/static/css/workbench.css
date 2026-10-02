@@ -7,12 +7,12 @@
 
 :root {
   /* Brand System — Tech Minimalista Premium Palette */
-  --catml-black: #080A0F;
-  --catml-graphite: #11151E;
+  --catml-black: #090C12;
+  --catml-graphite: #10151E;
   --catml-white: #FFFFFF;
   --catml-offwhite: #F7F8FA;
   --catml-border: #E5E7EB;
-  --catml-border-dark: #242A36;
+  --catml-border-dark: #252C38;
   --catml-muted: #667085;
   --catml-muted-dark: #8B95A7;
 
@@ -24,13 +24,15 @@
   --catml-warning: #F59E0B;    /* Running / In Progress / Attention */
   --catml-danger: #EF4444;     /* Error / Destructive */
 
-  /* Dark Theme Surfaces Hierarchy (4 Architectural Levels) */
-  --color-bg-base: #080A0F;    /* App Background */
-  --color-bg-bar: #0D1017;     /* Sidebar & Top Navigation Bar */
-  --color-bg-panel: #11151E;   /* Main Content Panels & Containers */
-  --color-bg-card: #161B26;    /* Elevated Surface Cards & Hover */
-  --color-border: #242A36;     /* Subtle Architectural Border */
-  --color-border-hover: #363E4E;
+  /* Dark Theme Surfaces Hierarchy (Refined Architectural Levels) */
+  --color-bg-base: #090C12;    /* App Background */
+  --color-bg-bar: #0D111A;     /* Sidebar & Top Navigation Bar */
+  --color-bg-panel: #10151E;   /* Main Content Panels & Containers */
+  --color-bg-card: #151B26;    /* Elevated Surface Cards & Sections */
+  --color-bg-card-hover: #1A2230; /* Elevated Card Hover */
+  --color-border: #252C38;     /* Subtle Architectural Border */
+  --color-border-subtle: rgba(37, 44, 56, 0.45);
+  --color-border-hover: #384355;
   --color-text-main: #F7F8FA;  /* High Legibility Primary Text */
   --color-text-muted: #8B95A7; /* Technical Secondary Metadata */
 
@@ -203,66 +205,117 @@ body {
 .btn-technical:hover,
 .btn-secondary:hover {
   border-color: var(--color-border-hover);
-  background-color: #1E2536;
+  background-color: var(--color-bg-card-hover);
 }
 
 .btn-ghost {
   background-color: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   color: var(--color-text-muted);
   font-family: var(--font-sans);
   font-size: 0.8125rem;
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.75rem;
   border-radius: var(--radius-btn);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-ghost:hover {
-  border-color: var(--color-border-hover);
   color: var(--color-text-main);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
-/* Functional Semantic Status Badges (Refined, Non-screaming) */
+/* Modern Segmented Control (Single container, no nested border soup) */
+.segmented-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--color-bg-base);
+  padding: 3px;
+  border-radius: var(--radius-btn);
+}
+
+.segmented-pill {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.segmented-pill:hover {
+  color: var(--color-text-main);
+}
+
+.segmented-pill.active {
+  background-color: var(--color-bg-card);
+  color: var(--color-text-main);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.segmented-pill.active-signal {
+  background-color: var(--catml-blue);
+  color: #ffffff;
+}
+
+/* Functional Semantic Status Badges (Calm, Precise, Non-screaming) */
 .badge-gain,
 .badge-success {
-  background-color: rgba(34, 197, 94, 0.10);
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  color: #22C55E;
+  background-color: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  color: #34D399;
   border-radius: 6px;
+  font-weight: 500;
 }
 
 .badge-sys,
 .badge-blue {
-  background-color: rgba(79, 103, 255, 0.10);
-  border: 1px solid rgba(79, 103, 255, 0.25);
-  color: #4F67FF;
+  background-color: rgba(79, 103, 255, 0.08);
+  border: 1px solid rgba(79, 103, 255, 0.20);
+  color: #7B8EFF;
   border-radius: 6px;
+  font-weight: 500;
 }
 
 .badge-warn,
 .badge-warning {
-  background-color: rgba(245, 158, 11, 0.10);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  color: #F59E0B;
+  background-color: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.20);
+  color: #FBBF24;
   border-radius: 6px;
+  font-weight: 500;
 }
 
 .badge-err,
 .badge-danger {
-  background-color: rgba(239, 68, 68, 0.10);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #EF4444;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.20);
+  color: #F87171;
   border-radius: 6px;
+  font-weight: 500;
 }
 
 .badge-intel,
 .badge-violet {
-  background-color: rgba(105, 86, 232, 0.10);
-  border: 1px solid rgba(105, 86, 232, 0.25);
-  color: #6956E8;
+  background-color: rgba(105, 86, 232, 0.08);
+  border: 1px solid rgba(105, 86, 232, 0.20);
+  color: #A59BFA;
   border-radius: 6px;
+  font-weight: 500;
+}
+
+.badge-neutral {
+  background-color: rgba(139, 149, 167, 0.08);
+  border: 1px solid rgba(139, 149, 167, 0.18);
+  color: #94A3B8;
+  border-radius: 6px;
+  font-weight: 500;
 }
 
 /* Leaderboard Champion Highlight */
