@@ -297,13 +297,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         elif path == "/api/models/export":
             run_id = query_params.get("run_id", [""])[0]
             if not run_id:
-                active_run = ws.get_active_run()
-                if active_run:
-                    run_id = active_run.id
-                else:
-                    runs = ws.list_runs()
-                    if runs:
-                        run_id = runs[0].id
+                runs = ws.repository.list_runs()
+                if runs:
+                    run_id = runs[0].id
             if not run_id:
                 self._send_json({"error": "run_id parameter required or no runs available"}, HTTPStatus.BAD_REQUEST)
                 return
@@ -338,13 +334,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         elif path == "/api/models/export-info":
             run_id = query_params.get("run_id", [""])[0]
             if not run_id:
-                active_run = ws.get_active_run()
-                if active_run:
-                    run_id = active_run.id
-                else:
-                    runs = ws.list_runs()
-                    if runs:
-                        run_id = runs[0].id
+                runs = ws.repository.list_runs()
+                if runs:
+                    run_id = runs[0].id
             if not run_id:
                 self._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
                 return
