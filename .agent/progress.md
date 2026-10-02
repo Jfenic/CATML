@@ -1,15 +1,22 @@
 
 # Progress
 
-Active Track: **Sprint 1: Productization P0 — Ergonomic Facade & Standalone Model Artifacts**:
-- Rama: `feat/productization-facade-and-artifacts`.
+Active Track: **Sprint 2: Productization P0 — CLI Fit, Quickstart & Product README**:
+- Rama: `feat/productization-quickstart-and-readme`.
 - Entregables completados:
-  - `ModelArtifact` (`src/automl/artifacts/model_artifact.py`): Artefacto autónomo y portable con `.save("model.pkl")`, `.load()`, `.predict()`, `.predict_proba()` y soporte para inversión de target encoding.
-  - `AutoML` & `AutoMLResult` (`src/automl/facade.py`): Fachada ergonómica de alto nivel con soporte para `fit(df, target="churn")`, `fit(X, y)`, `.leaderboard()`, `.predict()`, `.summary()`.
-  - Exportaciones top-level: `from automl import AutoML, AutoMLResult, ModelArtifact` y alias package `src/catml/` (`from catml import AutoML`).
-  - Dependencia: Agregado `joblib>=1.3` y script console entry point `catml` en `pyproject.toml`.
-  - Specs y Planes: `docs/features/productization/spec.md` y `plan.md`.
-  - Testing y Calidad: 11 tests nuevos (5 en `test_model_artifact.py`, 6 en `test_facade.py`); 432 tests pasando en la suite global con 87.36% de cobertura de código.
+  - Comando CLI `catml fit <dataset> --target <col>` con tabla formateada de leaderboard, preprocesamiento y guardado de `model.pkl`.
+  - Script de ejemplo `examples/quickstart.py` (< 2 minutos) con dataset real/sintético, entrenamiento, leaderboard e inferencia autónoma.
+  - Rediseño de producto de `README.md` (posicionamiento Agent-Native, quickstart en 4 líneas, MCP server, comparativa y arquitectura).
+  - Configuración `.gitignore` para ignorar artefactos de corridas temporales (`catml-runs/`, `*.pkl`).
+  - Suite de tests `tests/test_cli_fit.py` (4 tests nuevos); 436 tests pasando en la suite global con 87.39% de cobertura.
+
+Completed Track: **Sprint 1: Productization P0 — Ergonomic Facade & Standalone Model Artifacts**:
+- Rama: `feat/productization-facade-and-artifacts` (Merged via PR #45).
+- Entregables completados:
+  - `ModelArtifact` (`src/automl/artifacts/model_artifact.py`): Artefacto autónomo con `.save("model.pkl")`, `.load()`, `.predict()`.
+  - `AutoML` & `AutoMLResult` (`src/automl/facade.py`): Fachada ergonómica `fit(df, target=...)` y `fit(X, y)`.
+  - Top-level namespace y alias `src/catml/` con comando CLI `catml`.
+  - 11 tests pasando, 432 tests globales, 87.36% cobertura.
 - Rama: `feat/derived-feature-calculator`.
 - Entregable completado:
   - Dominio puro: `DerivedFeatureDefinition`, `DerivedFeatureType`, `FeatureEvaluationResult` en `src/automl/domain/features/derived_feature.py`.

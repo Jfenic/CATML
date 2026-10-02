@@ -57,6 +57,86 @@ def _print_table(rows: list[dict], title: str) -> None:
         )
 
 
+def fit_cli(args: argparse.Namespace) -> int:
+    dataset_path = Path(args.dataset)
+    if not dataset_path.exists():
+        print(f"Error: Dataset '{dataset_path}' does not exist.", file=sys.stderr)
+        return 1
+
+    from automl.engine.profiling.dataset_profiler import load_dataframe
+
+    try:
+        df = load_dataframe(dataset_path)
+    except Exception as exc:
+        print(f"Error loading dataset: {exc}", file=sys.stderr)
+        return 1
+
+    if args.target not in df.columns:
+        print(f"Error: Target column '{args.target}' not found in dataset.", file=sys.stderr)
+        return 1
+
+    models = [m.strip() for m in args.models.split(",")] if args.models else None
+
+    from automl.facade import AutoML
+
+    automl = AutoML(
+        task=args.task,
+        models=models,
+        workspace_dir=args.workspace,
+    )
+
+    if not getattr(args, "json", False):
+        print("=" * 65)
+        print(f"  CATML Automated Machine Learning (Platform V{PLATFORM_VERSION})")
+        print("=" * 65)
+        print(f"  Dataset:     {dataset_path}")
+        print(f"  Target:      {args.target}")
+        if models:
+            print(f"  Candidates:  {', '.join(models)}")
+        print("\n  Evaluating candidate models and tuning...")
+
+    try:
+        result = automl.fit(df, target=args.target)
+    except Exception as exc:
+        print(f"Error during training: {exc}", file=sys.stderr)
+        return 1
+
+    # Save artifact
+    output_path = Path(args.output_model)
+    result.save_model(output_path)
+
+    if getattr(args, "json", False):
+        lb = result.leaderboard().to_dict(orient="records")
+        payload = {
+            "task_type": result.task_type,
+            "best_model_id": result.best_model_id,
+            "best_score": result.best_score,
+            "metric": result.metric,
+            "artifact_path": str(output_path),
+            "leaderboard": lb,
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    lb = result.leaderboard()
+    print("\n  Leaderboard:")
+    print("  " + "-" * 60)
+    print(f"  {'Rank':<6}{'Model':<24}{'Metric':<12}{'Score':<10}{'Time (s)':<10}")
+    print("  " + "-" * 60)
+    for _, row in lb.iterrows():
+        print(
+            f"  {int(row.get('rank', 0)):<6}{str(row.get('model_id', '')):<24}"
+            f"{str(row.get('metric', '')):<12}{float(row.get('score', 0.0)):<10.4f}"
+            f"{float(row.get('training_time_s', 0.0)):<10.2f}"
+        )
+    print("  " + "-" * 60)
+    print(f"\n  ✓ Best Model:   {result.best_model_id} ({result.metric}: {result.best_score:.4f})")
+    print(f"  ✓ Model Saved:  {output_path.resolve()}")
+    print(f"  ✓ Run in Prod:  ModelArtifact.load(\"{output_path}\")")
+    print("=" * 65)
+    return 0
+
+
 def run_demo(args: argparse.Namespace) -> int:
     dataset_path = Path(args.dataset) if args.dataset else _default_dataset()
     workspace_dir = Path(args.workspace) if args.workspace else _project_root() / ".automl" / "demo"
@@ -532,6 +612,15 @@ def mcp_cli(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="automl", description=f"AutoML Platform CLI (V{PLATFORM_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
+    fit_p = sub.add_parser("fit", help="Fit candidate AutoML models on a dataset and export winning model artifact")
+    fit_p.add_argument("dataset", help="Path to input dataset (CSV)")
+    fit_p.add_argument("--target", "-t", required=True, help="Target column name")
+    fit_p.add_argument("--task", default=None, choices=["classification", "regression", "binary_classification", "multiclass_classification"], help="Explicit task type (default: auto-detected)")
+    fit_p.add_argument("--models", "-m", default=None, help="Comma-separated list of candidate models (e.g. logistic_regression,random_forest,lightgbm)")
+    fit_p.add_argument("--output-model", "-o", default="catml-runs/model.pkl", help="Output path for standalone ModelArtifact (default: catml-runs/model.pkl)")
+    fit_p.add_argument("--workspace", default=None, help="Optional persistent workspace directory")
+    fit_p.add_argument("--json", action="store_true", help="Output results as JSON")
+    fit_p.set_defaults(func=fit_cli)
 
     demo = sub.add_parser("run-demo", help="Run demo experiment via CommandBus")
     demo.add_argument("--dataset")

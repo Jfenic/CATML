@@ -13,3 +13,5 @@ build/
 *.Zone.Identifier
 /competitions/
 /data/
+catml-runs/
+*.pkl

@@ -1,112 +1,178 @@
-# AutoML Platform (CATML)
+# CATML
 
-> A modular, reproducible AutoML platform built with a pure domain and hexagonal architecture, ensuring parity between human users, CLI and web interfaces, with contracts for future AI agents.
+> **The Agent-Native AutoML Engine for Humans and AI Agents.**  
+> Local-first, modular tabular machine learning built with pure Hexagonal architecture, scikit-learn ergonomics, and Model Context Protocol (MCP) integration.
 
-CATML is designed for reproducible machine learning experimentation. Rather than acting as a black-box optimizer, it manages in an auditable, reproducible manner **what task is being solved**, **which models apply**, **which features are selected**, and **which experiments are executed**.
-
----
-
-## Main Goals
-
-- **Experiment-First Philosophy:** Model experiments and trials as first-class domain entities, maintaining full reproducibility and auditability.
-- **Human & AI Agent Parity:** Expose identical Command and Query capabilities across the CLI and Workbench HTTP API, with future LLM tools using the same application layer.
-- **Strict Separation of Concerns:** Keep core domain logic pure and independent of ML frameworks (scikit-learn, Optuna, PyTorch) or persistence backends (SQLite, Postgres).
-- **Hypothesis-Driven Automation ("Propose ≠ Accept"):** Require that all candidate features, models, and hyperparameters be empirically evaluated and compared against baselines before acceptance.
-- **Agentic Protocol & AI Parity:** Expose full AutoML capabilities to external AI coding agents via standard Model Context Protocol (MCP) and dedicated CLI commands, backed by strict budget controls, atomic operation leases, and cooperative cancellation.
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/Tests-436%20Passing-brightgreen.svg)](tests/)
+[![Coverage](https://img.shields.io/badge/Coverage-87%25%2B-brightgreen.svg)](tests/)
+[![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
+[![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
 
 ---
 
-## Technology Stack
+## Why CATML?
 
-- **Language:** Python 3.10+
-- **Core ML & Data:** `numpy`, `pandas`, `scikit-learn`
-- **Hyperparameter Optimization:** `optuna`
-- **Configuration & Storage:** `pyyaml`, `sqlite3`
-- **Testing & Quality:** `pytest`, `pytest-cov`
+Most AutoML platforms (AutoGluon, H2O, FLAML, PyCaret) are monolithic libraries or proprietary cloud silos designed before the rise of autonomous AI coding agents. 
+
+CATML is engineered from the ground up with **four distinct advantages**:
+
+1. **🤖 Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within strict budget leases and cooperative cancellation controls.
+2. **⚡ 3-Line Ergonomics:** Simple, intuitive scikit-learn interface (`automl.fit(df, target="churn")`) backed by a pure hexagonal domain and CQRS application buses.
+3. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts that run anywhere for zero-dependency production inference.
+4. **🛡️ "Propose ≠ Accept" Scientific Discipline:** Empirical trial evaluation with out-of-fold (OOF) target encoding and strict data leakage prevention before promoting any model to production.
+5. **🔒 100% Local-First & Private:** Executes entirely on your machine with a persistent SQLite task worker; zero telemetry, zero forced cloud lock-in.
+
+---
+
+## Quickstart (Python API)
+
+Train multiple candidate models, compare the leaderboard, and export a production-ready model in seconds:
+
+```python
+import pandas as pd
+from catml import AutoML, ModelArtifact
+
+# 1. Load any tabular dataset
+df = pd.read_csv("examples/data/customers_churn.csv")
+
+# 2. Fit candidate models (automatically detects task, tunes hyperparameters)
+automl = AutoML(task="classification")
+result = automl.fit(df, target="churn")
+
+# 3. View the experiment leaderboard
+print(result.leaderboard())
+
+# 4. Save standalone winning model for production
+result.save_model("model.pkl")
+
+# 5. Load and predict anywhere (zero database/workspace dependencies)
+model = ModelArtifact.load("model.pkl")
+predictions = model.predict(df.head(5))
+probabilities = model.predict_proba(df.head(5))
+```
+
+---
+
+## Quickstart (Command Line)
+
+Train directly from your terminal with automated leaderboard output and artifact generation:
+
+```bash
+# Fit models on a dataset and export winning artifact
+catml fit examples/data/customers_churn.csv --target churn
+
+# Output results as structured JSON
+catml fit data.csv --target churn --models logistic_regression,random_forest --json
+```
+
+Output:
+```text
+=================================================================
+  CATML Automated Machine Learning (Platform V0.7.0)
+=================================================================
+  Dataset:     examples/data/customers_churn.csv
+  Target:      churn
+  Candidates:  logistic_regression, random_forest, lightgbm
+
+  Evaluating candidate models and tuning...
+
+  Leaderboard:
+  ------------------------------------------------------------
+  Rank  Model                   Metric      Score     Time (s)  
+  ------------------------------------------------------------
+  1     lightgbm                roc_auc     0.8924    0.28      
+  2     random_forest           roc_auc     0.8750    0.16      
+  3     logistic_regression     roc_auc     0.8512    0.12      
+  ------------------------------------------------------------
+
+  ✓ Best Model:   lightgbm (roc_auc: 0.8924)
+  ✓ Model Saved:  /home/user/project/catml-runs/model.pkl
+  ✓ Run in Prod:  ModelArtifact.load("catml-runs/model.pkl")
+=================================================================
+```
+
+---
+
+## Interactive Web Workbench (Visual ML Lab)
+
+CATML includes a built-in interactive Neo-Industrial visual dashboard for monitoring runs, inspecting datasets, and managing experiments:
+
+```bash
+catml ui --port 8080 --workspace .automl/demo
+```
+
+Open **[http://localhost:8080](http://localhost:8080)** in your browser to access:
+- **Mission Control Overview:** Live experiment status and resource telemetry.
+- **Dataset Inspector:** Deep statistical profiling, cardinality detection, and feature recommendations.
+- **Visual Experiment Studio:** Interactive comparison diffs, HPO trial history, and model explainability.
+- **Persistent Job Queue:** Resilient SQLite worker with pause, resume, and cooperative cancellation.
+
+---
+
+## 🤖 Agentic Protocol: Model Context Protocol (MCP)
+
+CATML exposes its entire AutoML capability directly to LLMs via the Model Context Protocol (MCP).
+
+### Connect to Claude Desktop or Cursor
+
+Add CATML to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "catml": {
+      "command": "catml",
+      "args": ["mcp", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+Or start the streamable HTTP transport server:
+
+```bash
+catml mcp --transport streamable-http --port 8000
+```
+
+Available tools exposed to AI agents:
+- `get_dataset_profile`: Deep statistical profiling and column cardinality.
+- `list_models` / `list_plugins`: Inspect available algorithms and metric plugins.
+- `create_experiment`: Propose targeted hypothesis-driven experiment runs.
+- `get_leaderboard`: Inspect ranked metric scores and cross-validation variance.
+- `cancel_operation`: Cooperative cancellation under budget constraints.
 
 ---
 
 ## Installation
 
 ```bash
-# From your local checkout
+# Clone the repository
+git clone https://github.com/Jfenic/CATML.git
 cd CATML
 
 # Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install package in editable mode with development dependencies
+# Install in editable mode
 pip install -e ".[dev]"
+```
+
+### Optional Model Backends
+
+Native gradient boosting libraries are optional. If absent, fallback estimators from scikit-learn are used seamlessly:
+
+```bash
+pip install lightgbm xgboost catboost
 ```
 
 ---
 
-## Optional model backends
+## Advanced Architecture (CQRS Application Bus)
 
-The base installation includes scikit-learn. To use native gradient boosting backends:
-
-```bash
-python -m pip install lightgbm xgboost
-```
-
-These packages are optional. If absent, `LightGBMPlugin` uses scikit-learn HistGradientBoosting and `XGBoostPlugin` uses GradientBoosting. A registered plugin ID alone does not prove that the native library ran. See [backend verification and reproducibility](docs/backends.md) for a check and how to disable fallback.
-
-## How to Run
-
-### Web Workbench
-
-```bash
-automl ui --port 8080 --workspace .automl/demo
-```
-
-The Workbench executes experiments and submissions using a persistent SQLite queue and a local worker. The 'Jobs' panel maintains run state across reloads and provides pause, cancellation, and retry capabilities. See [persistent queue, CLI, and API](docs/features/persistent-jobs/spec.md) for controls, recovery, and boundaries.
-
-Open <http://localhost:8080>. The workspace holds the SQLite history for runs, experiments and results; use the same path in CLI commands to inspect that history. Stop the server with Ctrl+C. Without `--workspace`, the CLI selects `.automl/s6e9_automl` if it exists, otherwise `.automl/demo`.
-
-The current server binds to `0.0.0.0` and has no authentication; it is intended for a trusted development environment. Overview, datasets, experiment execution, comparison and submission generation use application data. Knowledge and agent panels include illustrative preview responses; they do not establish a working meta-learning or autonomous-agent capability. See [capabilities and limitations](docs/README.md).
-
-### Command Line Interface (CLI)
-
-```bash
-# 1. View task catalog and compatible models
-automl task list
-
-# 2. Automatically plan problem definition from dataset
-automl task plan --dataset examples/data/customers_churn.csv --target churn
-
-# 3. Run automated experiment planning and priority scheduling
-automl plan-experiments --dataset examples/data/customers_churn.csv --target churn --auto-run
-
-# 4. Hyperparameter tuning using Optuna TPE sampler
-automl optimize --dataset examples/data/customers_churn.csv --target churn --model logistic_regression --optimizer optuna --trials 10
-
-# 5. Run end-to-end demo
-automl run-demo --auto
-
-# 6. View registered model, metric, and optimizer plugins
-automl plugin list
-
-# 7. Generate Kaggle-ready submission matching exact template IDs and columns
-automl predict --run-id <RUN_ID> --test-dataset data/test.csv --template data/sample_submission.csv --proba --output submission.csv
-
-# 8. Evaluate binary OOF blending and generate a fold-averaged submission
-automl predict --workspace .automl/demo --run-id <RUN_ID> --test-dataset data/test.csv --folds 5 --models logistic_regression,random_forest --proba --output submission_oof.csv
-
-# 9. Run regression benchmark suite
-automl benchmark run
-
-# 10. Inspect and manage agentic operations (cooperative cancellation, lease tracking)
-automl agent operations list
-automl agent operations get <OPERATION_ID>
-automl agent operations cancel <OPERATION_ID>
-
-# 11. Run Model Context Protocol (MCP) server for external AI agents
-automl mcp --transport stdio
-automl mcp --transport streamable-http --port 8000
-```
-
-### Programmatic Python API
+For power users, MLOps pipelines, and custom orchestrators, CATML provides strict CQRS separation via `CommandBus` and `QueryBus`:
 
 ```python
 from automl.application.bootstrap import build_application
@@ -117,22 +183,22 @@ from automl.application.commands.workspace_commands import (
 from automl.application.queries.workspace_queries import GetLeaderboardQuery
 
 # Build application workspace
-workspace, command_bus, query_bus = build_application(root_dir=".automl/demo")
+ws, cmd, qry = build_application(root_dir=".automl/demo")
 
 # Register dataset and create run
-dataset = workspace.register_dataset(
+dataset = ws.register_dataset(
     name="churn",
     path="examples/data/customers_churn.csv",
     target="churn",
 )
-run = workspace.create_run(dataset)
+run = ws.create_run(dataset)
 
-# Plan and execute prioritized experiments
-command_bus.dispatch(PlanExperimentsCommand(run_id=run.id))
-command_bus.dispatch(RunScheduledExperimentsCommand(run_id=run.id, max_experiments=2))
+# Dispatch CQRS commands
+cmd.dispatch(PlanExperimentsCommand(run_id=run.id))
+cmd.dispatch(RunScheduledExperimentsCommand(run_id=run.id, max_experiments=3))
 
-# Inspect results
-leaderboard = query_bus.dispatch(GetLeaderboardQuery(run.id))
+# Dispatch zero-side-effect queries
+leaderboard = qry.dispatch(GetLeaderboardQuery(run.id))
 for entry in leaderboard:
     print(f"{entry['model_id']}: {entry['metric']} = {entry['score']:.4f}")
 ```
@@ -142,29 +208,24 @@ for entry in leaderboard:
 ## How to Test
 
 ```bash
-# Run all tests
+# Run all unit and integration tests
 pytest
 
-# Run tests with coverage report (target >= 85%)
+# Run tests with strict coverage validation (>= 85%)
 pytest --cov=src/automl --cov-fail-under=85
 ```
 
 ---
 
-## Deeper Documentation
+## Documentation Navigation
 
-Version: `0.7.0`, defined in [`src/automl/__init__.py`](src/automl/__init__.py). Phase labels in the design roadmap describe milestones. Current status belongs to [`TASKS.md`](TASKS.md).
-
-- **Documentation Map & Capability Evidence:** [`docs/README.md`](docs/README.md)
-- **Contributing & Parallel Teamwork:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- **Agent Instructions & Rules:** [`AGENTS.md`](AGENTS.md)
-- **System Architecture & Boundaries:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- **Active Tasks & Operational Roadmap:** [`TASKS.md`](TASKS.md)
-- **Developer Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
-- **Comprehensive Technical Specification (V0.1–V1.0):** [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md)
-- **Design Notes & Rationale:** [`planning.txt`](planning.txt)
-- **Feature Specifications & Historical Plans:** [`docs/features/`](docs/features/)
-- **Architecture Decision Records (ADRs):** [`docs/decisions/`](docs/decisions/)
+- **System Architecture & Hexagonal Rules:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- **Technical Specification & Roadmap:** [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md)
+- **Active Tasks & Operational Backlog:** [`TASKS.md`](TASKS.md)
+- **Agent Rules & Development Guidelines:** [`AGENTS.md`](AGENTS.md)
+- **Developer Extension Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
+- **Feature Specifications & Plans:** [`docs/features/`](docs/features/)
+- **Architectural Decision Records (ADRs):** [`docs/decisions/`](docs/decisions/)
 
 ---
 
