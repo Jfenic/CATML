@@ -6,6 +6,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class DatasetsView {
   constructor() {
@@ -40,8 +41,8 @@ export class DatasetsView {
   renderLoading() {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
-        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
-        <div class="text-sm font-medium">Analizando perfil del dataset e inferencias de CATML...</div>
+        <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
+        <div class="text-sm font-medium">Analyzing dataset profile and CATML inferences...</div>
       </div>
     `;
   }
@@ -202,10 +203,12 @@ export class DatasetsView {
           <div class="workbench-card p-5 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
               <div class="flex items-center space-x-2.5">
+                <span class="text-[#4F67FF]">${icon("lightbulb", "icon-sm")}</span>
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Statistical recommendations</span>
                 <span class="text-xs font-mono text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md">${recommendations.length} detected</span>
               </div>
-              <button id="btnApplyRecommendations" class="btn-technical text-xs font-sans">
+              <button id="btnApplyRecommendations" class="btn-technical text-xs font-sans flex items-center space-x-1.5">
+                ${icon("check", "icon-sm")}
                 <span>Apply recommendations</span>
               </button>
             </div>
@@ -287,7 +290,8 @@ export class DatasetsView {
               </span>
             </div>
 
-            <button id="btnLaunchWithSelection" class="btn-signal font-sans font-semibold text-xs px-5 py-2 shadow-md shadow-[#4F67FF]/20">
+            <button id="btnLaunchWithSelection" class="btn-signal font-sans font-semibold text-xs px-5 py-2 shadow-md shadow-[#4F67FF]/20 flex items-center space-x-1.5">
+              ${icon("rocket", "icon-sm")}
               <span>Launch Experiment (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
             </button>
           </div>
@@ -296,23 +300,29 @@ export class DatasetsView {
         <!-- 4. Multi-Tab Exploration Equipment Module -->
         <div class="workbench-card overflow-hidden">
           <div class="border-b border-[#242A36] px-4 flex items-center space-x-6 text-xs font-sans font-medium bg-[#0D1017] overflow-x-auto">
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="schema">
-              Schema & Selection
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="schema">
+              ${icon("database", "icon-sm")}
+              <span>Schema & Selection</span>
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="stats">
-              Descriptive Statistics
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="stats">
+              ${icon("bar-chart-3", "icon-sm")}
+              <span>Descriptive Statistics</span>
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="preview">
-              Raw Sample
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="preview">
+              ${icon("scroll-text", "icon-sm")}
+              <span>Raw Sample</span>
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="categories">
-              Categorical Distributions
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="categories">
+              ${icon("tags", "icon-sm")}
+              <span>Categorical Distributions</span>
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="correlation">
-              Correlation Matrix
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="correlation">
+              ${icon("chart-line", "icon-sm")}
+              <span>Correlation Matrix</span>
             </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="calculator">
-              Feature Calculator
+            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="calculator">
+              ${icon("sparkles", "icon-sm")}
+              <span>Feature Calculator</span>
             </button>
           </div>
 
@@ -396,7 +406,7 @@ export class DatasetsView {
               return `
                 <tr class="${isChecked ? 'bg-[#161B26]/40' : 'opacity-70'}">
                   <td class="text-center">
-                    ${isTarget ? `<span class="text-[#8B95A7] font-mono text-xs">🎯</span>` : `
+                    ${isTarget ? `<span class="text-[#4F67FF] flex justify-center" title="Target Column">${icon("target", "icon-sm")}</span>` : `
                       <input type="checkbox" data-col="${c.name}" class="col-toggle-checkbox rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36] cursor-pointer" ${isChecked ? "checked" : ""}>
                     `}
                   </td>
@@ -478,7 +488,10 @@ export class DatasetsView {
               const hasStats = c.mean != null;
               return `
                 <tr>
-                  <td class="font-mono font-medium text-[#F7F8FA]">${c.name} ${isTarget ? '🎯' : ''}</td>
+                  <td class="font-mono font-medium text-[#F7F8FA] flex items-center space-x-1.5">
+                    <span>${c.name}</span>
+                    ${isTarget ? `<span class="text-[#4F67FF]" title="Target Column">${icon("target", "icon-sm")}</span>` : ''}
+                  </td>
                   <td class="font-mono text-xs text-[#4F67FF]">${c.dtype}</td>
                   <td class="font-mono text-xs text-[#F7F8FA]">${p.row_count ? (p.row_count - c.null_count).toLocaleString() : '—'}</td>
                   <td class="font-mono text-xs ${c.null_count > 0 ? 'text-[#F59E0B]' : 'text-[#8B95A7]'}">${p.row_count ? ((c.null_count / p.row_count) * 100).toFixed(1) + '%' : '0%'}</td>
@@ -629,7 +642,7 @@ export class DatasetsView {
                 <th class="p-2.5 text-left font-mono text-[11px] text-[#8B95A7] bg-[#0D1017] sticky left-0 z-20 border-r border-[#242A36] min-w-[130px]">Feature</th>
                 ${cols.map(c => `
                   <th class="p-2 font-mono text-[11px] text-[#8B95A7] min-w-[70px] max-w-[110px] truncate" title="${c}">
-                    ${c === p.target_column ? '🎯 ' + c : c}
+                    ${c === p.target_column ? `<span class="text-[#4F67FF] inline-flex items-center space-x-1">${icon("target", "icon-sm")}<span>${c}</span></span>` : c}
                   </th>
                 `).join("")}
                 <th class="p-2 font-mono text-[11px] text-[#8B95A7]">Visuals</th>
@@ -639,7 +652,7 @@ export class DatasetsView {
               ${cols.map((rowName, rIdx) => `
                 <tr class="border-b border-[#242A36]/60 hover:bg-[#161B26]/50">
                   <td class="p-2 text-left font-mono font-medium text-[#F7F8FA] bg-[#0D1017]/95 sticky left-0 z-10 border-r border-[#242A36] truncate max-w-[150px]" title="${rowName}">
-                    ${rowName === p.target_column ? '🎯 ' + rowName : rowName}
+                    ${rowName === p.target_column ? `<span class="text-[#4F67FF] inline-flex items-center space-x-1">${icon("target", "icon-sm")}<span>${rowName}</span></span>` : rowName}
                   </td>
                   ${cols.map((colName, cIdx) => {
                     const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
@@ -706,7 +719,7 @@ export class DatasetsView {
                 ${col.target_correlation != null ? ` • Target correlation: <span class="font-mono font-bold ${Math.abs(col.target_correlation) >= 0.25 ? 'text-[#22C55E]' : 'text-[#F7F8FA]'}">${col.target_correlation > 0 ? '+' : ''}${col.target_correlation.toFixed(3)}</span>` : ""}
               </p>
             </div>
-            <button id="btnCloseVarModal" class="text-[#8B95A7] hover:text-white p-1 text-lg leading-none">✕</button>
+            <button id="btnCloseVarModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded hover:bg-[#161B26] transition-colors" title="Close">${icon("x", "icon-sm")}</button>
           </div>
 
           <!-- Modal Tabs -->
@@ -747,7 +760,7 @@ export class DatasetsView {
     if (!bp || bp.min == null || bp.max == null) {
       return `
         <div class="p-8 text-center text-[#8B95A7] space-y-2">
-          <span class="text-2xl text-[#8B95A7]/50 block">📦</span>
+          <div class="flex justify-center text-[#8B95A7]/50">${icon("boxes", "icon-xl", 32)}</div>
           <p class="text-sm font-medium">Box plots are designed for quantitative numerical features.</p>
           <p class="text-xs text-[#8B95A7]/70">For categorical features, inspect the Distribution or Target Association tabs.</p>
         </div>
@@ -1111,7 +1124,7 @@ export class DatasetsView {
         <div class="p-4 rounded-xl border border-[#252C38] bg-[#151B26] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="text-[#4F67FF] text-base">⚡</span>
+              <span class="text-[#4F67FF]">${icon("sparkles", "icon-sm")}</span>
               <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">Feature Calculator & Derived Feature Engine</h3>
             </div>
             <p class="text-xs text-[#8B95A7] font-sans">
@@ -1126,7 +1139,8 @@ export class DatasetsView {
             <button id="btnCalcModePython" class="px-3 py-1.5 text-xs font-sans rounded-md border transition-colors ${this.calcMode === 'python_code' ? 'bg-[#4F67FF] text-white border-[#4F67FF] font-semibold' : 'bg-[#10151E] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}">
               Python Mode
             </button>
-            <button id="btnCalcSuggest" class="btn-technical text-xs text-[#6956E8] border-[#6956E8]/30 hover:border-[#6956E8] flex items-center space-x-1">
+            <button id="btnCalcSuggest" class="btn-technical text-xs text-[#6956E8] border-[#6956E8]/30 hover:border-[#6956E8] flex items-center space-x-1.5">
+              <span>${icon("sparkles", "icon-sm")}</span>
               <span>Suggest with AI</span>
             </button>
           </div>
@@ -1219,8 +1233,8 @@ export class DatasetsView {
           <div class="p-5 rounded-xl border ${evalRes.is_valid ? 'border-emerald-800/60 bg-emerald-950/15' : 'border-rose-800/60 bg-rose-950/15'} space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
               <div class="flex items-center space-x-3">
-                <span class="text-xs px-2.5 py-1 rounded-md font-mono font-bold uppercase ${evalRes.is_valid ? 'badge-gain' : 'badge-err'}">
-                  ${evalRes.is_valid ? '✓ VALID FORMULA' : '✕ VALIDATION ERROR'}
+                <span class="text-xs px-2.5 py-1 rounded-md font-mono font-bold uppercase inline-flex items-center space-x-1.5 ${evalRes.is_valid ? 'badge-gain' : 'badge-err'}">
+                  ${evalRes.is_valid ? `${icon("check", "icon-sm")}<span>VALID FORMULA</span>` : `${icon("x", "icon-sm")}<span>VALIDATION ERROR</span>`}
                 </span>
                 <span class="text-sm font-bold font-mono text-[#F7F8FA]">${evalRes.feature_name}</span>
                 <span class="text-xs font-mono text-[#8B95A7]">(${evalRes.dtype || 'unknown'})</span>
@@ -1250,7 +1264,7 @@ export class DatasetsView {
               <div class="space-y-1">
                 ${evalRes.warnings.map(w => `
                   <div class="text-xs font-mono text-amber-300 flex items-center space-x-1.5">
-                    <span>⚠️</span>
+                    <span class="text-[#F59E0B]">${icon("triangle-alert", "icon-sm")}</span>
                     <span>${w}</span>
                   </div>
                 `).join("")}
@@ -1310,8 +1324,9 @@ export class DatasetsView {
                 <div class="p-3 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-mono font-bold text-indigo-300">${sugg.definition.name}</span>
-                    <button class="btn-load-suggestion px-2.5 py-0.5 rounded-md bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 text-[11px] font-sans font-medium" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
-                      Load in Calculator ➔
+                    <button class="btn-load-suggestion px-2.5 py-0.5 rounded-md bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 text-[11px] font-sans font-medium inline-flex items-center space-x-1" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
+                      <span>Load in Calculator</span>
+                      <span>${icon("arrow-right", "icon-sm")}</span>
                     </button>
                   </div>
                   <div class="text-[11px] font-mono text-[#F7F8FA] bg-[#151B26] px-2 py-1 rounded-md border border-[#252C38] overflow-x-auto">
@@ -1421,13 +1436,16 @@ export class DatasetsView {
     // AI Suggestions
     this.container.querySelector("#btnCalcSuggest")?.addEventListener("click", async () => {
       const btn = this.container.querySelector("#btnCalcSuggest");
-      if (btn) btn.textContent = "⏳ Analizando...";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">${icon("refresh-cw", "icon-sm")}</span><span>Analyzing...</span>`;
+      }
       try {
         const res = await api.suggestDerivedFeatures(this.activeDatasetId);
         this.calcSuggestions = res.suggestions || [];
         this.render();
       } catch (err) {
-        alert(`Error al generar sugerencias: ${err.message}`);
+        alert(`Failed to generate suggestions: ${err.message}`);
         this.render();
       }
     });
@@ -1512,7 +1530,7 @@ export class DatasetsView {
     this.container.innerHTML = `
       <div class="space-y-6">
         <div class="workbench-card p-8 text-center space-y-4">
-          <span class="text-4xl text-slate-600 block">▦</span>
+          <div class="flex justify-center text-slate-600">${icon("database", "icon-xl", 36)}</div>
           <div>
             <h3 class="text-base font-bold text-slate-200">No Profiled Datasets Found</h3>
             <p class="text-xs text-slate-400 mt-1">Register a tabular CSV or Parquet dataset to generate autonomous statistical profiles and candidate pipelines.</p>
@@ -1529,10 +1547,10 @@ export class DatasetsView {
       <div class="workbench-card p-6 space-y-4 border-indigo-900/60 bg-indigo-950/20" id="registerFormCard">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
           <div class="flex items-center space-x-2">
-            <span class="text-indigo-400 font-bold">＋</span>
+            <span class="text-indigo-400">${icon("plus", "icon-sm")}</span>
             <span class="text-sm font-semibold text-slate-200">Register New Dataset</span>
           </div>
-          ${this.profile ? `<button id="btnCloseRegisterForm" class="text-slate-400 hover:text-slate-200 text-xs">✕ Close</button>` : ""}
+          ${this.profile ? `<button id="btnCloseRegisterForm" class="text-slate-400 hover:text-slate-200 text-xs inline-flex items-center space-x-1">${icon("x", "icon-sm")}<span>Close</span></button>` : ""}
         </div>
 
         <form id="formRegisterDataset" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">

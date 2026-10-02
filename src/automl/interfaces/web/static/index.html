@@ -12,6 +12,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Vector Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -76,12 +78,12 @@
       </div>
 
       <button id="btnRefresh" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] px-3 py-1.5 rounded-lg border border-[#242A36] font-sans font-medium transition-colors text-xs flex items-center space-x-1.5">
-        <span>↻</span>
+        <i data-lucide="refresh-cw" class="icon icon-sm"></i>
         <span>Sync</span>
       </button>
 
       <button id="btnToggleAgent" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] hover:border-[#4F67FF]/50 px-3.5 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-2 transition-all text-xs">
-        <span class="text-[#4F67FF] font-bold">◇</span>
+        <i data-lucide="bot" class="icon text-[#4F67FF]"></i>
         <span>Agent</span>
         <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
       </button>
@@ -137,7 +139,7 @@
 
         <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="knowledge">
           <div class="flex items-center space-x-3">
-            <span class="text-xs text-[#8B95A7]">🧠</span>
+            <i data-lucide="brain" class="icon text-[#8B95A7]"></i>
             <span class="font-sans font-medium">Knowledge</span>
           </div>
           <span class="badge-intel text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V0.8</span>
@@ -145,7 +147,7 @@
 
         <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="agent">
           <div class="flex items-center space-x-3">
-            <span class="text-xs text-[#4F67FF]">◇</span>
+            <i data-lucide="bot" class="icon text-[#4F67FF]"></i>
             <span class="font-sans font-medium">Agent Drawer</span>
           </div>
           <span class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V1.0</span>

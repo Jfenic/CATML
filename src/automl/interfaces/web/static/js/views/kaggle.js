@@ -5,6 +5,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class KaggleView {
   constructor() {
@@ -24,7 +25,7 @@ export class KaggleView {
   renderLoading() {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
-        <div class="animate-spin text-2xl text-indigo-400">⚡</div>
+        <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
         <div class="text-sm font-medium">Loading competition state and pre-flight verifications...</div>
       </div>
     `;
@@ -77,7 +78,7 @@ export class KaggleView {
         <!-- Competition Header -->
         <div class="workbench-card p-5 bg-gradient-to-r from-slate-900 to-indigo-950/40 border-indigo-900/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
-            <span class="text-2xl">🏆</span>
+            <span class="text-[#4F67FF]">${icon("trophy", "icon-xl", 24)}</span>
             <div>
               <div class="flex items-center space-x-2">
                 <h2 class="text-lg font-bold text-slate-100">${st.title}</h2>
@@ -150,22 +151,22 @@ export class KaggleView {
               <!-- Checklist Items -->
               <div class="space-y-2 text-xs font-mono">
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ ID Column preserved</span>
+                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>ID Column preserved</span></span>
                   <span class="text-emerald-400 font-bold">PASS</span>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Row count alignment</span>
+                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Row count alignment</span></span>
                   <span class="text-emerald-400 font-bold">${st.checklist && st.checklist.row_count ? st.checklist.row_count.toLocaleString() + ' rows' : 'MATCH'}</span>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Prediction range bounded</span>
+                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Prediction range bounded</span></span>
                   <span class="text-emerald-400 font-bold">BOUNDED</span>
                 </div>
 
                 <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300">✓ Zero missing / NaN values</span>
+                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Zero missing / NaN values</span></span>
                   <span class="text-emerald-400 font-bold">0 nulls</span>
                 </div>
               </div>
@@ -195,11 +196,13 @@ export class KaggleView {
                 <input type="checkbox" id="useOOF" checked class="rounded text-indigo-600 bg-slate-800" /> Average 5 folds (OOF Ensemble)
               </label>
               <button id="btnGenerateSubmission" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20">
-                <span>⚡ Generate & Validate submission.csv</span>
+                ${icon("zap", "icon-sm")}
+                <span>Generate & Validate submission.csv</span>
               </button>
 
               <button id="btnSubmitKaggleCLI" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
-                <span>🚀 Prepare Kaggle CLI Submission</span>
+                ${icon("rocket", "icon-sm")}
+                <span>Prepare Kaggle CLI Submission</span>
               </button>
             </div>
           </div>
@@ -234,7 +237,7 @@ export class KaggleView {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>⏳ Generating inferences...</span>
+          <span>Generating inferences...</span>
         `;
 
         const res = await api.generateSubmission({
@@ -249,7 +252,7 @@ export class KaggleView {
         });
 
         btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
-        btn.innerHTML = `<span>✓ Generated successfully! (${res.row_count} rows)</span>`;
+        btn.innerHTML = `<span class="flex items-center gap-1.5">${icon("check", "icon-sm")} <span>Generated successfully! (${res.row_count} rows)</span></span>`;
 
         setTimeout(() => {
           btn.disabled = false;

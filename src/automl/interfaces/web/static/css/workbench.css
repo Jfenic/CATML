@@ -73,6 +73,31 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
+/* Official Lucide Vector Icon System */
+.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-lg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-xl {
+  width: 24px;
+  height: 24px;
+}
+
 /* Custom Scrollbar for dense technical laboratory panels */
 ::-webkit-scrollbar {
   width: 5px;

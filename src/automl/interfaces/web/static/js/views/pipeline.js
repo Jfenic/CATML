@@ -5,6 +5,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
+import { icon } from "../icons.js";
 
 export class PipelineView {
   constructor() {
@@ -25,7 +26,7 @@ export class PipelineView {
   renderLoading() {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
-        <div class="animate-catml-spin text-2xl text-[#4F67FF]">◇</div>
+        <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
         <div class="text-sm font-medium font-sans">Building visual execution pipeline graph...</div>
       </div>
     `;
@@ -72,13 +73,13 @@ export class PipelineView {
       <div class="space-y-6">
         <div class="workbench-card p-4 flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <span class="text-[#4F67FF] font-bold text-lg">◇</span>
+            <span class="text-[#4F67FF]">${icon("workflow", "icon-lg")}</span>
             <div>
               <h2 class="text-base font-semibold text-[#F7F8FA] font-sans">Visual Pipeline DAG — ${dsDisplayName}</h2>
               <p class="text-xs text-[#8B95A7] font-sans">Reproducible DAG for data ingestion, preprocessing, feature generation, and ensemble orchestration.</p>
             </div>
           </div>
-          <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">DAG Validated</span>
+          <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>DAG Validated</span></span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -86,6 +87,7 @@ export class PipelineView {
           <div class="lg:col-span-8 workbench-card p-6 flex flex-col items-center justify-center space-y-4 bg-slate-950/40 min-h-[480px]">
             <!-- Node: Dataset -->
             <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'Dataset' ? 'active' : ''}" data-node="Dataset">
+              ${icon("database", "icon-sm text-[#4F67FF] mb-1.5 block mx-auto")}
               <div class="text-[10px] text-slate-400 uppercase font-mono">Input Source</div>
               <div class="text-xs font-bold text-slate-200">${dsDisplayName}</div>
               <div class="text-[10px] text-slate-500 font-mono">${rowCountText} × ${colCountText}</div>
@@ -96,12 +98,14 @@ export class PipelineView {
             <!-- Node: SchemaDetector & ID Exclusion -->
             <div class="flex space-x-6">
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'SchemaDetector' ? 'active' : ''}" data-node="SchemaDetector">
+                ${icon("search", "icon-sm text-[#6956E8] mb-1.5 block mx-auto")}
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Inference</div>
                 <div class="text-xs font-bold text-purple-300">SchemaDetector</div>
                 <div class="text-[10px] text-slate-500 font-mono capitalize">${run ? (run.task_type || "Classification").replace("_", " ") : "Classification"}</div>
               </div>
 
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'IDExclusion' ? 'active' : ''}" data-node="IDExclusion">
+                ${icon("shield-x", "icon-sm text-[#EF4444] mb-1.5 block mx-auto")}
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pruning</div>
                 <div class="text-xs font-bold text-rose-300">ID Exclusion</div>
                 <div class="text-[10px] text-slate-500 font-mono">${idCols.length > 0 ? `Drop '${idCols[0].name}'` : 'Zero Leaks'}</div>
@@ -113,12 +117,14 @@ export class PipelineView {
             <!-- Preprocessing: Numerical & Categorical -->
             <div class="flex space-x-6">
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'NumericalImputer' ? 'active' : ''}" data-node="NumericalImputer">
+                ${icon("binary", "icon-sm text-[#4F67FF] mb-1.5 block mx-auto")}
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pipeline</div>
                 <div class="text-xs font-bold text-indigo-300">Numerical Imputer</div>
                 <div class="text-[10px] text-slate-500 font-mono">${numCols} Numerics</div>
               </div>
 
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'CategoricalEncoder' ? 'active' : ''}" data-node="CategoricalEncoder">
+                ${icon("tags", "icon-sm text-[#4F67FF] mb-1.5 block mx-auto")}
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pipeline</div>
                 <div class="text-xs font-bold text-indigo-300">Categorical Encoder</div>
                 <div class="text-[10px] text-slate-500 font-mono">${catCols} Categoricals</div>
@@ -129,6 +135,7 @@ export class PipelineView {
 
             <!-- FeatureGenerator (Key Node) -->
             <div class="dag-node text-center cursor-pointer border-purple-500/60 bg-purple-950/20 ${this.selectedNode === 'FeatureGenerator' ? 'active' : ''}" data-node="FeatureGenerator">
+              ${icon("sparkles", "icon-sm text-[#6956E8] mb-1.5 block mx-auto")}
               <div class="text-[10px] text-purple-400 uppercase font-mono font-bold">Hypothesis-Driven</div>
               <div class="text-xs font-bold text-purple-200">FeatureGenerator</div>
               <div class="text-[10px] text-purple-300 font-mono">Propose ≠ Accept</div>
@@ -140,12 +147,14 @@ export class PipelineView {
             <div class="flex space-x-4">
               ${topModels.length > 0 ? topModels.map(m => `
                 <div class="dag-node text-center cursor-pointer ${this.selectedNode === m.model_id ? 'active' : ''}" data-node="${m.model_id}">
+                  ${icon("brain", "icon-sm text-[#22C55E] mb-1.5 block mx-auto")}
                   <div class="text-[10px] text-slate-400 uppercase font-mono">Model</div>
                   <div class="text-xs font-bold text-slate-200 capitalize">${m.model_id}</div>
                   <div class="text-[10px] text-emerald-400 font-mono">${Number(m.score).toFixed(5)}</div>
                 </div>
               `).join("") : `
                 <div class="dag-node text-center cursor-pointer" data-node="Models">
+                  ${icon("boxes", "icon-sm text-[#4F67FF] mb-1.5 block mx-auto")}
                   <div class="text-[10px] text-slate-400 uppercase font-mono">Models</div>
                   <div class="text-xs font-bold text-slate-200">Ensemble Candidates</div>
                   <div class="text-[10px] text-indigo-400 font-mono">Stratified CV</div>
@@ -157,6 +166,7 @@ export class PipelineView {
 
             <!-- Prediction / Submission Node -->
             <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'Prediction' ? 'active' : ''}" data-node="Prediction">
+              ${icon("package", "icon-sm text-[#22C55E] mb-1.5 block mx-auto")}
               <div class="text-[10px] text-slate-400 uppercase font-mono">Output Artifact</div>
               <div class="text-xs font-bold text-emerald-300">submission.csv</div>
               <div class="text-[10px] text-slate-400 font-mono">Verified Format</div>
