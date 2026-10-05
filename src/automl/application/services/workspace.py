@@ -1841,6 +1841,44 @@ class AutoMLWorkspace:
                 metric = res.primary_metric
                 break
 
+        import sys
+        from datetime import datetime, timezone
+        from importlib.metadata import version, PackageNotFoundError
+        from automl import __version__
+
+        dep_versions: dict[str, str] = {"catml": __version__}
+        for name in ("numpy", "pandas", "scikit-learn", "joblib", "lightgbm", "xgboost", "catboost", "optuna"):
+            try:
+                dep_versions[name] = version(name)
+            except PackageNotFoundError:
+                pass
+
+        estimator_step = pipeline[-1] if hasattr(pipeline, "__getitem__") and hasattr(pipeline, "steps") else pipeline
+
+        dataset_hash = None
+        if hasattr(dataset, "path") and dataset.path:
+            dp = Path(dataset.path)
+            if dp.is_file():
+                import hashlib
+                digest = hashlib.sha256()
+                with dp.open("rb") as stream:
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(block)
+                dataset_hash = digest.hexdigest()
+
+        provenance = {
+            "catml_version": __version__,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "python_version": sys.version.split()[0],
+            "estimator_class": type(estimator_step).__name__,
+            "estimator_module": type(estimator_step).__module__,
+            "dependencies": dep_versions,
+            "dataset_id": dataset.id,
+            "dataset_path": str(dataset.path) if hasattr(dataset, "path") else None,
+            "dataset_hash": dataset_hash,
+            "seed": getattr(getattr(run, "config", None), "random_seed", None),
+        }
+
         return ModelArtifact(
             pipeline=pipeline,
             model_id=target_trial.model_id,
@@ -1856,6 +1894,7 @@ class AutoMLWorkspace:
                 "experiment_id": target_exp_id,
                 "trial_id": target_trial.id,
             },
+            provenance=provenance,
         )
 
     def _write_submission(

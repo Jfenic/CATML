@@ -28,6 +28,52 @@ class ModelArtifact:
     score: float = 0.0
     parameters: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    provenance: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.provenance and "provenance" in self.metadata:
+            self.provenance = dict(self.metadata["provenance"])
+        elif not self.provenance:
+            self.provenance = self._collect_default_provenance()
+
+    def _collect_default_provenance(self) -> dict[str, Any]:
+        import sys
+        from datetime import datetime, timezone
+        from importlib.metadata import version, PackageNotFoundError
+
+        dep_versions: dict[str, str] = {}
+        for name in ("numpy", "pandas", "scikit-learn", "joblib", "lightgbm", "xgboost", "catboost", "optuna"):
+            try:
+                dep_versions[name] = version(name)
+            except PackageNotFoundError:
+                pass
+
+        estimator_step = self.pipeline[-1] if hasattr(self.pipeline, "__getitem__") and hasattr(self.pipeline, "steps") else self.pipeline
+
+        return {
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "python_version": sys.version.split()[0],
+            "estimator_class": type(estimator_step).__name__,
+            "estimator_module": type(estimator_step).__module__,
+            "dependencies": dep_versions,
+        }
+
+    def describe(self) -> dict[str, Any]:
+        """
+        Return a structured summary of the artifact's metadata and provenance.
+        """
+        return {
+            "model_id": self.model_id,
+            "task_type": self.task_type,
+            "target_name": self.target_name,
+            "metric": self.metric,
+            "score": self.score,
+            "feature_count": len(self.feature_names),
+            "features": list(self.feature_names),
+            "parameters": dict(self.parameters),
+            "metadata": dict(self.metadata),
+            "provenance": dict(self.provenance),
+        }
 
     def predict(self, X: pd.DataFrame | np.ndarray) -> np.ndarray:
         """

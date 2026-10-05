@@ -32,12 +32,13 @@ Para exigir el backend nativo, registrar `LightGBMPlugin(use_fallback_if_missing
 
 ## Alcance de reproducibilidad
 
-Los trials registran parámetros y seed; los resultados y eventos se guardan en SQLite. En trials ordinarios el ID del modelo no identifica por sí solo el backend concreto y no se persiste un manifiesto completo. Los [experimentos OOF](features/oof-blending/spec.md) sí guardan backend, versiones de plugin/librerías, configuración y hashes de datos/artefactos en un informe enlazado al trial.
+Los trials registran parámetros y seed; los resultados y eventos se guardan en SQLite. En trials ordinarios los [experimentos OOF](features/oof-blending/spec.md) guardan backend, versiones de plugin/librerías, configuración y hashes de datos/artefactos en un informe enlazado al trial.
 
-Para una comparación reproducible, conservar el workspace, una copia o hash del dataset, configuración de validación, clase concreta del estimador y versiones del entorno:
+Asimismo, la exportación de modelos mediante `ModelArtifact` (`workspace.export_model_artifact()`) persiste de forma automática un bloque `provenance` completo que documenta:
+- Versión de CATML y timestamp de creación UTC.
+- Versión de Python y versiones de dependencias del entorno (`numpy`, `pandas`, `scikit-learn`, `joblib`, `lightgbm`, `xgboost`, `catboost`, `optuna`).
+- Clase y módulo exacto del estimador final.
+- Hash SHA-256 del dataset de entrenamiento (`dataset_hash`) y semilla aleatoria (`seed`).
+- Esquema de características y configuración de hiperparámetros consultables con `artifact.describe()`.
 
-```bash
-.venv/bin/python -m pip freeze > environment.txt
-```
-
-El manifiesto automático por trial permanece en el [backlog](../TASKS.md). Los encoders de imagen también tienen modos distintos: el modo predeterminado es determinista y no acredita calidad equivalente a un encoder preentrenado.
+Para una comparación reproducible, conservar el workspace, una copia o hash del dataset, configuración de validación, clase concreta del estimador y versiones del entorno. Los encoders de imagen también tienen modos distintos: el modo predeterminado es determinista y no acredita calidad equivalente a un encoder preentrenado.

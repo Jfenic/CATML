@@ -1,5 +1,14 @@
 # Progress
 
+### Strategic Architecture & Governance Roadmap — ADR 007 (2026-10-05)
+
+- Formalización de **ADR 007: Decision-Gated Multimodal Governance Roadmap** en `docs/decisions/007-decision-gated-multimodal-governance-roadmap.md`.
+- Nueva identidad y principio rector: **CATML: Controlled Agentic Toolkit for Machine Learning**. Orquestador y capa de gobernanza para humanos y agentes sobre backends especializados.
+- Desacoplamiento ortogonal de `ProblemSpec` y `BackendCapabilities`, `EvaluationResult` dinámico para métricas heterogéneas (ROC-AUC, mAP, Dice, latencia), y contenedor `ModelArtifact` con proveniencia completa.
+- Formalización de Puertas de Decisión (Decision Gates) desde v0.8 (hardening y producto) hasta v1.x, incluyendo el *Vision Spike* obligatorio antes de cualquier expansión a visión nativa y la regla de oro: *"No implementar una modalidad solo porque se pueda, sino cuando haya demanda real"*.
+- Política de gobernanza de datos para agentes (`Data egress: DENIED`, `Metadata only: ALLOWED`).
+- Navegación actualizada en `docs/README.md` y estado sincronizado en `TASKS.md`.
+
 ### Track Generalist Engine — Phase 3: Workbench Web UX & Visual Ensembles (2026-10-05)
 
 - Rama propia `feat/workbench-ensemble-builder-and-validation-ux` desde `main` (`72c98f6`).

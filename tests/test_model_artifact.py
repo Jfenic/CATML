@@ -141,3 +141,36 @@ def test_model_artifact_load_nonexistent_or_invalid(tmp_path: Path):
     joblib.dump({"not": "a model artifact"}, dummy_file)
     with pytest.raises(TypeError, match="not a ModelArtifact instance"):
         ModelArtifact.load(dummy_file)
+
+
+def test_model_artifact_provenance_and_describe(tmp_path: Path):
+    pipe = Pipeline([("clf", LogisticRegression())])
+    pipe.fit(np.array([[1], [2]]), np.array([0, 1]))
+
+    custom_prov = {
+        "catml_version": "0.7.0",
+        "dataset_hash": "sha256_mock_hash",
+        "seed": 42,
+    }
+    artifact = ModelArtifact(
+        pipeline=pipe,
+        model_id="logistic_regression",
+        task_type="binary_classification",
+        feature_names=["f1"],
+        provenance=custom_prov,
+    )
+
+    desc = artifact.describe()
+    assert desc["model_id"] == "logistic_regression"
+    assert desc["feature_count"] == 1
+    assert desc["features"] == ["f1"]
+    assert desc["provenance"]["dataset_hash"] == "sha256_mock_hash"
+    assert desc["provenance"]["seed"] == 42
+
+    # Save and reload
+    save_file = tmp_path / "prov_model.pkl"
+    artifact.save(save_file)
+    reloaded = ModelArtifact.load(save_file)
+    assert reloaded.provenance["dataset_hash"] == "sha256_mock_hash"
+    assert reloaded.describe()["provenance"]["seed"] == 42
+

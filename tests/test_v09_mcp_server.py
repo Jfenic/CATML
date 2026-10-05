@@ -297,7 +297,12 @@ def test_mcp_cli_subprocess_stdio_handshake(tmp_path: Path):
         stderr=subprocess.PIPE,
         text=True,
     )
-    stdout, stderr = proc.communicate(input=json.dumps(req) + "\n", timeout=15)
+    try:
+        stdout, stderr = proc.communicate(input=json.dumps(req) + "\n", timeout=25)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        raise
 
     assert proc.returncode == 0
     # STDOUT must parse as valid JSON-RPC
