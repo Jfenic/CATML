@@ -41,6 +41,11 @@ class LightGBMPlugin(ModelPluginPort):
             supports_proba=True,
         )
         self.use_fallback_if_missing = use_fallback_if_missing
+        self.fallback_backend = "HistGradientBoosting"
+
+    @property
+    def is_native(self) -> bool:
+        return self.is_available
 
     @property
     def is_available(self) -> bool:
@@ -102,6 +107,11 @@ class XGBoostPlugin(ModelPluginPort):
             supports_proba=True,
         )
         self.use_fallback_if_missing = use_fallback_if_missing
+        self.fallback_backend = "GradientBoosting"
+
+    @property
+    def is_native(self) -> bool:
+        return self.is_available
 
     @property
     def is_available(self) -> bool:

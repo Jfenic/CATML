@@ -1561,16 +1561,28 @@ class AutoMLWorkspace:
         task_type: str | None = None,
     ) -> list[dict]:
         plugins = self.plugin_registry.list(plugin_type=plugin_type, task_type=task_type)
-        return [
-            {
+        items = []
+        for p in plugins:
+            is_native = getattr(p, "is_native", getattr(p, "is_available", True))
+            fallback = getattr(p, "fallback_backend", None)
+            if is_native:
+                backend_status = "native"
+            elif fallback:
+                backend_status = f"fallback ({fallback})"
+            else:
+                backend_status = "unavailable"
+
+            items.append({
                 "plugin_id": p.plugin_id,
                 "name": p.name,
                 "version": p.version,
                 "plugin_type": p.plugin_type.value if hasattr(p.plugin_type, "value") else str(p.plugin_type),
                 "capabilities": p.capabilities.to_dict(),
-            }
-            for p in plugins
-        ]
+                "is_native": bool(is_native),
+                "backend_status": backend_status,
+                "fallback_backend": fallback,
+            })
+        return items
 
     def register_plugin(self, plugin: Any) -> None:
         from automl.domain.plugins.plugin import PluginType

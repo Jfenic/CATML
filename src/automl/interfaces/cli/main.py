@@ -521,12 +521,13 @@ def list_plugins_cli(args: argparse.Namespace) -> int:
         return 0
 
     print(f"\nRegistered Plugins (Platform V{PLATFORM_VERSION})\n")
-    print(f"  {'ID':24s} {'Name':26s} {'Type':12s} {'Version':8s} {'Supported Tasks'}")
-    print("  " + "-" * 85)
+    print(f"  {'ID':22s} {'Name':26s} {'Type':10s} {'Backend':24s} {'Version':8s} {'Supported Tasks'}")
+    print("  " + "-" * 110)
     for p in plugins:
         caps = p.get("capabilities", {})
         tasks = ", ".join(caps.get("supported_tasks", [])) or "all"
-        print(f"  {p['plugin_id']:24s} {p['name']:26s} {p['plugin_type']:12s} {p['version']:8s} {tasks}")
+        backend = p.get("backend_status", "native")
+        print(f"  {p['plugin_id']:22s} {p['name']:26s} {p['plugin_type']:10s} {backend:24s} {p['version']:8s} {tasks}")
     print()
     return 0
 

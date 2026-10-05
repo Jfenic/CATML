@@ -87,6 +87,8 @@ class DatasetProfile:
             "recommendations": self.recommendations,
             "correlation_matrix": self.correlation_matrix,
             "temporal_structure": self.temporal_structure,
+            "has_leakage": self.has_leakage,
+            "leakage_columns": self.leakage_column_names,
         }
 
     @property
@@ -98,9 +100,22 @@ class DatasetProfile:
         return [c.name for c in self.columns if c.is_high_cardinality]
 
     @property
+    def leakage_column_names(self) -> list[str]:
+        return [
+            r["column"]
+            for r in self.recommendations
+            if r.get("type") == "leakage" and r.get("column") != self.target_column
+        ]
+
+    @property
+    def has_leakage(self) -> bool:
+        return any(r.get("type") == "leakage" for r in self.recommendations)
+
+    @property
     def recommended_feature_names(self) -> list[str]:
+        leakage_cols = set(self.leakage_column_names)
         return [
             c.name
             for c in self.columns
-            if c.name != self.target_column and not c.is_identifier
+            if c.name != self.target_column and not c.is_identifier and c.name not in leakage_cols
         ]

@@ -1,5 +1,21 @@
 # Progress
 
+### Track Generalist Engine — Phase 4: Anti-Leakage Guardian & Plugin Observability (2026-10-05)
+
+- Rama propia `feat/anti-leakage-and-plugin-observability` desde `main` (`9feab25`).
+- **Anti-Leakage Guardian:**
+  - Métodos y propiedades en `src/automl/domain/datasets/profile.py`: `has_leakage`, `leakage_column_names`, filtrado proactivo de columnas con fuga en `recommended_feature_names`, y serialización en `to_dict()`.
+  - Heurísticas de detección en `src/automl/engine/profiling/dataset_profiler.py`:
+    - Fuga crítica por correlación directa con el target: $|r| \ge 0.999$ identificado con badge `Target Leakage`, severidad `danger`, recomendación `exclude`.
+    - Fuga secuencial / de ordenación de filas: $|r_{\text{pos}}| \ge 0.95$ entre el target y el índice de fila, identificado con badge `Sequential Leakage`, severidad `danger`, advertencia de validación cruzada agrupada/temporal.
+- **Observabilidad de Plugins y Motores Fallback:**
+  - Atributos `is_native`, `fallback_backend` y propiedad `is_native` en `LightGBMPlugin` (`HistGradientBoosting`), `XGBoostPlugin` (`GradientBoosting`), y `CatBoostPlugin` (`HistGradientBoosting`).
+  - Reporte estructurado en `AutoMLWorkspace.list_plugins()` con claves `is_native`, `backend_status` (`"native"`, `"fallback (<backend>)"`, o `"unavailable"`), y `fallback_backend`.
+  - CLI `automl plugin list` actualizado con columna visual `Backend` para auditoría inmediata de dependencias nativas vs fallbacks.
+- **Validación completa:**
+  - 6 tests unitarios y de integración dedicados en `tests/test_anti_leakage_and_observability.py`.
+  - Toda la suite global en verde: 534 tests pasando con 87.88% de cobertura de código (requisito >= 85%).
+
 ### Track Generalist Engine — Phase 2: Temporal Dynamics Engine (2026-10-05)
 
 - Rama propia `feat/temporal-dynamics-engine` desde `main` (`c45435e`).
