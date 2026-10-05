@@ -9,6 +9,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Preparar build estático, OpenGraph, favicon, tipografías locales, guía Vercel y comprobaciones en navegador.
 - [ ] Integrar la rama `feat/public-landing` y desplegar; conectar dominio y configurar URLs SEO absolutas cuando se conozca el destino.
 
+### Track Persona A (Especialistas & Políticas)
+
+- [x] A5: implementar adaptadores intercambiables OpenAI Responses, Claude Messages, Ollama y OpenAI-compatible sobre `LLMProviderPort`, sin dependencias nuevas ni cambios en contratos compartidos.
+- [x] A5: selección explícita, validación JSON local, límites de entrada/salida, timeout por socket, reintentos HTTP acotados, redacción y auditoría en memoria con consumo desconocido distinguido.
+- [x] A5: documentar configuración e inyección en especialistas en `src/automl/infrastructure/llm/README.md`; pruebas sin credenciales y fixture HTTP local en el archivo asignado `tests/test_v10_specialists.py`.
+- [x] A5: validación final — 508 tests pasando, cobertura 87,72 %, CLI help/task list y diff sin errores de whitespace.
+- [ ] A5: revisión cruzada y smoke test con proveedor/modelo real elegido; la conexión CLI/Workbench, presupuestos LLM persistidos y LangGraph pertenecen a la integración B5. H5 sigue pendiente.
+
 ## Now (Active Phase — Sprint 3: Brand Identity & Tech Minimalista Design System)
 
 - [x] Spec: Complete Tech Minimalista Premium Brand System specification saved in `docs/design/tech-minimalist-brand-system.md` (Electric Blue `#4F67FF`, Graphite, 80/20 rule, Geist typography, light docs/dark product).

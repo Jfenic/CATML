@@ -533,3 +533,244 @@ def test_fake_llm_provider_string_json_canned_response():
     resp = provider.generate("test_json query")
     assert resp.parsed == {"key": "value"}
 
+
+
+# A5: interchangeable real-provider adapters (no paid API requests).
+"""Provider contracts verified without credentials or paid network requests."""
+import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+
+import pytest
+
+from automl.application.agents.ports import LLMProviderPort
+from automl.infrastructure.llm import (
+    FakeLLMProvider, HTTPProvider, LLMProviderConfig, LLMProviderError, create_llm_provider,
+)
+from automl.infrastructure.llm.providers import _http_post
+
+SCHEMA = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"], "additionalProperties": False}
+
+
+def envelope(provider, content='{"ok":true}'):
+    if provider == "openai":
+        return {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": content}]}], "usage": {"input_tokens": 10, "output_tokens": 2}}
+    if provider == "anthropic":
+        return {"stop_reason": "end_turn", "content": [{"type": "text", "text": content}], "usage": {"input_tokens": 10, "output_tokens": 2}}
+    if provider == "ollama":
+        return {"done": True, "message": {"content": content}, "prompt_eval_count": 10, "eval_count": 2}
+    return {"choices": [{"finish_reason": "stop", "message": {"content": content}}], "usage": {"prompt_tokens": 10, "completion_tokens": 2}}
+
+
+def config(provider="openai", **overrides):
+    values = dict(provider=provider, model="explicit-test-model", api_key="secret-test-key")
+    if provider == "openai-compatible":
+        values["base_url"] = "http://localhost:9000/v1"
+    return LLMProviderConfig(**{**values, **overrides})
+
+
+@pytest.mark.parametrize("provider,suffix", [("openai", "/responses"), ("anthropic", "/messages"), ("ollama", "/api/chat"), ("openai-compatible", "/chat/completions")])
+def test_interchangeable_contract_and_payload(provider, suffix):
+    calls = []
+    def transport(url, headers, payload, timeout, limit):
+        calls.append((url, headers, payload, timeout, limit))
+        return 200, envelope(provider)
+    adapter = create_llm_provider(config(provider), transport=transport)
+    assert isinstance(adapter, LLMProviderPort)
+    result = adapter.generate("secret-test-key password=hidden", system_prompt="Analyze", response_schema=SCHEMA)
+    assert result.parsed == {"ok": True}
+    assert result.total_tokens == 12
+    assert calls[0][0].endswith(suffix)
+    wire = json.dumps(calls[0][2])
+    assert "secret-test-key" not in wire and "hidden" not in wire
+    assert "secret-test-key" not in repr(adapter.config)
+    assert "REDACTED" in wire
+    assert "hidden" not in repr(adapter.audit)
+    assert adapter.audit[0]["total_tokens"] == 12
+    if provider == "openai":
+        assert calls[0][2]["store"] is False
+    if provider == "anthropic":
+        assert calls[0][1]["anthropic-version"] == "2023-06-01"
+        assert calls[0][2]["messages"][0]["role"] == "user"
+    if provider == "ollama":
+        assert calls[0][2]["stream"] is False
+        assert calls[0][2]["format"] == SCHEMA
+
+
+def test_fake_default_has_no_network():
+    assert isinstance(create_llm_provider(LLMProviderConfig.from_env({})), FakeLLMProvider)
+    assert LLMProviderConfig.from_env({"CATML_LLM_PROVIDER": "anthropic", "CATML_LLM_MODEL": "test", "ANTHROPIC_API_KEY": "secret"}).api_key == "secret"
+
+
+@pytest.mark.parametrize("changes", [{"provider": "unknown"}, {"model": ""}, {"api_key": ""}, {"timeout_seconds": float("nan")}, {"timeout_seconds": 301}, {"max_retries": 4}, {"max_output_tokens": True}, {"base_url": "http://example.com/v1"}, {"base_url": "https://secret@example.com/v1"}, {"base_url": "https://example.com/v1?key=secret"}])
+def test_configuration_rejects_unsafe_or_invalid_values(changes):
+    with pytest.raises(ValueError):
+        config(**changes)
+
+
+@pytest.mark.parametrize("content", ['{"ok":"yes"}', '{}', '{"ok":true,"extra":1}', '{"ok":true,"ok":false}', '{"ok":NaN}', '```json\n{"ok":true}\n```', '[]'])
+def test_structured_output_fails_closed(content):
+    adapter = create_llm_provider(config(), transport=lambda *args: (200, envelope("openai", content)))
+    with pytest.raises(LLMProviderError):
+        adapter.generate("test", response_schema=SCHEMA)
+    assert adapter.audit[0]["status"] == "failed"
+    assert adapter.audit[0]["total_tokens"] == 12
+    assert adapter.audit[0]["attempts"] == 1
+
+
+def test_preflight_validation_never_calls_transport():
+    def fail(*args):
+        pytest.fail("Unexpected outbound request")
+    adapter = create_llm_provider(config(max_input_chars=20), transport=fail)
+    for kwargs in ({"prompt": "x" * 21}, {"prompt": "x", "temperature": 1}, {"prompt": "x", "response_schema": {"type": "object", "oneOf": []}}, {"prompt": "x", "response_schema": {"type": "string"}}, {"prompt": 1}):
+        with pytest.raises(ValueError):
+            adapter.generate(**kwargs)
+    assert not adapter.audit
+
+
+@pytest.mark.parametrize("status,attempts", [(401, 1), (400, 1), (302, 1), (429, 2), (503, 2)])
+def test_retries_bounded_and_only_transient_http(status, attempts, monkeypatch):
+    monkeypatch.setattr("automl.infrastructure.llm.providers.time.sleep", lambda _: None)
+    adapter = create_llm_provider(config(), transport=lambda *args: (status, {}))
+    with pytest.raises(LLMProviderError, match=str(status)):
+        adapter.generate("test")
+    assert adapter.audit[0]["attempts"] == attempts
+    assert adapter.audit[0]["total_tokens"] is None
+
+
+def test_transient_recovery_and_unknown_usage(monkeypatch):
+    monkeypatch.setattr("automl.infrastructure.llm.providers.time.sleep", lambda _: None)
+    data = envelope("openai")
+    del data["usage"]
+    replies = iter([(429, {}), (200, data)])
+    adapter = create_llm_provider(config(), transport=lambda *args: next(replies))
+    assert adapter.generate("test").total_tokens == 0  # Existing DTO convention.
+    assert adapter.audit[0]["total_tokens"] is None  # Never pretend usage is known.
+    assert adapter.audit[0]["attempts"] == 2
+
+
+@pytest.mark.parametrize("provider", ["openai", "anthropic", "ollama", "openai-compatible"])
+def test_incomplete_responses_rejected(provider):
+    data = envelope(provider)
+    if provider == "openai":
+        data["status"] = "incomplete"
+    elif provider == "anthropic":
+        data["stop_reason"] = "max_tokens"
+    elif provider == "ollama":
+        data["done_reason"] = "length"
+    else:
+        data["choices"][0]["finish_reason"] = "length"
+    adapter = create_llm_provider(config(provider), transport=lambda *args: (200, data))
+    with pytest.raises(LLMProviderError, match="incomplete"):
+        adapter.generate("test")
+
+
+def test_refusal_and_invalid_envelopes():
+    for data in ({}, envelope("openai", ""), {"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal"}]}]}, {**envelope("openai"), "usage": {"input_tokens": -1}}):
+        adapter = create_llm_provider(config(), transport=lambda *args: (200, data))
+        with pytest.raises(LLMProviderError):
+            adapter.generate("test")
+
+
+def test_schema_arrays_numbers_and_enums():
+    schema = {"type": "object", "properties": {"values": {"type": "array", "items": {"type": "integer", "enum": [1, 2]}}, "params": {"type": "object"}}, "required": ["values"]}
+    for content, valid in [('{"values":[1,2],"params":{"depth":2}}', True), ('{"values":[true]}', False), ('{"values":[3]}', False)]:
+        adapter = create_llm_provider(config(), transport=lambda *args: (200, envelope("openai", content)))
+        if valid:
+            assert adapter.generate("test", response_schema=schema).parsed["values"] == [1, 2]
+        else:
+            with pytest.raises(LLMProviderError):
+                adapter.generate("test", response_schema=schema)
+
+
+def test_real_http_transport_with_local_fixture():
+    received = []
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            received.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+            if self.path == "/redirect":
+                self.send_response(302)
+                self.send_header("Location", "/target")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(json.dumps(envelope("ollama")).encode())
+        def log_message(self, *args):
+            pass
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_port}"
+    try:
+        adapter = create_llm_provider(config("ollama", base_url=url))
+        assert adapter.generate("Analyze", response_schema=SCHEMA).parsed == {"ok": True}
+        assert received[0]["model"] == "explicit-test-model"
+        assert _http_post(url + "/redirect", {}, {}, 1, 1000) == (302, {})
+        assert len(received) == 2  # Never forwarded credentials to redirected URL.
+        with pytest.raises(LLMProviderError, match="size"):
+            _http_post(url, {}, {}, 1, 1)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize("provider", ["openai", "anthropic", "ollama", "openai-compatible"])
+def test_real_provider_drives_existing_planner_without_contract_changes(provider):
+    candidate = {"hypothesis": "Test nonlinear effects", "action_type": "create_experiment", "model_id": "random_forest", "hyperparameters": {"n_estimators": 20}}
+    adapter = create_llm_provider(config(provider), transport=lambda *args: (200, envelope(provider, json.dumps(candidate))))
+    planner = Planner(llm_provider=adapter)
+    context = ContextPayload(run_id="run-test", dataset_id="dataset-test", task_type="binary_classification", target_metric="roc_auc")
+    proposal = planner.analyze(context)
+    assert proposal.hypothesis == candidate["hypothesis"]
+    assert proposal.action_payload == {"model_id": "random_forest", "hyperparameters": {"n_estimators": 20}}
+    assert adapter.audit[0]["status"] == "ok"
+
+
+def test_invalid_provider_output_uses_existing_deterministic_fallback():
+    adapter = create_llm_provider(config(), transport=lambda *args: (200, envelope("openai", '{"hypothesis":false}')))
+    proposal = Planner(llm_provider=adapter).analyze(ContextPayload(run_id="r", dataset_id="d", task_type="binary_classification", target_metric="roc_auc"))
+    assert proposal.action_payload["model_id"] == "logistic_regression"
+    assert adapter.audit[0]["status"] == "failed"
+
+
+def test_network_failure_is_not_retried_and_usage_stays_unknown():
+    def transport(*args):
+        raise LLMProviderError("LLM transport unavailable or timed out")
+    adapter = create_llm_provider(config(max_retries=3), transport=transport)
+    with pytest.raises(LLMProviderError, match="timed out"):
+        adapter.generate("test")
+    assert adapter.audit[0]["attempts"] == 1
+    assert adapter.audit[0]["total_tokens"] is None
+
+
+def test_anthropic_cached_tokens_counted():
+    data = envelope("anthropic")
+    data["usage"].update(cache_creation_input_tokens=5, cache_read_input_tokens=7)
+    adapter = create_llm_provider(config("anthropic"), transport=lambda *args: (200, data))
+    assert adapter.generate("test").prompt_tokens == 22
+
+
+def test_hyperparameters_cannot_contain_overflowing_numbers():
+    schema = {"type": "object", "properties": {"params": {"type": "object"}}}
+    adapter = create_llm_provider(config(), transport=lambda *args: (200, envelope("openai", '{"params":{"rate":1e999}}')))
+    with pytest.raises(LLMProviderError):
+        adapter.generate("test", response_schema=schema)
+
+
+@pytest.mark.parametrize("raw", [b"not-json", b"[]", b"\xff"])
+def test_transport_rejects_malformed_envelopes(raw, monkeypatch):
+    class Response:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def read(self, limit):
+            return raw
+    opener = MagicMock()
+    opener.open.return_value = Response()
+    monkeypatch.setattr("automl.infrastructure.llm.providers.build_opener", lambda *args: opener)
+    with pytest.raises(LLMProviderError):
+        _http_post("http://127.0.0.1/api/chat", {}, {}, 1, 1000)
