@@ -31,6 +31,7 @@ from automl.application.queries.workspace_queries import (
     ListPluginsQuery,
     GetOOFResultQuery,
     DetectTemporalStructureQuery,
+    GetMetaKnowledgeQuery,
 )
 from automl.domain.features.selection_strategy import FeatureSelectionStrategy
 from automl.application.services.workspace import PLATFORM_VERSION
@@ -532,6 +533,59 @@ def list_plugins_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def meta_priors_cli(args: argparse.Namespace) -> int:
+    ws, _, qry = build_application(root_dir=args.workspace)
+    dataset_input = args.dataset
+    target = getattr(args, "target", "churn")
+
+    if Path(dataset_input).exists():
+        dataset = ws.register_dataset(
+            name=Path(dataset_input).stem,
+            path=Path(dataset_input),
+            target=target,
+        )
+        dataset_id = dataset.id
+    else:
+        dataset_id = dataset_input
+
+    knowledge = qry.dispatch(GetMetaKnowledgeQuery(dataset_id=dataset_id))
+    data = knowledge.to_dict()
+
+    if getattr(args, "json", False):
+        print(json.dumps(data, indent=2))
+        return 0
+
+    fp = data.get("current_fingerprint", {})
+    similar = data.get("similar_datasets", [])
+    rankings = data.get("historical_rankings", [])
+    warm = data.get("warm_start", {})
+
+    print(f"\nCATML Meta-Learning Knowledge (V{knowledge.version})\n")
+    print(f"  Dataset: {data.get('dataset_name', dataset_id)}")
+    print(f"  Fingerprint: {fp.get('rows', 0)} rows, {fp.get('features', 0)} features")
+    print(f"  Modality balance: {int(fp.get('numerical_ratio', 0)*100)}% numeric / {int(fp.get('categorical_ratio', 0)*100)}% categorical")
+    print(f"  Missing ratio: {fp.get('missing_ratio', 0.0):.2%}, Target entropy: {fp.get('target_entropy', 0.0)}")
+
+    print("\n  Top Similar Benchmark Datasets:")
+    for s in similar:
+        print(f"    - {s['name']} (similarity: {s['similarity']:.2f})")
+
+    print("\n  Historical Model Rankings (Empirical):")
+    print(f"    {'Model':18s} {'Experiments':14s} {'Mean Rank':12s} {'Win Rate'}")
+    print("    " + "-" * 54)
+    for r in rankings:
+        print(f"    {r['model']:18s} {r['experiments']:<14d} {r['mean_rank']:<12.1f} {r['win_rate']:.1%}")
+
+    print("\n  Warm Start Recommendation:")
+    print(f"    Model:  {warm.get('recommended_model', 'N/A')}")
+    print(f"    Params: {json.dumps(warm.get('params', {}))}")
+    print(f"    Gain:   {warm.get('expected_search_reduction', 'N/A')} search space reduction")
+    if warm.get("reason"):
+        print(f"    Reason: {warm.get('reason')}")
+    print()
+    return 0
+
+
 def predict_cli(args: argparse.Namespace) -> int:
     ws, cmd, qry = build_application(root_dir=args.workspace)
     run_id = args.run_id
@@ -781,6 +835,16 @@ def main(argv: list[str] | None = None) -> int:
     plugin_list.add_argument("--task-type", default=None, help="Filter by supported task type")
     plugin_list.add_argument("--json", action="store_true")
     plugin_list.set_defaults(func=list_plugins_cli)
+
+    meta_parser = sub.add_parser("meta", help="Meta-learning knowledge, dataset fingerprinting, and warm starts")
+    meta_sub = meta_parser.add_subparsers(dest="meta_cmd", required=True)
+
+    meta_priors = meta_sub.add_parser("priors", help="Retrieve meta-learning priors and warm-start recommendations for a dataset")
+    meta_priors.add_argument("--dataset", required=True, help="Path to CSV dataset or registered dataset ID")
+    meta_priors.add_argument("--target", default="churn", help="Target column name (default: churn)")
+    meta_priors.add_argument("--workspace", help="Workspace directory")
+    meta_priors.add_argument("--json", action="store_true", help="Output raw JSON")
+    meta_priors.set_defaults(func=meta_priors_cli)
 
     pred_parser = sub.add_parser("predict", help="Generate predictions and Kaggle-ready submission file")
     pred_parser.add_argument("--workspace")

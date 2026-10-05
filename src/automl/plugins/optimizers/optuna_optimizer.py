@@ -28,6 +28,7 @@ class OptunaOptimizer(OptimizerPort):
         min_delta: float = 0.0001,
         pruner: BasePruner | None = None,
         enable_pruning: bool = True,
+        warm_start_params: dict[str, Any] | None = None,
     ) -> None:
         self.direction = direction
         sampler = TPESampler(seed=seed)
@@ -46,6 +47,15 @@ class OptunaOptimizer(OptimizerPort):
             min_delta=min_delta,
             mode="max" if direction == "maximize" else "min",
         )
+        if warm_start_params:
+            try:
+                self.enqueue_trial(warm_start_params)
+            except Exception:
+                pass
+
+    def enqueue_trial(self, parameters: dict[str, Any]) -> None:
+        """Enqueues warm-start trial parameters to be evaluated next by the study."""
+        self._study.enqueue_trial(parameters)
 
     def suggest(self, trial_number: int, search_space: SearchSpace) -> dict[str, Any]:
         optuna_trial = self._study.ask()

@@ -479,3 +479,32 @@ def test_web_dashboard_temporal_endpoints(running_web_server):
         assert len(data["candidate_sets"]) >= 1
 
 
+def test_web_dashboard_knowledge_endpoint(running_web_server):
+    base = running_web_server["base_url"]
+    csv_path = running_web_server["csv_path"]
+
+    # 1. Register dataset
+    reg_payload = json.dumps({
+        "name": "knowledge_test",
+        "path": csv_path,
+        "target": "target",
+    }).encode("utf-8")
+    req = Request(f"{base}/api/dataset/register", data=reg_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        dataset_id = data["dataset_id"]
+
+    # 2. Query /api/knowledge
+    with urlopen(f"{base}/api/knowledge?dataset_id={dataset_id}") as resp:
+        assert resp.status == 200
+        k = json.loads(resp.read().decode("utf-8"))
+        assert k["version"] == "0.8.0"
+        assert "fingerprint" in k
+        assert "similar_datasets" in k
+        assert len(k["similar_datasets"]) > 0
+        assert "historical_rankings" in k
+        assert "warm_start" in k
+        assert "recommended_model" in k["warm_start"]
+
+
