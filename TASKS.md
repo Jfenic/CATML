@@ -102,8 +102,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 - [x] Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (remove 2-model limit, Rank-Averaging, Ridge meta-learner).
 - [x] Phase 2: Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections, 19 tests passing in `tests/test_temporal_dynamics.py`, 528 suite total, 87.86% coverage).
-- [ ] Phase 3: Workbench Web UX (K-Fold strategy selector, visual multi-select ensemble builder, Kaggle drag-and-drop export).
-- [ ] Phase 4: Anti-Leakage Guardian in Profiler & Plugin Observability.
+- [x] Phase 3: Workbench Web UX & Visual Ensembles (Validation Strategy selector with Stratified K-Fold/K-Fold/TimeSeries/Holdout, Multi-Model Ensemble Builder with Average/Rank/Simplex/Stacked L2 and meta-learners Ridge/Logistic/Lasso, Kaggle Drag-and-Drop dropzone for sample_submission.csv with schema verification, and 1-click direct browser download; CQRS BuildEnsembleCommand, REST endpoints /api/ensemble/build, /api/kaggle/upload-template, /api/kaggle/download; 3 tests in tests/test_workbench_phase3.py, 546 suite total, >= 85% coverage).
+- [x] Phase 4: Anti-Leakage Guardian in Profiler & Plugin Observability.
 
 ## Backlog — Mejoras Tabulares Identificadas (Kaggle Benchmarking)
 
@@ -121,6 +121,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 Los hitos describen el núcleo implementado; consultar [alcance y limitaciones](docs/README.md) antes de interpretar una fase como cumplimiento de todos los objetivos originales. Las cifras de pruebas de estos hitos son referencias históricas.
 
+- [x] Phase 3: Workbench Web UX & Visual Ensembles (Validation strategy selector pills in NewExperimentModal, Visual Ensemble Builder modal in CompareView with average, rank, simplex Nelder-Mead, stacked meta-learners Ridge/Logistic/Lasso, Kaggle template drag-and-drop dropzone with schema verification, and direct 1-click submission CSV download; BuildEnsembleCommand in application/commands, workspace.build_ensemble in workspace service, REST endpoints /api/ensemble/build, /api/kaggle/upload-template, /api/kaggle/download, 3 tests in tests/test_workbench_phase3.py, 546 tests passing, >= 85% coverage).
 - [x] Phase 1: Meta-Learning Warm Starts & Real Dataset Fingerprinting (`DatasetFingerprint` 6-dim vector, `MetaKnowledgeBase` cosine similarity & benchmark matching, empirical workspace trial ranking aggregation, trial 0 warm start in `OptunaOptimizer` and `RandomSearchOptimizer` yielding ~35-45% search reduction, CQRS `GetMetaKnowledgeQuery`, CLI `automl meta priors`, REST `/api/knowledge`, 8 tests in `tests/test_meta_learning_warm_starts.py`, 543 tests passing, 87.63% coverage).
 - [x] Phase 4: Anti-Leakage Guardian & Plugin Observability (`has_leakage`, `leakage_column_names`, filtering from `recommended_feature_names`, $|r| \ge 0.999$ target correlation detection, sequential row leakage detection $|r_{\text{pos}}| \ge 0.95$, `is_native`, `fallback_backend`, `backend_status` observability in `LightGBMPlugin`, `XGBoostPlugin`, `CatBoostPlugin`, CLI `automl plugin list`, 6 tests passing in `tests/test_anti_leakage_and_observability.py`, 534 tests passing, 87.88% coverage).
 - [x] Phase 2: Temporal Dynamics Engine (contracts in `src/automl/domain/features/temporal.py`, detection in `dataset_profiler.py`, generation in `temporal_generator.py`, CQRS `GenerateTemporalFeaturesCommand` / `DetectTemporalStructureQuery`, CLI `automl features temporal`, REST endpoints, 19 tests in `tests/test_temporal_dynamics.py`, 528 tests passing, 87.86% coverage).

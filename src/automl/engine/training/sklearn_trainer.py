@@ -76,17 +76,33 @@ class SklearnTrainer(TrainerPort):
             pipeline = _build_pipeline(X, model)
 
             metric_name = execution.metric
-            if execution.validation_strategy == "cross_validation":
+            strategy = (execution.validation_strategy or "holdout").lower()
+
+            if strategy in {"cross_validation", "kfold", "stratified_kfold", "time_series", "time_series_split"}:
+                from sklearn.model_selection import KFold, StratifiedKFold, TimeSeriesSplit
+                n_splits = max(2, execution.cv_folds or 5)
+                if strategy in {"time_series", "time_series_split"}:
+                    cv_splitter = TimeSeriesSplit(n_splits=n_splits)
+                elif strategy == "stratified_kfold" and execution.task_type != "regression":
+                    cv_splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=execution.random_seed)
+                else:
+                    cv_splitter = KFold(n_splits=n_splits, shuffle=True, random_state=execution.random_seed)
+
                 scores = cross_val_score(
                     pipeline,
                     X,
                     y_adapted,
-                    cv=execution.cv_folds,
+                    cv=cv_splitter,
                     scoring=_sklearn_scoring(metric_name, execution.task_type),
                     n_jobs=1,
                 )
                 primary_score = float(np.mean(scores))
-                secondary = {"cv_std": float(np.std(scores)), "cv_scores": scores.tolist()}
+                secondary = {
+                    "cv_std": float(np.std(scores)),
+                    "cv_scores": [float(s) for s in scores],
+                    "validation_strategy": strategy,
+                }
+                pipeline.fit(X, y_adapted)
             else:
                 X_train, X_test, y_train, y_test = train_test_split(
                     X,

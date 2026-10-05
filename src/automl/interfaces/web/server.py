@@ -12,6 +12,7 @@ from automl.application.bootstrap import build_application
 from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
 from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
 from automl.application.commands.workspace_commands import (
+    BuildEnsembleCommand,
     CancelRunCommand,
     CloneRunCommand,
     CreateExperimentCommand,
@@ -658,6 +659,26 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json(plugins)
             return
 
+        elif path == "/api/kaggle/download":
+            query = parse_qs(parsed.query)
+            file_param = query.get("file", [""])[0]
+            if not file_param:
+                self._send_json({"error": "file parameter is required"}, HTTPStatus.BAD_REQUEST)
+                return
+            p = Path(file_param).resolve()
+            if not p.is_file():
+                self._send_json({"error": f"File not found: {file_param}"}, HTTPStatus.NOT_FOUND)
+                return
+            content = p.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", f'attachment; filename="{p.name}"')
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(content)
+            return
+
         self._send_json({"error": "Not Found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
@@ -829,6 +850,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
 
+                val_strategy = payload.get("validation_strategy")
+
                 exp = cmd.dispatch(
                     CreateExperimentCommand(
                         run_id=run.id,
@@ -836,6 +859,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         feature_names=feature_names,
                         model_ids=models,
                         hypothesis=f"AutoML Workbench {mode.upper()} mode with {budget} compute budget.",
+                        validation_strategy=val_strategy,
                     )
                 )
 
@@ -953,6 +977,82 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         "zero_missing_values": True,
                         "schema_aligned": bool(template_path or sub_res.get("template_used")),
                     },
+                })
+                return
+
+            elif path == "/api/ensemble/build":
+                run_id = payload.get("run_id")
+                models = payload.get("models") or payload.get("model_ids") or []
+                method = payload.get("method", "average")
+                meta_model = payload.get("meta_model", "ridge")
+                folds = int(payload.get("folds", 5))
+                name = payload.get("name")
+
+                if not run_id:
+                    self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                if not models or len(models) < 2:
+                    self._send_json({"error": "At least 2 distinct models required for ensemble"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                exp_id = cmd.dispatch(
+                    BuildEnsembleCommand(
+                        run_id=run_id,
+                        model_ids=models,
+                        method=method,
+                        meta_model=meta_model,
+                        folds=folds,
+                        name=name,
+                    )
+                )
+
+                exp = ws.repository.get_experiment(exp_id)
+                trials = ws.repository.list_trial_results(exp_id)
+                res = trials[0] if trials else None
+                score = res.primary_score if res else 0.0
+                sec_metrics = res.secondary_metrics if res else {}
+
+                self._send_json({
+                    "status": "success",
+                    "experiment_id": exp.id,
+                    "name": exp.name,
+                    "score": score,
+                    "method": method,
+                    "models": models,
+                    "weights": sec_metrics.get("weights"),
+                    "model_scores": sec_metrics.get("model_scores"),
+                    "cv_std": sec_metrics.get("cv_std"),
+                })
+                return
+
+            elif path == "/api/kaggle/upload-template":
+                content = payload.get("content", "")
+                filename = payload.get("filename", "sample_submission.csv")
+                if not content:
+                    self._send_json({"error": "content is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                target_dir = Path(self.workspace_dir) / "submissions"
+                target_dir.mkdir(parents=True, exist_ok=True)
+                target_file = target_dir / Path(filename).name
+                target_file.write_text(content, encoding="utf-8")
+
+                import io
+                import pandas as pd
+                df = pd.read_csv(io.StringIO(content))
+                cols = list(df.columns)
+                id_col = cols[0] if len(cols) > 0 else "id"
+                target_col = cols[1] if len(cols) > 1 else (cols[0] if len(cols) == 1 else "target")
+                row_count = len(df)
+
+                self._send_json({
+                    "status": "success",
+                    "template_path": str(target_file),
+                    "filename": target_file.name,
+                    "id_column": id_col,
+                    "target_column": target_col,
+                    "row_count": row_count,
+                    "columns": cols,
                 })
                 return
 

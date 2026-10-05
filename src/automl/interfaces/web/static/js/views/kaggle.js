@@ -13,6 +13,8 @@ export class KaggleView {
     this.isSubmitting = false;
     this.activeRun = null;
     this.status = null;
+    this.uploadedTemplateInfo = null;
+    this.generatedSubmission = null;
   }
 
   async mount(container) {
@@ -69,9 +71,23 @@ export class KaggleView {
       ? `submissions/submission_${run.id}.csv`
       : "submissions/submission.csv";
 
-    const defaultTemplatePath = run && run.dataset_path
-      ? run.dataset_path.replace("train.csv", "sample_submission.csv")
-      : "data/sample_submission.csv";
+    const defaultTemplatePath = this.uploadedTemplateInfo
+      ? this.uploadedTemplateInfo.template_path
+      : (run && run.dataset_path
+          ? run.dataset_path.replace("train.csv", "sample_submission.csv")
+          : "data/sample_submission.csv");
+
+    const rowCountLabel = this.uploadedTemplateInfo
+      ? `${this.uploadedTemplateInfo.row_count.toLocaleString()} rows`
+      : (st.checklist && st.checklist.row_count ? `${st.checklist.row_count.toLocaleString()} rows` : "MATCH");
+
+    const idColLabel = this.uploadedTemplateInfo
+      ? `PASS (${this.uploadedTemplateInfo.id_column})`
+      : "PASS";
+
+    const schemaLabel = this.uploadedTemplateInfo
+      ? `VERIFIED (${this.uploadedTemplateInfo.target_column})`
+      : "ALIGNED";
 
     this.container.innerHTML = `
       <div class="space-y-6">
@@ -143,65 +159,96 @@ export class KaggleView {
           <!-- Right: Pre-Flight Submission Validation Checklist & Form -->
           <div class="lg:col-span-5 workbench-card p-5 space-y-5 flex flex-col justify-between">
             <div class="space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Submission Pre-Flight Validation</span>
+              <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
+                <span class="text-xs uppercase font-bold text-[#F7F8FA] tracking-wider font-sans">Submission Pre-Flight Validation</span>
                 <span class="badge-gain text-xs px-2.5 py-0.5 rounded font-mono font-bold">Checks Ready</span>
+              </div>
+
+              <!-- Template Dropzone -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Template Dropzone</label>
+                  ${this.uploadedTemplateInfo ? `<span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-bold">Uploaded</span>` : `<span class="text-[10px] text-[#8B95A7] font-mono">sample_submission.csv</span>`}
+                </div>
+                <div id="kaggleDropzone" class="border-2 border-dashed border-[#252C38] hover:border-[#4F67FF] bg-[#090C12] rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5">
+                  <div class="text-[#4F67FF] flex justify-center">${icon("upload", "icon-lg")}</div>
+                  ${this.uploadedTemplateInfo ? `
+                    <div class="space-y-0.5">
+                      <div class="text-xs font-mono font-bold text-[#F7F8FA]">${this.uploadedTemplateInfo.filename}</div>
+                      <div class="text-[11px] text-[#22C55E] font-mono">✓ ${this.uploadedTemplateInfo.row_count} rows • Target: "${this.uploadedTemplateInfo.target_column}"</div>
+                    </div>
+                  ` : `
+                    <div class="space-y-0.5">
+                      <div class="text-xs font-medium text-[#F7F8FA] font-sans">Drag & drop <span class="font-mono text-[#4F67FF]">sample_submission.csv</span> here</div>
+                      <div class="text-[10px] text-[#8B95A7] font-sans">or click to browse from disk for instant schema validation</div>
+                    </div>
+                  `}
+                  <input type="file" id="kaggleTemplateFileInput" accept=".csv" class="hidden">
+                </div>
               </div>
 
               <!-- Checklist Items -->
               <div class="space-y-2 text-xs font-mono">
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>ID Column preserved</span></span>
-                  <span class="text-emerald-400 font-bold">PASS</span>
+                <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>ID Column preserved</span></span>
+                  <span class="text-[#22C55E] font-bold">${idColLabel}</span>
                 </div>
 
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Row count alignment</span></span>
-                  <span class="text-emerald-400 font-bold">${st.checklist && st.checklist.row_count ? st.checklist.row_count.toLocaleString() + ' rows' : 'MATCH'}</span>
+                <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Row count alignment</span></span>
+                  <span class="text-[#22C55E] font-bold">${rowCountLabel}</span>
                 </div>
 
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Prediction range bounded</span></span>
-                  <span class="text-emerald-400 font-bold">BOUNDED</span>
+                <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Prediction range bounded</span></span>
+                  <span class="text-[#22C55E] font-bold">BOUNDED</span>
                 </div>
 
-                <div class="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-                  <span class="text-slate-300 inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Zero missing / NaN values</span></span>
-                  <span class="text-emerald-400 font-bold">0 nulls</span>
+                <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Schema Alignment</span></span>
+                  <span class="text-[#4F67FF] font-bold">${schemaLabel}</span>
                 </div>
               </div>
 
               <!-- Configurable File Paths -->
-              <div class="space-y-3 pt-2 border-t border-slate-800 text-xs">
+              <div class="space-y-3 pt-2 border-t border-[#252C38] text-xs">
                 <div>
-                  <label class="block text-slate-400 text-[11px] font-semibold mb-1">Test Dataset Path</label>
-                  <input type="text" id="inputTestPath" value="${defaultTestPath}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-[11px] focus:border-indigo-500">
+                  <label class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Test Dataset Path</label>
+                  <input type="text" id="inputTestPath" value="${defaultTestPath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]">
                 </div>
 
                 <div>
-                  <label class="block text-slate-400 text-[11px] font-semibold mb-1">Output Submission Path</label>
-                  <input type="text" id="inputOutputPath" value="${defaultOutputPath}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-[11px] focus:border-indigo-500">
+                  <label class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Output Submission Path</label>
+                  <input type="text" id="inputOutputPath" value="${defaultOutputPath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]">
                 </div>
 
                 <div>
-                  <label class="block text-slate-400 text-[11px] font-semibold mb-1">Sample Submission Template (Optional)</label>
-                  <input type="text" id="inputTemplatePath" value="${defaultTemplatePath}" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-[11px] focus:border-indigo-500">
+                  <label class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Sample Submission Template (Optional)</label>
+                  <input type="text" id="inputTemplatePath" value="${defaultTemplatePath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]">
                 </div>
               </div>
             </div>
 
             <!-- Action Buttons -->
-            <div class="space-y-2 pt-2 border-t border-slate-800">
-              <label class="flex items-center gap-2 text-xs text-slate-300">
-                <input type="checkbox" id="useOOF" checked class="rounded text-indigo-600 bg-slate-800" /> Average 5 folds (OOF Ensemble)
+            <div class="space-y-2 pt-2 border-t border-[#252C38]">
+              <label class="flex items-center gap-2 text-xs text-[#8B95A7]">
+                <input type="checkbox" id="useOOF" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]" /> Average 5 folds (OOF Ensemble)
               </label>
-              <button id="btnGenerateSubmission" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20">
+
+              <button id="btnGenerateSubmission" class="btn-signal w-full py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2 text-xs">
                 ${icon("zap", "icon-sm")}
                 <span>Generate & Validate submission.csv</span>
               </button>
 
-              <button id="btnSubmitKaggleCLI" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
-                ${icon("rocket", "icon-sm")}
+              ${this.generatedSubmission ? `
+                <a id="btnDownloadSubmission" href="/api/kaggle/download?file=${encodeURIComponent(this.generatedSubmission.output_path)}" download="${this.generatedSubmission.filename || 'submission.csv'}" class="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-[#22C55E]/20">
+                  ${icon("download", "icon-sm")}
+                  <span>Download ${this.generatedSubmission.filename || 'submission.csv'}</span>
+                </a>
+              ` : ""}
+
+              <button id="btnSubmitKaggleCLI" class="w-full bg-[#1F2633] hover:bg-[#283244] border border-[#2F384A] text-[#F7F8FA] text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
+                ${icon("terminal", "icon-sm")}
                 <span>Prepare Kaggle CLI Submission</span>
               </button>
             </div>
@@ -214,6 +261,37 @@ export class KaggleView {
   }
 
   _bindEvents(st) {
+    const dropzone = this.container.querySelector("#kaggleDropzone");
+    const fileInput = this.container.querySelector("#kaggleTemplateFileInput");
+
+    if (dropzone && fileInput) {
+      dropzone.addEventListener("click", () => fileInput.click());
+
+      dropzone.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropzone.classList.add("border-[#4F67FF]", "bg-[#161B26]");
+      });
+
+      dropzone.addEventListener("dragleave", e => {
+        e.preventDefault();
+        dropzone.classList.remove("border-[#4F67FF]", "bg-[#161B26]");
+      });
+
+      dropzone.addEventListener("drop", async e => {
+        e.preventDefault();
+        dropzone.classList.remove("border-[#4F67FF]", "bg-[#161B26]");
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          await this._handleTemplateUpload(e.dataTransfer.files[0]);
+        }
+      });
+
+      fileInput.addEventListener("change", async e => {
+        if (e.target.files && e.target.files.length > 0) {
+          await this._handleTemplateUpload(e.target.files[0]);
+        }
+      });
+    }
+
     this.container.querySelector("#btnGenerateSubmission")?.addEventListener("click", async () => {
       const btn = this.container.querySelector("#btnGenerateSubmission");
       if (!btn) return;
@@ -251,17 +329,15 @@ export class KaggleView {
           btn.textContent = `${job.status}: ${job.completed}/${job.total || "?"} · ${job.message}`;
         });
 
-        btn.className = "w-full bg-emerald-600 text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
+        btn.className = "w-full bg-[#22C55E] text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
         btn.innerHTML = `<span class="flex items-center gap-1.5">${icon("check", "icon-sm")} <span>Generated successfully! (${res.row_count} rows)</span></span>`;
 
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.className = "w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20";
-          btn.innerHTML = originalText;
-        }, 3000);
+        this.generatedSubmission = {
+          output_path: res.output_path || outputPath || "submissions/submission.csv",
+          filename: (outputPath || "submission.csv").split("/").pop(),
+          row_count: res.row_count,
+        };
 
-        const oofInfo = res.oof ? `\nOOF Score: ${res.oof.score.toFixed(6)}` : "";
-        alert(`Submission Generated Successfully!\nRows: ${res.row_count}\nOutput: ${res.output_path}${oofInfo}`);
         await this.fetchData();
         this.render();
       } catch (err) {
@@ -278,7 +354,23 @@ export class KaggleView {
     });
   }
 
+  async _handleTemplateUpload(file) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const res = await api.uploadKaggleTemplate({
+        filename: file.name,
+        content: text,
+      });
+      this.uploadedTemplateInfo = res;
+      this.render();
+    } catch (err) {
+      alert("Error parsing and uploading sample submission: " + err.message);
+    }
+  }
+
   destroy() {
     this.container = null;
   }
 }
+

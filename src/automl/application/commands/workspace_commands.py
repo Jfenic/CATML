@@ -52,6 +52,7 @@ class CreateExperimentCommand:
     model_ids: list[str] | None = None
     hypothesis: str = ""
     priority: str = "normal"
+    validation_strategy: str | None = None
 
 
 @dataclass(frozen=True)
@@ -185,4 +186,15 @@ class GenerateTemporalFeaturesCommand:
     include_lags: bool = True
     include_deltas: bool = True
     include_cyclical: bool = True
+
+
+@dataclass(frozen=True)
+class BuildEnsembleCommand:
+    run_id: str
+    model_ids: list[str]
+    method: str = "average"
+    meta_model: str = "ridge"
+    folds: int = 5
+    name: str | None = None
+
 

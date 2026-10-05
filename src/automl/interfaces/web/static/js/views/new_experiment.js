@@ -12,6 +12,7 @@ export class NewExperimentModal {
     this.container = null;
     this.mode = "auto"; // 'auto', 'guided', 'manual'
     this.budget = "balanced"; // 'quick', 'balanced', 'thorough'
+    this.validationStrategy = "stratified_kfold";
   }
 
   mount(container) {
@@ -145,6 +146,35 @@ export class NewExperimentModal {
             </div>
           </div>
 
+          <!-- Validation Strategy -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Validation Strategy</label>
+              <span class="text-[10px] text-[#4F67FF] font-mono">CV Splitting</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'stratified_kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="stratified_kfold">
+                <div class="font-bold text-[#F7F8FA] font-sans">Stratified K-Fold</div>
+                <div class="text-[10px] text-[#8B95A7] font-sans">Balanced classes</div>
+              </div>
+
+              <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="kfold">
+                <div class="font-bold text-[#F7F8FA] font-sans">Standard K-Fold</div>
+                <div class="text-[10px] text-[#8B95A7] font-sans">Shuffled 5 folds</div>
+              </div>
+
+              <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'time_series' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="time_series">
+                <div class="font-bold text-[#F7F8FA] font-sans">Time-Series</div>
+                <div class="text-[10px] text-[#8B95A7] font-sans">Temporal splits</div>
+              </div>
+
+              <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'holdout' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="holdout">
+                <div class="font-bold text-[#F7F8FA] font-sans">Holdout (80/20)</div>
+                <div class="text-[10px] text-[#8B95A7] font-sans">Fast single split</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Footer Actions -->
           <div class="pt-4 border-t border-[#27272e] flex items-center justify-end space-x-3">
             <button id="btnCancelModal" class="btn-ghost">
@@ -179,6 +209,13 @@ export class NewExperimentModal {
     this.container.querySelectorAll(".budget-card").forEach(el => {
       el.addEventListener("click", () => {
         this.budget = el.getAttribute("data-budget");
+        this.render();
+      });
+    });
+
+    this.container.querySelectorAll(".val-strategy-card").forEach(el => {
+      el.addEventListener("click", () => {
+        this.validationStrategy = el.getAttribute("data-strategy");
         this.render();
       });
     });
@@ -236,7 +273,7 @@ export class NewExperimentModal {
             </div>
 
             <div class="text-[11px] text-slate-400 font-mono bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              Models: <span class="text-slate-200 font-bold">${selectedModels.join(", ")}</span> • Budget: <span class="text-indigo-400 font-bold">${this.budget}</span>
+              Models: <span class="text-slate-200 font-bold">${selectedModels.join(", ")}</span> • Budget: <span class="text-indigo-400 font-bold">${this.budget}</span> • Strategy: <span class="text-[#4F67FF] font-bold">${this.validationStrategy}</span>
             </div>
           </div>
         `;
@@ -251,6 +288,7 @@ export class NewExperimentModal {
           budget: this.budget,
           models: selectedModels,
           feature_names: customFeatures && customFeatures.length > 0 ? customFeatures : undefined,
+          validation_strategy: this.validationStrategy,
         }, job => {
           const percent = job.total ? Math.round(job.completed * 100 / job.total) : 0;
           if (progressBar) progressBar.style.width = `${percent}%`;
