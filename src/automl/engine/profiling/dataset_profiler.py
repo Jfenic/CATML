@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from automl.domain.datasets.profile import ColumnProfile, Dataset, DatasetProfile
@@ -301,7 +302,6 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
 
                 # Histogram calculation (10 bins)
                 try:
-                    import numpy as np
                     hist_counts, bin_edges = np.histogram(clean_s, bins=10)
                     bin_labels = [f"{bin_edges[i]:.2f} - {bin_edges[i+1]:.2f}" for i in range(len(hist_counts))]
                     histogram_data = {
@@ -402,6 +402,16 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     "title": f"High missing rate in '{name}' ({null_count / row_count:.1%})",
                     "description": f"Contains {null_count} missing entries. Imputation or exclusion recommended.",
                     "action": "impute",
+                })
+            elif target_corr is not None and abs(target_corr) >= 0.999:
+                recommendations.append({
+                    "column": name,
+                    "type": "leakage",
+                    "badge": "Target Leakage",
+                    "severity": "danger",
+                    "title": f"Critical target leakage in '{name}' (|r| = {abs(target_corr):.4f})",
+                    "description": f"Near-perfect correlation (|r| >= 0.999) with target '{dataset.target_column}'. High risk of target duplicate, label leak, or future data contamination. Exclude feature.",
+                    "action": "exclude",
                 })
             elif target_corr is not None and abs(target_corr) >= 0.25:
                 recommendations.append({
@@ -518,6 +528,25 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
             "description": f"Dataset exhibits chronological or cyclical dependencies ({len(temporal_struct.detected_periodicities)} periodicities). Candidate lags and trend deltas can be generated.",
             "action": "generate_temporal_features",
         })
+
+    # Anti-Leakage Guardian: Sequential / Ordering Leakage Detection
+    # Detect if target values are monotonically sorted or strongly correlated with row position
+    if target_numeric is not None and row_count >= 20:
+        row_indices = pd.Series(np.arange(row_count), index=df.index, dtype=float)
+        try:
+            pos_corr = float(target_numeric.corr(row_indices))
+            if not pd.isna(pos_corr) and abs(pos_corr) >= 0.95:
+                recommendations.append({
+                    "column": dataset.target_column,
+                    "type": "leakage",
+                    "badge": "Sequential Leakage",
+                    "severity": "danger",
+                    "title": f"Target correlates with row order (|r| = {abs(pos_corr):.3f})",
+                    "description": "Target is sorted or strongly ordered by row position. Standard random CV splits will cause severe optimistic data leakage. Grouped or time-series validation required.",
+                    "action": "warn",
+                })
+        except Exception:
+            pass
 
     return DatasetProfile(
         dataset_id=dataset.id,
