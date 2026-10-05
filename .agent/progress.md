@@ -1,5 +1,30 @@
 # Progress
 
+### Track Generalist Engine — Phase 3: Anti-Leakage Guardian Avanzado (Group & Entity Leakage) (2026-10-05)
+
+- Rama propia `feat/v09-group-leakage-guardian` desde `main` (`f8de3c0`).
+- **Detección de Grupos / Entidades (`src/automl/engine/profiling/dataset_profiler.py`):**
+  - Implementación de `detect_is_group_candidate(name, series, row_count, target_column)`: identifica semántica de entidades repetidas (`patient_id`, `user_id`, `device_id`, etc.) con cardinalidad repetitiva vs. identificadores únicos 1-a-1 de fila (`cardinality_ratio == 1.0`).
+  - Campo agregado `is_group_candidate: bool` en `ColumnProfile` y propiedad `group_candidates: list[str]` en `DatasetProfile`.
+- **Diagnóstico y Simulación de Fuga por Grupos:**
+  - `detect_group_leakage(df, group_column, test_size=0.2, random_seed=42)`: simula particiones train/validation aleatorias IID determinando intersección de entidades, número de muestras contaminadas y proporción de validación afectada.
+  - Alerta accionable de fuga en `DatasetProfile`: badge `Group Leakage`, severidad `danger`, recomendación `enforce_group_split` con estrategia `GroupKFold(col)`.
+  - Propiedad de dominio `has_group_leakage: bool` y array `group_leakage_reports` persistido en `to_dict()`.
+- **Soporte de Validación por Grupos en el Motor de Entrenamiento:**
+  - `ValidationSpec` y `TrialExecution` propagan `group_column`.
+  - `SklearnTrainer.run()`: soporte completo para `strategy in {"group_kfold", "group_cv", "grouped_kfold"}` extrayendo grupos de `df[group_column]` y usando `GroupKFold(n_splits)`. Soporte en holdout mediante `GroupShuffleSplit` aislando entidades completamente del test set.
+  - Métricas secundarias registran `n_groups`, `cv_std` y artefacto con `group_column`.
+- **Propagación CQRS & Planificador de Experimentos:**
+  - `CreateExperimentCommand` y `RuleBasedExperimentPlanner` propagan `group_column` y configuran automáticamente `validation_strategy="group_kfold"`.
+  - Repositorio SQLite: migración idempotente de columna `group_column TEXT` en tabla `experiments`.
+- **Fachada Ergonómica `AutoML`:**
+  - Soporte explícito para `AutoML(group_column="...")` y `AutoML.fit(df, target="...", group_column="patient_id")`.
+  - Auto-detección y auto-enforcement: si el usuario no especifica `group_column` pero el Anti-Leakage Guardian detecta fuga por grupos, aplica automáticamente `GroupKFold` y excluye la variable de grupo de la matriz predictiva `X` para evitar memorización.
+- **Validación Completa:**
+  - Suite de tests dedicada `tests/test_v09_group_leakage.py` (6 tests unitarios y e2e pasando).
+  - Suite global completa: 559 tests en verde, 87.71% cobertura de código (requisito >= 85%).
+  - Gate de Fase 3 (v0.9.x) superado.
+
 ### Track Generalist Engine — Phase 2: Capability Layer & Lightweight NLP (2026-10-05)
 
 - Rama propia `feat/v09-capability-layer-and-text` desde `main` (`9cdcdd3`).

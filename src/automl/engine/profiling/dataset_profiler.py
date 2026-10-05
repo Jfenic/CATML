@@ -79,6 +79,121 @@ def detect_column_cardinality_and_role(
     return cardinality_ratio, is_identifier, is_high_cardinality
 
 
+def detect_is_group_candidate(
+    name: str,
+    series: pd.Series,
+    row_count: int,
+    target_column: str | None = None,
+) -> bool:
+    """
+    Evaluates whether a dataset column represents an entity or group grouping identifier
+    (e.g., patient_id, user_id, device_id, hospital_id) where multiple observations
+    belong to the same entity.
+    """
+    if target_column and name == target_column:
+        return False
+
+    if row_count < 10:
+        return False
+
+    unique_count = int(series.nunique(dropna=True))
+    if unique_count <= 1:
+        return False
+
+    if unique_count >= row_count:
+        return False
+
+    clean_name = name.strip().lower()
+    group_hints = {
+        "patient", "subject", "client", "customer", "user", "device", "machine",
+        "sensor", "hospital", "center", "centre", "site", "cluster", "group",
+        "account", "household", "member", "person", "participant", "session",
+        "store", "building", "doctor", "facility", "batch"
+    }
+
+    name_has_group_hint = any(hint in clean_name for hint in group_hints)
+    name_is_id = (
+        clean_name.endswith(("_id", ".id", "-id", "_key", "_pk"))
+        or name.endswith(("Id", "ID"))
+        or clean_name in {"group", "cluster", "patient", "subject", "entity"}
+    )
+
+    cardinality_ratio = unique_count / row_count if row_count > 0 else 0.0
+
+    if name_has_group_hint and unique_count >= 2:
+        return True
+
+    if name_is_id and unique_count >= 2 and cardinality_ratio <= 0.90:
+        return True
+
+    return False
+
+
+def detect_group_leakage(
+    df: pd.DataFrame,
+    group_column: str,
+    test_size: float = 0.2,
+    random_seed: int = 42,
+) -> dict[str, Any] | None:
+    """
+    Simulates a standard IID train/test split to assess if entity groups overlap
+    between training and validation partitions.
+    """
+    if group_column not in df.columns:
+        return None
+
+    clean_series = df[group_column].dropna()
+    row_count = len(clean_series)
+    if row_count < 10:
+        return None
+
+    total_unique = int(clean_series.nunique())
+    if total_unique <= 1:
+        return None
+
+    from sklearn.model_selection import train_test_split
+
+    indices = np.arange(row_count)
+    train_idx, val_idx = train_test_split(
+        indices, test_size=test_size, random_state=random_seed
+    )
+
+    train_groups = set(clean_series.iloc[train_idx])
+    val_groups = set(clean_series.iloc[val_idx])
+    overlapping = train_groups.intersection(val_groups)
+
+    val_data = clean_series.iloc[val_idx]
+    affected_rows = int(val_data.isin(overlapping).sum())
+    total_val_rows = len(val_idx)
+
+    leakage_detected = len(overlapping) > 0
+    overlapping_ratio = len(overlapping) / len(val_groups) if val_groups else 0.0
+    affected_ratio = affected_rows / total_val_rows if total_val_rows else 0.0
+
+    if leakage_detected:
+        description = (
+            f"Group entity leakage detected in '{group_column}'. "
+            f"{affected_rows} validation sample(s) ({affected_ratio:.1%}) share entity identifiers "
+            f"across {len(overlapping)} group(s) with the training partition under standard IID splitting. "
+            f"Standard validation will produce overly optimistic performance. Enforce GroupKFold('{group_column}')."
+        )
+    else:
+        description = f"No entity group overlap detected in '{group_column}' under simulated split."
+
+    return {
+        "column": group_column,
+        "leakage_detected": leakage_detected,
+        "overlapping_groups_count": len(overlapping),
+        "overlapping_groups_ratio": round(overlapping_ratio, 4),
+        "affected_rows_count": affected_rows,
+        "affected_rows_ratio": round(affected_ratio, 4),
+        "total_unique_groups": total_unique,
+        "total_val_rows": total_val_rows,
+        "strategy_recommendation": f"GroupKFold({group_column})" if leakage_detected else None,
+        "description": description,
+    }
+
+
 def detect_sequential_structure(
     df: pd.DataFrame,
     target_column: str | None = None,
@@ -246,6 +361,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
 
     columns: list[ColumnProfile] = []
     recommendations: list[dict[str, Any]] = []
+    group_leakage_reports: list[dict[str, Any]] = []
 
     for name in df.columns:
         series = df[name]
@@ -258,6 +374,17 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
             row_count=row_count,
             target_column=dataset.target_column,
         )
+        is_group_cand = detect_is_group_candidate(
+            name=name,
+            series=series,
+            row_count=row_count,
+            target_column=dataset.target_column,
+        )
+        group_report = None
+        if is_group_cand:
+            group_report = detect_group_leakage(df, name)
+            if group_report is not None:
+                group_leakage_reports.append(group_report)
 
         mean_val = None
         std_val = None
@@ -378,7 +505,19 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
 
         # Generate smart actionable recommendations
         if name != dataset.target_column:
-            if is_id:
+            if is_group_cand and group_report and group_report["leakage_detected"]:
+                recommendations.append({
+                    "column": name,
+                    "type": "group_leakage",
+                    "badge": "Group Leakage",
+                    "severity": "danger",
+                    "title": f"Group entity leakage in '{name}' ({group_report['affected_rows_count']} samples shared)",
+                    "description": group_report["description"],
+                    "action": "enforce_group_split",
+                    "group_column": name,
+                    "strategy": group_report["strategy_recommendation"],
+                })
+            elif is_id:
                 recommendations.append({
                     "column": name,
                     "type": "exclude",
@@ -460,6 +599,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                 is_identifier=is_id,
                 is_high_cardinality=is_high_card,
                 is_text=is_text,
+                is_group_candidate=is_group_cand,
                 mean=mean_val,
                 std=std_val,
                 min=min_val,
@@ -575,6 +715,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
         recommendations=recommendations,
         correlation_matrix=correlation_matrix_data,
         temporal_structure=temporal_struct.to_dict(),
+        group_leakage_reports=group_leakage_reports,
     )
 
 

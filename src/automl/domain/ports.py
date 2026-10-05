@@ -38,6 +38,7 @@ class TrialExecution:
     test_size: float
     cv_folds: int
     random_seed: int
+    group_column: str | None = None
 
 
 class TrainerPort(Protocol):

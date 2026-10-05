@@ -20,6 +20,7 @@ class ExperimentCandidate:
     validation_strategy: str = "holdout"
     priority: Priority | None = None
     feature_set_id: str | None = None
+    group_column: str | None = None
     tags: list[str] = field(default_factory=list)
     created_by: str = "planner"
 
@@ -35,6 +36,7 @@ class ExperimentCandidate:
         validation_strategy: str = "holdout",
         priority: Priority | None = None,
         feature_set_id: str | None = None,
+        group_column: str | None = None,
         tags: list[str] | None = None,
         created_by: str = "planner",
     ) -> ExperimentCandidate:
@@ -50,6 +52,7 @@ class ExperimentCandidate:
             validation_strategy=validation_strategy,
             priority=priority,
             feature_set_id=feature_set_id,
+            group_column=group_column,
             tags=list(tags or []),
             created_by=created_by,
         )
@@ -70,6 +73,7 @@ class ExperimentCandidate:
             created_by=self.created_by,
             priority=priority_str,
             feature_set_id=self.feature_set_id,
+            group_column=self.group_column,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,6 +88,7 @@ class ExperimentCandidate:
             "validation_strategy": self.validation_strategy,
             "priority": self.priority.to_dict() if self.priority else None,
             "feature_set_id": self.feature_set_id,
+            "group_column": self.group_column,
             "tags": self.tags,
             "created_by": self.created_by,
         }

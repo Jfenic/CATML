@@ -54,6 +54,10 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
 
         fast_baseline_models = self._select_fast_baseline_models(active_models, task_type)
         complex_models = [m for m in active_models if m not in fast_baseline_models]
+        group_column = run.config.group_column
+        val_strategy = run.config.validation_strategy
+        if group_column and val_strategy == "holdout":
+            val_strategy = "group_kfold"
 
         # 2. Candidate 1: Fast baseline with all active features
         if fast_baseline_models:
@@ -65,7 +69,8 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
                     feature_names=active_features,
                     model_ids=fast_baseline_models,
                     metric=run.config.metric,
-                    validation_strategy=run.config.validation_strategy,
+                    validation_strategy=val_strategy,
+                    group_column=group_column,
                     tags=["baseline", "fast"],
                     created_by="rule_based_planner",
                 )
@@ -84,7 +89,8 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
                         feature_names=active_features,
                         model_ids=[model_id],
                         metric=run.config.metric,
-                        validation_strategy=run.config.validation_strategy,
+                        validation_strategy=val_strategy,
+                        group_column=group_column,
                         tags=["model_exploration", model_id],
                         created_by="rule_based_planner",
                     )
@@ -109,7 +115,8 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
                     feature_names=prioritized_features,
                     model_ids=models_for_subset,
                     metric=run.config.metric,
-                    validation_strategy=run.config.validation_strategy,
+                    validation_strategy=val_strategy,
+                    group_column=group_column,
                     tags=["feature_subset", "prioritized"],
                     created_by="rule_based_planner",
                 )
@@ -127,7 +134,8 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
                     feature_names=top_compact,
                     model_ids=models_for_subset,
                     metric=run.config.metric,
-                    validation_strategy=run.config.validation_strategy,
+                    validation_strategy=val_strategy,
+                    group_column=group_column,
                     tags=["feature_subset", "compact"],
                     created_by="rule_based_planner",
                 )

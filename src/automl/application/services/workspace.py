@@ -244,7 +244,13 @@ class AutoMLWorkspace:
         self._emit("DatasetRegistered", {"dataset_id": dataset_id, "name": name})
         return dataset
 
-    def create_run(self, dataset: Dataset, metric: str | None = None) -> AutoMLRun:
+    def create_run(
+        self,
+        dataset: Dataset,
+        metric: str | None = None,
+        validation_strategy: str | None = None,
+        group_column: str | None = None,
+    ) -> AutoMLRun:
         problem = self.repository.get_problem_definition(dataset.id)
         if problem is None:
             df = load_dataframe(dataset.path)
@@ -252,10 +258,13 @@ class AutoMLWorkspace:
             self.repository.save_problem_definition(problem)
 
         run_metric = metric or problem.default_metric
+        strat = validation_strategy or ("group_kfold" if group_column else "holdout")
         config = RunConfig(
             task_type=problem.task_type.value,
             target=dataset.target_column,
             metric=run_metric,
+            validation_strategy=strat,
+            group_column=group_column,
         )
         run = AutoMLRun(
             id=f"run_{uuid.uuid4().hex[:8]}",
@@ -306,6 +315,7 @@ class AutoMLWorkspace:
         hypothesis: str = "",
         priority: str = "normal",
         validation_strategy: str | None = None,
+        group_column: str | None = None,
     ) -> Experiment:
         dataset = self._get_dataset(run.dataset_id)
         priority_value = ExperimentPriority.parse(priority).value
@@ -343,6 +353,13 @@ class AutoMLWorkspace:
         )
         if not active_models:
             raise ValueError("An experiment requires at least one compatible model")
+
+        resolved_group_col = group_column or run.config.group_column
+        resolved_val_strat = validation_strategy or (
+            "group_kfold" if (resolved_group_col and run.config.validation_strategy == "holdout")
+            else run.config.validation_strategy
+        )
+
         experiment = Experiment(
             id=f"exp_{uuid.uuid4().hex[:8]}",
             run_id=run.id,
@@ -351,9 +368,10 @@ class AutoMLWorkspace:
             feature_names=resolved_features,
             model_ids=active_models,
             metric=run.config.metric,
-            validation_strategy=validation_strategy or run.config.validation_strategy,
+            validation_strategy=resolved_val_strat,
             priority=priority_value,
             feature_set_id=feature_set_id,
+            group_column=resolved_group_col,
         )
         self.repository.save_experiment(experiment)
         self._emit(
@@ -431,6 +449,7 @@ class AutoMLWorkspace:
                 test_size=run.config.test_size,
                 cv_folds=run.config.cv_folds,
                 random_seed=run.config.random_seed,
+                group_column=experiment.group_column,
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)
@@ -1211,6 +1230,7 @@ class AutoMLWorkspace:
                 test_size=run.config.test_size,
                 cv_folds=run.config.cv_folds,
                 random_seed=run.config.random_seed + trial_idx,
+                group_column=experiment.group_column,
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)
