@@ -63,9 +63,11 @@ def detect_column_cardinality_and_role(
 
     # B) Content-based identifier heuristic (no ID name required)
     if not is_identifier and row_count >= 50:
-        # High cardinality text/hash columns with near-unique values
+        # High cardinality text/hash columns with near-unique values (excluding natural language text)
         if is_object_or_string and cardinality_ratio > 0.70:
-            is_identifier = True
+            from automl.engine.features.text import is_text_column
+            if not is_text_column(series):
+                is_identifier = True
         # Monotonically increasing sequential index integers (e.g. 0, 1, 2, ... N-1 or row counter)
         elif series.dtype.kind in {"i", "u"} and cardinality_ratio == 1.0:
             clean_series = series.dropna()
@@ -269,6 +271,9 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
         top_cats: list[dict[str, Any]] = []
 
         is_numeric = pd.api.types.is_numeric_dtype(series)
+        from automl.engine.features.text import is_text_column
+        is_text = False if is_numeric else is_text_column(series)
+
         box_plot_data: dict[str, Any] = {}
         histogram_data: dict[str, Any] = {}
 
@@ -423,6 +428,16 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     "description": "Strong target association. Prime candidate feature.",
                     "action": "keep",
                 })
+            elif is_text:
+                recommendations.append({
+                    "column": name,
+                    "type": "nlp",
+                    "badge": "Text Feature",
+                    "severity": "info",
+                    "title": f"Natural language text in '{name}'",
+                    "description": f"Freeform text detected ({unique_count} distinct entries). Processed via TF-IDF n-grams.",
+                    "action": "nlp_encode",
+                })
             elif is_high_card:
                 recommendations.append({
                     "column": name,
@@ -444,6 +459,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                 cardinality_ratio=card_ratio,
                 is_identifier=is_id,
                 is_high_cardinality=is_high_card,
+                is_text=is_text,
                 mean=mean_val,
                 std=std_val,
                 min=min_val,

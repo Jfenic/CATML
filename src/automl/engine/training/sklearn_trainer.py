@@ -73,7 +73,8 @@ class SklearnTrainer(TrainerPort):
                     execution.task_type,
                     parameters=execution.trial.parameters,
                 )
-            pipeline = _build_pipeline(X, model)
+            text_cols = execution.trial.parameters.get("text_columns") if execution.trial.parameters else None
+            pipeline = _build_pipeline(X, model, text_columns=text_cols)
 
             metric_name = execution.metric
             strategy = (execution.validation_strategy or "holdout").lower()
@@ -248,7 +249,8 @@ class SklearnTrainer(TrainerPort):
         adapter = TargetAdapter()
         y_train_adapted = adapter.fit_transform(y_train, task_type)
 
-        pipeline = _build_pipeline(X_train, model)
+        text_cols = parameters.get("text_columns") if parameters else None
+        pipeline = _build_pipeline(X_train, model, text_columns=text_cols)
         pipeline.fit(X_train, y_train_adapted)
         return pipeline, adapter
 
@@ -280,9 +282,23 @@ class SklearnTrainer(TrainerPort):
         return adapter.inverse_transform(preds)
 
 
-def _build_pipeline(X: pd.DataFrame, model: Any) -> Pipeline:
-    numeric_cols = [c for c in X.columns if pd.api.types.is_numeric_dtype(X[c])]
-    categorical_cols = [c for c in X.columns if c not in numeric_cols]
+def _build_pipeline(X: pd.DataFrame, model: Any, text_columns: list[str] | None = None) -> Pipeline:
+    from automl.engine.features.text import LightweightTextExtractor, is_text_column
+
+    all_cols = list(X.columns)
+
+    text_cols: list[str] = []
+    if text_columns:
+        text_cols = [c for c in text_columns if c in all_cols]
+    else:
+        for c in all_cols:
+            if not pd.api.types.is_numeric_dtype(X[c]):
+                if is_text_column(X[c]):
+                    text_cols.append(c)
+
+    non_text_cols = [c for c in all_cols if c not in text_cols]
+    numeric_cols = [c for c in non_text_cols if pd.api.types.is_numeric_dtype(X[c])]
+    categorical_cols = [c for c in non_text_cols if c not in numeric_cols]
 
     transformers = []
     if numeric_cols:
@@ -304,8 +320,17 @@ def _build_pipeline(X: pd.DataFrame, model: Any) -> Pipeline:
                 categorical_cols,
             )
         )
+    if text_cols:
+        for col in text_cols:
+            transformers.append(
+                (
+                    f"txt_{col}",
+                    LightweightTextExtractor(max_features=50, column_prefix=col),
+                    col,
+                )
+            )
 
-    preprocessor = ColumnTransformer(transformers=transformers)
+    preprocessor = ColumnTransformer(transformers=transformers, sparse_threshold=0.0)
     return Pipeline([("preprocessor", preprocessor), ("model", model)])
 
 

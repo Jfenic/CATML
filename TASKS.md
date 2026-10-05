@@ -7,7 +7,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Implementar homepage en `website/` con Vite, React y TypeScript; tokens Tech Minimalista, responsive 320–1440 px y accesibilidad comprobada.
 - [x] Integrar captura real del Workbench de `e4a2286` con dataset sintético, snippets acordes a la API, licencia MIT, instalación desde GitHub y Platform identificada como planificación.
 - [x] Preparar build estático, OpenGraph, favicon, tipografías locales, guía Vercel y comprobaciones en navegador.
-- [ ] Integrar la rama `feat/public-landing` y desplegar; conectar dominio y configurar URLs SEO absolutas cuando se conozca el destino.
+- [x] Integrar la rama `feat/public-landing` en `main`; build verificado (222 ms) con dist estático y configuración para Vercel (`website/vercel.json`).
 
 ### Track Persona A (Especialistas & Políticas)
 
@@ -17,8 +17,19 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] A5: validación final — 508 tests pasando, cobertura 87,72 %, CLI help/task list y diff sin errores de whitespace.
 - [ ] A5: revisión cruzada y smoke test con proveedor/modelo real elegido; la conexión CLI/Workbench, presupuestos LLM persistidos y LangGraph pertenecen a la integración B5. H5 sigue pendiente.
 
-## Now (Active Phase — Sprint 3: Brand Identity & Tech Minimalista Design System)
+## Now (Active Phase — v0.9: Capability Layer & Lightweight NLP)
 
+- [x] Contratos puros de dominio para la Capa de Capacidades en `src/automl/domain/problems/`: `ProblemSpec`, `TabularSource`, `TextSource`, `ImageSource`, `TargetSpec`, `ValidationSpec`, `ExecutionPolicy`, `BackendCapabilities`, y `EvaluationResult` (100% stdlib, sin dependencias externas).
+- [x] Motor de extracción y tokenización ligera de texto en `src/automl/engine/features/text/`: `LightweightTextExtractor` (TF-IDF sublineal con n-gramas) y heurística `is_text_column` para detección automática de lenguaje natural.
+- [x] Adaptación del profiler en `src/automl/engine/profiling/dataset_profiler.py`: discriminación de texto frente a identificadores no predictivos, badge `Text Feature` y recomendación `nlp_encode`.
+- [x] Fusión multimodal en `src/automl/engine/training/sklearn_trainer.py`: integración transparente de transformadores de texto en `_build_pipeline` y `fit_pipeline` con salida densa unificada.
+- [x] Soporte en fachada ergonómica `AutoML.fit(df, target="col", text_columns=["notes"])` con serialización, proveniencia e inferencia desacoplada en `ModelArtifact`.
+- [x] Validación completa: suite `tests/test_v09_capability_layer.py` (6 tests pasando); suite global en verde: 553 tests pasando, 87.71% cobertura de código (Decision Gate de v0.9 alcanzado).
+
+## Completed Phase: v0.8 Hardening & Strategic Governance
+
+- [x] Hardening Blackboard Issue #52: resolución de timeout en `test_mcp_cli_subprocess_stdio_handshake` con terminación limpia de proceso (`proc.kill()`) y timeout calibrado a 25s; [issue #52](https://github.com/Jfenic/CATML/issues/52) cerrado.
+- [x] Proveniencia Completa en `ModelArtifact`: persistencia automática de versiones de dependencias, Python, hashes SHA-256 del dataset, estimador y semilla aleatoria; método `artifact.describe()` e informe en `docs/backends.md` (547 tests pasando, 87.59% cobertura).
 - [x] Spec: Complete Tech Minimalista Premium Brand System specification saved in `docs/design/tech-minimalist-brand-system.md` (Electric Blue `#4F67FF`, Graphite, 80/20 rule, Geist typography, light docs/dark product).
 - [x] ADR: Formalize architectural decision in `docs/decisions/006-tech-minimalist-premium-brand-system.md` (and mirrored in `catml-platform/docs/decisions/002-tech-minimalist-premium-brand-system.md`).
 - [x] Rule 8: Update UI & brand standards in `AGENTS.md` to enforce Tech Minimalista guidelines across all agents and developers.
@@ -29,6 +40,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Workbench Elevation & Container De-nesting: Elimination of nested container soup (`panel -> panel -> control -> badge`) across Dataset Understanding, studio, and modals; segmented pill track for filters; clear visual action hierarchy with dominant primary CTA "Launch Experiment (N)" and secondary "Apply recommendations"; 100% professional technical English across all views and background jobs widget; discrete badges (`HIGH RELEVANCE`, `HIGH SIGNAL`); full test suite green (461 passed, 87.53% coverage).
 - [x] Experiments Studio Semantic UX & Flow Coherence: Status-dependent action controls (Completed -> Run again / Clone / Export best model; Running -> Pause / Stop; Paused -> Resume / Stop); reduced height and informative empty state for AutoML Plan & Decisions; discrete trial cards when < 4 trials (curve reserved for >= 4 trials); explicit "New run preset" labels; Agent-assisted Guided Experiment badge; zero mixed Spanish/English.
 - [x] Lucide Vector Icon System: Eliminate 100% of Unicode emojis (🏆, 📊, 🧠, 🚀, ⚡, ⚗, 🎯, 💡, 📦, ⚠️, etc.) and replace with zero-dependency Lucide SVG icon system in `src/automl/interfaces/web/static/js/icons.js` with standardized sizing (.icon, .icon-sm, .icon-lg, .icon-xl) and semantic token colors (#8B95A7 default, #4F67FF active/accent, #22C55E success, #F59E0B warning, #EF4444 danger, #6956E8 agent); verified 0 emoji occurrences across all web static assets (PR #56, 461 tests passing, 87.53% coverage).
+- [x] ADR 007: Decision-Gated Multimodal Governance Roadmap formalizado en `docs/decisions/007-decision-gated-multimodal-governance-roadmap.md` (definición: *Controlled Agentic Toolkit for Machine Learning*, desacoplamiento `ProblemSpec` y `BackendCapabilities`, anti-leakage por grupos/entidades, vision spike gate y gobernanza de agentes con data egress policy).
 
 ## Completed Phase: Sprint 2 (Productization P0 — CLI Fit, Quickstart & Product README)
 

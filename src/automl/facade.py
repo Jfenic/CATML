@@ -113,6 +113,7 @@ class AutoML:
         self,
         data: pd.DataFrame | np.ndarray,
         target: str | pd.Series | np.ndarray | None = None,
+        text_columns: list[str] | None = None,
     ) -> AutoMLResult:
         """
         Fit multiple candidate models on the dataset, evaluate their performance,
@@ -122,6 +123,9 @@ class AutoML:
             data: Feature matrix as pandas DataFrame or 2D numpy array.
             target: Target column name (str) if data is DataFrame, or target values
                     (Series/ndarray).
+            text_columns: Optional list of column names containing freeform natural language
+                          text to be transformed via n-gram TF-IDF representations. If omitted,
+                          text columns are discovered automatically via heuristics.
 
         Returns:
             AutoMLResult containing the winning model, leaderboard, and predictions.
