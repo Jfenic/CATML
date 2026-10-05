@@ -31,8 +31,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Integración en `DatasetProfile` (`is_group_candidate`, `group_candidates`, `has_group_leakage`, `group_leakage_reports`, badge `Group Leakage`, acción `enforce_group_split`).
   - Soporte de validación `GroupKFold` y `GroupShuffleSplit` en `ValidationSpec`, `TrialExecution`, `SklearnTrainer`, `CreateExperimentCommand` y `RuleBasedExperimentPlanner`.
   - Protección automática y explícita en la fachada `AutoML.fit(df, target="churn", group_column="patient_id")`: exclusión de variables de grupo de la matriz predictiva `X` para prevenir memorización y aplicación automática de partición por grupos ante detección de fuga.
-  - Validación completa en `tests/test_v09_group_leakage.py` (6 tests nuevos pasando, 559 tests globales en verde, 87.71% cobertura de código).
-
+- [x] **Fase 4: Vision Spike (Prueba de Estrés Arquitectónica & Visión Multimodal)**:
+  - Heurística `is_image_column` en `src/automl/plugins/modalities/image_plugin.py` para detección de rutas de archivos de imagen por extensiones (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.tiff`, etc.) o presencia en disco.
+  - Profiler adaptado en `src/automl/engine/profiling/dataset_profiler.py`: discriminación de columnas de imagen evitando falsos positivos de identificadores (`is_identifier=False`), detección de `is_image`, propiedad `image_column_names`, y recomendación con badge `Image Feature` y acción `image_encode`.
+  - Nodo de ejecución de imágenes `ImageEncoderNode` en `src/automl/engine/vision/image_encoder.py`: herencia de `BaseEstimator, TransformerMixin`, compatibilidad de slicing para DataFrames 2D y Series 1D, manejo de valores nulos/faltantes mediante vector cero (`handle_missing="zero"`), y `get_feature_names_out`.
+  - Fusión multimodal en `src/automl/engine/training/sklearn_trainer.py`: integración transparente de transformadores de imagen en `_build_pipeline` y `fit_pipeline`, filtrado de parámetros de preprocesador frente a hiperparámetros de modelo, y soporte para cancelación cooperativa.
+  - Plugin especializado de visión `TimmVisionPlugin` en `src/automl/plugins/models/vision_plugin.py` con interfaz de capacidades (`available()`, `requirements()`, `capabilities()`, `install_instructions()`) y degradación suave (`fallback`).
+  - Dependencias opcionales organizadas en `pyproject.toml` (`catml[vision]`, `catml[nlp]`, `catml[all]`).
+  - Fachada ergonómica `AutoML.fit(df, target="col", image_columns=["img_path"])` y exportación desacoplada en `ModelArtifact` con proveniencia de librerías de visión e inferencia reproducible vía `predict()`.
+  - Validación completa en `tests/test_v09_vision_spike.py` (11 tests nuevos pasando, 570 tests globales en verde, 87.69% cobertura de código). Decision Gate de Fase 4 superado.
 ## Completed Phase: v0.8 Hardening & Strategic Governance
 
 - [x] Hardening Blackboard Issue #52: resolución de timeout en `test_mcp_cli_subprocess_stdio_handshake` con terminación limpia de proceso (`proc.kill()`) y timeout calibrado a 25s; [issue #52](https://github.com/Jfenic/CATML/issues/52) cerrado.

@@ -38,6 +38,23 @@ models = [
     "lightgbm>=4.0",
     "xgboost>=2.0",
 ]
+vision = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "timm>=0.9",
+    "pillow>=9.0",
+]
+nlp = [
+    "scikit-learn>=1.3",
+]
+all = [
+    "catboost>=1.2",
+    "lightgbm>=4.0",
+    "xgboost>=2.0",
+    "mcp>=1.2.0",
+    "langgraph>=0.2.0",
+    "langgraph-checkpoint>=2.0.0",
+]
 full = [
     "catboost>=1.2",
 ]

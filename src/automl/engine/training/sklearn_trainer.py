@@ -21,6 +21,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from automl.domain.experiments.trial import TrialResult, TrialStatus
+from automl.domain.runs.states import RunStatus
 from automl.domain.ports import TrialExecution, TrainerPort
 from automl.engine.profiling.dataset_profiler import load_dataframe
 from automl.plugins.models.sklearn_models import build_sklearn_model
@@ -34,6 +35,20 @@ class SklearnTrainer(TrainerPort):
         import time
 
         trial = execution.trial
+        if execution.run and getattr(execution.run, "status", None) == RunStatus.CANCELLED:
+            trial.status = TrialStatus.FAILED
+            trial.error_message = "Execution cancelled."
+            return TrialResult(
+                trial_id=trial.id,
+                experiment_id=execution.experiment.id,
+                model_id=trial.model_id,
+                primary_metric=execution.metric,
+                primary_score=0.0,
+                secondary_metrics={},
+                training_time_seconds=0.0,
+                failure_reason="Execution cancelled.",
+            )
+
         trial.status = TrialStatus.RUNNING
         started = time.perf_counter()
 
@@ -50,6 +65,11 @@ class SklearnTrainer(TrainerPort):
             adapter = TargetAdapter()
             y_adapted = adapter.fit_transform(y, execution.task_type)
 
+            model_params = {
+                k: v for k, v in (execution.trial.parameters or {}).items()
+                if k not in ("text_columns", "image_columns", "time_budget")
+            }
+
             if self.plugin_registry and self.plugin_registry.has(execution.trial.model_id):
                 model_plugin = self.plugin_registry.get_model_plugin(execution.trial.model_id)
                 if model_plugin:
@@ -58,23 +78,30 @@ class SklearnTrainer(TrainerPort):
                         execution.task_type,
                     )
                     model = model_plugin.build_estimator(
-                        parameters=execution.trial.parameters,
+                        parameters=model_params,
                         task_type=execution.task_type,
                     )
                 else:
                     model = build_sklearn_model(
                         execution.trial.model_id,
                         execution.task_type,
-                        parameters=execution.trial.parameters,
+                        parameters=model_params,
                     )
             else:
                 model = build_sklearn_model(
                     execution.trial.model_id,
                     execution.task_type,
-                    parameters=execution.trial.parameters,
+                    parameters=model_params,
                 )
             text_cols = execution.trial.parameters.get("text_columns") if execution.trial.parameters else None
-            pipeline = _build_pipeline(X, model, text_columns=text_cols)
+            if text_cols is None and execution.run and execution.run.config and execution.run.config.extra:
+                text_cols = execution.run.config.extra.get("text_columns")
+
+            image_cols = execution.trial.parameters.get("image_columns") if execution.trial.parameters else None
+            if image_cols is None and execution.run and execution.run.config and execution.run.config.extra:
+                image_cols = execution.run.config.extra.get("image_columns")
+
+            pipeline = _build_pipeline(X, model, text_columns=text_cols, image_columns=image_cols)
 
             metric_name = execution.metric
             strategy = (execution.validation_strategy or "holdout").lower()
@@ -269,15 +296,20 @@ class SklearnTrainer(TrainerPort):
         task_type: str = "binary_classification",
         parameters: dict[str, Any] | None = None,
     ) -> tuple[Pipeline, Any]:
+        model_params = {
+            k: v for k, v in (parameters or {}).items()
+            if k not in ("text_columns", "image_columns", "time_budget")
+        }
+
         if self.plugin_registry and self.plugin_registry.has(model_id):
             model_plugin = self.plugin_registry.get_model_plugin(model_id)
             if model_plugin:
                 self.plugin_registry.validate_plugin_for_task(model_id, task_type)
-                model = model_plugin.build_estimator(parameters=parameters, task_type=task_type)
+                model = model_plugin.build_estimator(parameters=model_params, task_type=task_type)
             else:
-                model = build_sklearn_model(model_id, task_type, parameters=parameters)
+                model = build_sklearn_model(model_id, task_type, parameters=model_params)
         else:
-            model = build_sklearn_model(model_id, task_type, parameters=parameters)
+            model = build_sklearn_model(model_id, task_type, parameters=model_params)
 
         from automl.engine.training.target_adapter import TargetAdapter
 
@@ -285,7 +317,8 @@ class SklearnTrainer(TrainerPort):
         y_train_adapted = adapter.fit_transform(y_train, task_type)
 
         text_cols = parameters.get("text_columns") if parameters else None
-        pipeline = _build_pipeline(X_train, model, text_columns=text_cols)
+        image_cols = parameters.get("image_columns") if parameters else None
+        pipeline = _build_pipeline(X_train, model, text_columns=text_cols, image_columns=image_cols)
         pipeline.fit(X_train, y_train_adapted)
         return pipeline, adapter
 
@@ -317,23 +350,39 @@ class SklearnTrainer(TrainerPort):
         return adapter.inverse_transform(preds)
 
 
-def _build_pipeline(X: pd.DataFrame, model: Any, text_columns: list[str] | None = None) -> Pipeline:
+def _build_pipeline(
+    X: pd.DataFrame,
+    model: Any,
+    text_columns: list[str] | None = None,
+    image_columns: list[str] | None = None,
+) -> Pipeline:
     from automl.engine.features.text import LightweightTextExtractor, is_text_column
+    from automl.plugins.modalities.image_plugin import is_image_column
+    from automl.engine.vision.image_encoder import ImageEncoderNode
 
     all_cols = list(X.columns)
 
-    text_cols: list[str] = []
-    if text_columns:
-        text_cols = [c for c in text_columns if c in all_cols]
+    image_cols: list[str] = []
+    if image_columns:
+        image_cols = [c for c in image_columns if c in all_cols]
     else:
         for c in all_cols:
             if not pd.api.types.is_numeric_dtype(X[c]):
+                if is_image_column(X[c]):
+                    image_cols.append(c)
+
+    text_cols: list[str] = []
+    if text_columns:
+        text_cols = [c for c in text_columns if c in all_cols and c not in image_cols]
+    else:
+        for c in all_cols:
+            if c not in image_cols and not pd.api.types.is_numeric_dtype(X[c]):
                 if is_text_column(X[c]):
                     text_cols.append(c)
 
-    non_text_cols = [c for c in all_cols if c not in text_cols]
-    numeric_cols = [c for c in non_text_cols if pd.api.types.is_numeric_dtype(X[c])]
-    categorical_cols = [c for c in non_text_cols if c not in numeric_cols]
+    non_transformed_cols = [c for c in all_cols if c not in text_cols and c not in image_cols]
+    numeric_cols = [c for c in non_transformed_cols if pd.api.types.is_numeric_dtype(X[c])]
+    categorical_cols = [c for c in non_transformed_cols if c not in numeric_cols]
 
     transformers = []
     if numeric_cols:
@@ -361,6 +410,15 @@ def _build_pipeline(X: pd.DataFrame, model: Any, text_columns: list[str] | None 
                 (
                     f"txt_{col}",
                     LightweightTextExtractor(max_features=50, column_prefix=col),
+                    col,
+                )
+            )
+    if image_cols:
+        for col in image_cols:
+            transformers.append(
+                (
+                    f"img_{col}",
+                    ImageEncoderNode(node_id=f"img_{col}", output_dim=64, handle_missing="zero"),
                     col,
                 )
             )

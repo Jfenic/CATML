@@ -16,6 +16,7 @@ class ColumnProfile:
     is_high_cardinality: bool = False
     is_text: bool = False
     is_group_candidate: bool = False
+    is_image: bool = False
     mean: float | None = None
     std: float | None = None
     min: float | None = None
@@ -73,6 +74,7 @@ class DatasetProfile:
                     "is_high_cardinality": c.is_high_cardinality,
                     "is_text": c.is_text,
                     "is_group_candidate": c.is_group_candidate,
+                    "is_image": c.is_image,
                     "mean": c.mean,
                     "std": c.std,
                     "min": c.min,
@@ -94,6 +96,7 @@ class DatasetProfile:
             "temporal_structure": self.temporal_structure,
             "group_leakage_reports": self.group_leakage_reports,
             "group_candidates": self.group_candidates,
+            "image_columns": self.image_column_names,
             "has_group_leakage": self.has_group_leakage,
             "has_leakage": self.has_leakage,
             "leakage_columns": self.leakage_column_names,
@@ -110,6 +113,10 @@ class DatasetProfile:
     @property
     def text_column_names(self) -> list[str]:
         return [c.name for c in self.columns if c.is_text]
+
+    @property
+    def image_column_names(self) -> list[str]:
+        return [c.name for c in self.columns if c.is_image]
 
     @property
     def group_candidates(self) -> list[str]:

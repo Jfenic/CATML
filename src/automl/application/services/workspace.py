@@ -69,6 +69,7 @@ from automl.plugins.models.ensemble import VotingEnsemblePlugin
 from automl.plugins.models.gradient_boosting import LightGBMPlugin, XGBoostPlugin
 from automl.plugins.models.sklearn_models import ExtraTreesPlugin, MLPPlugin, default_model_specs
 from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
+from automl.plugins.models.vision_plugin import TimmVisionPlugin
 from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
 PLATFORM_VERSION = __version__
@@ -86,6 +87,7 @@ def _init_default_plugins(workspace: AutoMLWorkspace) -> None:
     workspace.plugin_registry.register(CostSensitiveMetricPlugin())
     workspace.plugin_registry.register(WeightedF1MetricPlugin())
     workspace.plugin_registry.register(ImageModalityPlugin())
+    workspace.plugin_registry.register(TimmVisionPlugin())
 
 
 @dataclass
@@ -250,6 +252,7 @@ class AutoMLWorkspace:
         metric: str | None = None,
         validation_strategy: str | None = None,
         group_column: str | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> AutoMLRun:
         problem = self.repository.get_problem_definition(dataset.id)
         if problem is None:
@@ -265,6 +268,7 @@ class AutoMLWorkspace:
             metric=run_metric,
             validation_strategy=strat,
             group_column=group_column,
+            extra=dict(extra or {}),
         )
         run = AutoMLRun(
             id=f"run_{uuid.uuid4().hex[:8]}",
@@ -1841,13 +1845,20 @@ class AutoMLWorkspace:
 
         from automl.engine.training.sklearn_trainer import SklearnTrainer
 
+        params = dict(target_trial.parameters or {})
+        if run.config and run.config.extra:
+            if "text_columns" in run.config.extra and "text_columns" not in params:
+                params["text_columns"] = run.config.extra["text_columns"]
+            if "image_columns" in run.config.extra and "image_columns" not in params:
+                params["image_columns"] = run.config.extra["image_columns"]
+
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         pipeline, adapter = trainer.fit_pipeline(
             X_train=X_train,
             y_train=y_train,
             model_id=target_trial.model_id,
             task_type=dataset.task_type,
-            parameters=target_trial.parameters,
+            parameters=params,
         )
 
         from automl.artifacts.model_artifact import ModelArtifact
@@ -1867,7 +1878,20 @@ class AutoMLWorkspace:
         from automl import __version__
 
         dep_versions: dict[str, str] = {"catml": __version__}
-        for name in ("numpy", "pandas", "scikit-learn", "joblib", "lightgbm", "xgboost", "catboost", "optuna"):
+        for name in (
+            "numpy",
+            "pandas",
+            "scikit-learn",
+            "joblib",
+            "lightgbm",
+            "xgboost",
+            "catboost",
+            "optuna",
+            "torch",
+            "torchvision",
+            "timm",
+            "pillow",
+        ):
             try:
                 dep_versions[name] = version(name)
             except PackageNotFoundError:
