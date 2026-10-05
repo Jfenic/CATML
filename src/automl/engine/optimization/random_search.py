@@ -20,6 +20,7 @@ class RandomSearchOptimizer(OptimizerPort):
         patience: int = 5,
         min_delta: float = 0.0001,
         mode: str = "max",
+        warm_start_params: dict[str, Any] | None = None,
     ) -> None:
         self.rng = random.Random(seed)
         self.early_stopping = EarlyStoppingPolicy(
@@ -30,8 +31,21 @@ class RandomSearchOptimizer(OptimizerPort):
         self._best_params: dict[str, Any] = {}
         self._best_score: float = -float("inf") if mode == "max" else float("inf")
         self.mode = mode
+        self.warm_start_params = dict(warm_start_params) if warm_start_params else None
 
     def suggest(self, trial_number: int, search_space: SearchSpace) -> dict[str, Any]:
+        if trial_number == 0 and self.warm_start_params:
+            valid_warm = {
+                spec.name: self.warm_start_params[spec.name]
+                for spec in search_space.list()
+                if spec.name in self.warm_start_params
+            }
+            if valid_warm:
+                for spec in search_space.list():
+                    if spec.name not in valid_warm and spec.default is not None:
+                        valid_warm[spec.name] = spec.default
+                return valid_warm
+
         params: dict[str, Any] = {}
         for spec in search_space.list():
             if spec.type == ParameterType.INT:

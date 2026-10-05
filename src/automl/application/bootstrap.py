@@ -49,6 +49,7 @@ from automl.application.queries.workspace_queries import (
     GetPipelineExecutionOrderQuery,
     GetOOFResultQuery,
     DetectTemporalStructureQuery,
+    GetMetaKnowledgeQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 from automl.application.services.jobs import JobService
@@ -220,6 +221,10 @@ def register_handlers(
     query_bus.register(
         DetectTemporalStructureQuery,
         lambda q: workspace.detect_temporal_structure(q.dataset_id),
+    )
+    query_bus.register(
+        GetMetaKnowledgeQuery,
+        lambda q: workspace.get_meta_knowledge(q.dataset_id, run_id=q.run_id),
     )
     command_bus.register(GenerateOOFSubmissionCommand, workspace.generate_oof_submission)
     query_bus.register(GetOOFResultQuery, lambda q: workspace.get_oof_result(q.run_id, q.experiment_id))

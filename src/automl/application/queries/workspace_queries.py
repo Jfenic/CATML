@@ -117,3 +117,9 @@ class GetOOFResultQuery:
 @dataclass(frozen=True)
 class DetectTemporalStructureQuery:
     dataset_id: str
+
+
+@dataclass(frozen=True)
+class GetMetaKnowledgeQuery:
+    dataset_id: str
+    run_id: str | None = None

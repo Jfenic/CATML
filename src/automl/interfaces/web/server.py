@@ -32,6 +32,7 @@ from automl.application.queries.workspace_queries import (
     ListModelsQuery,
     ListPluginsQuery,
     GetOOFResultQuery,
+    GetMetaKnowledgeQuery,
 )
 
 
@@ -529,43 +530,17 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 runs = ws.repository.list_runs()
                 if runs:
                     dataset_id = runs[0].dataset_id
+            if not dataset_id:
+                datasets = ws.repository.list_datasets()
+                if datasets:
+                    dataset_id = datasets[0].id
 
-            profile = ws.repository.get_dataset_profile(dataset_id) if dataset_id else None
-            dataset = ws.repository.get_dataset(dataset_id) if dataset_id else None
-            row_count = profile.row_count if profile else 0
-            feat_count = len(profile.columns) if profile else 0
-            num_cols = len([c for c in profile.columns if str(getattr(c, "dtype", "")).startswith(("int", "float"))]) if profile else 0
-            cat_cols = max(0, feat_count - num_cols)
-            missing_vals = sum(getattr(c, "null_count", 0) for c in profile.columns) if profile else 0
-            total_cells = max(1, row_count * max(1, feat_count))
-            missing_ratio = round(missing_vals / total_cells, 3)
+            if not dataset_id:
+                self._send_error(404, "No registered dataset found for meta-learning.")
+                return
 
-            self._send_json({
-                "version": "0.8.0-preview",
-                "dataset_name": dataset.name if dataset else "Current Dataset",
-                "fingerprint": {
-                    "rows": row_count,
-                    "features": feat_count,
-                    "numerical_ratio": round(num_cols / max(1, feat_count), 2),
-                    "categorical_ratio": round(cat_cols / max(1, feat_count), 2),
-                    "missing_ratio": missing_ratio,
-                    "target_entropy": 0.681 if profile else 0.0,
-                },
-                "similar_datasets": [
-                    {"name": f"{dataset.name if dataset else 'Tabular'} Benchmark", "similarity": 0.91, "reasons": [f"Rows: {row_count}", f"Features: {feat_count}"]},
-                    {"name": "Standard Tabular Reference", "similarity": 0.82, "reasons": ["Tabular modality", "Dense feature matrix"]},
-                ],
-                "historical_rankings": [
-                    {"model": "CatBoost", "experiments": 12, "mean_rank": 1.6},
-                    {"model": "LightGBM", "experiments": 18, "mean_rank": 2.1},
-                    {"model": "XGBoost", "experiments": 14, "mean_rank": 2.7},
-                ],
-                "warm_start": {
-                    "recommended_model": "CatBoost" if cat_cols > 2 else "LightGBM",
-                    "params": {"learning_rate": 0.05, "depth": 6},
-                    "expected_search_reduction": "~35%",
-                },
-            })
+            knowledge = qry.dispatch(GetMetaKnowledgeQuery(dataset_id=dataset_id, run_id=run_id or None))
+            self._send_json(knowledge.to_dict())
             return
 
         elif path == "/api/agent/hypotheses":

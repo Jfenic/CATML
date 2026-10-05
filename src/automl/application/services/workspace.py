@@ -1125,6 +1125,21 @@ class AutoMLWorkspace:
         else:
             direction = "minimize" if run.config.metric in {"mae", "rmse"} else "maximize"
 
+        # Check meta-learning warm start priors
+        warm_params: dict[str, Any] | None = None
+        try:
+            meta = self.get_meta_knowledge(run.dataset_id, run_id=run.id)
+            if meta.warm_start and meta.warm_start.params:
+                valid_warm = {
+                    spec.name: meta.warm_start.params[spec.name]
+                    for spec in space.list()
+                    if spec.name in meta.warm_start.params
+                }
+                if valid_warm:
+                    warm_params = valid_warm
+        except Exception:
+            pass
+
         opt: OptimizerPort
         if optimizer.lower() == "optuna":
             opt = OptunaOptimizer(
@@ -1132,6 +1147,7 @@ class AutoMLWorkspace:
                 direction=direction,
                 patience=patience,
                 min_delta=min_delta,
+                warm_start_params=warm_params,
             )
         else:
             opt = RandomSearchOptimizer(
@@ -1139,6 +1155,7 @@ class AutoMLWorkspace:
                 patience=patience,
                 min_delta=min_delta,
                 mode="max" if direction == "maximize" else "min",
+                warm_start_params=warm_params,
             )
 
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
@@ -2124,5 +2141,45 @@ class AutoMLWorkspace:
             "predictions": preds,
             "graph_id": graph.id,
         }
+
+    # --- Meta-Learning & Warm Starts ---
+
+    def get_meta_knowledge(
+        self,
+        dataset_id: str,
+        run_id: str | None = None,
+    ) -> Any:
+        from automl.domain.meta_learning.fingerprint import MetaLearningKnowledge
+        from automl.engine.meta_learning.extractor import extract_fingerprint
+        from automl.engine.meta_learning.knowledge_base import MetaKnowledgeBase
+
+        dataset = self._get_dataset(dataset_id)
+        profile = self.repository.get_dataset_profile(dataset_id)
+        if profile is None:
+            profile = profile_dataset(dataset)
+            self.repository.save_dataset_profile(profile)
+
+        df = None
+        try:
+            df = load_dataframe(dataset.path)
+        except Exception:
+            pass
+
+        fingerprint = extract_fingerprint(dataset, profile, df=df)
+
+        # Retrieve any empirical trials in the workspace for this dataset
+        trials = []
+        try:
+            runs = self.repository.list_runs()
+            for r in runs:
+                if r.dataset_id == dataset_id:
+                    results = self.repository.list_trial_results(r.id)
+                    trials.extend(results)
+        except Exception:
+            pass
+
+        kb = MetaKnowledgeBase()
+        return kb.synthesize(fingerprint, workspace_trials=trials if trials else None)
+
 
 

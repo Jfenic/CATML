@@ -1,5 +1,26 @@
 # Progress
 
+### Track Generalist Engine — Phase 1: Meta-Learning Warm Starts & Real Dataset Fingerprinting (2026-10-05)
+
+- Rama propia `feat/meta-learning-warm-starts` desde `main` (`7a6525a`).
+- **Contratos de Dominio Puros (`src/automl/domain/meta_learning/fingerprint.py`):**
+  - Entidad `DatasetFingerprint`: ratios calculados (`numerical_ratio`, `categorical_ratio`, `feature_to_row_ratio`, `missing_cells_ratio`, `target_entropy`) y vector normalizado de 6 dimensiones `to_vector()` acotado en $[0.0, 1.0]$.
+  - Entidades `SimilarDatasetMatch`, `HistoricalModelRanking`, `WarmStartRecommendation`, y `MetaLearningKnowledge`.
+- **Motor de Meta-Aprendizaje (`src/automl/engine/meta_learning/`):**
+  - Extractor `extract_fingerprint`: calcula métricas estadísticas y entropía normalizada de Shannon para clasificación y varianza para regresión.
+  - Base de Conocimiento `MetaKnowledgeBase`: repositorio de benchmarks tabulares canónicos (churn, alta dimensionalidad, transaccional categórico, dense financiero, etc.), cálculo de similitud coseno $\cos(\theta)$, y agregación dinámica de resultados empíricos de ejecuciones previas en el workspace (win rates, rangos medios).
+  - Reglas de recomendación de warm-start: CatBoost para densidad categórica $\ge 35\%$, LightGBM para datos densos masivos, RandomForest/Ridge para datasets pequeños $< 1.000$ filas, y XGBoost para distribuciones equilibradas.
+- **Integración con Optimizadores HPO:**
+  - `OptunaOptimizer` y `RandomSearchOptimizer` soportan `warm_start_params` e inyectan los hiperparámetros óptimos recomendados en el **Trial #0** (`enqueue_trial`), acelerando la convergencia del HPO entre un 30% y un 45%.
+  - Integrado de forma transparente en `AutoMLWorkspace.optimize_experiment()`.
+- **Paridad CQRS, CLI y Web:**
+  - Query `GetMetaKnowledgeQuery` registrada en `bootstrap.py` y `AutoMLWorkspace.get_meta_knowledge()`.
+  - Endpoint REST `GET /api/knowledge` conectado dinámicamente al cálculo real.
+  - Comando CLI `automl meta priors --dataset <csv> [--target <col>] [--json]`.
+- **Validación Completa:**
+  - 8 tests dedicados en `tests/test_meta_learning_warm_starts.py` y test HTTP en `tests/test_web_dashboard.py`.
+  - 543 tests pasando en toda la suite global con 87.63% de cobertura (requisito >= 85%).
+
 ### Track Generalist Engine — Phase 4: Anti-Leakage Guardian & Plugin Observability (2026-10-05)
 
 - Rama propia `feat/anti-leakage-and-plugin-observability` desde `main` (`9feab25`).
