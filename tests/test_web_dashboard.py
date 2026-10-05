@@ -437,3 +437,45 @@ def test_web_dashboard_export_model_artifact(running_web_server):
         assert len(preds) == 2
 
 
+def test_web_dashboard_temporal_endpoints(running_web_server):
+    base = running_web_server["base_url"]
+    csv_path = running_web_server["csv_path"]
+
+    # 1. Register dataset
+    reg_payload = json.dumps({
+        "name": "temporal_test",
+        "path": csv_path,
+        "target": "target",
+    }).encode("utf-8")
+    req = Request(f"{base}/api/dataset/register", data=reg_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        dataset_id = data["dataset_id"]
+        run_id = data["run_id"]
+
+    # 2. GET /api/dataset/temporal
+    with urlopen(f"{base}/api/dataset/temporal?dataset_id={dataset_id}") as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        assert data["status"] == "success"
+        assert "temporal_structure" in data
+        assert "is_sequential" in data["temporal_structure"]
+
+    # 3. POST /api/features/temporal
+    gen_payload = json.dumps({
+        "run_id": run_id,
+        "dataset_id": dataset_id,
+        "max_lags": 1,
+        "include_lags": True,
+        "include_deltas": True,
+        "include_cyclical": True,
+    }).encode("utf-8")
+    req_gen = Request(f"{base}/api/features/temporal", data=gen_payload, headers={"Content-Type": "application/json"})
+    with urlopen(req_gen) as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        assert data["status"] == "success"
+        assert len(data["candidate_sets"]) >= 1
+
+

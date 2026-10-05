@@ -386,6 +386,7 @@ class SQLiteExperimentRepository:
             preview_rows=data.get("preview_rows", []),
             recommendations=data.get("recommendations", []),
             correlation_matrix=data.get("correlation_matrix", {}),
+            temporal_structure=data.get("temporal_structure", {}),
         )
 
     # --- features ---

@@ -19,6 +19,7 @@ from automl.application.commands.workspace_commands import (
     PlanAblationExperimentsCommand,
     GenerateSubmissionCommand,
     GenerateOOFSubmissionCommand,
+    GenerateTemporalFeaturesCommand,
 )
 from automl.application.queries.workspace_queries import (
     GetDatasetProfileQuery,
@@ -29,6 +30,7 @@ from automl.application.queries.workspace_queries import (
     ListTaskTypesQuery,
     ListPluginsQuery,
     GetOOFResultQuery,
+    DetectTemporalStructureQuery,
 )
 from automl.domain.features.selection_strategy import FeatureSelectionStrategy
 from automl.application.services.workspace import PLATFORM_VERSION
@@ -453,6 +455,59 @@ def features_ablation_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def features_temporal_cli(args: argparse.Namespace) -> int:
+    dataset_path = Path(args.dataset) if args.dataset else _default_dataset()
+    workspace_dir = Path(args.workspace) if args.workspace else _project_root() / ".automl" / "temporal_demo"
+
+    ws, cmd, qry = build_application(root_dir=str(workspace_dir))
+    dataset = ws.register_dataset(
+        name="temporal_dataset",
+        path=dataset_path,
+        target=args.target,
+    )
+    run = ws.create_run(dataset)
+
+    # 1. Query detected temporal structure
+    structure = qry.dispatch(DetectTemporalStructureQuery(dataset_id=dataset.id))
+
+    # 2. Command to generate temporal candidate feature sets
+    candidate_sets = cmd.dispatch(
+        GenerateTemporalFeaturesCommand(
+            run_id=run.id,
+            dataset_id=dataset.id,
+            max_lags=args.max_lags,
+            include_lags=not args.no_lags,
+            include_deltas=not args.no_deltas,
+            include_cyclical=not args.no_cyclical,
+        )
+    )
+
+    if args.json:
+        payload = {
+            "run_id": run.id,
+            "temporal_structure": structure,
+            "candidate_feature_sets": [fs.to_dict() for fs in candidate_sets],
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    print(f"\nTemporal Dynamics Analysis for dataset: {dataset.id}")
+    print(f"Sequential dataset: {structure.get('is_sequential', False)}")
+    if structure.get("order_column"):
+        print(f"Order Column: {structure['order_column']}")
+    if structure.get("detected_periodicities"):
+        print("Detected Periodicities:")
+        for p in structure["detected_periodicities"]:
+            print(f"  - {p['name']} (period={p['period']}) on column '{p['column']}'")
+
+    print("\nGenerated Candidate Feature Sets:")
+    print("---------------------------------")
+    for fs in candidate_sets:
+        print(f"  Set: {fs.name:28s} ({len(fs.feature_names)} features): {fs.lineage}")
+
+    return 0
+
+
 def list_plugins_cli(args: argparse.Namespace) -> int:
     _, _, qry = build_application(root_dir=args.workspace)
     plugins = qry.dispatch(
@@ -704,6 +759,17 @@ def main(argv: list[str] | None = None) -> int:
     feat_abl.add_argument("--auto-run", action="store_true", help="Execute planned ablation experiments immediately")
     feat_abl.add_argument("--json", action="store_true")
     feat_abl.set_defaults(func=features_ablation_cli)
+
+    feat_temp = feat_sub.add_parser("temporal", help="Analyze temporal dynamics and generate candidate sequential features")
+    feat_temp.add_argument("--dataset")
+    feat_temp.add_argument("--workspace")
+    feat_temp.add_argument("--target", default="churn")
+    feat_temp.add_argument("--max-lags", type=int, default=1, help="Maximum number of lag and delta steps (default: 1)")
+    feat_temp.add_argument("--no-lags", action="store_true", help="Disable autoregressive lag feature generation")
+    feat_temp.add_argument("--no-deltas", action="store_true", help="Disable rate-of-change trend delta feature generation")
+    feat_temp.add_argument("--no-cyclical", action="store_true", help="Disable cyclical trigonometric sine/cosine feature generation")
+    feat_temp.add_argument("--json", action="store_true")
+    feat_temp.set_defaults(func=features_temporal_cli)
 
     plugin_parser = sub.add_parser("plugin", help="Plugin ecosystem management")
     plugin_sub = plugin_parser.add_subparsers(dest="plugin_cmd", required=True)

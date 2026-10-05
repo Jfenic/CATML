@@ -735,6 +735,88 @@ class AutoMLWorkspace:
             })
         return suggestions
 
+    def detect_temporal_structure(self, dataset_id: str) -> dict[str, Any]:
+        """Inspects dataset and returns detected temporal periodicities and sequential columns."""
+        from automl.engine.profiling.dataset_profiler import detect_sequential_structure
+
+        dataset = self._get_dataset(dataset_id)
+        df = load_dataframe(dataset.path)
+        target_col = getattr(dataset, "target_column", getattr(dataset, "target", None))
+        structure = detect_sequential_structure(df, target_column=target_col)
+        return structure.to_dict()
+
+    def generate_temporal_features(
+        self,
+        run_id: str,
+        dataset_id: str | None = None,
+        max_lags: int = 1,
+        include_lags: bool = True,
+        include_deltas: bool = True,
+        include_cyclical: bool = True,
+        include_rolling: bool = False,
+    ) -> list[FeatureSet]:
+        """
+        Discovers temporal dynamics (lags, deltas, cyclical periodicities) and registers
+        candidate FeatureSet instances obeying 'Propose != Accept'.
+        """
+        from automl.engine.features.generation.temporal_generator import TemporalDynamicsGenerator
+        from automl.engine.profiling.dataset_profiler import detect_sequential_structure
+
+        run = self._get_run(run_id)
+        effective_dataset_id = dataset_id or run.dataset_id
+        dataset = self._get_dataset(effective_dataset_id)
+        df = load_dataframe(dataset.path)
+        target_col = getattr(dataset, "target_column", getattr(dataset, "target", None))
+
+        base_features = self.get_feature_registry(effective_dataset_id).active_feature_names(target_col)
+        structure = detect_sequential_structure(df, target_column=target_col)
+
+        generator = TemporalDynamicsGenerator(
+            max_lags=max_lags,
+            include_lags=include_lags,
+            include_deltas=include_deltas,
+            include_cyclical=include_cyclical,
+            include_rolling=include_rolling,
+        )
+        proposed_features = generator.propose_features(
+            df=df,
+            feature_names=base_features,
+            target_column=target_col,
+            temporal_structure=structure,
+        )
+
+        candidate_feature_sets = generator.propose_candidate_feature_sets(
+            base_features=base_features,
+            generated_features=proposed_features,
+            dataset_id=effective_dataset_id,
+        )
+
+        candidates_as_fsc = generator.propose_candidate_sets_as_candidates(
+            base_features=base_features,
+            generated_features=proposed_features,
+        )
+        if run.id not in self._candidate_feature_sets:
+            self._candidate_feature_sets[run.id] = []
+        self._candidate_feature_sets[run.id].extend(candidates_as_fsc)
+
+        created_sets: list[FeatureSet] = []
+        for fs in candidate_feature_sets:
+            self.repository.save_feature_set(fs)
+            created_sets.append(fs)
+            self._emit("FeatureSetCreated", fs.to_dict(), run_id=run.id)
+
+        self._emit(
+            "TemporalFeaturesGenerated",
+            {
+                "run_id": run.id,
+                "dataset_id": effective_dataset_id,
+                "generated_features_count": len(proposed_features),
+                "candidate_sets_count": len(created_sets),
+            },
+            run_id=run.id,
+        )
+        return created_sets
+
     def list_task_types(self) -> list[dict]:
         rows = []
         for task in TaskType:

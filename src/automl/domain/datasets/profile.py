@@ -49,6 +49,7 @@ class DatasetProfile:
     preview_rows: list[dict[str, Any]] = field(default_factory=list)
     recommendations: list[dict[str, Any]] = field(default_factory=list)
     correlation_matrix: dict[str, Any] = field(default_factory=dict)
+    temporal_structure: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -85,6 +86,7 @@ class DatasetProfile:
             "preview_rows": self.preview_rows,
             "recommendations": self.recommendations,
             "correlation_matrix": self.correlation_matrix,
+            "temporal_structure": self.temporal_structure,
         }
 
     @property

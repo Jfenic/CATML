@@ -112,3 +112,8 @@ class GetPipelineExecutionOrderQuery:
 class GetOOFResultQuery:
     run_id: str
     experiment_id: str
+
+
+@dataclass(frozen=True)
+class DetectTemporalStructureQuery:
+    dataset_id: str
