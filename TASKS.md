@@ -17,7 +17,16 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] A5: validación final — 508 tests pasando, cobertura 87,72 %, CLI help/task list y diff sin errores de whitespace.
 - [ ] A5: revisión cruzada y smoke test con proveedor/modelo real elegido; la conexión CLI/Workbench, presupuestos LLM persistidos y LangGraph pertenecen a la integración B5. H5 sigue pendiente.
 
-## Now (Active Phase — Sprint 3 & v0.8 Hardening)
+## Now (Active Phase — v0.9: Capability Layer & Lightweight NLP)
+
+- [x] Contratos puros de dominio para la Capa de Capacidades en `src/automl/domain/problems/`: `ProblemSpec`, `TabularSource`, `TextSource`, `ImageSource`, `TargetSpec`, `ValidationSpec`, `ExecutionPolicy`, `BackendCapabilities`, y `EvaluationResult` (100% stdlib, sin dependencias externas).
+- [x] Motor de extracción y tokenización ligera de texto en `src/automl/engine/features/text/`: `LightweightTextExtractor` (TF-IDF sublineal con n-gramas) y heurística `is_text_column` para detección automática de lenguaje natural.
+- [x] Adaptación del profiler en `src/automl/engine/profiling/dataset_profiler.py`: discriminación de texto frente a identificadores no predictivos, badge `Text Feature` y recomendación `nlp_encode`.
+- [x] Fusión multimodal en `src/automl/engine/training/sklearn_trainer.py`: integración transparente de transformadores de texto en `_build_pipeline` y `fit_pipeline` con salida densa unificada.
+- [x] Soporte en fachada ergonómica `AutoML.fit(df, target="col", text_columns=["notes"])` con serialización, proveniencia e inferencia desacoplada en `ModelArtifact`.
+- [x] Validación completa: suite `tests/test_v09_capability_layer.py` (6 tests pasando); suite global en verde: 553 tests pasando, 87.71% cobertura de código (Decision Gate de v0.9 alcanzado).
+
+## Completed Phase: v0.8 Hardening & Strategic Governance
 
 - [x] Hardening Blackboard Issue #52: resolución de timeout en `test_mcp_cli_subprocess_stdio_handshake` con terminación limpia de proceso (`proc.kill()`) y timeout calibrado a 25s; [issue #52](https://github.com/Jfenic/CATML/issues/52) cerrado.
 - [x] Proveniencia Completa en `ModelArtifact`: persistencia automática de versiones de dependencias, Python, hashes SHA-256 del dataset, estimador y semilla aleatoria; método `artifact.describe()` e informe en `docs/backends.md` (547 tests pasando, 87.59% cobertura).

@@ -14,6 +14,7 @@ class ColumnProfile:
     cardinality_ratio: float = 0.0
     is_identifier: bool = False
     is_high_cardinality: bool = False
+    is_text: bool = False
     mean: float | None = None
     std: float | None = None
     min: float | None = None
@@ -68,6 +69,7 @@ class DatasetProfile:
                     "cardinality_ratio": c.cardinality_ratio,
                     "is_identifier": c.is_identifier,
                     "is_high_cardinality": c.is_high_cardinality,
+                    "is_text": c.is_text,
                     "mean": c.mean,
                     "std": c.std,
                     "min": c.min,
@@ -98,6 +100,10 @@ class DatasetProfile:
     @property
     def high_cardinality_column_names(self) -> list[str]:
         return [c.name for c in self.columns if c.is_high_cardinality]
+
+    @property
+    def text_column_names(self) -> list[str]:
+        return [c.name for c in self.columns if c.is_text]
 
     @property
     def leakage_column_names(self) -> list[str]:

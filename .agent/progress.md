@@ -1,5 +1,27 @@
 # Progress
 
+### Track Generalist Engine — Phase 2: Capability Layer & Lightweight NLP (2026-10-05)
+
+- Rama propia `feat/v09-capability-layer-and-text` desde `main` (`9cdcdd3`).
+- **Capa de Capacidades (Capability Layer) en `domain/` (`src/automl/domain/problems/`):**
+  - Entidades de dominio puras: `ProblemSpec`, `TabularSource`, `TextSource`, `ImageSource`, `TargetSpec`, `ValidationSpec`, `ExecutionPolicy`, `BackendCapabilities` y `EvaluationResult` (100% standard library, sin dependencias externas).
+  - Capacidad de introspección formal de compatibilidad: `BackendCapabilities.can_handle(problem)`.
+- **Motor de Extracción Ligera de Texto (`src/automl/engine/features/text/`):**
+  - `LightweightTextExtractor`: Transformador Scikit-learn que procesa columnas de texto mediante representaciones TF-IDF sublineales con n-gramas unigramas/bigramas y manejo seguro de valores nulos.
+  - Heurística `is_text_column`: Detección probabilística de lenguaje natural libre frente a códigos categóricos e identificadores hash.
+- **Profilador y Recomendador Inteligente:**
+  - `DatasetProfiler` distingue lenguaje natural de identificadores únicos, evitando exclusiones erróneas y etiquetando con badge `Text Feature` y acción `nlp_encode`.
+  - Propiedad agregada `profile.text_column_names`.
+- **Pipeline de Entrenamiento y Fusión Multimodal:**
+  - `SklearnTrainer`: `_build_pipeline` y `fit_pipeline` orquestan columnas numéricas, categóricas y de texto en un `ColumnTransformer` unificado con salida densa (`sparse_threshold=0.0`) compatible con cualquier estimador.
+- **Fachada Ergonómica `AutoML.fit` y Artefactos:**
+  - Soporte explícito para `text_columns=["feedback"]` en `AutoML.fit()`.
+  - Serialización e inferencia desacoplada con `ModelArtifact.save()` y `ModelArtifact.load()` sobre datasets con texto libre.
+- **Validación Completa:**
+  - 6 tests unitarios y de integración en `tests/test_v09_capability_layer.py`.
+  - Toda la suite global en verde: 553 tests pasando con 87.71% de cobertura de código (requisito >= 85%).
+  - Gate de Fase 2 (v0.9) superado.
+
 ### Strategic Architecture & Governance Roadmap — ADR 007 (2026-10-05)
 
 - Formalización de **ADR 007: Decision-Gated Multimodal Governance Roadmap** en `docs/decisions/007-decision-gated-multimodal-governance-roadmap.md`.
