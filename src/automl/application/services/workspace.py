@@ -305,6 +305,7 @@ class AutoMLWorkspace:
         model_ids: list[str] | None = None,
         hypothesis: str = "",
         priority: str = "normal",
+        validation_strategy: str | None = None,
     ) -> Experiment:
         dataset = self._get_dataset(run.dataset_id)
         priority_value = ExperimentPriority.parse(priority).value
@@ -350,7 +351,7 @@ class AutoMLWorkspace:
             feature_names=resolved_features,
             model_ids=active_models,
             metric=run.config.metric,
-            validation_strategy=run.config.validation_strategy,
+            validation_strategy=validation_strategy or run.config.validation_strategy,
             priority=priority_value,
             feature_set_id=feature_set_id,
         )
@@ -2180,6 +2181,166 @@ class AutoMLWorkspace:
 
         kb = MetaKnowledgeBase()
         return kb.synthesize(fingerprint, workspace_trials=trials if trials else None)
+
+    # --- Multi-Model Ensemble Builder ---
+
+    def build_ensemble(
+        self,
+        run_id: str,
+        model_ids: list[str],
+        method: str = "average",
+        meta_model: str = "ridge",
+        folds: int = 5,
+        name: str | None = None,
+    ) -> Experiment:
+        run = self._get_run(run_id)
+        dataset = self._get_dataset(run.dataset_id)
+
+        valid_methods = {"average", "rank", "simplex", "stacked"}
+        method_norm = method.lower()
+        if method_norm not in valid_methods:
+            raise ValueError(f"Unknown ensemble method '{method}'. Valid: {sorted(valid_methods)}")
+
+        unique_models: list[str] = []
+        for m in model_ids:
+            if m not in unique_models and m not in {"voting_ensemble", "oof_blend"}:
+                unique_models.append(m)
+
+        if len(unique_models) < 2:
+            raise ValueError("Building an ensemble requires at least 2 distinct base models.")
+
+        self.model_registry.validate_for_task(unique_models, dataset.task_type)
+
+        registry = self.get_feature_registry(run.dataset_id)
+        features = registry.active_feature_names(dataset.target_column)
+        if not features:
+            profile = self.repository.get_dataset_profile(run.dataset_id)
+            if profile:
+                features = [c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column]
+            if not features:
+                raise ValueError("No features available to train ensemble.")
+
+        exp_name = name or f"Ensemble ({method_norm.title()} - {len(unique_models)} models)"
+        experiment = self.create_experiment(
+            run=run,
+            name=exp_name,
+            feature_names=features,
+            model_ids=["voting_ensemble"],
+            hypothesis=f"Ensemble {method_norm.upper()} blend of [{', '.join(unique_models)}] with {folds} folds",
+            validation_strategy="oof" if dataset.task_type == "binary_classification" else "kfold",
+        )
+        experiment.status = ExperimentStatus.RUNNING
+        self.repository.save_experiment(experiment)
+
+        df = load_dataframe(dataset.path)
+        X = df[features]
+        y = df[dataset.target_column]
+
+        def _get_factory(mid: str):
+            plugin = self.plugin_registry.get_model_plugin(mid)
+            if plugin:
+                return lambda: plugin.build_estimator(task_type=dataset.task_type)
+            from automl.plugins.models.sklearn_models import build_sklearn_model
+            return lambda: build_sklearn_model(mid, dataset.task_type)
+
+        factories = {m: _get_factory(m) for m in unique_models}
+
+        if dataset.task_type == "binary_classification":
+            from automl.engine.ensemble.oof import evaluate_oof
+            test_slice = X.iloc[:min(len(X), 10)].copy()
+            oof_res = evaluate_oof(
+                X=X,
+                y=y,
+                X_test=test_slice,
+                factories=factories,
+                folds=folds,
+                seed=run.config.random_seed,
+                method=method_norm,
+                meta_model=meta_model,
+            )
+            best_score = float(oof_res.scores["oof_blend"])
+            model_scores = oof_res.scores
+            weights = oof_res.weights or {m: 1.0 / len(unique_models) for m in unique_models}
+            cv_std = float(np.std(oof_res.fold_scores["oof_blend"]))
+        else:
+            from automl.engine.ensemble.voting import VotingEnsembleEstimator
+            from automl.engine.training.sklearn_trainer import _build_pipeline, _sklearn_scoring
+            from sklearn.model_selection import KFold, cross_val_score
+
+            estimators = [(m, factories[m]()) for m in unique_models]
+            voting_mode = "soft"
+            opt_w = (method_norm == "simplex")
+            if method_norm == "rank" and "classification" in dataset.task_type:
+                voting_mode = "rank"
+            estimator = VotingEnsembleEstimator(
+                estimators=estimators,
+                task_type=dataset.task_type,
+                voting=voting_mode,
+                optimize_weights=opt_w,
+            )
+            pipeline = _build_pipeline(X, estimator)
+            cv_splitter = KFold(n_splits=folds, shuffle=True, random_state=run.config.random_seed)
+            scores = cross_val_score(
+                pipeline,
+                X,
+                y,
+                cv=cv_splitter,
+                scoring=_sklearn_scoring(run.config.metric, dataset.task_type),
+                n_jobs=1,
+            )
+            best_score = float(np.mean(scores))
+            cv_std = float(np.std(scores))
+            model_scores = {"ensemble": best_score}
+            weights = {m: 1.0 / len(unique_models) for m in unique_models}
+
+        trial = Trial(
+            id=f"trial_{uuid.uuid4().hex[:8]}",
+            experiment_id=experiment.id,
+            model_id="voting_ensemble",
+            seed=run.config.random_seed,
+            parameters={
+                "models": unique_models,
+                "method": method_norm,
+                "meta_model": meta_model,
+                "folds": folds,
+                "weights": weights,
+            },
+            status=TrialStatus.COMPLETED,
+        )
+        self.repository.save_trial(trial)
+
+        trial_result = TrialResult(
+            trial_id=trial.id,
+            experiment_id=experiment.id,
+            model_id="voting_ensemble",
+            primary_metric=run.config.metric,
+            primary_score=best_score,
+            secondary_metrics={
+                "method": method_norm,
+                "meta_model": meta_model,
+                "folds": folds,
+                "weights": weights,
+                "model_scores": model_scores,
+                "cv_std": cv_std,
+            },
+        )
+        self.repository.save_trial_result(trial_result)
+
+        experiment.status = ExperimentStatus.COMPLETED
+        self.repository.save_experiment(experiment)
+
+        self._emit(
+            "EnsembleBuilt",
+            {
+                "experiment_id": experiment.id,
+                "score": best_score,
+                "models": unique_models,
+                "method": method_norm,
+            },
+            run_id=run.id,
+        )
+        return experiment
+
 
 
 

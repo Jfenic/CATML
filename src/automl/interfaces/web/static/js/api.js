@@ -240,6 +240,20 @@ export class CATMLApiClient {
     if (trialId) url += `&trial_id=${encodeURIComponent(trialId)}`;
     return this._fetch(url);
   }
+
+  async buildEnsemble(payload) {
+    return this._fetch("/api/ensemble/build", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async uploadKaggleTemplate(payload) {
+    return this._fetch("/api/kaggle/upload-template", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export const api = new CATMLApiClient();

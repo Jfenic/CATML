@@ -1,5 +1,32 @@
 # Progress
 
+### Track Generalist Engine — Phase 3: Workbench Web UX & Visual Ensembles (2026-10-05)
+
+- Rama propia `feat/workbench-ensemble-builder-and-validation-ux` desde `main` (`72c98f6`).
+- **Selector Visual de Estrategia de Validación:**
+  - Soporte en `SklearnTrainer.run()` para `stratified_kfold`, `kfold`, `time_series`, y `holdout`. Calcula métricas de dispersión `cv_std` y ajusta el modelo final sobre todo el dataset.
+  - Paridad CQRS: parámetro `validation_strategy` propagado en `CreateExperimentCommand`, `AutoMLWorkspace.create_experiment()`, y `/api/experiment/create_and_run`.
+  - UI interactiva en `new_experiment.js`: selector segmentado de tarjetas con diseño Tech Minimalista (`#4F67FF` Electric Blue, bordes sutiles de 1px) y feedback en tiempo real durante el entrenamiento.
+- **Constructor Visual Multi-Modelo de Ensambles:**
+  - Comando CQRS `BuildEnsembleCommand` registrado en `bootstrap.py` con retorno estricto de identificador `experiment_id`.
+  - Servicio `AutoMLWorkspace.build_ensemble()` con soporte completo para:
+    - `average`: voting ponderado lineal sobre probabilidades calibradas.
+    - `rank`: normalización no paramétrica por rangos fraccionarios (optimización de ROC-AUC).
+    - `simplex`: optimización Nelder-Mead en símplex de probabilidad con regularización Brier.
+    - `stacked`: meta-estimador L2 libre de fuga de datos con meta-modelos Ridge, Logistic Regression o Lasso.
+  - Persistencia completa en repositorio: `Experiment`, `Trial`, `TrialResult` (métricas secundarias `weights`, `model_scores`, `cv_std`), y eventos `EnsembleBuilt`.
+  - Endpoint REST `POST /api/ensemble/build` en `server.py` y cliente `api.buildEnsemble()` en `api.js`.
+  - UI interactiva en `compare.js`: botón "Build Ensemble (N)" habilitado al comparar 2 o más modelos, modal interactivo con selección de algoritmos base, selector de estrategia, meta-learner configurable, número de pliegues (3, 5, 10), nombre personalizado y evaluación en vivo con recarga automática.
+- **Exportación Kaggle Drag-and-Drop y Descarga Directa:**
+  - Endpoint `POST /api/kaggle/upload-template`: parseo e inferencia de esquema automática (columna de ID, columna objetivo, recuento de filas) y almacenamiento seguro en `submissions/`.
+  - Endpoint `GET /api/kaggle/download?file=<path>`: entrega segura del archivo CSV de sumisión con cabecera `Content-Disposition: attachment`.
+  - UI interactiva en `kaggle.js`:
+    - Dropzone drag-and-drop para `sample_submission.csv` con feedback visual, detección automática de columnas y verificación instantánea en el checklist pre-flight.
+    - Botón de descarga directa con 1 clic (`Download submission.csv`) presentado inmediatamente tras la generación de inferencias.
+- **Validación Completa:**
+  - 3 tests unitarios y de integración en `tests/test_workbench_phase3.py` validando estrategias de validación, construcción de ensamble por comando y endpoints HTTP de subida/descarga/ensamble.
+  - Cobertura total de tests $\ge 85\%$ con toda la suite en verde (546 tests pasando).
+
 ### Track Generalist Engine — Phase 1: Meta-Learning Warm Starts & Real Dataset Fingerprinting (2026-10-05)
 
 - Rama propia `feat/meta-learning-warm-starts` desde `main` (`7a6525a`).

@@ -26,6 +26,7 @@ from automl.application.commands.workspace_commands import (
     GenerateOOFSubmissionCommand,
     ExecutePipelineCommand,
     GenerateTemporalFeaturesCommand,
+    BuildEnsembleCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
@@ -116,6 +117,7 @@ def register_handlers(
             model_ids=cmd.model_ids,
             hypothesis=cmd.hypothesis,
             priority=cmd.priority,
+            validation_strategy=cmd.validation_strategy,
         ),
     )
     command_bus.register(
@@ -225,6 +227,17 @@ def register_handlers(
     query_bus.register(
         GetMetaKnowledgeQuery,
         lambda q: workspace.get_meta_knowledge(q.dataset_id, run_id=q.run_id),
+    )
+    command_bus.register(
+        BuildEnsembleCommand,
+        lambda cmd: workspace.build_ensemble(
+            run_id=cmd.run_id,
+            model_ids=cmd.model_ids,
+            method=cmd.method,
+            meta_model=cmd.meta_model,
+            folds=cmd.folds,
+            name=cmd.name,
+        ).id,
     )
     command_bus.register(GenerateOOFSubmissionCommand, workspace.generate_oof_submission)
     query_bus.register(GetOOFResultQuery, lambda q: workspace.get_oof_result(q.run_id, q.experiment_id))
