@@ -1,5 +1,18 @@
 # Progress
 
+### Track Generalist Engine — Phase 2: Temporal Dynamics Engine (2026-10-05)
+
+- Rama propia `feat/temporal-dynamics-engine` desde `main` (`c45435e`).
+- Contratos de dominio hexagonalmente puros en `src/automl/domain/features/temporal.py`: `TemporalPeriodicity`, `LagSpec`, `DeltaSpec`, `CyclicalSpec`, `RollingWindowSpec`, `TemporalStructure`, `GeneratedTemporalFeature`. Sin dependencias externas (100% cobertura de módulo).
+- Detección y perfilado en `src/automl/engine/profiling/dataset_profiler.py`: función `detect_sequential_structure(df)` con heurísticas para marcas temporales (ISO strings, `datetime64`), índices numéricos secuenciales/monótonos, y periodicidades cíclicas (horaria $T=24$, semanal $T=7$, mensual $T=12$, anual $T=365.25$). Integración en `profile_dataset` y persistencia transparente en `DatasetProfile` y SQLite.
+- Motor de cálculo `TemporalDynamicsGenerator` en `src/automl/engine/features/generation/temporal_generator.py`: generación determinista de lags autoregresivos ($X_{t-k}$), deltas de tendencia ($\Delta X = X_t - X_{t-k}$), proyecciones trigonométricas periódicas ($\sin$, $\cos$), medias móviles continuas, y transformación de datasets de prueba preservando orden temporal sin fuga de datos.
+- Empaquetado de conjuntos candidatos según "Proponer ≠ Aceptar": `interactions_temporal_all`, `interactions_temporal_lags`, `interactions_temporal_deltas`, `interactions_temporal_cyclical`.
+- Paridad CQRS, CLI y API Web:
+  - Comandos y queries: `GenerateTemporalFeaturesCommand` y `DetectTemporalStructureQuery` registrados en `bootstrap.py` y `AutoMLWorkspace`.
+  - CLI: `automl features temporal <dataset> [--max-lags N] [--no-lags] [--no-deltas] [--no-cyclical] [--json]`.
+  - REST API: `GET /api/dataset/temporal` y `POST /api/features/temporal` en `server.py`.
+- Validación completa: 19 tests dedicados en `tests/test_temporal_dynamics.py` y prueba de endpoints en `tests/test_web_dashboard.py`; 528 tests pasando en toda la suite global con 87.86% de cobertura total de código (superando el umbral de 85%).
+
 ### Track Persona A (Especialistas & Políticas)
 
 - 2026-10-02 — A5 en worktree `/tmp/catml-a5`, rama `feat/agentic-a5-llm-provider`, desde `a7e5195`; Workbench y archivos centrales compartidos fuera del cambio.

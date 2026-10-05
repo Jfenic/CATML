@@ -25,6 +25,7 @@ from automl.application.commands.workspace_commands import (
     GenerateSubmissionCommand,
     GenerateOOFSubmissionCommand,
     ExecutePipelineCommand,
+    GenerateTemporalFeaturesCommand,
 )
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
@@ -47,6 +48,7 @@ from automl.application.queries.workspace_queries import (
     ValidatePipelineGraphQuery,
     GetPipelineExecutionOrderQuery,
     GetOOFResultQuery,
+    DetectTemporalStructureQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 from automl.application.services.jobs import JobService
@@ -203,6 +205,21 @@ def register_handlers(
     command_bus.register(
         ExecutePipelineCommand,
         lambda cmd: workspace.execute_pipeline(cmd.graph, cmd.inputs),
+    )
+    command_bus.register(
+        GenerateTemporalFeaturesCommand,
+        lambda cmd: workspace.generate_temporal_features(
+            run_id=cmd.run_id,
+            dataset_id=cmd.dataset_id,
+            max_lags=cmd.max_lags,
+            include_lags=cmd.include_lags,
+            include_deltas=cmd.include_deltas,
+            include_cyclical=cmd.include_cyclical,
+        ),
+    )
+    query_bus.register(
+        DetectTemporalStructureQuery,
+        lambda q: workspace.detect_temporal_structure(q.dataset_id),
     )
     command_bus.register(GenerateOOFSubmissionCommand, workspace.generate_oof_submission)
     query_bus.register(GetOOFResultQuery, lambda q: workspace.get_oof_result(q.run_id, q.experiment_id))

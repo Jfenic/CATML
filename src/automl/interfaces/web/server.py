@@ -666,6 +666,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/dataset/temporal":
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            if not dataset_id:
+                self._send_json({"error": "dataset_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                struct = ws.detect_temporal_structure(dataset_id)
+                self._send_json({"status": "success", "temporal_structure": struct})
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+
         elif path == "/api/plugins":
             plugins = qry.dispatch(ListPluginsQuery())
             self._send_json(plugins)
@@ -1054,6 +1066,31 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 suggestions = ws.suggest_derived_features(dataset_id=dataset_id)
                 self._send_json({"status": "success", "suggestions": suggestions})
                 return
+
+            elif path == "/api/features/temporal":
+                run_id = payload.get("run_id")
+                dataset_id = payload.get("dataset_id")
+                if not run_id:
+                    self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                max_lags = int(payload.get("max_lags", 1))
+                include_lags = bool(payload.get("include_lags", True))
+                include_deltas = bool(payload.get("include_deltas", True))
+                include_cyclical = bool(payload.get("include_cyclical", True))
+                created_sets = ws.generate_temporal_features(
+                    run_id=run_id,
+                    dataset_id=dataset_id,
+                    max_lags=max_lags,
+                    include_lags=include_lags,
+                    include_deltas=include_deltas,
+                    include_cyclical=include_cyclical,
+                )
+                self._send_json({
+                    "status": "success",
+                    "candidate_sets": [fs.to_dict() for fs in created_sets],
+                })
+                return
+
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
         except (ValueError, TypeError) as exc:

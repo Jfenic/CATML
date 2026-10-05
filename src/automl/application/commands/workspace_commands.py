@@ -176,3 +176,13 @@ class GenerateOOFSubmissionCommand:
     method: str = "average"
     meta_model: str = "ridge"
 
+
+@dataclass(frozen=True)
+class GenerateTemporalFeaturesCommand:
+    run_id: str
+    dataset_id: str
+    max_lags: int = 1
+    include_lags: bool = True
+    include_deltas: bool = True
+    include_cyclical: bool = True
+

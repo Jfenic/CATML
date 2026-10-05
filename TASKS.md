@@ -101,7 +101,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 > Technical Specs & Execution Plan: [`docs/features/generalist-enhancements/spec.md`](docs/features/generalist-enhancements/spec.md) and [`docs/features/generalist-enhancements/plan.md`](docs/features/generalist-enhancements/plan.md).
 
 - [x] Phase 1: Generalized N-Model OOF Blending & Level-2 Stacking (remove 2-model limit, Rank-Averaging, Ridge meta-learner).
-- [ ] Phase 2: Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections).
+- [x] Phase 2: Temporal Dynamics Engine (automatic sequential detection, sensor lags, 24h trend deltas, cyclical projections, 19 tests passing in `tests/test_temporal_dynamics.py`, 528 suite total, 87.86% coverage).
 - [ ] Phase 3: Workbench Web UX (K-Fold strategy selector, visual multi-select ensemble builder, Kaggle drag-and-drop export).
 - [ ] Phase 4: Anti-Leakage Guardian in Profiler & Plugin Observability.
 

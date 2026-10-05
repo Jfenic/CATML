@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 from automl.domain.datasets.profile import ColumnProfile, Dataset, DatasetProfile
+from automl.domain.features.temporal import TemporalPeriodicity, TemporalStructure
 
 
 def detect_column_cardinality_and_role(
@@ -73,6 +74,147 @@ def detect_column_cardinality_and_role(
                     is_identifier = True
 
     return cardinality_ratio, is_identifier, is_high_cardinality
+
+
+def detect_sequential_structure(
+    df: pd.DataFrame,
+    target_column: str | None = None,
+) -> TemporalStructure:
+    """
+    Analyzes dataframe columns to detect temporal sequences, chronological ordering,
+    and cyclical periodicities (hourly, daily/weekly, monthly, annual).
+
+    Returns:
+        TemporalStructure: Detailed detection report containing order column,
+        detected periodicities, and list of temporal/sequential columns.
+    """
+    valid_cols = [c for c in df.columns if c != target_column]
+    temporal_columns: list[str] = []
+    detected_periodicities: list[TemporalPeriodicity] = []
+    order_column: str | None = None
+
+    row_count = len(df)
+    if row_count == 0:
+        return TemporalStructure(is_sequential=False)
+
+    # 1. Detect explicit datetime and timestamp columns
+    for col in valid_cols:
+        series = df[col]
+        clean_name = str(col).strip().lower()
+        is_datetime_type = pd.api.types.is_datetime64_any_dtype(series)
+
+        # Content-based datetime heuristic for strings/objects
+        is_parsable_datetime = False
+        if not is_datetime_type and (series.dtype.kind in {"O", "S", "U"} or str(series.dtype) == "object"):
+            sample = series.dropna().head(20)
+            if len(sample) >= 3:
+                try:
+                    parsed = pd.to_datetime(sample, errors="coerce", format="mixed")
+                    if parsed.notna().mean() >= 0.8:
+                        is_parsable_datetime = True
+                except Exception:
+                    pass
+
+        if is_datetime_type or is_parsable_datetime:
+            if col not in temporal_columns:
+                temporal_columns.append(col)
+            # Check if this column is ordered monotonically
+            try:
+                dt_series = series if is_datetime_type else pd.to_datetime(series.dropna(), errors="coerce", format="mixed")
+                clean_dt = dt_series.dropna()
+                if len(clean_dt) >= 2 and clean_dt.is_monotonic_increasing:
+                    if order_column is None:
+                        order_column = col
+            except Exception:
+                pass
+
+    # 2. Sequential integer / index columns (if no explicit datetime order column found yet)
+    if order_column is None:
+        seq_name_hints = ("step", "seq", "sequence", "time", "timestamp", "epoch", "iteration", "tick", "t_index")
+        for col in valid_cols:
+            series = df[col]
+            clean_name = str(col).strip().lower()
+            if series.dtype.kind in {"i", "u", "f"}:
+                clean_s = series.dropna()
+                if len(clean_s) >= 3 and clean_s.is_monotonic_increasing:
+                    if any(hint in clean_name for hint in seq_name_hints):
+                        order_column = col
+                        if col not in temporal_columns:
+                            temporal_columns.append(col)
+                        break
+
+    # 3. Cyclical / Periodic column detection
+    for col in valid_cols:
+        series = df[col]
+        clean_name = str(col).strip().lower()
+        if not pd.api.types.is_numeric_dtype(series):
+            continue
+
+        clean_s = series.dropna()
+        if len(clean_s) < 3:
+            continue
+
+        min_val = float(clean_s.min())
+        max_val = float(clean_s.max())
+        nunique = int(clean_s.nunique())
+
+        # 1. Hourly (T = 24.0): by name or 0..23 hour range
+        if ("hour" in clean_name or clean_name.startswith("hr") or clean_name.endswith("_hr")) and 0.0 <= min_val and max_val <= 24.0:
+            if not any(p.column == col for p in detected_periodicities):
+                detected_periodicities.append(
+                    TemporalPeriodicity(name="hourly", period=24.0, column=col, description=f"24-hour diurnal cycle detected on '{col}'")
+                )
+            if col not in temporal_columns:
+                temporal_columns.append(col)
+
+        # 2. Weekly / Day of week (T = 7.0): by name or 0..6 / 1..7 range
+        elif any(k in clean_name for k in ("weekday", "day_of_week", "dayofweek", "dow")) and 0.0 <= min_val and max_val <= 7.0:
+            if not any(p.column == col for p in detected_periodicities):
+                detected_periodicities.append(
+                    TemporalPeriodicity(name="weekly", period=7.0, column=col, description=f"7-day weekly cycle detected on '{col}'")
+                )
+            if col not in temporal_columns:
+                temporal_columns.append(col)
+
+        # 3. Monthly (T = 12.0): by name or 1..12 month range
+        elif ("month" in clean_name or clean_name.startswith("mes") or clean_name.endswith("_month")) and 0.0 <= min_val and max_val <= 12.0:
+            if not any(p.column == col for p in detected_periodicities):
+                detected_periodicities.append(
+                    TemporalPeriodicity(name="monthly", period=12.0, column=col, description=f"12-month annual cycle detected on '{col}'")
+                )
+            if col not in temporal_columns:
+                temporal_columns.append(col)
+
+        # 4. Annual Day of Year (T = 365.25): name contains 'dayofyear', 'doy', 'day_of_year' or range 1..366
+        elif any(k in clean_name for k in ("dayofyear", "day_of_year", "doy")) and 1.0 <= min_val and max_val <= 366.0:
+            if not any(p.column == col for p in detected_periodicities):
+                detected_periodicities.append(
+                    TemporalPeriodicity(name="annual", period=365.25, column=col, description=f"365.25-day annual cycle detected on '{col}'")
+                )
+            if col not in temporal_columns:
+                temporal_columns.append(col)
+
+        # 5. Content-based fallback when column name is generic
+        elif 0.0 <= min_val and max_val <= 23.0 and max_val >= 20.0 and nunique >= 10:
+            if not any(p.column == col for p in detected_periodicities):
+                detected_periodicities.append(
+                    TemporalPeriodicity(name="hourly", period=24.0, column=col, description=f"24-hour diurnal cycle detected on '{col}'")
+                )
+            if col not in temporal_columns:
+                temporal_columns.append(col)
+
+    is_seq = bool(order_column is not None or len(detected_periodicities) > 0 or len(temporal_columns) > 0)
+
+    return TemporalStructure(
+        is_sequential=is_seq,
+        order_column=order_column,
+        detected_periodicities=detected_periodicities,
+        temporal_columns=temporal_columns,
+        metadata={
+            "detected_periodicities_count": len(detected_periodicities),
+            "temporal_columns_count": len(temporal_columns),
+        },
+    )
 
 
 def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> DatasetProfile:
@@ -364,6 +506,19 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
     except Exception:
         pass
 
+    # Temporal & Sequential Structure Analysis
+    temporal_struct = detect_sequential_structure(df, target_column=dataset.target_column)
+    if temporal_struct.is_sequential:
+        recommendations.append({
+            "column": temporal_struct.order_column or (temporal_struct.temporal_columns[0] if temporal_struct.temporal_columns else dataset.target_column),
+            "type": "temporal",
+            "badge": "Sequential Dynamics",
+            "severity": "info",
+            "title": f"Sequential structure detected ({temporal_struct.order_column or 'cyclical periodicities'})",
+            "description": f"Dataset exhibits chronological or cyclical dependencies ({len(temporal_struct.detected_periodicities)} periodicities). Candidate lags and trend deltas can be generated.",
+            "action": "generate_temporal_features",
+        })
+
     return DatasetProfile(
         dataset_id=dataset.id,
         row_count=row_count,
@@ -374,6 +529,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
         preview_rows=preview_rows,
         recommendations=recommendations,
         correlation_matrix=correlation_matrix_data,
+        temporal_structure=temporal_struct.to_dict(),
     )
 
 
