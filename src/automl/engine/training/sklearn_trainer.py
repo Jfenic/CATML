@@ -79,10 +79,27 @@ class SklearnTrainer(TrainerPort):
             metric_name = execution.metric
             strategy = (execution.validation_strategy or "holdout").lower()
 
-            if strategy in {"cross_validation", "kfold", "stratified_kfold", "time_series", "time_series_split"}:
-                from sklearn.model_selection import KFold, StratifiedKFold, TimeSeriesSplit
+            if strategy in {
+                "cross_validation",
+                "kfold",
+                "stratified_kfold",
+                "time_series",
+                "time_series_split",
+                "group_kfold",
+                "group_cv",
+                "grouped_kfold",
+            }:
+                from sklearn.model_selection import KFold, StratifiedKFold, TimeSeriesSplit, GroupKFold
                 n_splits = max(2, execution.cv_folds or 5)
-                if strategy in {"time_series", "time_series_split"}:
+                groups = None
+                if strategy in {"group_kfold", "group_cv", "grouped_kfold"}:
+                    if not execution.group_column or execution.group_column not in df.columns:
+                        raise ValueError(f"group_column '{execution.group_column}' required for {strategy} validation")
+                    groups = df[execution.group_column].values
+                    n_unique_groups = len(set(groups))
+                    n_splits = min(n_splits, n_unique_groups)
+                    cv_splitter = GroupKFold(n_splits=n_splits)
+                elif strategy in {"time_series", "time_series_split"}:
                     cv_splitter = TimeSeriesSplit(n_splits=n_splits)
                 elif strategy == "stratified_kfold" and execution.task_type != "regression":
                     cv_splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=execution.random_seed)
@@ -94,6 +111,7 @@ class SklearnTrainer(TrainerPort):
                     X,
                     y_adapted,
                     cv=cv_splitter,
+                    groups=groups,
                     scoring=_sklearn_scoring(metric_name, execution.task_type),
                     n_jobs=1,
                 )
@@ -103,15 +121,26 @@ class SklearnTrainer(TrainerPort):
                     "cv_scores": [float(s) for s in scores],
                     "validation_strategy": strategy,
                 }
+                if groups is not None:
+                    secondary["group_column"] = execution.group_column
+                    secondary["n_groups"] = len(set(groups))
                 pipeline.fit(X, y_adapted)
             else:
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X,
-                    y_adapted,
-                    test_size=execution.test_size,
-                    random_state=execution.random_seed,
-                    stratify=y_adapted if execution.task_type != "regression" else None,
-                )
+                if execution.group_column and execution.group_column in df.columns:
+                    from sklearn.model_selection import GroupShuffleSplit
+                    gss = GroupShuffleSplit(n_splits=1, test_size=execution.test_size, random_state=execution.random_seed)
+                    train_idx, test_idx = next(gss.split(X, y_adapted, groups=df[execution.group_column].values))
+                    X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+                    y_train = y_adapted.iloc[train_idx] if hasattr(y_adapted, "iloc") else y_adapted[train_idx]
+                    y_test = y_adapted.iloc[test_idx] if hasattr(y_adapted, "iloc") else y_adapted[test_idx]
+                else:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X,
+                        y_adapted,
+                        test_size=execution.test_size,
+                        random_state=execution.random_seed,
+                        stratify=y_adapted if execution.task_type != "regression" else None,
+                    )
                 pipeline.fit(X_train, y_train)
                 predictions = pipeline.predict(X_test)
 
@@ -147,6 +176,11 @@ class SklearnTrainer(TrainerPort):
 
             elapsed = time.perf_counter() - started
             trial.status = TrialStatus.COMPLETED
+            artifacts = {}
+            if execution.group_column:
+                artifacts["group_column"] = execution.group_column
+            if "cv_scores" in secondary:
+                artifacts["cv_scores"] = secondary["cv_scores"]
             return TrialResult(
                 trial_id=trial.id,
                 experiment_id=execution.experiment.id,
@@ -155,6 +189,7 @@ class SklearnTrainer(TrainerPort):
                 primary_score=float(primary_score),
                 secondary_metrics={k: float(v) for k, v in secondary.items() if isinstance(v, (int, float))},
                 training_time_seconds=elapsed,
+                artifacts=artifacts,
             )
         except Exception as exc:  # noqa: BLE001 — surface failure in TrialResult
             elapsed = time.perf_counter() - started

@@ -19,6 +19,7 @@ class RunConfig:
     models_exclude: list[str] = field(default_factory=list)
     features_excluded: list[str] = field(default_factory=list)
     features_priority: list[str] = field(default_factory=list)
+    group_column: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -34,6 +35,7 @@ class RunConfig:
             "models_exclude": list(self.models_exclude),
             "features_excluded": list(self.features_excluded),
             "features_priority": list(self.features_priority),
+            "group_column": self.group_column,
             "extra": dict(self.extra),
         }
 
@@ -51,6 +53,7 @@ class RunConfig:
             models_exclude=list(data.get("models_exclude", [])),
             features_excluded=list(data.get("features_excluded", [])),
             features_priority=list(data.get("features_priority", [])),
+            group_column=data.get("group_column"),
             extra=dict(data.get("extra", {})),
         )
 

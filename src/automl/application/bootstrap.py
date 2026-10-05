@@ -118,6 +118,7 @@ def register_handlers(
             hypothesis=cmd.hypothesis,
             priority=cmd.priority,
             validation_strategy=cmd.validation_strategy,
+            group_column=cmd.group_column,
         ),
     )
     command_bus.register(

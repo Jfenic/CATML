@@ -99,6 +99,7 @@ class AutoML:
         models: list[str] | None = None,
         random_state: int = 42,
         workspace_dir: str | Path | None = None,
+        group_column: str | None = None,
     ) -> None:
         self.task = task
         self.metric = metric
@@ -107,6 +108,7 @@ class AutoML:
         self.models = list(models) if models is not None else None
         self.random_state = random_state
         self.workspace_dir = Path(workspace_dir) if workspace_dir is not None else None
+        self.group_column = group_column
         self._result: AutoMLResult | None = None
 
     def fit(
@@ -114,6 +116,7 @@ class AutoML:
         data: pd.DataFrame | np.ndarray,
         target: str | pd.Series | np.ndarray | None = None,
         text_columns: list[str] | None = None,
+        group_column: str | None = None,
     ) -> AutoMLResult:
         """
         Fit multiple candidate models on the dataset, evaluate their performance,
@@ -126,6 +129,9 @@ class AutoML:
             text_columns: Optional list of column names containing freeform natural language
                           text to be transformed via n-gram TF-IDF representations. If omitted,
                           text columns are discovered automatically via heuristics.
+            group_column: Optional entity or group column name (e.g. 'patient_id', 'user_id')
+                          used to enforce GroupKFold validation and eliminate group data leakage.
+                          If omitted and group leakage is detected, it is enforced automatically.
 
         Returns:
             AutoMLResult containing the winning model, leaderboard, and predictions.
@@ -154,8 +160,21 @@ class AutoML:
             task_type=resolved_task_type.value,
         )
 
-        run = ws.create_run(dataset)
+        resolved_group_col = group_column or self.group_column
+        profile = ws.repository.get_dataset_profile(dataset.id)
+        if not resolved_group_col and profile and profile.has_group_leakage and profile.group_candidates:
+            resolved_group_col = profile.group_candidates[0]
+
+        val_strategy = "group_kfold" if resolved_group_col else "holdout"
+        run = ws.create_run(
+            dataset,
+            metric=self.metric,
+            validation_strategy=val_strategy,
+            group_column=resolved_group_col,
+        )
         feature_names = ws.get_feature_registry(dataset.id).active_feature_names(target_col)
+        if resolved_group_col and resolved_group_col in feature_names:
+            feature_names = [f for f in feature_names if f != resolved_group_col]
 
         # Plan and run candidate models
         if self.models:
@@ -165,6 +184,8 @@ class AutoML:
                     name="custom_selection",
                     feature_names=feature_names,
                     model_ids=self.models,
+                    validation_strategy=val_strategy,
+                    group_column=resolved_group_col,
                 )
             )
             cmd.dispatch(RunExperimentCommand(run_id=run.id, experiment_id=experiment.id))
@@ -185,6 +206,8 @@ class AutoML:
                     name="baseline_models",
                     feature_names=feature_names,
                     model_ids=compatible[:4] if compatible else ["logistic_regression"],
+                    validation_strategy=val_strategy,
+                    group_column=resolved_group_col,
                 )
                 ws.run_experiment(run_id=run.id, experiment_id=experiment.id)
 

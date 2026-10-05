@@ -15,6 +15,7 @@ class ColumnProfile:
     is_identifier: bool = False
     is_high_cardinality: bool = False
     is_text: bool = False
+    is_group_candidate: bool = False
     mean: float | None = None
     std: float | None = None
     min: float | None = None
@@ -51,6 +52,7 @@ class DatasetProfile:
     recommendations: list[dict[str, Any]] = field(default_factory=list)
     correlation_matrix: dict[str, Any] = field(default_factory=dict)
     temporal_structure: dict[str, Any] = field(default_factory=dict)
+    group_leakage_reports: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +72,7 @@ class DatasetProfile:
                     "is_identifier": c.is_identifier,
                     "is_high_cardinality": c.is_high_cardinality,
                     "is_text": c.is_text,
+                    "is_group_candidate": c.is_group_candidate,
                     "mean": c.mean,
                     "std": c.std,
                     "min": c.min,
@@ -89,6 +92,9 @@ class DatasetProfile:
             "recommendations": self.recommendations,
             "correlation_matrix": self.correlation_matrix,
             "temporal_structure": self.temporal_structure,
+            "group_leakage_reports": self.group_leakage_reports,
+            "group_candidates": self.group_candidates,
+            "has_group_leakage": self.has_group_leakage,
             "has_leakage": self.has_leakage,
             "leakage_columns": self.leakage_column_names,
         }
@@ -106,16 +112,26 @@ class DatasetProfile:
         return [c.name for c in self.columns if c.is_text]
 
     @property
+    def group_candidates(self) -> list[str]:
+        return [c.name for c in self.columns if c.is_group_candidate]
+
+    @property
+    def has_group_leakage(self) -> bool:
+        return any(r.get("leakage_detected", False) for r in self.group_leakage_reports) or any(
+            r.get("type") == "group_leakage" for r in self.recommendations
+        )
+
+    @property
     def leakage_column_names(self) -> list[str]:
         return [
             r["column"]
             for r in self.recommendations
-            if r.get("type") == "leakage" and r.get("column") != self.target_column
+            if r.get("type") in {"leakage", "group_leakage"} and r.get("column") != self.target_column
         ]
 
     @property
     def has_leakage(self) -> bool:
-        return any(r.get("type") == "leakage" for r in self.recommendations)
+        return any(r.get("type") in {"leakage", "group_leakage"} for r in self.recommendations) or self.has_group_leakage
 
     @property
     def recommended_feature_names(self) -> list[str]:

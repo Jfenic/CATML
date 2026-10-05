@@ -17,7 +17,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] A5: validación final — 508 tests pasando, cobertura 87,72 %, CLI help/task list y diff sin errores de whitespace.
 - [ ] A5: revisión cruzada y smoke test con proveedor/modelo real elegido; la conexión CLI/Workbench, presupuestos LLM persistidos y LangGraph pertenecen a la integración B5. H5 sigue pendiente.
 
-## Now (Active Phase — v0.9: Capability Layer & Lightweight NLP)
+## Now (Active Phase — v0.9: Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian)
 
 - [x] Contratos puros de dominio para la Capa de Capacidades en `src/automl/domain/problems/`: `ProblemSpec`, `TabularSource`, `TextSource`, `ImageSource`, `TargetSpec`, `ValidationSpec`, `ExecutionPolicy`, `BackendCapabilities`, y `EvaluationResult` (100% stdlib, sin dependencias externas).
 - [x] Motor de extracción y tokenización ligera de texto en `src/automl/engine/features/text/`: `LightweightTextExtractor` (TF-IDF sublineal con n-gramas) y heurística `is_text_column` para detección automática de lenguaje natural.
@@ -25,6 +25,13 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Fusión multimodal en `src/automl/engine/training/sklearn_trainer.py`: integración transparente de transformadores de texto en `_build_pipeline` y `fit_pipeline` con salida densa unificada.
 - [x] Soporte en fachada ergonómica `AutoML.fit(df, target="col", text_columns=["notes"])` con serialización, proveniencia e inferencia desacoplada en `ModelArtifact`.
 - [x] Validación completa: suite `tests/test_v09_capability_layer.py` (6 tests pasando); suite global en verde: 553 tests pasando, 87.71% cobertura de código (Decision Gate de v0.9 alcanzado).
+- [x] **Fase 3: Anti-Leakage Guardian Avanzado (Group & Entity Leakage)**:
+  - Detección de entidades/grupos repetidos (`patient_id`, `user_id`, `device_id`, etc.) en `detect_is_group_candidate` discriminando entre identificadores 1-a-1 e identificadores grupales de entidad.
+  - Diagnóstico de fuga por grupos en particiones simuladas de validación `detect_group_leakage` calculando intersección de entidades, filas contaminadas y recomendación determinista `GroupKFold(col)`.
+  - Integración en `DatasetProfile` (`is_group_candidate`, `group_candidates`, `has_group_leakage`, `group_leakage_reports`, badge `Group Leakage`, acción `enforce_group_split`).
+  - Soporte de validación `GroupKFold` y `GroupShuffleSplit` en `ValidationSpec`, `TrialExecution`, `SklearnTrainer`, `CreateExperimentCommand` y `RuleBasedExperimentPlanner`.
+  - Protección automática y explícita en la fachada `AutoML.fit(df, target="churn", group_column="patient_id")`: exclusión de variables de grupo de la matriz predictiva `X` para prevenir memorización y aplicación automática de partición por grupos ante detección de fuga.
+  - Validación completa en `tests/test_v09_group_leakage.py` (6 tests nuevos pasando, 559 tests globales en verde, 87.71% cobertura de código).
 
 ## Completed Phase: v0.8 Hardening & Strategic Governance
 

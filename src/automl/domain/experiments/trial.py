@@ -37,6 +37,7 @@ class Experiment:
     created_by: str = "user"
     priority: str = "normal"
     feature_set_id: str | None = None
+    group_column: str | None = None
 
 
 @dataclass

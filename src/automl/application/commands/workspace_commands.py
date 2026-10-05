@@ -53,6 +53,7 @@ class CreateExperimentCommand:
     hypothesis: str = ""
     priority: str = "normal"
     validation_strategy: str | None = None
+    group_column: str | None = None
 
 
 @dataclass(frozen=True)

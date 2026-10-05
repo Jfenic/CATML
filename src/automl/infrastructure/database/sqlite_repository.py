@@ -86,7 +86,8 @@ class SQLiteExperimentRepository:
                     validation_strategy TEXT NOT NULL,
                     status TEXT NOT NULL,
                     created_by TEXT,
-                    priority TEXT
+                    priority TEXT,
+                    group_column TEXT
                 );
                 CREATE TABLE IF NOT EXISTS trials (
                     id TEXT PRIMARY KEY,
@@ -221,6 +222,8 @@ class SQLiteExperimentRepository:
         experiment_cols = {row[1] for row in conn.execute("PRAGMA table_info(experiments)").fetchall()}
         if "feature_set_id" not in experiment_cols:
             conn.execute("ALTER TABLE experiments ADD COLUMN feature_set_id TEXT")
+        if "group_column" not in experiment_cols:
+            conn.execute("ALTER TABLE experiments ADD COLUMN group_column TEXT")
 
         feature_cols = {row[1] for row in conn.execute("PRAGMA table_info(features)").fetchall()}
         if "semantic_type" not in feature_cols:
@@ -481,8 +484,8 @@ class SQLiteExperimentRepository:
                 """
                 INSERT OR REPLACE INTO experiments
                 (id, run_id, name, hypothesis, feature_set_id, feature_names_json, model_ids_json,
-                 metric, validation_strategy, status, created_by, priority)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 metric, validation_strategy, status, created_by, priority, group_column)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     experiment.id,
@@ -497,6 +500,7 @@ class SQLiteExperimentRepository:
                     experiment.status.value,
                     experiment.created_by,
                     experiment.priority,
+                    experiment.group_column,
                 ),
             )
 
@@ -876,6 +880,11 @@ def _row_to_feature(row: sqlite3.Row) -> Feature:
 
 
 def _row_to_experiment(row: sqlite3.Row) -> Experiment:
+    group_column = None
+    try:
+        group_column = row["group_column"]
+    except (IndexError, KeyError):
+        pass
     return Experiment(
         id=row["id"],
         run_id=row["run_id"],
@@ -889,6 +898,7 @@ def _row_to_experiment(row: sqlite3.Row) -> Experiment:
         created_by=row["created_by"] or "user",
         priority=row["priority"] or "normal",
         feature_set_id=row["feature_set_id"],
+        group_column=group_column,
     )
 
 
