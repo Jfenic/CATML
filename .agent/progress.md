@@ -1,5 +1,34 @@
 # Progress
 
+### Track Persona B — Paquete B5: LangGraph StateGraph, Durable SQLite Checkpointer & Crash Recovery (2026-10-06)
+
+- Rama propia `feat/agentic-b5-langgraph-orchestrator` desde `main` (`64ec800`).
+- **Mapeo de Estado de Agente (`src/automl/application/agents/state.py`):**
+  - Implementación de `GraphAgentState` (TypedDict) para compatibilidad con canales LangGraph.
+  - Funciones puras de serialización/deserialización bidireccionales: `session_to_graph_state()`, `graph_state_to_session()`, `serialize_graph_state()`, `deserialize_graph_state()`.
+  - Mapeo seguro evitando colisiones con canales reservados en Pregel (`checkpoint_id` $\rightarrow$ `session_checkpoint_id`).
+- **Adaptador de Persistencia SQLite (`src/automl/infrastructure/database/sqlite_checkpoint_saver.py`):**
+  - Implementación de `SqliteCheckpointSaver` sobre `langgraph.checkpoint.sqlite.SqliteSaver` con manejo multi-hilo (`check_same_thread=False`), inicialización idempotente de tablas de checkpoints, aislamiento contextual con context manager (`__enter__`, `__exit__`), y reconexión resiliente tras desconexiones o fallos.
+- **Orquestador LangGraph StateGraph (`src/automl/application/agents/orchestrator/graph.py`):**
+  - Grafo de estados StateGraph con nodos: `observe` $\rightarrow$ `propose` $\rightarrow$ `gate` $\rightarrow$ `execute` $\rightarrow$ `critique` $\rightarrow$ `check_stop`.
+  - `observe`: construye contexto acotado mediante `ContextBuilder` sin fuga de datos crudos.
+  - `propose`: formula candidatos empíricos mediante `Planner` / `FeatureAdvisor` y detecta duplicación criptográfica de hipótesis (`is_hypothesis_duplicate`).
+  - `gate`: evalúa presupuestos y permisos; utiliza `interrupt()` para pausar ante autorización humana y reutiliza solicitudes de aprobación previas (`PENDING`) en reanudaciones.
+  - `execute`: verifica idempotencia de operaciones en SQLite ledger para prevenir re-ejecuciones duplicadas; invoca `ToolExecutor` e interconecta creación y corrida de experimentos (`run_experiment`), mapeando `metric_value` a `score`.
+  - `critique`: evalúa avances empíricos mediante `Critic`, gestiona paciencia ante estancamiento y comprueba objetivo de métrica.
+  - `check_stop`: actualiza contador de iteración, sincroniza `AgentSessionState` con `SqliteAgentLedger` y persiste checkpoints de sesión.
+  - Métodos públicos de ejecución: `run()`, `resume()`, `get_latest_graph_state()`.
+- **Fachada y Paridad CLI (`src/automl/interfaces/cli/agent_session_cli.py`):**
+  - Subcomando `automl agent session resume` y `status` con argumento `--engine {deterministic,langgraph}`.
+  - Métodos delegados públicos `get_run()` y `get_leaderboard()` en `AutoMLWorkspace`.
+  - Búsqueda dual por `run_id` o `session_id` en `SqliteAgentLedger.list_sessions()`.
+- **Validación Completa:**
+  - `tests/test_v10_orchestrator.py`: 24/24 tests pasando.
+  - `tests/test_v10_orchestrator_b5.py`: 13/13 tests pasando.
+  - `tests/test_v10_agent_e2e.py`: 3/3 tests de ciclo autónomo, recuperación tras fallos (crash & restart) sin duplicación de hipótesis, y rechazo humano de propuestas.
+  - Suite global completa: 590 tests pasando en verde, 0 fallos, 87.70% de cobertura de código (superando el requisito >= 85%).
+  - Hito H5 (V1.0) completado exitosamente.
+
 ### Track AutoML Workbench — Vision Support & Interactive Multimodal UI (2026-10-06)
 
 - Rama propia `feat/workbench-vision-support` desde `main` (`e38bef7`).

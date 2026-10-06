@@ -7,14 +7,29 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from automl.domain.agents.entities import ApprovalStatus
 from automl.application.agents.contracts import AgentSessionState, SessionStepResult
 from automl.application.agents.executor import ToolExecutor, create_full_tool_registry
 from automl.application.agents.orchestrator.session_manager import AgentSessionManager
+from automl.application.agents.orchestrator.state_machine import SessionStatus
 from automl.application.agents.specialists.context_builder import ContextBuilder
 from automl.application.agents.specialists.critic import Critic
 from automl.application.agents.specialists.planner import Planner
 from automl.application.bootstrap import build_application
 from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+
+try:
+    from automl.application.agents.orchestrator.graph import (
+        LangGraphAgentOrchestrator,
+        is_langgraph_available,
+    )
+    from automl.infrastructure.database.sqlite_checkpoint_saver import SqliteCheckpointSaver
+except ImportError:  # pragma: no cover
+    LangGraphAgentOrchestrator = None  # type: ignore[assignment, misc]
+    SqliteCheckpointSaver = None  # type: ignore[assignment, misc]
+
+    def is_langgraph_available() -> bool:  # type: ignore[misc]
+        return False
 
 
 def _resolve_workspace_and_ledger(
@@ -133,9 +148,53 @@ def session_step_cli(args: argparse.Namespace) -> int:
 def session_resume_cli(args: argparse.Namespace) -> int:
     """Resume session and execute autonomous loop until completion or intervention."""
     try:
-        _, _, manager = _resolve_workspace_and_ledger(getattr(args, "workspace", None))
+        ws, ledger, manager = _resolve_workspace_and_ledger(getattr(args, "workspace", None))
         session_id = args.session_id
         max_steps = getattr(args, "max_steps", None)
+        engine = getattr(args, "engine", "deterministic")
+
+        if engine == "langgraph":
+            if not is_langgraph_available() or LangGraphAgentOrchestrator is None or SqliteCheckpointSaver is None:
+                sys.stderr.write("Error: LangGraph not available. Install via `pip install 'catml[agents]'`.\n")
+                return 1
+
+            checkpointer = SqliteCheckpointSaver(ledger.db_path)
+            orchestrator = LangGraphAgentOrchestrator(
+                workspace=ws,
+                session_store=ledger,
+                checkpointer=checkpointer.saver,
+                approval_store=ledger,
+                operation_store=ledger,
+                context_builder=manager.context_builder,
+                planner=manager.planner,
+                critic=manager.critic,
+                executor=manager.executor,
+            )
+
+            session = manager.get_session(session_id)
+            if session and session.status == SessionStatus.WAITING_APPROVAL.value and session.pending_approval_id:
+                appr = ledger.get_approval(session.pending_approval_id)
+                if appr and appr.status == ApprovalStatus.APPROVED:
+                    res_state = orchestrator.resume(session_id, human_decision=True)
+                elif appr and appr.status == ApprovalStatus.REJECTED:
+                    res_state = orchestrator.resume(session_id, human_decision=False)
+                else:
+                    sys.stdout.write(f"\nSession {session_id} is waiting for human approval (`automl agent approvals list`).\n")
+                    return 0
+            else:
+                res_state = orchestrator.run(session_id)
+
+            if getattr(args, "json", False):
+                sys.stdout.write(json.dumps(dict(res_state), indent=2, default=str) + "\n")
+            else:
+                sys.stdout.write(f"\n=== LangGraph Autonomous Execution: {session_id} ===\n")
+                sys.stdout.write(f"Status:       {res_state.get('status', '').upper()}\n")
+                sys.stdout.write(f"Iterations:   {res_state.get('iteration_count', 0)} / {res_state.get('max_iterations', 10)}\n")
+                if res_state.get("stop_reason"):
+                    sys.stdout.write(f"Stop Reason:  {res_state.get('stop_reason')}\n")
+                if res_state.get("checkpoint_id"):
+                    sys.stdout.write(f"Checkpoint:   {res_state.get('checkpoint_id')}\n")
+            return 0
 
         results = manager.resume(session_id, max_steps=max_steps)
 
@@ -165,15 +224,27 @@ def session_resume_cli(args: argparse.Namespace) -> int:
 def session_status_cli(args: argparse.Namespace) -> int:
     """Inspect status, state, and checkpoint of an agent session."""
     try:
-        _, _, manager = _resolve_workspace_and_ledger(getattr(args, "workspace", None))
+        _, ledger, manager = _resolve_workspace_and_ledger(getattr(args, "workspace", None))
         session_id = args.session_id
         session = manager.get_session(session_id)
         if session is None:
             sys.stderr.write(f"Error: Session '{session_id}' not found.\n")
             return 1
 
+        engine = getattr(args, "engine", "deterministic")
+        graph_data: dict[str, Any] | None = None
+        if engine == "langgraph" and is_langgraph_available() and SqliteCheckpointSaver:
+            try:
+                cp = SqliteCheckpointSaver(ledger.db_path)
+                graph_data = cp.get_latest_state(session_id)
+            except Exception:
+                pass
+
         if getattr(args, "json", False):
-            sys.stdout.write(json.dumps(session.to_dict(), indent=2) + "\n")
+            payload = session.to_dict()
+            if graph_data:
+                payload["langgraph_state"] = graph_data
+            sys.stdout.write(json.dumps(payload, indent=2, default=str) + "\n")
         else:
             sys.stdout.write("\n=== Agent Session Details ===\n")
             sys.stdout.write(f"Session ID:      {session.session_id}\n")
@@ -186,7 +257,11 @@ def session_status_cli(args: argparse.Namespace) -> int:
             if session.pending_approval_id:
                 sys.stdout.write(f"Pending Approval:{session.pending_approval_id}\n")
             sys.stdout.write(f"Checkpoint ID:   {session.checkpoint_id}\n")
-            sys.stdout.write(f"Updated At:      {session.updated_at}\n\n")
+            sys.stdout.write(f"Updated At:      {session.updated_at}\n")
+            if graph_data:
+                sys.stdout.write(f"LangGraph State: Synchronized ({len(graph_data)} channels persisted)\n\n")
+            else:
+                sys.stdout.write("\n")
 
         return 0
     except Exception as exc:
@@ -254,6 +329,12 @@ def register_agent_session_subparser(agent_parser: argparse.ArgumentParser) -> N
     resume_p = session_sub.add_parser("resume", help="Resume session and execute autonomous loop")
     resume_p.add_argument("session_id", help="Session ID to resume")
     resume_p.add_argument("--max-steps", type=int, help="Optional maximum steps to run in this invocation")
+    resume_p.add_argument(
+        "--engine",
+        choices=["deterministic", "langgraph"],
+        default="deterministic",
+        help="Execution engine: deterministic state machine or LangGraph StateGraph (default: deterministic)",
+    )
     resume_p.add_argument("--workspace", help="Path to workspace directory or ledger db file")
     resume_p.add_argument("--json", action="store_true", help="Output in JSON format")
     resume_p.set_defaults(func=session_resume_cli)
@@ -261,6 +342,12 @@ def register_agent_session_subparser(agent_parser: argparse.ArgumentParser) -> N
     # 4. status
     status_p = session_sub.add_parser("status", help="Inspect status and checkpoint of an agent session")
     status_p.add_argument("session_id", help="Session ID to inspect")
+    status_p.add_argument(
+        "--engine",
+        choices=["deterministic", "langgraph"],
+        default="deterministic",
+        help="Inspect deterministic ledger state or LangGraph checkpointer state (default: deterministic)",
+    )
     status_p.add_argument("--workspace", help="Path to workspace directory or ledger db file")
     status_p.add_argument("--json", action="store_true", help="Output in JSON format")
     status_p.set_defaults(func=session_status_cli)
