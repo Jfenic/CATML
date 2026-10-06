@@ -30,6 +30,9 @@ class PluginCapability:
             return True
         return modality in self.supported_modalities
 
+    def __call__(self) -> PluginCapability:
+        return self
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "supported_tasks": list(self.supported_tasks),

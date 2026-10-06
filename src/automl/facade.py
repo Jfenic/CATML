@@ -100,6 +100,7 @@ class AutoML:
         random_state: int = 42,
         workspace_dir: str | Path | None = None,
         group_column: str | None = None,
+        image_columns: list[str] | None = None,
     ) -> None:
         self.task = task
         self.metric = metric
@@ -109,6 +110,7 @@ class AutoML:
         self.random_state = random_state
         self.workspace_dir = Path(workspace_dir) if workspace_dir is not None else None
         self.group_column = group_column
+        self.image_columns = list(image_columns) if image_columns is not None else None
         self._result: AutoMLResult | None = None
 
     def fit(
@@ -116,6 +118,7 @@ class AutoML:
         data: pd.DataFrame | np.ndarray,
         target: str | pd.Series | np.ndarray | None = None,
         text_columns: list[str] | None = None,
+        image_columns: list[str] | None = None,
         group_column: str | None = None,
     ) -> AutoMLResult:
         """
@@ -129,6 +132,9 @@ class AutoML:
             text_columns: Optional list of column names containing freeform natural language
                           text to be transformed via n-gram TF-IDF representations. If omitted,
                           text columns are discovered automatically via heuristics.
+            image_columns: Optional list of column names referencing image files or paths to
+                           be transformed via ImageEncoder embeddings. If omitted, image columns
+                           are discovered automatically via heuristics.
             group_column: Optional entity or group column name (e.g. 'patient_id', 'user_id')
                           used to enforce GroupKFold validation and eliminate group data leakage.
                           If omitted and group leakage is detected, it is enforced automatically.
@@ -161,6 +167,17 @@ class AutoML:
         )
 
         resolved_group_col = group_column or self.group_column
+        resolved_image_cols = list(image_columns) if image_columns is not None else (list(self.image_columns) if self.image_columns is not None else None)
+        resolved_text_cols = list(text_columns) if text_columns is not None else None
+
+        extra_cfg: dict[str, Any] = {}
+        if resolved_image_cols:
+            extra_cfg["image_columns"] = resolved_image_cols
+        if resolved_text_cols:
+            extra_cfg["text_columns"] = resolved_text_cols
+        if self.time_budget:
+            extra_cfg["time_budget"] = self.time_budget
+
         profile = ws.repository.get_dataset_profile(dataset.id)
         if not resolved_group_col and profile and profile.has_group_leakage and profile.group_candidates:
             resolved_group_col = profile.group_candidates[0]
@@ -171,6 +188,7 @@ class AutoML:
             metric=self.metric,
             validation_strategy=val_strategy,
             group_column=resolved_group_col,
+            extra=extra_cfg,
         )
         feature_names = ws.get_feature_registry(dataset.id).active_feature_names(target_col)
         if resolved_group_col and resolved_group_col in feature_names:

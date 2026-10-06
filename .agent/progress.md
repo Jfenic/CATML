@@ -1,5 +1,35 @@
 # Progress
 
+### Track Generalist Engine — Phase 4: Vision Spike (Prueba de Estrés Arquitectónica & Visión Multimodal) (2026-10-05)
+
+- Rama propia `feat/v09-vision-spike` desde `main` (`8307753`).
+- **Heurística de Detección de Imágenes (`src/automl/plugins/modalities/image_plugin.py`):**
+  - Implementación de `is_image_column(series, sample_size=200)`: clasifica automáticamente series con extensiones soportadas (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.tiff`, etc.) o rutas existentes en disco.
+  - Métodos añadidos a `ImageModalityPlugin`: `available() -> bool`, `requirements() -> tuple[str, ...]`, `install_instructions() -> str`, e introspección mediante `capabilities()`.
+- **Inteligencia en Profiling (`src/automl/engine/profiling/dataset_profiler.py`):**
+  - Discriminación en heurística de identificadores para evitar exclusión errónea de rutas de imágenes (`cardinality_ratio > 0.70` pero `is_image_column == True` previene marcar como `is_identifier`).
+  - Campo añadido `is_image: bool` en `ColumnProfile` y propiedad `image_column_names` en `DatasetProfile`.
+  - Recomendación semántica con badge `Image Feature`, tipo `vision` y acción `image_encode`.
+- **Adaptador de Embeddings de Visión (`src/automl/engine/vision/image_encoder.py`):**
+  - Compatibilidad total con scikit-learn mediante herencia de `BaseEstimator, TransformerMixin`.
+  - Manejo robusto de slicing 2D de DataFrames y numpy arrays desde `ColumnTransformer`.
+  - Tratamiento seguro de valores faltantes o corruptos mediante vector cero (`handle_missing="zero"`).
+  - Implementación de `get_feature_names_out()` para trazabilidad en pipelines compuestos.
+- **Fusión Multimodal en Pipeline de Entrenamiento (`src/automl/engine/training/sklearn_trainer.py`):**
+  - `_build_pipeline` integra transformadores de imágenes en `ColumnTransformer` junto a variables numéricas, categóricas y de texto.
+  - Filtrado de parámetros de preprocesador (`text_columns`, `image_columns`, `time_budget`) para que los estimadores subyacentes solo reciban hiperparámetros válidos.
+  - Soporte para cancelación cooperativa de ejecuciones con estado `RunStatus.CANCELLED`.
+- **Plugin de Modelo de Visión (`src/automl/plugins/models/vision_plugin.py`):**
+  - Implementación de `TimmVisionPlugin` para arquitecturas deep learning (TIMM / PyTorch / TorchVision) con fallback transparente a estimadores gradient boosting y MLP sobre embeddings.
+  - Registrado por defecto en `AutoMLWorkspace.plugin_registry`.
+- **Fachada Ergonómica `AutoML` & Artefactos:**
+  - Argumento `image_columns` disponible en `AutoML.__init__()` y `AutoML.fit(df, target="col", image_columns=["img_path"])`.
+  - Propagación automática de configuración a través de `RunConfig.extra`.
+  - Trazabilidad y proveniencia de dependencias de visión en `ModelArtifact` (`torch`, `torchvision`, `timm`, `pillow`) y guardado/recarga independiente (`save` / `load`) con inferencia decoupled vía `predict()`.
+- **Validación Completa:**
+  - Suite de tests dedicada `tests/test_v09_vision_spike.py` (11 tests unitarios y e2e pasando).
+  - Toda la suite global pasando en verde: 570 tests, 87.69% cobertura de código (Decision Gate de Fase 4 superado).
+
 ### Track Generalist Engine — Phase 3: Anti-Leakage Guardian Avanzado (Group & Entity Leakage) (2026-10-05)
 
 - Rama propia `feat/v09-group-leakage-guardian` desde `main` (`f8de3c0`).

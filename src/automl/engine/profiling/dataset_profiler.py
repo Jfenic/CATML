@@ -63,10 +63,12 @@ def detect_column_cardinality_and_role(
 
     # B) Content-based identifier heuristic (no ID name required)
     if not is_identifier and row_count >= 50:
-        # High cardinality text/hash columns with near-unique values (excluding natural language text)
+        # High cardinality text/hash columns with near-unique values (excluding natural language text and image paths)
         if is_object_or_string and cardinality_ratio > 0.70:
             from automl.engine.features.text import is_text_column
-            if not is_text_column(series):
+            from automl.plugins.modalities.image_plugin import is_image_column
+
+            if not is_text_column(series) and not is_image_column(series):
                 is_identifier = True
         # Monotonically increasing sequential index integers (e.g. 0, 1, 2, ... N-1 or row counter)
         elif series.dtype.kind in {"i", "u"} and cardinality_ratio == 1.0:
@@ -399,7 +401,10 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
 
         is_numeric = pd.api.types.is_numeric_dtype(series)
         from automl.engine.features.text import is_text_column
-        is_text = False if is_numeric else is_text_column(series)
+        from automl.plugins.modalities.image_plugin import is_image_column
+
+        is_image = False if is_numeric else is_image_column(series)
+        is_text = False if (is_numeric or is_image) else is_text_column(series)
 
         box_plot_data: dict[str, Any] = {}
         histogram_data: dict[str, Any] = {}
@@ -567,6 +572,16 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     "description": "Strong target association. Prime candidate feature.",
                     "action": "keep",
                 })
+            elif is_image:
+                recommendations.append({
+                    "column": name,
+                    "type": "vision",
+                    "badge": "Image Feature",
+                    "severity": "info",
+                    "title": f"Image file references in '{name}'",
+                    "description": f"Image path references detected ({unique_count} distinct entries). Processed via ImageEncoder.",
+                    "action": "image_encode",
+                })
             elif is_text:
                 recommendations.append({
                     "column": name,
@@ -599,6 +614,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                 is_identifier=is_id,
                 is_high_cardinality=is_high_card,
                 is_text=is_text,
+                is_image=is_image,
                 is_group_candidate=is_group_cand,
                 mean=mean_val,
                 std=std_val,

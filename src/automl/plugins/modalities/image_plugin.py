@@ -22,6 +22,43 @@ SUPPORTED_IMAGE_EXTENSIONS: tuple[str, ...] = (
 )
 
 
+def is_image_column(series: Any, sample_size: int = 200) -> bool:
+    """Heuristic to determine if a pandas Series contains image file paths or image references
+    rather than general categorical tokens, freeform text, or raw numeric data.
+    """
+    if not hasattr(series, "dropna"):
+        return False
+
+    try:
+        import pandas as pd
+
+        if not (pd.api.types.is_string_dtype(series) or pd.api.types.is_object_dtype(series)):
+            return False
+    except ImportError:
+        pass
+
+    clean = series.dropna().astype(str)
+    if len(clean) == 0:
+        return False
+
+    if len(clean) > sample_size:
+        clean = clean.sample(sample_size, random_state=42)
+
+    valid_count = 0
+    for val in clean:
+        v = str(val).strip().lower()
+        if not v or v in ("none", "nan", "null"):
+            continue
+        if any(v.endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS):
+            valid_count += 1
+        elif os.path.isfile(val):
+            if Path(val).suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS:
+                valid_count += 1
+
+    match_ratio = valid_count / len(clean)
+    return match_ratio >= 0.50
+
+
 def get_image_metadata(file_path: str | Path) -> dict[str, Any]:
     """Reads dimensions and metadata from image headers without external dependencies.
 
@@ -146,14 +183,38 @@ class ImageModalityPlugin(ModalityPluginPort):
         self.supported_extensions = supported_extensions
         self.capabilities = PluginCapability(
             supported_tasks=["*"],
-            supported_modalities=[Modality.IMAGE.value, str(Modality.IMAGE)],
+            supported_modalities=[Modality.IMAGE.value, str(Modality.IMAGE), "image", "multimodal"],
             requires_gpu=False,
             supports_proba=False,
             extra={
                 "supported_extensions": list(self.supported_extensions),
                 "is_multimodal": True,
+                "requirements": list(self.requirements()),
+                "available": self.available(),
             },
         )
+
+    @property
+    def is_available(self) -> bool:
+        return self.available()
+
+    def available(self) -> bool:
+        """Checks if deep learning vision frameworks (torch, timm, PIL) are installed."""
+        try:
+            import PIL  # noqa: F401
+            import torch  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
+    def requirements(self) -> tuple[str, ...]:
+        """Returns optional pip dependencies required for deep learning vision features."""
+        return ("catml[vision]", "torch", "torchvision", "timm", "pillow")
+
+    def install_instructions(self) -> str:
+        """User-friendly guide to install vision extras."""
+        return "Install deep vision dependencies via: pip install 'catml[vision]'"
 
     def validate_source(self, source: DataSource) -> bool:
         """Validates that a DataSource conforms to the Image modality and references existing valid image(s).

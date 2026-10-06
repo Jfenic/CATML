@@ -7,12 +7,13 @@ from typing import Any, Sequence
 import warnings
 
 import numpy as np
+from sklearn.base import BaseEstimator, TransformerMixin
 
 from automl.domain.modalities.modality import Modality
 from automl.domain.pipelines.graph import NodeType, PipelineNode
 
 
-class ImageEncoderNode:
+class ImageEncoderNode(BaseEstimator, TransformerMixin):
     """Execution engine node that transforms image collections into fixed-dimension numerical embeddings.
 
     Acts as the concrete execution adapter for an ENCODER stage in a PipelineGraph DAG,
@@ -46,6 +47,7 @@ class ImageEncoderNode:
             use_cache: Whether to cache extracted embeddings to accelerate repeated runs.
             cache_dir: Optional directory for persistent disk caching of embeddings.
         """
+        self.node = node
         if node is not None:
             self.node_id = node.node_id
             params = dict(node.parameters)
@@ -115,6 +117,11 @@ class ImageEncoderNode:
         self.fit(X, y)
         return self.transform(X)
 
+    def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
+        """Returns generated embedding feature names for scikit-learn pipeline feature tracking."""
+        prefix = f"{self.node_id}_" if self.node_id else "img_emb_"
+        return np.array([f"{prefix}{i}" for i in range(self.output_dim)], dtype=object)
+
     def execute(self, inputs: Any) -> np.ndarray:
         """Executes node logic within a Pipeline DAG runner."""
         if isinstance(inputs, dict):
@@ -126,8 +133,14 @@ class ImageEncoderNode:
             return self.encode(data)
         return self.encode(inputs)
 
-    def _resolve_path(self, item: str | Path) -> Path:
+    def _resolve_path(self, item: str | Path | Any) -> Path:
         """Resolves an image path, prepending base_dir if the path is relative."""
+        if (
+            item is None
+            or (isinstance(item, float) and np.isnan(item))
+            or str(item).strip().lower() in ("none", "nan", "null", "")
+        ):
+            return Path("")
         p = Path(item)
         if not p.is_absolute() and self.base_dir is not None:
             p = Path(self.base_dir) / p
@@ -146,13 +159,25 @@ class ImageEncoderNode:
             FileNotFoundError: If an image file does not exist and handle_missing == 'raise'.
             ValueError: If handle_missing policy is invalid.
         """
-        # Convert pandas Series or numpy 1D array to Python list
-        if hasattr(image_paths, "tolist"):
+        # Convert pandas DataFrame/Series or numpy array to Python list
+        if hasattr(image_paths, "iloc") and hasattr(image_paths, "ndim") and image_paths.ndim == 2:
+            paths = image_paths.iloc[:, 0].tolist()
+        elif hasattr(image_paths, "ndim") and image_paths.ndim == 2 and hasattr(image_paths, "flatten"):
+            paths = image_paths.flatten().tolist()
+        elif hasattr(image_paths, "tolist"):
             paths = image_paths.tolist()
         elif isinstance(image_paths, (list, tuple)):
             paths = list(image_paths)
         else:
             paths = [image_paths]
+
+        clean_paths = []
+        for p in paths:
+            if isinstance(p, (list, tuple)) and len(p) == 1:
+                clean_paths.append(p[0])
+            else:
+                clean_paths.append(p)
+        paths = clean_paths
 
         n_samples = len(paths)
         if n_samples == 0:
@@ -201,15 +226,17 @@ class ImageEncoderNode:
         encoded_chunks = [self.encode(b) for b in batches]
         return np.vstack(encoded_chunks)
 
-    def _get_cache_key(self, item: str | Path | bytes) -> str:
+    def _get_cache_key(self, item: str | Path | bytes | Any) -> str:
         """Generates a unique cache key for an image item."""
         if isinstance(item, (bytes, bytearray)):
             digest = hashlib.sha256(item).hexdigest()[:16]
             return f"raw:{digest}:{self.output_dim}:{self.model_name}:{self.random_seed}"
         p = self._resolve_path(item)
+        if str(p) == "":
+            return f"missing:{self.output_dim}:{self.model_name}:{self.random_seed}"
         return f"file:{p.resolve()}:{self.output_dim}:{self.model_name}:{self.random_seed}"
 
-    def _encode_single_with_cache(self, item: str | Path | bytes) -> np.ndarray:
+    def _encode_single_with_cache(self, item: str | Path | bytes | Any) -> np.ndarray:
         """Retrieves or computes an embedding vector using the multi-level cache."""
         if not self.use_cache:
             return self._encode_single(item)
@@ -247,13 +274,13 @@ class ImageEncoderNode:
 
         return vector
 
-    def _encode_single(self, item: str | Path | bytes) -> np.ndarray:
+    def _encode_single(self, item: str | Path | bytes | Any) -> np.ndarray:
         """Computes a normalized embedding vector for a single image item."""
         if isinstance(item, (bytes, bytearray)):
             content_bytes = bytes(item)
         else:
             path = self._resolve_path(item)
-            if not path.is_file():
+            if str(path) == "" or not path.is_file():
                 if self.handle_missing == "raise":
                     raise FileNotFoundError(f"Image path does not exist: {path}")
                 elif self.handle_missing == "zero":

@@ -42,7 +42,20 @@ class ModelArtifact:
         from importlib.metadata import version, PackageNotFoundError
 
         dep_versions: dict[str, str] = {}
-        for name in ("numpy", "pandas", "scikit-learn", "joblib", "lightgbm", "xgboost", "catboost", "optuna"):
+        for name in (
+            "numpy",
+            "pandas",
+            "scikit-learn",
+            "joblib",
+            "lightgbm",
+            "xgboost",
+            "catboost",
+            "optuna",
+            "torch",
+            "torchvision",
+            "timm",
+            "pillow",
+        ):
             try:
                 dep_versions[name] = version(name)
             except PackageNotFoundError:
