@@ -361,6 +361,71 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
                 return
 
+        elif path == "/api/media/preview":
+            img_path_str = query_params.get("path", [""])[0]
+            if not img_path_str:
+                self._send_json({"error": "path parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            candidate_path = Path(img_path_str)
+
+            allowed_extensions = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".gif"}
+            if candidate_path.suffix.lower() not in allowed_extensions:
+                self._send_json({"error": f"Unsupported image format: {candidate_path.suffix}"}, HTTPStatus.BAD_REQUEST)
+                return
+
+            resolved_path = None
+            if dataset_id:
+                dataset = ws.repository.get_dataset(dataset_id)
+                if dataset:
+                    ds_dir = Path(dataset.path).parent.resolve()
+                    candidate_rel = (ds_dir / img_path_str).resolve()
+                    if candidate_rel.is_file():
+                        resolved_path = candidate_rel
+
+            if not resolved_path:
+                if candidate_path.is_file():
+                    resolved_path = candidate_path.resolve()
+                else:
+                    ws_rel = (Path(self.workspace_dir) / img_path_str).resolve()
+                    if ws_rel.is_file():
+                        resolved_path = ws_rel
+
+            if not resolved_path or not resolved_path.is_file() or resolved_path.suffix.lower() not in allowed_extensions:
+                self._send_json({"error": f"Image file not found: {img_path_str}"}, HTTPStatus.NOT_FOUND)
+                return
+
+            str_res = str(resolved_path)
+            if str_res.startswith("/etc") or str_res.startswith("/proc") or str_res.startswith("/sys"):
+                self._send_json({"error": "Access denied"}, HTTPStatus.FORBIDDEN)
+                return
+
+            mime_map = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+                ".bmp": "image/bmp",
+                ".tiff": "image/tiff",
+                ".gif": "image/gif",
+            }
+            content_type = mime_map.get(resolved_path.suffix.lower(), "application/octet-stream")
+
+            try:
+                data = resolved_path.read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            except Exception as exc:
+                self._send_json({"error": f"Failed to read image: {str(exc)}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+
         elif path == "/api/dataset/profile":
             dataset_id = query_params.get("dataset_id", [""])[0]
             if not dataset_id:
@@ -402,6 +467,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if c.get("is_identifier"):
                     c["catml_action"] = "Exclude"
                     c["action_reason"] = "Identifier candidate (>99% cardinality)"
+                elif c.get("is_image"):
+                    c["catml_action"] = "Vision Embedding"
+                    c["action_reason"] = "Deep image extractor (timm / pretrained embeddings)"
+                elif c.get("is_text"):
+                    c["catml_action"] = "NLP Tokenize & TF-IDF"
+                    c["action_reason"] = "Natural language text representation"
                 elif any(sub in c.get("dtype", "").lower() for sub in ("object", "string", "category", "str")):
                     c["catml_action"] = "Encode"
                     c["action_reason"] = "Categorical encoding (target/ordinal)"
@@ -710,7 +781,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             elif path == "/api/dataset/register":
                 name = payload.get("name", "dataset")
                 data_path = payload.get("path")
-                target = payload.get("target")
+                target = payload.get("target") or payload.get("target_column")
                 task_type = payload.get("task_type")
 
                 if not data_path or not target:

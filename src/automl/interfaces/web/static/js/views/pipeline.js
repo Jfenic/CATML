@@ -59,7 +59,8 @@ export class PipelineView {
     const run = this.activeRun;
     const columns = p ? (p.columns || []) : [];
     const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float"))).length;
-    const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string")).length;
+    const imgCols = columns.filter(c => c.is_image).length;
+    const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string") && !c.is_image).length;
     const idCols = columns.filter(c => c.is_identifier || c.catml_action === "Exclude");
 
     const topModels = this.leaderboard.slice(0, 3);
@@ -114,8 +115,8 @@ export class PipelineView {
 
             <div class="dag-node-connector h-6"></div>
 
-            <!-- Preprocessing: Numerical & Categorical -->
-            <div class="flex space-x-6">
+            <!-- Preprocessing: Numerical, Categorical & Vision -->
+            <div class="flex flex-wrap justify-center gap-4">
               <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'NumericalImputer' ? 'active' : ''}" data-node="NumericalImputer">
                 ${icon("binary", "icon-sm text-[#4F67FF] mb-1.5 block mx-auto")}
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Pipeline</div>
@@ -129,6 +130,15 @@ export class PipelineView {
                 <div class="text-xs font-bold text-indigo-300">Categorical Encoder</div>
                 <div class="text-[10px] text-slate-500 font-mono">${catCols} Categoricals</div>
               </div>
+
+              ${imgCols > 0 ? `
+                <div class="dag-node text-center cursor-pointer ${this.selectedNode === 'ImageEncoderNode' ? 'active' : ''}" data-node="ImageEncoderNode">
+                  ${icon("image", "icon-sm text-[#53C8FF] mb-1.5 block mx-auto")}
+                  <div class="text-[10px] text-slate-400 uppercase font-mono">Vision</div>
+                  <div class="text-xs font-bold text-cyan-300">ImageEncoderNode</div>
+                  <div class="text-[10px] text-cyan-400 font-mono">${imgCols} Image Features</div>
+                </div>
+              ` : ''}
             </div>
 
             <div class="dag-node-connector h-6"></div>
@@ -257,6 +267,14 @@ export class PipelineView {
         input: `${catCols} categorical columns`,
         output: `${catCols} encoded features`,
         extra: "<div>TargetAdapter: Textual / Object label normalization</div>",
+      },
+      ImageEncoderNode: {
+        name: "ImageEncoderNode (Multimodal Vision)",
+        status: "Active",
+        description: "Extracts deep visual representation embeddings using timm / PyTorch backends, with graceful fallback to standard feature maps.",
+        input: `${imgCols} image path columns / raw image sources`,
+        output: `${imgCols * 512 || 512} dense embedding features`,
+        extra: "<div>Backend: timm / PyTorch (Vision Transformer / ResNet / ConvNeXt)</div><div class='text-cyan-400'>Zero-leakage split preserved</div>",
       },
       FeatureGenerator: {
         name: "FeatureGenerator (Propose ≠ Accept)",

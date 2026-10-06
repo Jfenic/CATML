@@ -90,6 +90,14 @@ export class CATMLApiClient {
     return this._fetch("/api/plugins");
   }
 
+  getMediaPreviewUrl(path, datasetId = "") {
+    let url = `/api/media/preview?path=${encodeURIComponent(path)}`;
+    if (datasetId) {
+      url += `&dataset_id=${encodeURIComponent(datasetId)}`;
+    }
+    return url;
+  }
+
   // POST commands
   async registerDataset(payload) {
     return this._fetch("/api/dataset/register", {

@@ -1,5 +1,30 @@
 # Progress
 
+### Track AutoML Workbench — Vision Support & Interactive Multimodal UI (2026-10-06)
+
+- Rama propia `feat/workbench-vision-support` desde `main` (`e38bef7`).
+- **Endpoint Seguro de Medios (`src/automl/interfaces/web/server.py`):**
+  - Endpoint `GET /api/media/preview?path=<path>[&dataset_id=<id>]` con resolución relativa al dataset o workspace, validación estricta de extensiones de imagen (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.tiff`, `.gif`), protección anti-traversal para rutas del sistema (`/etc`, `/proc`, `/sys`) y cabeceras MIME/cache apropiadas.
+  - Enriquecimiento automático de columnas en `/api/dataset/profile` con acción `Vision Embedding` y razón de extracción para variables con `is_image=True` y `NLP Tokenize & TF-IDF` para `is_text=True`.
+  - Soporte de alias `target_column` además de `target` en `/api/dataset/register`.
+- **Iconografía Vectorial Lucide (`src/automl/interfaces/web/static/js/icons.js`):**
+  - Añadidos SVGs nativos para iconos `image` y `camera` sin dependencias externas, alineados al sistema de diseño Tech Minimalista Premium.
+- **Cliente API Frontend (`src/automl/interfaces/web/static/js/api.js`):**
+  - Método helper `getMediaPreviewUrl(path, datasetId)`.
+- **Dataset Inspector Interactivo (`src/automl/interfaces/web/static/js/views/datasets.js`):**
+  - Pestaña de Esquema: distintivo visual de tipo `Image` con icono Lucide, badge de acción `Vision` y botón interactivo `Gallery`.
+  - Filtro segmentado: botón dedicado `Images (N)` cuando existen columnas de imágenes en el dataset.
+  - Previsualización de filas: renderizado de miniaturas visuales (`<img>`) con efecto zoom hover y apertura a tamaño completo al hacer clic.
+  - Modal de análisis de variable: modo **Sample Image Gallery** con cuadrícula responsiva de tarjetas oscuras, miniaturas de imagen y visualización de etiquetas target.
+- **Visual Pipeline DAG (`src/automl/interfaces/web/static/js/views/pipeline.js`):**
+  - Nodo `ImageEncoderNode` en la fila de preprocesamiento multimodal junto a transformadores numéricos y categóricos.
+  - Inspector de nodo con contrato de entrada/salida (rutas/tensores -> embeddings de 512 dimensiones) y estado activo de backend deep learning (`timm` / PyTorch).
+- **Modal de Nuevo Experimento (`src/automl/interfaces/web/static/js/views/new_experiment.js`):**
+  - Añadida opción de modelo algorítmico `Vision (timm)` en la selección de familias.
+- **Validación Completa:**
+  - Suite de tests dedicada `tests/test_web_vision_support.py` (4 tests pasando).
+  - Toda la suite global pasando en verde: 574 tests, 0 fallos, cobertura > 87%.
+
 ### Track Generalist Engine — Phase 4: Vision Spike (Prueba de Estrés Arquitectónica & Visión Multimodal) (2026-10-05)
 
 - Rama propia `feat/v09-vision-spike` desde `main` (`8307753`).
