@@ -141,8 +141,11 @@ class SklearnTrainer(TrainerPort):
                     groups=groups,
                     scoring=_sklearn_scoring(metric_name, execution.task_type),
                     n_jobs=1,
+                    error_score="raise",
                 )
                 primary_score = float(np.mean(scores))
+                if np.isnan(primary_score):
+                    raise ValueError(f"Cross-validation returned NaN scores: {scores}")
                 secondary = {
                     "cv_std": float(np.std(scores)),
                     "cv_scores": [float(s) for s in scores],

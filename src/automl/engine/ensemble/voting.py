@@ -65,6 +65,27 @@ class VotingEnsembleEstimator(BaseEstimator):
         self.optimal_score_: float | None = None
 
     @property
+    def _estimator_type(self) -> str:
+        return "regressor" if self.is_regression else "classifier"
+
+    def __sklearn_tags__(self) -> Any:
+        try:
+            from sklearn.utils._tags import ClassifierTags, RegressorTags, Tags, TargetTags
+
+            return Tags(
+                estimator_type="regressor" if self.is_regression else "classifier",
+                target_tags=TargetTags(required=True),
+                transformer_tags=None,
+                regressor_tags=RegressorTags() if self.is_regression else None,
+                classifier_tags=ClassifierTags() if not self.is_regression else None,
+            )
+        except Exception:
+            class _FallbackTags:
+                estimator_type = "regressor" if self.is_regression else "classifier"
+
+            return _FallbackTags()
+
+    @property
     def is_regression(self) -> bool:
         return "regression" in self.task_type
 
