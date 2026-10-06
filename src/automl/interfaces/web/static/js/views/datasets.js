@@ -97,7 +97,8 @@ export class DatasetsView {
     const columns = p.columns || [];
     const featureCols = columns.filter(c => c.name !== p.target_column);
     const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float")) && c.name !== p.target_column).length;
-    const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string") && c.name !== p.target_column).length;
+    const imgCols = columns.filter(c => c.is_image && c.name !== p.target_column).length;
+    const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string") && !c.is_image && c.name !== p.target_column).length;
     const excludedCount = columns.filter(c => c.is_identifier || c.catml_action === "Exclude").length;
     const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
     const datasetName = currentDs ? currentDs.name : (p.name || p.dataset_id);
@@ -264,6 +265,7 @@ export class DatasetsView {
                 <button data-filter="all" class="segmented-pill ${this.filterType === 'all' ? 'active-signal' : ''}">All (${featureCols.length})</button>
                 <button data-filter="numeric" class="segmented-pill ${this.filterType === 'numeric' ? 'active-signal' : ''}">Numeric (${numCols})</button>
                 <button data-filter="categorical" class="segmented-pill ${this.filterType === 'categorical' ? 'active-signal' : ''}">Categorical (${catCols})</button>
+                ${imgCols > 0 ? `<button data-filter="image" class="segmented-pill ${this.filterType === 'image' ? 'active-signal' : ''}">Images (${imgCols})</button>` : ''}
                 <button data-filter="selected" class="segmented-pill ${this.filterType === 'selected' ? 'active-signal' : ''}">Selected (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
               </div>
             </div>
@@ -366,7 +368,9 @@ export class DatasetsView {
       if (this.filterType === "numeric") {
         return c.dtype && (c.dtype.includes("int") || c.dtype.includes("float"));
       } else if (this.filterType === "categorical") {
-        return c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string");
+        return c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string") && !c.is_image;
+      } else if (this.filterType === "image") {
+        return Boolean(c.is_image);
       } else if (this.filterType === "selected") {
         return this.selectedFeatures.has(c.name);
       } else if (this.filterType === "excluded") {
@@ -415,8 +419,8 @@ export class DatasetsView {
                     ${isTarget ? `<span class="badge-sys text-[9px] px-1.5 py-0.2 rounded font-mono font-medium">TARGET</span>` : ""}
                   </td>
                   <td>
-                    <span class="text-xs ${c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'text-[#4F67FF]' : 'text-[#6956E8]'} font-mono">
-                      ${c.is_identifier ? 'Identifier' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numerical' : 'Categorical')}
+                    <span class="text-xs ${c.is_image ? 'text-[#53C8FF] inline-flex items-center gap-1' : c.is_text ? 'text-[#6956E8] inline-flex items-center gap-1' : c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'text-[#4F67FF]' : 'text-[#6956E8]'} font-mono">
+                      ${c.is_image ? `${icon("image", "icon-sm")} Image` : c.is_text ? `${icon("message-square-text", "icon-sm")} Text` : c.is_identifier ? 'Identifier' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numerical' : 'Categorical')}
                     </span>
                   </td>
                   <td class="font-mono text-xs ${c.null_count > 0 ? 'text-[#F59E0B] font-semibold' : 'text-[#8B95A7]'}">
@@ -438,6 +442,8 @@ export class DatasetsView {
                         ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium">Target</span>`
                         : c.catml_action === "Exclude" || c.is_identifier
                         ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-medium">Exclude</span>`
+                        : c.is_image || c.catml_action === "Vision Embedding"
+                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium border border-[#53C8FF]/30 text-[#53C8FF]">Vision</span>`
                         : c.catml_action === "Encode"
                         ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-medium">Encode</span>`
                         : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-medium">Keep</span>`
@@ -445,8 +451,8 @@ export class DatasetsView {
                   </td>
                   <td class="text-xs text-[#8B95A7] font-sans">${c.action_reason || (isTarget ? "Target prediction objective" : "Predictive feature")}</td>
                   <td class="text-center">
-                    <button class="btn-visualize-var btn-technical text-[11px] py-0.5 px-2" data-var="${c.name}">
-                      View
+                    <button class="btn-visualize-var btn-technical text-[11px] py-0.5 px-2 ${c.is_image ? 'border-[#53C8FF]/40 text-[#53C8FF] hover:bg-[#53C8FF]/10' : ''}" data-var="${c.name}">
+                      ${c.is_image ? `${icon("image", "icon-sm mr-1")} Gallery` : 'View'}
                     </button>
                   </td>
                 </tr>
@@ -552,6 +558,23 @@ export class DatasetsView {
                   ${columns.map(c => {
                     const val = row[c.name];
                     const isTarget = c.name === p.target_column;
+                    if (c.is_image && val) {
+                      const imgUrl = `/api/media/preview?path=${encodeURIComponent(val)}&dataset_id=${encodeURIComponent(p.dataset_id)}`;
+                      return `
+                        <td class="font-mono text-xs text-[#F7F8FA]">
+                          <div class="flex items-center gap-2">
+                            <img src="${imgUrl}"
+                                 alt="${c.name}"
+                                 class="w-7 h-7 object-cover rounded border border-[#242A36] bg-[#090C12] cursor-pointer hover:scale-150 transition-transform shadow-sm"
+                                 loading="lazy"
+                                 title="Click to view full image"
+                                 onclick="window.open('${imgUrl}', '_blank')"
+                                 onerror="this.style.display='none';" />
+                            <span class="truncate max-w-[130px] font-mono text-[11px] text-[#8B95A7]" title="${val}">${val}</span>
+                          </div>
+                        </td>
+                      `;
+                    }
                     return `
                       <td class="font-mono text-xs ${isTarget ? 'text-[#4F67FF] font-semibold bg-[#4F67FF]/10' : val === null ? 'text-[#8B95A7]/40 italic' : 'text-[#F7F8FA]'}">
                         ${val !== null && val !== undefined ? String(val) : 'null'}
@@ -696,6 +719,7 @@ export class DatasetsView {
     const col = this.profile.columns.find(c => c.name === this.activeModalVar);
     if (!col) return "";
 
+    const isImage = Boolean(col.is_image);
     const isNumeric = col.dtype && (col.dtype.includes("int") || col.dtype.includes("float"));
     const isTarget = col.name === this.profile.target_column;
 
@@ -706,8 +730,8 @@ export class DatasetsView {
           <div class="flex items-start justify-between border-b border-slate-800 pb-3">
             <div>
               <div class="flex items-center space-x-2">
-                <span class="text-xs font-mono px-2 py-0.5 rounded font-bold ${isNumeric ? 'bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20' : 'bg-[#6956E8]/10 text-[#6956E8] border border-[#6956E8]/20'}">
-                  ${isNumeric ? 'NUMERIC' : 'CATEGORICAL'}
+                <span class="text-xs font-mono px-2 py-0.5 rounded font-bold ${isImage ? 'bg-[#53C8FF]/10 text-[#53C8FF] border border-[#53C8FF]/20 flex items-center gap-1' : isNumeric ? 'bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20' : 'bg-[#6956E8]/10 text-[#6956E8] border border-[#6956E8]/20'}">
+                  ${isImage ? `${icon("image", "icon-sm")} IMAGE` : isNumeric ? 'NUMERIC' : 'CATEGORICAL'}
                 </span>
                 <h3 class="text-base font-bold text-[#F7F8FA] font-mono">${col.name}</h3>
                 ${isTarget ? `<span class="badge-sys text-[10px] px-2 py-0.5 rounded font-bold">TARGET</span>` : ""}
@@ -724,15 +748,21 @@ export class DatasetsView {
 
           <!-- Modal Tabs -->
           <div class="flex items-center space-x-2 border-b border-[#252C38] pb-2 text-xs font-sans">
-            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'boxplot' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="boxplot">
-              Box Plot (IQR Separation)
-            </button>
-            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'histogram' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="histogram">
-              Histogram & Distribution
-            </button>
-            <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'pattern' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="pattern">
-              Target Association
-            </button>
+            ${isImage ? `
+              <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'gallery' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="gallery">
+                Sample Image Gallery
+              </button>
+            ` : `
+              <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'boxplot' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="boxplot">
+                Box Plot (IQR Separation)
+              </button>
+              <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'histogram' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="histogram">
+                Histogram & Distribution
+              </button>
+              <button class="var-tab-btn px-3 py-1.5 rounded-lg border font-medium transition-colors ${this.activeModalTab === 'pattern' ? 'bg-[#4F67FF] text-white border-[#4F67FF]' : 'bg-[#151B26] text-[#8B95A7] border-[#252C38] hover:text-[#F7F8FA]'}" data-modal-tab="pattern">
+                Target Association
+              </button>
+            `}
           </div>
 
           <!-- Modal Tab Content -->
@@ -745,6 +775,9 @@ export class DatasetsView {
   }
 
   _renderVarModalContent(col) {
+    if (col.is_image || this.activeModalTab === "gallery") {
+      return this._renderImageGalleryContent(col);
+    }
     if (this.activeModalTab === "boxplot") {
       return this._renderBoxPlotContent(col);
     } else if (this.activeModalTab === "histogram") {
@@ -753,6 +786,72 @@ export class DatasetsView {
       return this._renderTargetPatternContent(col);
     }
     return "";
+  }
+
+  _renderImageGalleryContent(col) {
+    const p = this.profile;
+    const rows = p.preview_rows || [];
+    const samples = [];
+    rows.forEach(r => {
+      const val = r[col.name];
+      if (val) {
+        samples.push({
+          path: String(val),
+          target: r[p.target_column],
+        });
+      }
+    });
+
+    if (samples.length === 0 && Array.isArray(col.sample_values)) {
+      col.sample_values.forEach(v => {
+        if (v) samples.push({ path: String(v), target: null });
+      });
+    }
+
+    if (samples.length === 0) {
+      return `
+        <div class="p-8 text-center text-[#8B95A7] space-y-2">
+          <div class="flex justify-center text-[#8B95A7]/50">${icon("image", "icon-xl", 32)}</div>
+          <p class="text-sm font-medium">No sample images found for this feature.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="space-y-4">
+        <div class="flex items-center justify-between text-xs text-[#8B95A7]">
+          <span>Displaying sampled images (${samples.length} items) with target labels</span>
+          <span class="font-mono text-[#53C8FF] text-[11px] font-semibold">Modality: Image Feature (timm)</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[500px] overflow-y-auto p-1">
+          ${samples.map((s, idx) => {
+            const imgUrl = `/api/media/preview?path=${encodeURIComponent(s.path)}&dataset_id=${encodeURIComponent(p.dataset_id)}`;
+            return `
+              <div class="p-2.5 rounded-xl bg-[#0D1017] border border-[#242A36] space-y-2 hover:border-[#4F67FF]/50 transition-colors">
+                <div class="relative w-full aspect-square bg-[#080A0F] rounded-lg overflow-hidden border border-[#161B26] flex items-center justify-center">
+                  <img src="${imgUrl}"
+                       alt="Sample ${idx + 1}"
+                       class="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                       loading="lazy"
+                       onclick="window.open('${imgUrl}', '_blank')"
+                       onerror="this.parentElement.innerHTML='<div class=\\'text-center p-2 text-[10px] text-slate-500 font-mono\\'>Image not accessible</div>';"
+                  />
+                </div>
+                <div class="space-y-1">
+                  <div class="text-[11px] font-mono text-[#F7F8FA] truncate" title="${s.path}">${s.path.split('/').pop()}</div>
+                  ${s.target !== null && s.target !== undefined ? `
+                    <div class="flex items-center justify-between text-[10px] font-mono">
+                      <span class="text-[#8B95A7]">Target:</span>
+                      <span class="text-[#4F67FF] font-semibold">${s.target}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
   }
 
   _renderBoxPlotContent(col) {
@@ -1750,8 +1849,9 @@ export class DatasetsView {
     this.container.querySelectorAll(".btn-visualize-var").forEach(btn => {
       btn.addEventListener("click", () => {
         const varName = btn.getAttribute("data-var");
+        const col = this.profile?.columns.find(c => c.name === varName);
         this.activeModalVar = varName;
-        this.activeModalTab = "boxplot";
+        this.activeModalTab = col && col.is_image ? "gallery" : "boxplot";
         this._renderAndMountModal();
       });
     });
