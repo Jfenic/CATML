@@ -4,7 +4,7 @@
 
 ## Navigation
 
-- **System Architecture:** See [`ARCHITECTURE.md`](ARCHITECTURE.md). For deep technical specifications and roadmap, see [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md).
+- **System Architecture:** See [`ARCHITECTURE.md`](ARCHITECTURE.md). For strategic product, architecture and market roadmap, see [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) and [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md).
 - **Current Work & Backlog:** See [`TASKS.md`](TASKS.md).
 - **Short-Term Memory & Progress:** See [`.agent/progress.md`](.agent/progress.md).
 - **Developer Extension Guide:** See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).

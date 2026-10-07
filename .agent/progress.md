@@ -30,6 +30,8 @@
   - Hito H5 (V1.0) completado exitosamente.
 - **Corrección de CI Workflow (`.github/workflows/ci.yml`):**
   - Añadido extra `agents` a la instalación en CI (`python -m pip install -e ".[dev,mcp,agents]"`) para garantizar presencia de `langgraph`, `langgraph-checkpoint` y `langgraph-checkpoint-sqlite` en las matrices de Python 3.10 y 3.12 de GitHub Actions.
+- **Plan Maestro de Producto, Arquitectura y Mercado (`docs/MASTER_PLAN.md`):**
+  - Formalización integral del documento rector de 20 secciones: posicionamiento (*"Train better models. Keep control"* / *"Bring AI to your data. Not your data to AI"*), regla de privacidad de cómputo hacia los datos, paridad de 4 interfaces (Python/CLI/Workbench/MCP), perfiles de políticas (`STRICT`/`PRIVATE`/`STANDARD`), taxonomía multimodal desacoplada de tareas, anti-leakage como diferenciador central, modelo de negocio Community vs Enterprise, y puertas de decisión (*Decision Gates*) orientadas a tracción de usuarios. Navegación enlazada en `docs/README.md` y `AGENTS.md`.
 
 ### Track AutoML Workbench — Vision Support & Interactive Multimodal UI (2026-10-06)
 

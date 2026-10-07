@@ -14,6 +14,7 @@ La versión del paquete se define en [`automl.__version__`](../src/automl/__init
 | Gestionar trabajos, controles y recuperación | [Cola persistente](features/persistent-jobs/spec.md) |
 | Comprobar backend y reproducibilidad | [Backends](backends.md) |
 | Consultar diseño objetivo y fases futuras | [Especificación técnica](../AutoML_Arquitectura_Tecnica.md) y [ADR 007: Roadmap con puertas de decisión](decisions/007-decision-gated-multimodal-governance-roadmap.md) |
+| Plan Maestro de Producto, Arquitectura y Mercado | [Plan Maestro](MASTER_PLAN.md) |
 | Sistema de diseño UI (Tech Minimalista) | [Diseño UI](design/tech-minimalist-brand-system.md), [ADR 006](decisions/006-tech-minimalist-premium-brand-system.md) y [ADR 005](decisions/005-neo-industrial-visual-ml-lab-ui.md) |
 | Entender decisiones | [ADRs](decisions/) |
 | Consultar última ejecución y contexto | [Progreso](../.agent/progress.md) |
