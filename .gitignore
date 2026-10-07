@@ -16,3 +16,12 @@ build/
 catml-runs/
 *.pkl
 workspace/
+
+# Security & Credentials
+.env
+.env.*
+*.pem
+*.key
+*.cert
+credentials.json
+secrets.json

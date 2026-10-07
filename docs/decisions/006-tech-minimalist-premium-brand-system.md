@@ -10,7 +10,7 @@ Evolución de: [ADR 005: Neo-Industrial Visual ML Lab UI](005-neo-industrial-vis
 ## 1. Context
 
 CATML ha evolucionado de un prototipo de investigación y biblioteca local hacia un sistema **Open-Core** compuesto por:
-1. **CATML Community** (código abierto, Apache 2.0 / MIT, motor de AutoML tabular local, CLI, Workbench y capacidades nativas de agentes MCP).
+1. **CATML Community** (código abierto, Apache 2.0, motor de AutoML tabular local, CLI, Workbench y capacidades nativas de agentes MCP).
 2. **CATML Platform** (repositorio privado y producto comercial, orquestación distribuida, catálogo empresarial y soporte cloud).
 
 Para soportar este crecimiento y transmitir simultáneamente:

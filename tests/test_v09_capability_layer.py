@@ -20,6 +20,7 @@ from automl.domain.problems import (
 from automl.domain.tasks.task_type import TaskType
 from automl.engine.features.text import LightweightTextExtractor, is_text_column
 from automl.engine.profiling.dataset_profiler import profile_dataset, Dataset
+from automl import __version__
 from automl.facade import AutoML
 
 
@@ -212,5 +213,5 @@ def test_automl_fit_with_tabular_and_text_columns(tmp_path: Path):
     # Verify provenance and description
     desc = loaded_artifact.describe()
     assert "provenance" in desc
-    assert desc["provenance"]["catml_version"] == "0.7.0"
+    assert desc["provenance"]["catml_version"] == __version__
     assert "dependencies" in desc["provenance"]

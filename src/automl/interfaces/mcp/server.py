@@ -20,7 +20,7 @@ except ImportError:
     HAS_MCP = False
     MCPServer = Any  # type: ignore
     types = Any  # type: ignore
-
+from automl import __version__
 from automl.application.agents.contracts import ToolCallContext, ToolInvocation
 from automl.application.agents.executor import ToolExecutor, create_full_tool_registry
 from automl.application.agents.policy import AgentPolicyConfig, PolicyEvaluator
@@ -93,7 +93,7 @@ def create_mcp_server(
 
     ws_path = str(workspace.root_dir) if workspace and hasattr(workspace, "root_dir") else "."
 
-    server = MCPServer("catml-mcp", version="0.7.0")
+    server = MCPServer("catml-mcp", version=__version__)
     server.executor = executor
     server.ledger = ledger
 

@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from automl import __version__
 from automl.interfaces.web.server import AutoMLWebHandler
 
 
@@ -76,7 +77,7 @@ def test_web_dashboard_overview_and_plugins(running_web_server):
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
         assert "platform" in data
-        assert data["version"] == "0.7.0"
+        assert data["version"] == __version__
         assert "total_runs" in data
 
     # Test Plugins

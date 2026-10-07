@@ -18,6 +18,7 @@ import pytest
 
 from pathlib import Path
 
+from automl import __version__
 from automl.application.bootstrap import build_application
 from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
@@ -312,7 +313,7 @@ def test_mcp_cli_subprocess_stdio_handshake(tmp_path: Path):
     assert resp.get("id") == 1
     assert "result" in resp
     assert resp["result"]["serverInfo"]["name"] == "catml-mcp"
-    assert resp["result"]["serverInfo"]["version"] == "0.7.0"
+    assert resp["result"]["serverInfo"]["version"] == __version__
 
     # STDERR must contain the server initialization log
     assert "catml.mcp" in stderr
