@@ -28,6 +28,8 @@
   - `tests/test_v10_agent_e2e.py`: 3/3 tests de ciclo autónomo, recuperación tras fallos (crash & restart) sin duplicación de hipótesis, y rechazo humano de propuestas.
   - Suite global completa: 590 tests pasando en verde, 0 fallos, 87.70% de cobertura de código (superando el requisito >= 85%).
   - Hito H5 (V1.0) completado exitosamente.
+- **Corrección de CI Workflow (`.github/workflows/ci.yml`):**
+  - Añadido extra `agents` a la instalación en CI (`python -m pip install -e ".[dev,mcp,agents]"`) para garantizar presencia de `langgraph`, `langgraph-checkpoint` y `langgraph-checkpoint-sqlite` en las matrices de Python 3.10 y 3.12 de GitHub Actions.
 
 ### Track AutoML Workbench — Vision Support & Interactive Multimodal UI (2026-10-06)
 
