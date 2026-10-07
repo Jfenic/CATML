@@ -52,6 +52,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Añadir alias `VisionFeatureHeadPlugin` para desacoplar el concepto de representación visual del downstream head.
   - [x] Packaging en `pyproject.toml`: migración de licencia a string SPDX `Apache-2.0` (eliminando warning de setuptools), metadatos `project.urls` y limpieza de extra `nlp`.
   - [x] Script de validación de release `tests/smoke_test.py` y nuevo job de CI `package-smoke` para verificar instalación en entorno virtual aislado.
+- [x] **Paquete 5: Trust Patch (v0.8.1) — Seguridad Local, Anti-Leakage y Reproducibilidad**:
+  - [x] Fail-safe para leakage: `AutoML.fit()` y `RuleBasedExperimentPlanner` priorizan `profile.recommended_feature_names`, excluyendo automáticamente variables contaminadas.
+  - [x] Workbench seguro: bind exclusivo a `127.0.0.1` por defecto (con flag `--host 0.0.0.0` para despliegue explícito) y eliminación de cabeceras permisivas `Access-Control-Allow-Origin: *`.
+  - [x] Confinamiento de `/api/media/preview`: validación estricta de que las imágenes residan dentro del workspace o directorio del dataset (`is_relative_to`), bloqueando lectura arbitraria del sistema.
+  - [x] Propagación de `random_state`: cableado desde el constructor de `AutoML` hasta `RunConfig.random_seed` y todos los splitters de validación cruzada y estimadores.
+  - [x] Ordenación correcta de métricas de pérdida: `AutoMLResult.leaderboard()` y `SQLiteExperimentRepository.get_leaderboard()` ordenan ascendentemente para `mae`, `rmse`, `mse` y `loss`.
+  - [x] Eliminación de evidencia simulada: supresión de `public_lb = score * 0.9999` y deltas ficticios en endpoints de benchmark.
+  - [x] Hero honesto y simplificado en `README.md`: centrado en confianza, protección contra fugas, reproducibilidad y acceso controlado para agentes.
+  - [x] Suite de tests `tests/test_v081_trust_patch.py` (4 tests pasando) y actualización de versión a `0.8.1`.
 
 
 ## Completed Phase: v0.9 Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian

@@ -1,5 +1,30 @@
 # Progress
 
+### Track Trust Patch — v0.8.1 Security, Anti-Leakage & Reproducibility (2026-10-07)
+
+- Rama de trabajo `feat/v081-trust-patch` desde `main` (`5caf495`).
+- **Fail-Safe Anti-Leakage (`src/automl/facade.py` & `src/automl/engine/planning/experiment_planner.py`):**
+  - `AutoML.fit()` y `RuleBasedExperimentPlanner` ahora priorizan `profile.recommended_feature_names`, excluyendo de forma automática cualquier columna clasificada con target leakage, leakage de entidad o identificadores.
+  - Test unitario de regresión en `tests/test_v081_trust_patch.py::test_trust_patch_leakage_fail_safe`.
+- **Aislamiento Local & CORS Restringido (`src/automl/interfaces/web/server.py` & `src/automl/interfaces/cli/main.py`):**
+  - Servidor web del Workbench configurado para escuchar en `127.0.0.1` por defecto (con soporte explícito para `--host 0.0.0.0` en CLI si el usuario desea exponerlo intencionalmente).
+  - Eliminado el uso de wildcard `Access-Control-Allow-Origin: *`; las respuestas CORS ahora solo se emiten dinámicamente si el `Origin` proviene de `localhost` o `127.0.0.1`.
+- **Confinamiento de Archivos en Media Preview (`src/automl/interfaces/web/server.py`):**
+  - Endpoint `/api/media/preview` ahora comprueba estrictamente con `is_relative_to()` que la ruta solicitada resida dentro de `workspace_dir` o del directorio del dataset, bloqueando lectura de archivos arbitrarios del sistema con código 403 Forbidden.
+  - Test unitario de confinamiento en `tests/test_v081_trust_patch.py::test_trust_patch_media_preview_confinement`.
+- **Propagación de `random_state` para Reproducibilidad (`src/automl/application/services/workspace.py` & `src/automl/facade.py`):**
+  - Añadido parámetro `random_seed` a `workspace.create_run()`, propagándolo al `RunConfig` y garantizando que `AutoML(random_state=123)` llega a todos los splitters (KFold/StratifiedKFold) y modelos.
+  - Test unitario de propagación en `tests/test_v081_trust_patch.py::test_trust_patch_random_state_propagation`.
+- **Ordenación Correcta de Métricas de Minimización (`src/automl/facade.py` & `src/automl/infrastructure/database/sqlite_repository.py`):**
+  - `AutoMLResult.leaderboard()` y `SQLiteExperimentRepository.get_leaderboard()` ahora ordenan ascendentemente para métricas de error (`mae`, `rmse`, `mse`, `loss`, `log_loss`), garantizando que el modelo con menor error ocupa el rango 1.
+  - Test unitario en `tests/test_v081_trust_patch.py::test_trust_patch_leaderboard_mae_rmse_sorting`.
+- **Eliminación de Evidencia Simulada & Actualización de Mensaje:**
+  - Suprimida la fórmula ficticia `"public_lb": round(best_t.primary_score * 0.9999, 5)` y el delta simulado en la API web.
+  - `README.md` actualizado con posicionamiento claro: *"AutoML you can trust an AI agent to operate"*, con Quickstart centrado en protección de fugas y reproducibilidad.
+- **Validación y Versión:**
+  - Bump de versión a `0.8.1` en `src/automl/__init__.py`, `CHANGELOG.md` y `tests/smoke_test.py`.
+  - 602 tests pasando al 100% en verde. Smoke test end-to-end verificado.
+
 ### Track Release Engineering — v0.8.0 Release Final Polish & PyPI Verification (2026-10-07)
 
 - Rama de trabajo `chore/v08-release-prep-and-smoke` desde `main` (`a2f78d0`).

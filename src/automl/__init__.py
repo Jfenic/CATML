@@ -1,6 +1,6 @@
 """CATML - Modular, reproducible AutoML platform with experiment-first architecture."""
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 from automl.artifacts.model_artifact import ModelArtifact
 from automl.facade import AutoML, AutoMLResult

@@ -586,12 +586,24 @@ class SQLiteExperimentRepository:
 
     def get_leaderboard(self, run_id: str) -> list[TrialResult]:
         with self._connect() as conn:
+            is_minimize = False
+            run_row = conn.execute("SELECT config_json FROM runs WHERE id = ?", (run_id,)).fetchone()
+            if run_row and run_row["config_json"]:
+                try:
+                    cfg = json.loads(run_row["config_json"])
+                    metric_name = str(cfg.get("metric", "")).lower()
+                    if metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}:
+                        is_minimize = True
+                except Exception:
+                    pass
+
+            order = "ASC" if is_minimize else "DESC"
             rows = conn.execute(
-                """
+                f"""
                 SELECT tr.* FROM trial_results tr
                 JOIN experiments e ON e.id = tr.experiment_id
                 WHERE e.run_id = ?
-                ORDER BY tr.primary_score DESC
+                ORDER BY tr.primary_score {order}
                 """,
                 (run_id,),
             ).fetchall()

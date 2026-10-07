@@ -1,11 +1,11 @@
 # CATML
 
-> **The Agent-Native AutoML Engine for Humans and AI Agents.**  
-> Local-first, agent-native AutoML with controlled multimodal workflows, built with pure Hexagonal architecture, scikit-learn ergonomics, and Model Context Protocol (MCP) integration.
+> **AutoML you can trust an AI agent to operate.**  
+> Local-first AutoML with automatic leakage protection, reproducible experiments, and controlled AI agent access.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-595%20Passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-598%20Passing-brightgreen.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-87%25%2B-brightgreen.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
@@ -18,11 +18,11 @@ Most AutoML platforms (AutoGluon, H2O, FLAML, PyCaret) are monolithic libraries 
 
 CATML is engineered from the ground up with **distinct advantages**:
 
-1. **🤖 Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within strict budget leases and cooperative cancellation controls.
-2. **⚡ 3-Line Ergonomics:** Simple, intuitive scikit-learn interface (`automl.fit(df, target="churn")`) backed by a pure hexagonal domain and CQRS application buses.
-3. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts with streaming SHA-256 integrity checksums for database-free, workspace-independent production inference.
-4. **🛡️ "Propose ≠ Accept" Scientific Discipline:** Empirical trial evaluation with out-of-fold (OOF) target encoding and strict data leakage prevention before promoting any model to production.
-5. **🔒 100% Local-First & Private:** Executes entirely on your machine with a persistent SQLite task worker; zero telemetry, zero forced cloud lock-in.
+1. **🛡️ Fail-Safe Anti-Leakage Guardian:** Automatically detects target leakage, group leakage, and pseudo-identifiers before training. Contaminated columns are automatically excluded by default.
+2. **🤖 Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within budget-aware leases and cooperative cancellation controls.
+3. **⚡ 3-Line Ergonomics & Reproducibility:** Simple, scikit-learn compatible interface (`AutoML(random_state=42).fit(df, target="churn")`) with deterministic cross-validation seeds and strict reproducibility.
+4. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts with streaming SHA-256 integrity checksums for database-free, workspace-independent production inference.
+5. **🔒 100% Local-First & Private:** Localhost-only web interface (`127.0.0.1`), workspace-confined media access, and SQLite ledger; zero external cloud data transmission.
 
 ---
 
@@ -37,8 +37,8 @@ from catml import AutoML, ModelArtifact
 # 1. Load any tabular dataset
 df = pd.read_csv("examples/data/customers_churn.csv")
 
-# 2. Fit candidate models (automatically detects task, tunes hyperparameters)
-automl = AutoML(task="classification")
+# 2. Fit candidate models with automatic leakage protection & reproducible seed
+automl = AutoML(metric="roc_auc", random_state=42)
 result = automl.fit(df, target="churn")
 
 # 3. View the experiment leaderboard
