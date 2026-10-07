@@ -21,9 +21,31 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
 - [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
-## Now (Active Phase — v0.8 Release Readiness, Packaging & Governance)
+## Now (Active Phase — v0.8.2 Phase 1: Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
-- [x] **Paquete 1: Calidad del Motor y Corrección de Bugs**:
+- [x] **Cumplimiento Real y Operacional de `time_budget`**:
+  - [x] Añadido campo formal `time_budget_seconds: float | None` a `RunConfig` con propiedad `effective_time_budget` retrocompatible con `extra["time_budget"]`.
+  - [x] Propagación formal en `AutoML.fit()` pasando `time_budget_seconds=self.time_budget` a `create_run()`.
+  - [x] Control de deadline por `run_id` (`_is_run_budget_exhausted`) en `AutoMLWorkspace.run_experiment()` y `run_scheduled_experiments()`.
+  - [x] Descarte cooperativo y emisión del evento `TimeBudgetExhausted` sin invalidar los modelos ya completados.
+  - [x] Manejo inteligente en `AutoML.fit()`: si ningún modelo pudo completar antes del tiempo, falla de forma explícita (`RuntimeError`); si al menos uno completó, finaliza con éxito registrando `time_budget_exhausted=True`.
+- [x] **Artefactos Estrictamente Fail-Closed**:
+  - [x] En `ModelArtifact.save()`: eliminación de `except Exception: pass`, garantizando que la creación y escritura del digest SHA-256 no falle en silencio.
+  - [x] En `ModelArtifact.load(verify_checksum=True)`: bloqueo inmediato (`ValueError`) ante sidecar inaccesible, ilegible, corrupto o con hash no coincidente, impidiendo la deserialización no segura mediante `joblib.load()`.
+- [x] **Seguridad en Interfaces Remotas del Workbench (`0.0.0.0`)**:
+  - [x] Preservado acceso local transparente sin token para `127.0.0.1` y `localhost`.
+  - [x] Para cualquier interfaz no local (ej. `0.0.0.0`), requerir `--auth-token` o auto-generar token seguro efímero (`secrets.token_urlsafe(16)`) con URL directa en consola.
+  - [x] Validación de token en `AutoMLWebHandler` vía header `Authorization: Bearer <token>` o query parameter `?token=<token>`, respondiendo `401 Unauthorized` si falta o es inválido (salvo flag explícito `--insecure-no-auth`).
+  - [x] Adaptador de cliente `CATMLApiClient` en `api.js` persistiendo el token en `sessionStorage` para mantener la sesión web activa.
+- [x] **Cierre de Fuga CQRS**:
+  - [x] Método público `AutoMLWorkspace.list_runs(dataset_id=...)` implementado.
+  - [x] Eliminado acceso al atributo privado `ws._runs` en `src/automl/interfaces/cli/main.py` (`predict_cli`).
+- [x] **Batería de Pruebas de Fase 1**:
+  - [x] `tests/test_time_budget_enforcement.py` (4 tests).
+  - [x] `tests/test_model_artifact_fail_closed.py` (3 tests).
+  - [x] `tests/test_workbench_auth.py` (3 tests).
+
+## Completed Phase: v0.8 Release Readiness, Packaging & Governance
   - [x] Corregir `cv_folds` en `src/automl/facade.py`: `AutoML.fit` debe respetar `self.cv_folds` propagándolo a `create_run` y usando estrategia de validación `"cv"` o `"kfold"` cuando no exista columna de agrupación.
   - [x] Endurecer `src/automl/engine/vision/image_encoder.py`:
     - Eliminar fallback silencioso a hash determinista: si falla PyTorch/Pillow/backbone en un modelo neural, lanzar `RuntimeError` explícito ("Fail visibly, don't fake vision").

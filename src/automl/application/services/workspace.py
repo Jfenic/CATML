@@ -108,6 +108,23 @@ class AutoMLWorkspace:
     _queues: dict[str, ExperimentQueue] = field(default_factory=dict)
     _candidate_feature_sets: dict[str, list[FeatureSetCandidate]] = field(default_factory=dict)
     _feature_ranks: dict[str, list[FeatureRank]] = field(default_factory=dict)
+    _run_deadlines: dict[str, float] = field(default_factory=dict)
+
+    def _get_or_create_run_deadline(self, run: AutoMLRun) -> float | None:
+        budget = run.config.effective_time_budget
+        if budget is None or budget <= 0:
+            return None
+        if run.id not in self._run_deadlines:
+            import time
+            self._run_deadlines[run.id] = time.monotonic() + budget
+        return self._run_deadlines[run.id]
+
+    def _is_run_budget_exhausted(self, run: AutoMLRun) -> bool:
+        deadline = self._get_or_create_run_deadline(run)
+        if deadline is None:
+            return False
+        import time
+        return time.monotonic() >= deadline
 
     @classmethod
     def create(cls, name: str, root_dir: str | Path | None = None) -> AutoMLWorkspace:
@@ -260,6 +277,7 @@ class AutoMLWorkspace:
         group_column: str | None = None,
         cv_folds: int = 5,
         random_seed: int = 42,
+        time_budget_seconds: float | None = None,
         extra: dict[str, Any] | None = None,
     ) -> AutoMLRun:
         problem = self.repository.get_problem_definition(dataset.id)
@@ -270,6 +288,13 @@ class AutoMLWorkspace:
 
         run_metric = metric or problem.default_metric
         strat = validation_strategy or ("group_kfold" if group_column else "holdout")
+        effective_time_budget = time_budget_seconds
+        if effective_time_budget is None and extra and "time_budget" in extra:
+            try:
+                effective_time_budget = float(extra["time_budget"])
+            except (ValueError, TypeError):
+                pass
+
         config = RunConfig(
             task_type=problem.task_type.value,
             target=dataset.target_column,
@@ -278,6 +303,7 @@ class AutoMLWorkspace:
             group_column=group_column,
             cv_folds=cv_folds,
             random_seed=random_seed,
+            time_budget_seconds=effective_time_budget,
             extra=dict(extra or {}),
         )
         run = AutoMLRun(
@@ -292,6 +318,12 @@ class AutoMLWorkspace:
         self.repository.save_run(run)
         self._emit("RunCreated", {"run_id": run.id, "dataset_id": dataset.id}, run_id=run.id)
         return run
+
+    def list_runs(self, dataset_id: str | None = None) -> list[AutoMLRun]:
+        runs = self.repository.list_runs(workspace_id=self.id)
+        if dataset_id:
+            return [r for r in runs if r.dataset_id == dataset_id]
+        return runs
 
     def get_feature_registry(self, dataset_id: str) -> FeatureRegistry:
         if dataset_id not in self._feature_registries:
@@ -442,6 +474,23 @@ class AutoMLWorkspace:
                 self.repository.save_experiment(experiment)
                 self._emit("RunCancelled", {"experiment_id": experiment.id}, run_id=run.id)
                 return results
+
+            if self._is_run_budget_exhausted(refreshed):
+                run.config.extra["time_budget_exhausted"] = True
+                refreshed.config.extra["time_budget_exhausted"] = True
+                self.repository.save_run(refreshed)
+                self._emit(
+                    "TimeBudgetExhausted",
+                    {
+                        "run_id": run.id,
+                        "experiment_id": experiment.id,
+                        "model_id": model_id,
+                        "completed_models": len(results),
+                        "total_models": len(model_ids),
+                    },
+                    run_id=run.id,
+                )
+                break
 
             trial = Trial(
                 id=f"trial_{uuid.uuid4().hex[:8]}",
@@ -1101,6 +1150,12 @@ class AutoMLWorkspace:
         while len(self.get_experiment_queue(run_id)) > 0:
             refreshed = self._get_run(run_id)
             if refreshed.status in {RunStatus.PAUSED, RunStatus.CANCELLED}:
+                break
+
+            if self._is_run_budget_exhausted(refreshed):
+                refreshed.config.extra["time_budget_exhausted"] = True
+                self.repository.save_run(refreshed)
+                self._emit("TimeBudgetExhausted", {"run_id": run_id}, run_id=run_id)
                 break
 
             exp, results = self.execute_next_experiment(run_id, budget=effective_budget)

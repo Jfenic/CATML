@@ -1,6 +1,33 @@
 # Progress
 
-### Track Trust Patch — v0.8.1 Security, Anti-Leakage & Reproducibility (2026-10-07)
+### Track Hardening Phase 1 — v0.8.2 Operational Budget, Fail-Closed Artifacts & Remote Web Security (2026-10-07)
+
+- Rama de trabajo `hardening/v0.8.2-phase1-20261007` desde `main` (`7c78f13`).
+- **Cumplimiento Operativo Real de `time_budget` (`src/automl/domain/runs/run.py`, `src/automl/application/services/workspace.py`, `src/automl/facade.py`):**
+  - Añadido campo `time_budget_seconds: float | None = None` a `RunConfig`, con propiedad retrocompatible `effective_time_budget` que soporta tanto `time_budget_seconds` como la clave heredada `extra["time_budget"]`.
+  - Serialización y deserialización limpias en `to_dict()` y `from_dict()`.
+  - En `AutoMLWorkspace`, tracking de deadlines activos mediante `_run_deadlines: dict[str, float]` calculados con `time.monotonic()`.
+  - En `run_experiment()`, verificación estricta de `_is_run_budget_exhausted(refreshed)` antes de iniciar cada trial; si el presupuesto expira, se interrumpe el ciclo de trials de forma limpia, se registra `time_budget_exhausted = True` en `run.config.extra` y se emite el evento de auditoría `TimeBudgetExhausted`.
+  - En `run_scheduled_experiments()`, interrupción limpia de la cola si expira el presupuesto global del run.
+  - En `AutoML.fit()`, propagación formal de `time_budget_seconds=self.time_budget` a `create_run()`. Si el presupuesto expira antes de completar al menos un modelo válido, levanta `RuntimeError` explícito; si ya existen modelos válidos entrenados, finaliza con éxito preservando los resultados y marcando `time_budget_exhausted=True`.
+  - Tests unitarios en `tests/test_time_budget_enforcement.py` (4 tests).
+- **Seguridad Fail-Closed en ModelArtifact (`src/automl/artifacts/model_artifact.py`):**
+  - Eliminados los bloques `except Exception: pass` silenciosos tanto en la generación del checksum `.sha256` en `save()` como en la verificación en `load()`.
+  - En `ModelArtifact.load(verify_checksum=True)`, política fail-closed estricta: levanta `ValueError` explícito si el archivo sidecar `.sha256` falta, está corrupto, es inaccesible o no coincide antes de intentar cualquier deserialización con `joblib.load()`.
+  - Tests unitarios en `tests/test_model_artifact_fail_closed.py` (3 tests).
+- **Autenticación por Token en Workbench Remoto (`src/automl/interfaces/web/server.py`, `src/automl/interfaces/cli/main.py`, `src/automl/interfaces/web/static/js/api.js`):**
+  - En `AutoMLWebHandler`, comprobación de cabecera `Authorization: Bearer <token>` o parámetro URL `?token=<token>`. Devuelve `401 Unauthorized` si la autenticación está activa y el token no es provisto o es incorrecto.
+  - En `run_web_dashboard()`, si la dirección de escucha no es local (ej. `0.0.0.0`), se exige token automáticamente: si el usuario no especificó `--auth-token`, genera uno criptográficamente seguro con `secrets.token_urlsafe(16)` e imprime las instrucciones y enlace autenticado en consola.
+  - Soporte para bandera explícita `--insecure-no-auth` para desactivar intencionalmente el control si el usuario así lo decide.
+  - En el frontend (`api.js`), extracción automática del token desde la URL, persistencia en `sessionStorage` e inyección de cabecera `Authorization: Bearer` en todas las peticiones fetch a la API.
+  - CLI `automl ui` / `catml ui` soporta flags `--auth-token` y `--insecure-no-auth`.
+  - Tests unitarios en `tests/test_workbench_auth.py` (3 tests).
+- **Cierre de Fuga CQRS en CLI (`src/automl/interfaces/cli/main.py`, `src/automl/application/services/workspace.py`):**
+  - Añadido método público de consulta `AutoMLWorkspace.list_runs(dataset_id: str | None = None) -> list[AutoMLRun]`.
+  - Sustituida la introspección privada `ws._runs.values()` en el comando `predict_cli` por la llamada al método público `ws.list_runs(dataset_id=dataset.id)`.
+- **Validación:**
+  - 10 nuevos tests unitarios y de integración añadidos. Suite global en verde (612 tests pasando) y cobertura >= 85%.
+
 
 - Rama de trabajo `feat/v081-trust-patch` desde `main` (`5caf495`).
 - **Fail-Safe Anti-Leakage (`src/automl/facade.py` & `src/automl/engine/planning/experiment_planner.py`):**

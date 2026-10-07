@@ -178,12 +178,9 @@ class ModelArtifact:
         target.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, target)
         if generate_checksum:
-            try:
-                digest = _compute_file_sha256(target)
-                sha_file = target.with_suffix(target.suffix + ".sha256")
-                sha_file.write_text(digest, encoding="utf-8")
-            except Exception:
-                pass
+            digest = _compute_file_sha256(target)
+            sha_file = target.with_suffix(target.suffix + ".sha256")
+            sha_file.write_text(digest, encoding="utf-8")
         return target
 
     @classmethod
@@ -211,16 +208,18 @@ class ModelArtifact:
                 try:
                     expected_sha = sha_file.read_text(encoding="utf-8").strip()
                     actual_sha = _compute_file_sha256(target)
-                    if actual_sha != expected_sha:
-                        raise ValueError(
-                            f"Artifact checksum verification failed for '{target}'. "
-                            f"Expected SHA-256 '{expected_sha}', got '{actual_sha}'. "
-                            "The artifact may have been modified or corrupted."
-                        )
-                except ValueError:
-                    raise
-                except Exception:
-                    pass
+                except Exception as exc:
+                    raise ValueError(
+                        f"Artifact checksum verification failed for '{target}': "
+                        f"unable to read or compute hash integrity ({exc})."
+                    ) from exc
+
+                if actual_sha != expected_sha:
+                    raise ValueError(
+                        f"Artifact checksum verification failed for '{target}'. "
+                        f"Expected SHA-256 '{expected_sha}', got '{actual_sha}'. "
+                        "The artifact may have been modified or corrupted."
+                    )
 
         warnings.warn(
             "Security Notice: Only load CATML artifacts from trusted sources. "
