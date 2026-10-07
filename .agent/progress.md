@@ -1,5 +1,33 @@
 # Progress
 
+### Track Release Engineering — v0.8.0 Release Final Polish & PyPI Verification (2026-10-07)
+
+- Rama de trabajo `chore/v08-release-prep-and-smoke` desde `main` (`a2f78d0`).
+- **Verificación Estricta de Dependencias en Visión (`src/automl/plugins/modalities/image_plugin.py`):**
+  - `ImageModalityPlugin.available()` ahora comprueba explícitamente `torchvision` junto con `torch` y `PIL` para evitar falsos positivos cuando solo `torch` está instalado.
+  - Test de verificación `test_image_modality_plugin_available_requires_torchvision` en `tests/test_v07_image_plugin.py`.
+- **Modernización de Pesos TorchVision & Offline Mode (`src/automl/engine/vision/image_encoder.py`):**
+  - Implementada resolución con API moderna de TorchVision (`get_model_weights(name).DEFAULT` y `Weights.DEFAULT`), con fallback para compatibilidad heredada.
+  - Mensaje de excepción informativo documentando la descarga de pesos de TorchVision en primer uso y cómo precargar la caché en entornos aislados/air-gapped (`~/.cache/torch/hub/checkpoints`).
+  - Nota correspondiente agregada en `README.md`.
+- **Contrato de Dimensión de Embeddings (`src/automl/engine/vision/image_encoder.py`):**
+  - Introducido atributo scikit-learn `self.feature_dim_`, descubierto y fijado durante `fit()` y utilizado en `get_feature_names_out()` dinámicamente.
+- **Desacoplamiento de Cabezal de Visión (`src/automl/plugins/models/vision_plugin.py`):**
+  - Exportado alias arquitectónico `VisionFeatureHeadPlugin = TimmVisionPlugin`.
+- **Ergonomía de Fachada (`src/automl/facade.py`):**
+  - Añadido alias de parámetro `task_type` en `AutoML.__init__()` para evitar excepciones por discrepancia entre `task` y `task_type`.
+- **Packaging Limpio para PyPI (`pyproject.toml`):**
+  - Migración a string SPDX moderno `license = "Apache-2.0"` (eliminando la advertencia de obsolescencia de setuptools).
+  - Añadidos metadatos completos `[project.urls]` (Homepage, Repository, Issues, Documentation).
+  - Eliminado el extra redundante `nlp` (cuyas dependencias ya están en el core).
+  - Wheel y sdist construidos limpiamente con cero advertencias: `catml-0.8.0.tar.gz` y `catml-0.8.0-py3-none-any.whl`.
+- **Smoke Test Automatizado E2E & Job de CI (`tests/smoke_test.py`, `.github/workflows/ci.yml`):**
+  - Creado script ejecutable `tests/smoke_test.py` que valida importación, metadatos, entrenamiento, exportación con sidecar `.sha256`, verificación criptográfica e inferencia de producción.
+  - Probado con éxito en entorno virtual aislado limpio (`/tmp/catml_test_env`).
+  - Añadido job `package-smoke` al workflow de CI de GitHub Actions dependiente de `test`.
+- **Validación Global:**
+  - 598 tests pasando en verde (100% passing). Cobertura >= 87.6%.
+
 ### Track Pre-PyPI Release Preparation — Vision Honesty, Packaging Extras & Governance (2026-10-07)
 
 - Rama de trabajo `fix/vision-packaging-and-v08-prep` desde `main` (`3335b87`).

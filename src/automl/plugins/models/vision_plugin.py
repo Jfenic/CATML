@@ -134,3 +134,8 @@ class TimmVisionPlugin(ModelPluginPort):
         space.add(ParameterSpec.float("learning_rate", 1e-4, 1e-2, log=True, default=1e-3))
         space.add(ParameterSpec.int("max_iter", 50, 300, step=25, default=100))
         return space
+
+
+# Architectural alias: clarifying that this plugin trains a downstream head on visual representations
+VisionFeatureHeadPlugin = TimmVisionPlugin
+

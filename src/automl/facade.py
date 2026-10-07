@@ -93,6 +93,7 @@ class AutoML:
     def __init__(
         self,
         task: str | None = None,
+        task_type: str | None = None,
         metric: str | None = None,
         cv_folds: int = 5,
         time_budget: int | None = None,
@@ -103,7 +104,7 @@ class AutoML:
         image_columns: list[str] | None = None,
         image_model: str | None = None,
     ) -> None:
-        self.task = task
+        self.task = task or task_type
         self.metric = metric
         self.cv_folds = cv_folds
         self.time_budget = time_budget

@@ -538,3 +538,50 @@ def test_image_encoder_deep_learning_mocked_execution(tmp_path: Path, monkeypatc
     assert np.isclose(float(np.linalg.norm(embeddings[0])), 1.0, atol=1e-5)
 
 
+def test_image_modality_plugin_available_requires_torchvision(monkeypatch):
+    """Verifies that ImageModalityPlugin.available() strictly checks torchvision along with torch and PIL."""
+    plugin = ImageModalityPlugin()
+
+    # Case 1: torchvision is missing
+    orig_import = __import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "torchvision":
+            raise ImportError("No module named torchvision")
+        return orig_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", mock_import)
+    assert plugin.available() is False
+
+
+def test_image_encoder_feature_dim_contract(tmp_path):
+    """Verifies that ImageEncoderNode populates feature_dim_ and respects it in get_feature_names_out."""
+    img_file = create_test_png(tmp_path / "feat_dim_test.png")
+
+    # With deterministic encoder (default 128)
+    encoder = ImageEncoderNode(model_name="deterministic")
+    assert encoder.feature_dim_ == 128
+    encoder.fit([str(img_file)])
+    assert encoder.feature_dim_ == 128
+    feature_names = encoder.get_feature_names_out()
+    assert len(feature_names) == 128
+    assert feature_names[0] == "image_encoder_0"
+
+    # With explicit custom output_dim
+    encoder_64 = ImageEncoderNode(output_dim=64, model_name="deterministic")
+    assert encoder_64.feature_dim_ == 64
+    names_64 = encoder_64.get_feature_names_out()
+    assert len(names_64) == 64
+
+
+def test_vision_feature_head_plugin_alias():
+    """Verifies VisionFeatureHeadPlugin alias resolves to TimmVisionPlugin."""
+    from automl.plugins.models.vision_plugin import TimmVisionPlugin, VisionFeatureHeadPlugin
+
+    assert VisionFeatureHeadPlugin is TimmVisionPlugin
+    instance = VisionFeatureHeadPlugin()
+    assert instance.plugin_id == "timm_vision"
+    assert "Vision Feature Head" in instance.name
+
+
+

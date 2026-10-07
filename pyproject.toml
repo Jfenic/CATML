@@ -8,8 +8,8 @@ dynamic = ["version"]
 description = "The Agent-Native AutoML Engine for Humans and AI Agents"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
-authors = [{ name = "CATML" }]
+license = "Apache-2.0"
+authors = [{ name = "CATML Contributors" }]
 dependencies = [
     "numpy>=1.24",
     "pandas>=2.0",
@@ -20,11 +20,18 @@ dependencies = [
     "joblib>=1.3",
 ]
 
+[project.urls]
+Homepage = "https://catml.vercel.app"
+Repository = "https://github.com/Jfenic/CATML"
+Issues = "https://github.com/Jfenic/CATML/issues"
+Documentation = "https://github.com/Jfenic/CATML#readme"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
+    "build>=1.0",
+    "wheel>=0.40",
 ]
 mcp = [
     "mcp>=1.2.0",
@@ -44,9 +51,6 @@ vision = [
     "torchvision>=0.15",
     "timm>=0.9",
     "pillow>=9.0",
-]
-nlp = [
-    "scikit-learn>=1.3",
 ]
 all = [
     "catboost>=1.2",

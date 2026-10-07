@@ -178,6 +178,9 @@ pip install "catml[mcp,agents]"
 pip install "catml[all]"
 ```
 
+> [!NOTE]
+> **Local-First & Offline Environments:** CATML executes completely local-first without transmitting dataset rows to external cloud services. However, when using deep neural vision backbones (`resnet18`, etc.), TorchVision downloads pretrained weights upon first execution if not already cached. For strictly offline or air-gapped environments, pre-populate the PyTorch cache directory (`~/.cache/torch/hub/checkpoints`).
+
 ---
 
 ## Advanced Architecture (CQRS Application Bus)
