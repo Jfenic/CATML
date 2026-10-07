@@ -1,11 +1,11 @@
 # CATML
 
 > **The Agent-Native AutoML Engine for Humans and AI Agents.**  
-> Local-first, modular tabular machine learning built with pure Hexagonal architecture, scikit-learn ergonomics, and Model Context Protocol (MCP) integration.
+> Local-first, agent-native AutoML with controlled multimodal workflows, built with pure Hexagonal architecture, scikit-learn ergonomics, and Model Context Protocol (MCP) integration.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-436%20Passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-591%20Passing-brightgreen.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-87%25%2B-brightgreen.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
@@ -16,11 +16,11 @@
 
 Most AutoML platforms (AutoGluon, H2O, FLAML, PyCaret) are monolithic libraries or proprietary cloud silos designed before the rise of autonomous AI coding agents. 
 
-CATML is engineered from the ground up with **four distinct advantages**:
+CATML is engineered from the ground up with **distinct advantages**:
 
 1. **🤖 Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within strict budget leases and cooperative cancellation controls.
 2. **⚡ 3-Line Ergonomics:** Simple, intuitive scikit-learn interface (`automl.fit(df, target="churn")`) backed by a pure hexagonal domain and CQRS application buses.
-3. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts that run anywhere for zero-dependency production inference.
+3. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts for database-free, workspace-independent production inference.
 4. **🛡️ "Propose ≠ Accept" Scientific Discipline:** Empirical trial evaluation with out-of-fold (OOF) target encoding and strict data leakage prevention before promoting any model to production.
 5. **🔒 100% Local-First & Private:** Executes entirely on your machine with a persistent SQLite task worker; zero telemetry, zero forced cloud lock-in.
 
@@ -47,7 +47,7 @@ print(result.leaderboard())
 # 4. Save standalone winning model for production
 result.save_model("model.pkl")
 
-# 5. Load and predict anywhere (zero database/workspace dependencies)
+# 5. Load and predict anywhere (database-free and workspace-independent)
 model = ModelArtifact.load("model.pkl")
 predictions = model.predict(df.head(5))
 probabilities = model.predict_proba(df.head(5))
@@ -214,6 +214,19 @@ pytest
 # Run tests with strict coverage validation (>= 85%)
 pytest --cov=src/automl --cov-fail-under=85
 ```
+
+---
+
+## Capabilities & Modality Status
+
+| Modality / Workflow | Status | Details |
+|---|---|---|
+| **Tabular Classification & Regression** | **Stable** | LightGBM, XGBoost, CatBoost, Scikit-learn, Voting Ensembles, N-Model OOF Blending, Level-2 Stacking, Temporal Dynamics, and Group Anti-Leakage. |
+| **Text Representations (NLP)** | **Available** | Sublinear TF-IDF n-gram extractor with automated `is_text_column` discovery and multimodal column fusion. |
+| **Image Representations (Vision)** | **Available** | Representation-level vision with PyTorch/torchvision (`resnet18`, etc.) or deterministic hash mode, image file detection, gallery preview in Workbench. |
+| **Agent Governance (MCP & LangGraph)** | **Available** | Native Model Context Protocol (stdio/HTTP), LangGraph StateGraph orchestrator, persistent SQLite ledger, human approval flow, and token auditing. |
+| **Native Vision (Detection / Segmentation)** | *Roadmap* | Planned for future v1.x with specialized deep learning backends. |
+| **Biomedical Extensions (`catml[medical]`)** | *Roadmap* | Planned extension for DICOM/NIfTI with strict zero data egress. |
 
 ---
 

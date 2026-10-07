@@ -312,12 +312,20 @@ def test_image_encoder_sklearn_and_dag_interfaces(tmp_path: Path) -> None:
 
 
 def test_image_encoder_deep_learning_fallback_warning(tmp_path: Path) -> None:
-    # Requesting resnet18 should emit a UserWarning and fall back gracefully
+    # Explicitly allowing fallback should emit a UserWarning and fall back gracefully
     with pytest.warns(UserWarning, match="Vision"):
-        encoder = ImageEncoderNode(output_dim=16, model_name="resnet18")
+        encoder = ImageEncoderNode(output_dim=16, model_name="resnet18", allow_fallback=True)
         img_path = str(create_test_png(tmp_path / "sample.png"))
         res = encoder.encode([img_path])
         assert res.shape == (1, 16)
+
+
+def test_image_encoder_deep_learning_fails_when_fallback_disallowed(tmp_path: Path) -> None:
+    # Default policy (allow_fallback=False) must fail visibly with RuntimeError instead of faking vision
+    encoder = ImageEncoderNode(output_dim=16, model_name="resnet18", allow_fallback=False)
+    img_path = str(create_test_png(tmp_path / "sample.png"))
+    with pytest.raises(RuntimeError, match="Vision model 'resnet18'"):
+        encoder.encode([img_path])
 
 
 def test_image_modality_plugin_gif_and_corrupted_headers(tmp_path: Path) -> None:

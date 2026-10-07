@@ -21,8 +21,27 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
 - [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
+## Now (Active Phase — v0.8 Hardening, Facade Bugfix & Product Alignment)
 
-## Now (Active Phase — v0.9: Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian)
+- [x] **Paquete 1: Calidad del Motor y Corrección de Bugs**:
+  - [x] Corregir `cv_folds` en `src/automl/facade.py`: `AutoML.fit` debe respetar `self.cv_folds` propagándolo a `create_run` y usando estrategia de validación `"cv"` o `"kfold"` cuando no exista columna de agrupación.
+  - [x] Endurecer `src/automl/engine/vision/image_encoder.py`:
+    - Eliminar fallback silencioso a hash determinista: si falla PyTorch/Pillow/backbone en un modelo neural, lanzar `RuntimeError` explícito ("Fail visibly, don't fake vision").
+    - Reservar hash determinista exclusivamente cuando `model_name="deterministic"` (para tests/benchmarks reproducibles).
+    - Eliminar fallback silencioso a red aleatoria no inicializada cuando fallan los pesos preentrenados.
+    - Preservar dimensiones nativas de embeddings sin truncamiento arbitrario destructivo (default native feature dimension).
+  - [x] Endurecer `src/automl/artifacts/model_artifact.py`:
+    - Advertencia de seguridad en `ModelArtifact.load` contra ejecución arbitraria de código por deserialización no confiable.
+    - Generación y verificación de checksum SHA-256 en guardado y recarga.
+- [x] **Paquete 2: Packaging & Naming**:
+  - [x] Renombrar paquete en `pyproject.toml` de `automl-platform` a `catml`.
+  - [x] Unificar comandos y aliases CLI (`catml` primario, `automl` retrocompatible).
+- [x] **Paquete 3: Claridad y Honestidad en Documentación**:
+  - [x] Actualizar `README.md`: cambiar "zero-dependency inference" por "Database-free, workspace-independent inference".
+  - [x] Explicar taxonomía clara en `README.md`: Estable (tabular), Disponible (representaciones de texto e imagen), Hoja de ruta (visión nativa end-to-end).
+
+
+## Completed Phase: v0.9 Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian
 
 - [x] Contratos puros de dominio para la Capa de Capacidades en `src/automl/domain/problems/`: `ProblemSpec`, `TabularSource`, `TextSource`, `ImageSource`, `TargetSpec`, `ValidationSpec`, `ExecutionPolicy`, `BackendCapabilities`, y `EvaluationResult` (100% stdlib, sin dependencias externas).
 - [x] Motor de extracción y tokenización ligera de texto en `src/automl/engine/features/text/`: `LightweightTextExtractor` (TF-IDF sublineal con n-gramas) y heurística `is_text_column` para detección automática de lenguaje natural.

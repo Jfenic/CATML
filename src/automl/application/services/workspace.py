@@ -258,6 +258,7 @@ class AutoMLWorkspace:
         metric: str | None = None,
         validation_strategy: str | None = None,
         group_column: str | None = None,
+        cv_folds: int = 5,
         extra: dict[str, Any] | None = None,
     ) -> AutoMLRun:
         problem = self.repository.get_problem_definition(dataset.id)
@@ -274,6 +275,7 @@ class AutoMLWorkspace:
             metric=run_metric,
             validation_strategy=strat,
             group_column=group_column,
+            cv_folds=cv_folds,
             extra=dict(extra or {}),
         )
         run = AutoMLRun(

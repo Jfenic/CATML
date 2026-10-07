@@ -148,3 +148,20 @@ def test_automl_invalid_input_errors():
 
     with pytest.raises(TypeError, match="Unsupported input data type"):
         automl.fit("invalid_type", target="target")
+
+
+def test_automl_cv_folds_stratified_kfold(tmp_path: Path):
+    df = pd.DataFrame({
+        "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] * 5,
+        "y": [0, 1, 0, 1, 0, 1] * 5,
+    })
+    automl = AutoML(
+        cv_folds=3,
+        models=["logistic_regression"],
+        workspace_dir=tmp_path / "ws_cv3",
+    )
+    result = automl.fit(df, target="y")
+    assert result.best_model is not None
+    lb = result.leaderboard()
+    assert len(lb) == 1
+    assert lb.iloc[0]["cv_std"] is not None

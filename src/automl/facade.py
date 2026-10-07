@@ -182,12 +182,19 @@ class AutoML:
         if not resolved_group_col and profile and profile.has_group_leakage and profile.group_candidates:
             resolved_group_col = profile.group_candidates[0]
 
-        val_strategy = "group_kfold" if resolved_group_col else "holdout"
+        if resolved_group_col:
+            val_strategy = "group_kfold"
+        elif self.cv_folds and self.cv_folds > 1:
+            val_strategy = "stratified_kfold" if resolved_task_type.value != "regression" else "kfold"
+        else:
+            val_strategy = "holdout"
+
         run = ws.create_run(
             dataset,
             metric=self.metric,
             validation_strategy=val_strategy,
             group_column=resolved_group_col,
+            cv_folds=self.cv_folds if (self.cv_folds and self.cv_folds > 1) else 5,
             extra=extra_cfg,
         )
         feature_names = ws.get_feature_registry(dataset.id).active_feature_names(target_col)
