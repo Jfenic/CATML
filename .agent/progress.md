@@ -1,5 +1,23 @@
 # Progress
 
+### Track Governance & Licensing — Relicensing to Apache-2.0 & v0.8.0 Transition (2026-10-07)
+
+- Etiquetado `v0.7.0` fijado y publicado en origen como último hito bajo licencia MIT.
+- Creación de rama de trabajo `chore/relicense-apache-2`.
+- **Blindaje de Licencia e Historia Transparente:**
+  - Sustitución de `LICENSE` por el texto oficial de Apache License 2.0 (con cláusula de defensa/represalia de patentes y protección de marca registrada).
+  - Creación de archivo `NOTICE` con atribución a CATML Contributors y mención histórica de transición.
+  - Blindaje preventivo de `.gitignore` frente a fuga de credenciales (`.env`, `*.pem`, `*.key`, `credentials.json`, `secrets.json`).
+- **Alineación de Metadatos y Documentación:**
+  - Actualización de `pyproject.toml` (`license = { text = "Apache-2.0" }`) y bump de versión a `0.8.0` en `src/automl/__init__.py`.
+  - Dinamización de versión en `src/automl/interfaces/mcp/server.py` y `src/automl/interfaces/web/server.py` importando `__version__`.
+  - Actualización de badges y textos legales en `README.md`, `docs/MASTER_PLAN.md` y `docs/decisions/006-tech-minimalist-premium-brand-system.md`.
+  - Actualización de menciones de licencia en la landing estática (`website/src/App.tsx`), con build estático verificado (230 ms).
+- **Validación Completa:**
+  - 590 tests pasando al 100% en verde.
+  - Cobertura de código mantenida en 87.70% (superando el umbral >= 85%).
+  - Verificación CLI de `automl --help` (reportando V0.8.0) y `automl task list`.
+
 ### Track Persona B — Paquete B5: LangGraph StateGraph, Durable SQLite Checkpointer & Crash Recovery (2026-10-06)
 
 - Rama propia `feat/agentic-b5-langgraph-orchestrator` desde `main` (`64ec800`).

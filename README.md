@@ -3,7 +3,7 @@
 > **The Agent-Native AutoML Engine for Humans and AI Agents.**  
 > Local-first, modular tabular machine learning built with pure Hexagonal architecture, scikit-learn ergonomics, and Model Context Protocol (MCP) integration.
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/Tests-436%20Passing-brightgreen.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-87%25%2B-brightgreen.svg)](tests/)
@@ -230,5 +230,5 @@ pytest --cov=src/automl --cov-fail-under=85
 ---
 
 ## License
-
-This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) file for details.
+ 
+Starting with version 0.8.0, CATML is licensed under the Apache License, Version 2.0 - see the [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) files for details. Earlier releases (<= 0.7.0) remain available under the MIT License.

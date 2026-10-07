@@ -388,7 +388,7 @@ Caso de uso de expansión:
 
 ## 18. Modelo de Ediciones: Community vs. Enterprise
 
-### CATML Community (Open Source / MIT)
+### CATML Community (Open Source / Apache-2.0)
 - 100% operativo en local.
 - CLI, Python SDK, Workbench visual, servidor MCP, ledger SQLite local, plugins tabulares y multimodales básicos.
 

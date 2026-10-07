@@ -15,6 +15,7 @@ from automl.application.commands.workspace_commands import (
 from automl.application.queries.workspace_queries import GetOOFResultQuery, PredictDatasetQuery
 from automl.domain.experiments.trial import ExperimentStatus
 from automl.engine.ensemble.oof import evaluate_oof
+from automl import __version__
 from automl.interfaces.cli.main import main
 
 
@@ -164,7 +165,7 @@ def test_cqrs_submission_artifacts_reload_and_queries_have_no_writes(app, tmp_pa
     assert report["backends"]["random_forest"].endswith("RandomForestClassifier")
     assert report["plugin_versions"]["random_forest"]
     assert len(report["train_hash"]) == len(report["config_hash"]) == 64
-    assert report["versions"]["automl"] == "0.7.0"
+    assert report["versions"]["automl"] == __version__
     submission = pd.read_csv(report["output_path"])
     assert list(submission.columns) == ["id", "Probability"]
     assert submission["id"].tolist() == pd.read_csv(template)["id"].tolist()

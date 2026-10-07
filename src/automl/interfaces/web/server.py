@@ -184,7 +184,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
             self._send_json({
                 "platform": "CATML AutoML Platform",
-                "version": "0.7.0",
+                "version": __version__,
                 "workspace": self.workspace_dir,
                 "total_runs": len(runs),
                 "total_trials": len(all_trials),
