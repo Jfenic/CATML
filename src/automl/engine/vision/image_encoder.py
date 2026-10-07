@@ -32,6 +32,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         base_dir: str | Path | None = None,
         use_cache: bool = True,
         cache_dir: str | Path | None = None,
+        allow_fallback: bool = False,
     ) -> None:
         """Initializes the image encoder node.
 
@@ -46,6 +47,8 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
             base_dir: Optional base directory to prepend to relative image paths.
             use_cache: Whether to cache extracted embeddings to accelerate repeated runs.
             cache_dir: Optional directory for persistent disk caching of embeddings.
+            allow_fallback: If False, requesting an unavailable neural backbone raises an error
+                            instead of silently falling back to deterministic pseudorandom hashes.
         """
         self.node = node
         if node is not None:
@@ -59,6 +62,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
             self.base_dir = params.get("base_dir", base_dir)
             self.use_cache = bool(params.get("use_cache", use_cache))
             self.cache_dir = params.get("cache_dir", cache_dir)
+            self.allow_fallback = bool(params.get("allow_fallback", allow_fallback))
         else:
             self.node_id = node_id
             self.output_dim = output_dim
@@ -69,6 +73,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
             self.base_dir = base_dir
             self.use_cache = use_cache
             self.cache_dir = cache_dir
+            self.allow_fallback = allow_fallback
 
         if self.output_dim <= 0:
             raise ValueError(f"output_dim must be strictly positive, got {self.output_dim}")
@@ -100,6 +105,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
                 "base_dir": str(self.base_dir) if self.base_dir else None,
                 "use_cache": self.use_cache,
                 "cache_dir": str(self.cache_dir) if self.cache_dir else None,
+                "allow_fallback": self.allow_fallback,
             },
         )
 
@@ -183,20 +189,29 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         if n_samples == 0:
             return np.empty((0, self.output_dim), dtype=np.float32)
 
-        # Check for deep learning model preference
-        use_deep_learning = self.model_name in ("resnet18", "resnet50", "vit", "mobilenet_v3_small", "timm")
-        if use_deep_learning:
-            embeddings_dl = self._try_deep_learning_encode(paths)
-            if embeddings_dl is not None:
-                return embeddings_dl
+        # Check model preference
+        if self.model_name in ("deterministic", "hash"):
+            embeddings = np.zeros((n_samples, self.output_dim), dtype=np.float32)
+            for i, item in enumerate(paths):
+                embeddings[i] = self._encode_single_with_cache(item)
+            return embeddings
 
-        # Pre-allocate output matrix
+        # Neural vision backbones (resnet18, resnet50, mobilenet_v3_small, vit, timm, etc.)
+        embeddings_dl = self._try_deep_learning_encode(paths)
+        if embeddings_dl is not None:
+            return embeddings_dl
+
+        if not self.allow_fallback:
+            raise RuntimeError(
+                f"Vision model '{self.model_name}' failed to encode images and allow_fallback=False. "
+                "Ensure PyTorch, torchvision, and Pillow are installed with pretrained weights, "
+                "or specify model_name='deterministic' explicitly for tests."
+            )
+
+        # Fallback only when explicitly permitted
         embeddings = np.zeros((n_samples, self.output_dim), dtype=np.float32)
-
-        # Fast and deterministic embedding computation with caching
         for i, item in enumerate(paths):
             embeddings[i] = self._encode_single_with_cache(item)
-
         return embeddings
 
     def encode_batch(
@@ -321,7 +336,13 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
             import torchvision.models as tv_models  # type: ignore[import-untyped]
             import torchvision.transforms as T  # type: ignore[import-untyped]
             from PIL import Image  # type: ignore[import-untyped]
-        except ImportError:
+        except ImportError as e:
+            if not self.allow_fallback:
+                raise RuntimeError(
+                    f"Vision model '{self.model_name}' requires PyTorch, torchvision, and Pillow. "
+                    "Install vision dependencies via `pip install 'catml[vision]'` or "
+                    "specify model_name='deterministic' explicitly for testing."
+                ) from e
             warnings.warn(
                 "Vision framework PyTorch/torchvision or Pillow is not installed. "
                 "Falling back transparently to lightweight deterministic embedding.",
@@ -340,6 +361,11 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
 
             model_name = self.model_name.lower().replace("-", "_")
             if not hasattr(tv_models, model_name):
+                if not self.allow_fallback:
+                    raise ValueError(
+                        f"Unsupported vision model backbone '{self.model_name}'. "
+                        "Supported TorchVision backbones include: 'resnet18', 'resnet50', 'mobilenet_v3_small', etc."
+                    )
                 return None
 
             model_fn = getattr(tv_models, model_name)
@@ -350,8 +376,19 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
                     model = model_fn(weights=weights)
                 else:
                     model = model_fn(pretrained=True)
-            except Exception:
-                model = model_fn()
+            except Exception as e:
+                if not self.allow_fallback:
+                    raise RuntimeError(
+                        f"Failed to load pretrained weights for vision backbone '{self.model_name}': {e}. "
+                        "CATML requires pretrained weights for semantic feature extraction and does "
+                        "not use uninitialized random neural networks as a fallback."
+                    ) from e
+                warnings.warn(
+                    f"Failed to load pretrained weights for '{self.model_name}' ({e}). Falling back to deterministic embedding.",
+                    UserWarning,
+                    stacklevel=3,
+                )
+                return None
 
             if hasattr(model, "fc"):
                 model.fc = torch.nn.Identity()
@@ -407,6 +444,11 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
             return np.vstack(all_feats)
 
         except Exception as e:
+            if not self.allow_fallback:
+                raise RuntimeError(
+                    f"Vision model '{self.model_name}' inference failed: {e}. "
+                    "Ensure valid image files and hardware configuration."
+                ) from e
             warnings.warn(
                 f"Vision model '{self.model_name}' inference encountered an issue ({e}). "
                 f"Falling back transparently to lightweight deterministic embedding.",

@@ -1,5 +1,28 @@
 # Progress
 
+### Track Engine & Packaging Hardening — Vision Safety, Facade Fixes & Artifact Security (2026-10-07)
+
+- Rama propia `feat/v08-hardening-and-consistency` desde `main` (`4be3e5f`).
+- **Corrección de Validación en Fachada (`src/automl/facade.py` & `src/automl/application/services/workspace.py`):**
+  - Resuelto bug donde `AutoML.fit` ignoraba `cv_folds` al hardcodear validación `holdout` sin grupo.
+  - Ahora propaga `cv_folds` a `workspace.create_run()` y selecciona `stratified_kfold` / `kfold` cuando `cv_folds > 1` (o `group_kfold` si hay columna de grupo), preservando `holdout` únicamente para `cv_folds == 1`.
+- **Endurecimiento del Encoder de Visión (`src/automl/engine/vision/image_encoder.py`):**
+  - Eliminado el fallback silencioso a hash determinista pseudoaleatorio en modelos neurales (`allow_fallback=False` por defecto).
+  - Si un modelo neural (`resnet18`, etc.) se solicita y no están disponibles PyTorch/timm o fallan los pesos preentrenados, se levanta `RuntimeError` explícito ("Fail visibly, don't fake vision").
+  - Eliminado el fallback silencioso a redes aleatorias sin pesos preentrenados `model_fn()`.
+  - Reservado el vector determinista por hash exclusivamente cuando `model_name in ("deterministic", "hash")`.
+- **Seguridad en Artefactos (`src/automl/artifacts/model_artifact.py`):**
+  - Implementada advertencia explícita de seguridad (`UserWarning`) en `ModelArtifact.load` recordando los riesgos de deserialización no confiable de pickle/joblib.
+  - Implementada generación de sidecar `.sha256` en `save()` y verificación criptográfica de integridad en `load(verify_checksum=True)` (lanzando `ValueError` si hay discrepancia de checksum).
+- **Packaging y Claridad de Documentación:**
+  - Renombrado el paquete en `pyproject.toml` a `name = "catml"`.
+  - Configurados puntos de entrada CLI: comando principal `catml` y alias retrocompatible `automl`. Instalado en editable (`catml-0.8.0`).
+  - Actualizado `README.md` aclarando la taxonomía de capacidades: Estable (Tabular), Disponible (NLP y Vision feature representation), Hoja de ruta (visión nativa end-to-end), y reemplazado el reclamo "zero-dependency" por "Database-free, workspace-independent production inference".
+- **Validación Completa:**
+  - 593 tests pasando al 100% en verde (0 fallos).
+  - Cobertura de código: 87.65% (superando el umbral >= 85%).
+  - CLI `catml --help` y `automl --help` verificados.
+
 ### Track Governance & Licensing — Relicensing to Apache-2.0 & v0.8.0 Transition (2026-10-07)
 
 - Etiquetado `v0.7.0` fijado y publicado en origen como último hito bajo licencia MIT.

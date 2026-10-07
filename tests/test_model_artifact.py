@@ -174,3 +174,31 @@ def test_model_artifact_provenance_and_describe(tmp_path: Path):
     assert reloaded.provenance["dataset_hash"] == "sha256_mock_hash"
     assert reloaded.describe()["provenance"]["seed"] == 42
 
+
+def test_model_artifact_checksum_and_security_warning(tmp_path: Path):
+    pipe = Pipeline([("model", LogisticRegression())])
+    pipe.fit(np.array([[1.0], [2.0]]), np.array([0, 1]))
+    artifact = ModelArtifact(
+        pipeline=pipe,
+        model_id="logistic_regression",
+        task_type="binary_classification",
+        feature_names=["f1"],
+    )
+    save_path = tmp_path / "secure_model.pkl"
+    artifact.save(save_path)
+
+    # Verify sidecar sha256 file
+    sha_file = tmp_path / "secure_model.pkl.sha256"
+    assert sha_file.exists()
+    assert len(sha_file.read_text().strip()) == 64
+
+    # Verify loading triggers security notice warning
+    with pytest.warns(UserWarning, match="Security Notice"):
+        loaded = ModelArtifact.load(save_path)
+    assert loaded.model_id == "logistic_regression"
+
+    # Verify tampering detection
+    save_path.write_bytes(b"tampered content")
+    with pytest.raises(ValueError, match="Artifact checksum verification failed"):
+        ModelArtifact.load(save_path)
+

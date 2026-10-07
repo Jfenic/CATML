@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import hashlib
 from typing import Any
+import warnings
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -144,23 +147,69 @@ class ModelArtifact:
                 pass
             raise TypeError(f"Unsupported input type for inference: {type(X)}")
 
-    def save(self, path: str | Path) -> Path:
+    def save(self, path: str | Path, generate_checksum: bool = True) -> Path:
         """
         Serialize this artifact to disk as a standalone portable file.
+
+        Args:
+            path: Destination file path (e.g. 'model.pkl').
+            generate_checksum: If True, writes a sidecar '.sha256' file with the artifact hash.
         """
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, target)
+        if generate_checksum:
+            try:
+                with open(target, "rb") as f:
+                    digest = hashlib.sha256(f.read()).hexdigest()
+                sha_file = target.with_suffix(target.suffix + ".sha256")
+                sha_file.write_text(digest, encoding="utf-8")
+            except Exception:
+                pass
         return target
 
     @classmethod
-    def load(cls, path: str | Path) -> ModelArtifact:
+    def load(cls, path: str | Path, verify_checksum: bool = True) -> ModelArtifact:
         """
         Load a standalone ModelArtifact from disk.
+
+        Security Notice:
+            Deserializing pickle/joblib files can execute arbitrary code. Only load
+            CATML model artifacts from trusted sources and verified environments.
+
+        Args:
+            path: Path to the serialized artifact.
+            verify_checksum: If True and a sidecar '.sha256' file exists, verifies hash integrity.
         """
         target = Path(path)
         if not target.exists():
             raise FileNotFoundError(f"Model artifact not found at '{target}'")
+
+        if verify_checksum:
+            sha_file = target.with_suffix(target.suffix + ".sha256")
+            if sha_file.is_file():
+                try:
+                    expected_sha = sha_file.read_text(encoding="utf-8").strip()
+                    with open(target, "rb") as f:
+                        actual_sha = hashlib.sha256(f.read()).hexdigest()
+                    if actual_sha != expected_sha:
+                        raise ValueError(
+                            f"Artifact checksum verification failed for '{target}'. "
+                            f"Expected SHA-256 '{expected_sha}', got '{actual_sha}'. "
+                            "The artifact may have been modified or corrupted."
+                        )
+                except ValueError:
+                    raise
+                except Exception:
+                    pass
+
+        warnings.warn(
+            "Security Notice: Only load CATML artifacts from trusted sources. "
+            "Deserializing pickle/joblib files from untrusted environments can execute arbitrary code.",
+            UserWarning,
+            stacklevel=2,
+        )
+
         loaded = joblib.load(target)
         if not isinstance(loaded, cls):
             raise TypeError(
