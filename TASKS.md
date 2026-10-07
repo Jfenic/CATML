@@ -15,7 +15,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] A5: selección explícita, validación JSON local, límites de entrada/salida, timeout por socket, reintentos HTTP acotados, redacción y auditoría en memoria con consumo desconocido distinguido.
 - [x] A5: documentar configuración e inyección en especialistas en `src/automl/infrastructure/llm/README.md`; pruebas sin credenciales y fixture HTTP local en el archivo asignado `tests/test_v10_specialists.py`.
 - [x] A5: validación final — 508 tests pasando, cobertura 87,72 %, CLI help/task list y diff sin errores de whitespace.
-- [ ] A5: revisión cruzada y smoke test con proveedor/modelo real elegido; la conexión CLI/Workbench, presupuestos LLM persistidos y LangGraph pertenecen a la integración B5. H5 sigue pendiente.
+
+### Track Persona B (Interfaces, Integración & Orquestación)
+
+- [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
+- [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
+- [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
 
 ## Now (Active Phase — v0.9: Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian)
 
@@ -115,9 +120,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Contratos H4 acordados en `main`: DTOs de paso (`CandidateProposal`, `EvaluationFeedback`, `ContextPayload`, `SessionStepResult`).
   - [x] Track Persona A (Paquete A4): `ContextBuilder`, especialistas (`Planner`, `FeatureAdvisor`, `Critic`) en `src/automl/application/agents/specialists/`, proveedor determinista `FakeLLMProvider` en `src/automl/infrastructure/llm/` y tests en `tests/test_v10_specialists.py` (31 tests pasando con 94% de cobertura de paquete).
   - [x] Track Persona B (Paquete B4): Máquina de estados determinista en `src/automl/application/agents/orchestrator/`, CLI de sesión en `src/automl/interfaces/cli/agent_session_cli.py`, criterios de parada y tests en `tests/test_v10_orchestrator.py` (24 tests pasando con 92% de cobertura de paquete).
-- [ ] H5 — V1.0 Proveedor real, LangGraph duradero y recuperación (Integración final A5 + B5):
-  - [ ] Track Persona A (Paquete A5): Adaptador LLM agnóstico con validación de respuesta, timeouts/reintentos acotados, redacción y auditoría de tokens.
-  - [ ] Track Persona B (Paquete B5): Checkpointer LangGraph SQLite, reanudación tras fallo y tests E2E de orquestación.
+- [x] H5 — V1.0 Proveedor real, LangGraph duradero y recuperación (Integración final A5 + B5):
+  - [x] Track Persona A (Paquete A5): Adaptador LLM agnóstico con validación de respuesta, timeouts/reintentos acotados, redacción y auditoría de tokens (PR #57).
+  - [x] Track Persona B (Paquete B5): Checkpointer LangGraph SQLite, reanudación tras fallo y tests E2E de orquestación (`LangGraphAgentOrchestrator`, `SqliteCheckpointSaver`, CLI `--engine {deterministic,langgraph}`, 590 tests passing, 87.70% cobertura).
 - [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
 
 - [x] Stacking with a trained meta-estimator (distinct from voting/blending).

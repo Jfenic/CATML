@@ -381,13 +381,20 @@ class AgentSessionManager:
             )
 
             if proposal.action_type == "create_experiment":
+                model_name = proposal.action_payload.get("model_name") or proposal.action_payload.get("model_id", "logistic_regression")
+                params = proposal.action_payload.get("parameters") or proposal.action_payload.get("hyperparameters", {})
+                args: dict[str, Any] = {
+                    "run_id": session.run_id,
+                    "model_name": model_name,
+                }
+                if params:
+                    args["parameters"] = params
+                if "feature_names" in proposal.action_payload:
+                    args["feature_names"] = proposal.action_payload["feature_names"]
+
                 inv = ToolInvocation(
                     tool_name="create_experiment",
-                    arguments={
-                        "run_id": session.run_id,
-                        "model_id": proposal.action_payload.get("model_id"),
-                        "parameters": proposal.action_payload.get("hyperparameters", {}),
-                    },
+                    arguments=args,
                     context=tool_context,
                 )
                 tool_res = self.executor.execute(inv, budget=budget_obj)
@@ -403,8 +410,10 @@ class AgentSessionManager:
                         )
                         run_res = self.executor.execute(inv_run, budget=budget_obj)
                         if run_res.success and isinstance(run_res.data, dict):
-                            latest_result = run_res.data
+                            latest_result = dict(run_res.data)
                             latest_result["experiment_id"] = exp_id
+                            if "score" not in latest_result and "metric_value" in latest_result:
+                                latest_result["score"] = latest_result["metric_value"]
             elif proposal.action_type in ("tune_hyperparameters", "optimize_experiment"):
                 inv_opt = ToolInvocation(
                     tool_name="optimize_experiment",

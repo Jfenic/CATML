@@ -32,6 +32,7 @@ mcp = [
 agents = [
     "langgraph>=0.2.0",
     "langgraph-checkpoint>=2.0.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
 ]
 models = [
     "catboost>=1.2",
@@ -54,6 +55,7 @@ all = [
     "mcp>=1.2.0",
     "langgraph>=0.2.0",
     "langgraph-checkpoint>=2.0.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
 ]
 full = [
     "catboost>=1.2",

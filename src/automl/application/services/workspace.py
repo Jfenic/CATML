@@ -191,12 +191,18 @@ class AutoMLWorkspace:
         self._runs[run_id] = run
         return run
 
+    def get_run(self, run_id: str) -> AutoMLRun:
+        return self._get_run(run_id)
+
     def _get_dataset(self, dataset_id: str) -> Dataset:
         dataset = self._datasets.get(dataset_id) or self.repository.get_dataset(dataset_id)
         if dataset is None:
             raise KeyError(f"Dataset not found: {dataset_id}")
         self._datasets[dataset_id] = dataset
         return dataset
+
+    def get_dataset(self, dataset_id: str) -> Dataset:
+        return self._get_dataset(dataset_id)
 
     def register_dataset(
         self,
@@ -547,6 +553,10 @@ class AutoMLWorkspace:
             }
             for r in rows
         ]
+
+    def get_leaderboard(self, run_or_id: str | AutoMLRun) -> list[dict]:
+        run = run_or_id if isinstance(run_or_id, AutoMLRun) else self._get_run(run_or_id)
+        return self.leaderboard(run)
 
     def compare_experiments(self, experiment_ids: list[str]) -> list[dict]:
         rows = self.repository.compare_experiments(experiment_ids)

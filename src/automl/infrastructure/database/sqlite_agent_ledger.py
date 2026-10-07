@@ -734,6 +734,23 @@ class SqliteAgentLedger(AgentLedgerPort):
             data = json.loads(row["state_json"])
             return AgentSessionState.from_dict(data)
 
+    def list_sessions(self, run_id: str | None = None) -> list[AgentSessionState]:
+        with self._connect() as connection:
+            if run_id:
+                cursor = connection.execute(
+                    "SELECT * FROM agent_sessions WHERE run_id = ? OR session_id = ? ORDER BY created_at ASC",
+                    (run_id, run_id),
+                )
+            else:
+                cursor = connection.execute(
+                    "SELECT * FROM agent_sessions ORDER BY created_at ASC"
+                )
+            results: list[AgentSessionState] = []
+            for row in cursor.fetchall():
+                data = json.loads(row["state_json"])
+                results.append(AgentSessionState.from_dict(data))
+            return results
+
     def _row_to_operation(self, row: sqlite3.Row) -> OperationRecord:
         return OperationRecord(
             operation_id=row["operation_id"],
