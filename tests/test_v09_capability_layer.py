@@ -63,6 +63,20 @@ def test_problem_spec_and_capabilities_compatibility():
     assert "modality 'text'" in reason_tab.lower()
 
 
+def test_problem_spec_immutability():
+    from dataclasses import FrozenInstanceError
+
+    prob = ProblemSpec(
+        inputs=[TabularSource(columns=["a", "b"])],
+        name="immutable_spec",
+    )
+    assert isinstance(prob.inputs, tuple)
+    with pytest.raises(FrozenInstanceError):
+        prob.name = "modified_spec"  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        prob.inputs = ()  # type: ignore[misc]
+
+
 def test_evaluation_result_heterogeneous_metrics():
     res = EvaluationResult(
         primary_metric="roc_auc",

@@ -24,7 +24,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         self,
         node: PipelineNode | None = None,
         node_id: str = "image_encoder",
-        output_dim: int = 128,
+        output_dim: int | None = None,
         model_name: str = "deterministic",
         random_seed: int = 42,
         handle_missing: str = "raise",
@@ -39,7 +39,8 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         Args:
             node: Optional domain PipelineNode to inherit configuration from.
             node_id: Unique identifier for this graph execution node.
-            output_dim: Dimension of output embedding vectors (D).
+            output_dim: Dimension of output embedding vectors (D). If None on neural backbones,
+                        preserves native feature dimension without lossy truncation.
             model_name: Model/strategy name ('deterministic', 'hash', 'resnet18', etc.).
             random_seed: Reproducibility seed for deterministic projections.
             handle_missing: Policy for missing files: 'raise' or 'zero'.
@@ -54,7 +55,8 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         if node is not None:
             self.node_id = node.node_id
             params = dict(node.parameters)
-            self.output_dim = int(params.get("output_dim", params.get("dim", output_dim)))
+            dim_val = params.get("output_dim", params.get("dim", output_dim))
+            self.output_dim = int(dim_val) if dim_val is not None else None
             self.model_name = str(params.get("model_name", model_name))
             self.random_seed = int(params.get("random_seed", random_seed))
             self.handle_missing = str(params.get("handle_missing", handle_missing))
@@ -75,8 +77,11 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
             self.cache_dir = cache_dir
             self.allow_fallback = allow_fallback
 
-        if self.output_dim <= 0:
+        if self.output_dim is not None and self.output_dim <= 0:
             raise ValueError(f"output_dim must be strictly positive, got {self.output_dim}")
+
+        if self.model_name in ("deterministic", "hash") and self.output_dim is None:
+            self.output_dim = 128
 
         self.input_modalities = (Modality.IMAGE,)
         self.output_modality = Modality.TABULAR
@@ -126,7 +131,8 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
     def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
         """Returns generated embedding feature names for scikit-learn pipeline feature tracking."""
         prefix = f"{self.node_id}_" if self.node_id else "img_emb_"
-        return np.array([f"{prefix}{i}" for i in range(self.output_dim)], dtype=object)
+        dim = self.output_dim if self.output_dim is not None else 512
+        return np.array([f"{prefix}{i}" for i in range(dim)], dtype=object)
 
     def execute(self, inputs: Any) -> np.ndarray:
         """Executes node logic within a Pipeline DAG runner."""
@@ -427,7 +433,10 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
 
                     feats_np = feats.cpu().numpy().astype(np.float32)
 
-                    if feats_np.shape[1] != self.output_dim:
+                    if self.output_dim is None:
+                        # Dynamically preserve native neural backbone dimensions (e.g. 512 for ResNet18)
+                        self.output_dim = feats_np.shape[1]
+                    elif feats_np.shape[1] != self.output_dim:
                         if feats_np.shape[1] > self.output_dim:
                             feats_np = feats_np[:, : self.output_dim]
                         else:
@@ -440,7 +449,8 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
                     all_feats.append(feats_np)
 
             if not all_feats:
-                return np.empty((0, self.output_dim), dtype=np.float32)
+                out_dim = self.output_dim if self.output_dim is not None else 512
+                return np.empty((0, out_dim), dtype=np.float32)
             return np.vstack(all_feats)
 
         except Exception as e:

@@ -21,7 +21,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
 - [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
-## Now (Active Phase — v0.8 Hardening, Facade Bugfix & Product Alignment)
+## Now (Active Phase — v0.8 Release Readiness, Packaging & Governance)
 
 - [x] **Paquete 1: Calidad del Motor y Corrección de Bugs**:
   - [x] Corregir `cv_folds` en `src/automl/facade.py`: `AutoML.fit` debe respetar `self.cv_folds` propagándolo a `create_run` y usando estrategia de validación `"cv"` o `"kfold"` cuando no exista columna de agrupación.
@@ -29,16 +29,22 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - Eliminar fallback silencioso a hash determinista: si falla PyTorch/Pillow/backbone en un modelo neural, lanzar `RuntimeError` explícito ("Fail visibly, don't fake vision").
     - Reservar hash determinista exclusivamente cuando `model_name="deterministic"` (para tests/benchmarks reproducibles).
     - Eliminar fallback silencioso a red aleatoria no inicializada cuando fallan los pesos preentrenados.
-    - Preservar dimensiones nativas de embeddings sin truncamiento arbitrario destructivo (default native feature dimension).
+    - Preservar dimensiones nativas de embeddings sin truncamiento arbitrario destructivo (default native feature dimension 512).
   - [x] Endurecer `src/automl/artifacts/model_artifact.py`:
     - Advertencia de seguridad en `ModelArtifact.load` contra ejecución arbitraria de código por deserialización no confiable.
-    - Generación y verificación de checksum SHA-256 en guardado y recarga.
-- [x] **Paquete 2: Packaging & Naming**:
+    - Generación y verificación de checksum SHA-256 en streaming por bloques (`chunk_size=65536`) en guardado y recarga.
+    - Documentar distinción técnica entre integridad (detección de corrupción accidental) y autenticidad criptográfica (firmas digitales PKI).
+  - [x] Inmutabilidad en capa de dominio (`src/automl/domain/problems/spec.py`):
+    - `@dataclass(frozen=True)` en `ProblemSpec` con conversión a tupla inmutable en `__post_init__` y test de regresión.
+- [x] **Paquete 2: Packaging, Extras & Naming**:
   - [x] Renombrar paquete en `pyproject.toml` de `automl-platform` a `catml`.
   - [x] Unificar comandos y aliases CLI (`catml` primario, `automl` retrocompatible).
-- [x] **Paquete 3: Claridad y Honestidad en Documentación**:
-  - [x] Actualizar `README.md`: cambiar "zero-dependency inference" por "Database-free, workspace-independent inference".
-  - [x] Explicar taxonomía clara en `README.md`: Estable (tabular), Disponible (representaciones de texto e imagen), Hoja de ruta (visión nativa end-to-end).
+  - [x] Reestructurar extras de instalación en `pyproject.toml`: `models`, `vision`, `nlp`, `mcp`, `agents`, `all` (incluyendo dependencias de visión en `all` y eliminando `full` redundante).
+- [x] **Paquete 3: Claridad, Transparencia Técnica y Gobernanza**:
+  - [x] Actualizar `README.md`: cambiar "zero-dependency inference" por "Database-free, workspace-independent inference", badges (595 tests passing, Apache-2.0), CLI V0.8.0, Tech Minimalista Premium workbench.
+  - [x] Alinear honestidad de plugins de visión: renombrar `TimmVisionPlugin` a "Vision Feature Head (MLP on Extracted Embeddings)" y en UI a "Vision Feature MLP".
+  - [x] Sincronizar hoja de ruta en `docs/MASTER_PLAN.md`: marcar capacidades completadas como `IMPLEMENTADO (SHIPPED IN 0.8)` y fases futuras como `v0.8.x` y `v1.0+`.
+  - [x] Crear gobernanza y release engineering: `SECURITY.md`, `CHANGELOG.md` (formato Keep a Changelog) y `TRADEMARK.md` (política de marca CATML).
 
 
 ## Completed Phase: v0.9 Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian

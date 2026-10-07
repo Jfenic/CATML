@@ -95,7 +95,7 @@ export class NewExperimentModal {
                 <label class="flex items-center space-x-1.5"><input type="checkbox" value="random_forest" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Random Forest</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" value="logistic_regression" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Logistic/Ridge</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" value="voting_ensemble" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ensemble Blender</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Vision (timm)</span></label>
+                <label class="flex items-center space-x-1.5" title="Vision Feature Extraction + MLP Head"><input type="checkbox" value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Vision Feature MLP</span></label>
               </div>
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#252C38] text-[11px] text-[#8B95A7]">
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Feature engineering</span></label>

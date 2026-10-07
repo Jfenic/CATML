@@ -214,14 +214,24 @@ class TestVisionPluginsCapabilityLayer:
 
 
 class TestMultimodalTrainingAndPipeline:
-    def test_build_pipeline_with_image_columns(self, vision_dataset_dir):
+    def test_build_pipeline_missing_vision_deps_raises_error(self, vision_dataset_dir):
+        from sklearn.linear_model import LogisticRegression
+
+        df, _ = vision_dataset_dir
+        X = df[["image_path", "age", "category", "notes"]]
+
+        if not ImageModalityPlugin().available():
+            with pytest.raises(RuntimeError, match="deep learning vision dependencies"):
+                _build_pipeline(X, LogisticRegression(), image_columns=["image_path"])
+
+    def test_build_pipeline_with_explicit_deterministic_model(self, vision_dataset_dir):
         from sklearn.linear_model import LogisticRegression
 
         df, _ = vision_dataset_dir
         X = df[["image_path", "age", "category", "notes"]]
         y = df["target"]
 
-        pipeline = _build_pipeline(X, LogisticRegression(), image_columns=["image_path"])
+        pipeline = _build_pipeline(X, LogisticRegression(), image_columns=["image_path"], image_model="deterministic")
         pipeline.fit(X, y)
 
         preds = pipeline.predict(X)
@@ -236,7 +246,7 @@ class TestMultimodalTrainingAndPipeline:
         X = df[["image_path"]]
         y = df["target"]
 
-        pipeline = _build_pipeline(X, HistGradientBoostingClassifier(), image_columns=["image_path"])
+        pipeline = _build_pipeline(X, HistGradientBoostingClassifier(), image_columns=["image_path"], image_model="deterministic")
         pipeline.fit(X, y)
 
         preds = pipeline.predict(X)
@@ -298,6 +308,7 @@ class TestAutoMLFacadeVisionSpike:
             models=["logistic_regression"],
             workspace_dir=tmp_path / "automl_ws",
             random_state=42,
+            image_model="deterministic",
         )
 
         result = automl.fit(

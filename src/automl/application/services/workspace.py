@@ -1863,6 +1863,8 @@ class AutoMLWorkspace:
                 params["text_columns"] = run.config.extra["text_columns"]
             if "image_columns" in run.config.extra and "image_columns" not in params:
                 params["image_columns"] = run.config.extra["image_columns"]
+            if "image_model" in run.config.extra and "image_model" not in params:
+                params["image_model"] = run.config.extra["image_model"]
 
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
         pipeline, adapter = trainer.fit_pipeline(

@@ -218,15 +218,13 @@ External network access        DENY
 
 ## 7. Hoja de Ruta y Puertas de Decisión (Decision Gates)
 
-| Fase | Objetivo Principal | Entregable Clave | Puerta de Decisión (Gate) |
+| Fase | Alcance y Capacidades | Estado Actual | Puerta de Decisión (Gate) |
 |---|---|---|---|
-| **v0.8** | Producto estable y distribución | AutoML facade + `ModelArtifact` + CLI + Workbench + MCP + PyPI | 5–10 usuarios externos independientes usando el producto |
-| **v0.9** | Capa de Capacidades y texto ligero | `ProblemSpec`, `BackendCapabilities`, extracción TF-IDF | Pipeline tabular + texto evaluado de forma uniforme |
-| **v0.9.x** | Anti-Leakage Guardian avanzado | Detección de fuga por grupo y entidad (`GroupKFold`) | Cero falsos positivos en datos IID y bloqueo en grupos reales |
-| **Vision Spike** | Validación de cargas neurales | `timm` + PyTorch + HPO GPU + artefactos desacoplados | Arquitectura soporta ciclo de vida sin reescribir el core |
-| **v1.0** | Sistema agéntico duradero | LangGraph `StateGraph`, SQLite checkpointer, recuperación tras fallo | Recuperación determinista tras caídas sin duplicación |
-| **v1.x** | Visión nativa tabular-fusionada | Clasificación de imágenes integrada en pipeline | Demanda y usuarios reales con casos de visión activa |
-| **Posterior** | Especialización industrial / biomédica | Validación por pacientes / time-aware industrial | Validación clínica o industrial demostrable |
+| **v0.8 (Core & Agentic Release)** | AutoML facade + `ModelArtifact` (.sha256) + CLI + Workbench + Servidor MCP + Anti-Leakage Guardian (Group/Entity) + `ProblemSpec` inmutable + NLP ligero + Vision Feature Head Spike + LangGraph Durable Agents | **IMPLEMENTADO (SHIPPED IN 0.8)** | Publicación en PyPI y adopción real por 5–10 usuarios independientes |
+| **v0.8.x (Hardening & Feedback)** | Criptografía en artefactos (firmas HMAC/Ed25519), control plane de políticas remotas, optimizaciones de extras de empaquetado | **PRÓXIMO (v0.8.x)** | Cero incidentes de seguridad y retroalimentación positiva de la comunidad |
+| **v1.0 (Native Multimodal Core)** | Fine-tuning end-to-end de redes neuronales de visión, pipelines mixtos tabular-visión optimizados conjuntamente | **FUTURO (v1.0)** | Demanda validada de visión activa en datasets multimodales empresariales |
+| **v1.x (Specialized Tasks)** | Detección de objetos y segmentación guiada por agentes locales | **FUTURO (v1.x)** | Casos de uso estructurados donde el paradigma tabular no aplique |
+| **Posterior (Medical & Industrial)** | Extensiones DICOM/NIfTI (`catml[medical]`), validación estricta por paciente/cohorte, zero data egress estricto | **INVESTIGACIÓN FUTURA** | Validación clínica demostrable con hospitales o centros de investigación |
 
 ---
 

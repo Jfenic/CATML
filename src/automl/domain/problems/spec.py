@@ -131,7 +131,7 @@ class EvaluationResult:
         }
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProblemSpec:
     """
     Complete, immutable specification of a machine learning problem in CATML.
@@ -139,12 +139,16 @@ class ProblemSpec:
     Decouples data sources/modalities from the target definition, validation
     strategy, and execution constraints.
     """
-    inputs: list[ModalitySpec] = field(default_factory=list)
+    inputs: tuple[ModalitySpec, ...] = field(default_factory=tuple)
     target: TargetSpec | None = None
     validation: ValidationSpec = field(default_factory=ValidationSpec)
     policy: ExecutionPolicy = field(default_factory=ExecutionPolicy)
     name: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.inputs, list):
+            object.__setattr__(self, "inputs", tuple(self.inputs))
 
     @property
     def modalities(self) -> set[Modality]:

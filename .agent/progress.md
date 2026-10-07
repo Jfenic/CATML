@@ -1,5 +1,32 @@
 # Progress
 
+### Track Pre-PyPI Release Preparation — Vision Honesty, Packaging Extras & Governance (2026-10-07)
+
+- Rama de trabajo `fix/vision-packaging-and-v08-prep` desde `main` (`3335b87`).
+- **Honestidad y Corrección del Pipeline de Visión (`src/automl/engine/vision/image_encoder.py`, `src/automl/engine/training/sklearn_trainer.py`, `src/automl/facade.py`):**
+  - `ImageEncoderNode` ahora preserva por defecto la dimensionalidad nativa del backbone (ej. 512 para ResNet18) sin truncamiento arbitrario destructivo ni padding artificial.
+  - En `_build_pipeline()`, si se detectan columnas de imagen y no están instaladas las dependencias de visión neurales (`catml[vision]`), el sistema levanta un `RuntimeError` explícito indicando la instalación requerida, en lugar de simular visión mediante hash determinista.
+  - Para pruebas unitarias y benchmarks reproducibles, se soporta explícitamente `image_model="deterministic"`.
+  - Propagación de `image_model` en la fachada `AutoML(image_model=...)` y en `fit()`, con propagación correcta a `workspace.export_model_artifact()` y exclusión limpia de parámetros pasados al estimador scikit-learn.
+- **Claridad de Nomenclatura en Plugins y UI (`src/automl/plugins/models/vision_plugin.py`, `src/automl/interfaces/web/static/js/views/new_experiment.js`):**
+  - Renombrado `TimmVisionPlugin` a "Vision Feature Head (MLP on Extracted Embeddings)" clarificando que entrena un cabezal MLP sobre representaciones extraídas en lugar de backpropagation nativo end-to-end.
+  - Etiqueta en la UI del Workbench actualizada de "Vision (timm)" a "Vision Feature MLP".
+- **Integridad y Streaming en ModelArtifact (`src/automl/artifacts/model_artifact.py`):**
+  - Implementada función streaming `_compute_file_sha256(path, chunk_size=65536)` para evitar saturación de memoria RAM en modelos de gran tamaño.
+  - Documentación técnica explícita en docstrings distinguiendo la integridad del archivo (detección de corrupción accidental) frente a autenticidad criptográfica (firmas PKI contra adversarios maliciosos).
+- **Inmutabilidad en el Dominio (`src/automl/domain/problems/spec.py`):**
+  - `ProblemSpec` decorado con `@dataclass(frozen=True)` con normalización automática de listas de entrada a tuplas inmutables en `__post_init__`.
+  - Test de inmutabilidad agregado en `tests/test_v09_capability_layer.py`.
+- **Estructura Limpia de Empaquetado (`pyproject.toml`):**
+  - Agrupación de dependencias extras: `models`, `vision`, `nlp`, `mcp`, `agents`, `all`.
+  - Inclusión de dependencias de visión (`torch`, `torchvision`, `timm`, `pillow`) dentro de `all`. Eliminado el grupo redundante `full`.
+- **Gobernanza y Sincronización de Documentación:**
+  - `README.md` actualizado con 595 tests passing, Tech Minimalista Premium workbench, CLI V0.8.0 y taxonomía precisa de visión.
+  - `docs/MASTER_PLAN.md` Sección 7 sincronizada marcando capacidades v0.8 como `IMPLEMENTADO (SHIPPED IN 0.8)` y fases futuras como `v0.8.x` y `v1.0+`.
+  - Creados `SECURITY.md`, `CHANGELOG.md` (Keep a Changelog) y `TRADEMARK.md` (política de marca CATML).
+- **Validación Completa:**
+  - 595 tests pasando al 100% en verde. Cobertura $\ge 85\%$.
+
 ### Track Engine & Packaging Hardening — Vision Safety, Facade Fixes & Artifact Security (2026-10-07)
 
 - Rama propia `feat/v08-hardening-and-consistency` desde `main` (`4be3e5f`).
