@@ -600,7 +600,7 @@ def predict_cli(args: argparse.Namespace) -> int:
             path=dataset_path,
             target=args.target,
         )
-        runs = [r for r in ws._runs.values() if r.dataset_id == dataset.id]
+        runs = ws.list_runs(dataset_id=dataset.id)
         if runs:
             run_id = runs[-1].id
         else:
@@ -681,7 +681,15 @@ def launch_ui_cli(args: argparse.Namespace) -> int:
 
     port = args.port or 8080
     host = getattr(args, "host", "127.0.0.1")
-    run_web_dashboard(port=port, workspace_dir=ws_dir, host=host)
+    auth_token = getattr(args, "auth_token", None)
+    insecure_no_auth = getattr(args, "insecure_no_auth", False)
+    run_web_dashboard(
+        port=port,
+        workspace_dir=ws_dir,
+        host=host,
+        auth_token=auth_token,
+        insecure_no_auth=insecure_no_auth,
+    )
     return 0
 
 
@@ -869,6 +877,8 @@ def main(argv: list[str] | None = None) -> int:
     ui_parser = sub.add_parser("ui", help="Launch interactive web dashboard")
     ui_parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
     ui_parser.add_argument("--host", default="127.0.0.1", help="Web server host interface (default: 127.0.0.1 for local privacy; use 0.0.0.0 to expose externally)")
+    ui_parser.add_argument("--auth-token", default=None, help="Authentication token for remote access (required if bound to non-localhost interface)")
+    ui_parser.add_argument("--insecure-no-auth", action="store_true", help="Explicitly allow non-localhost binding without an authentication token")
     ui_parser.add_argument("--workspace", help="Connected workspace directory (default: auto)")
     ui_parser.set_defaults(func=launch_ui_cli)
 

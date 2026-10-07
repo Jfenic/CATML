@@ -7,14 +7,33 @@ export class CATMLApiClient {
     this.baseUrl = baseUrl;
   }
 
+  _getAuthToken() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get("token");
+      if (urlToken) {
+        sessionStorage.setItem("catml_token", urlToken);
+        return urlToken;
+      }
+      return sessionStorage.getItem("catml_token") || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   async _fetch(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    const token = this._getAuthToken();
+    const headers = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
     try {
       const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        },
+        headers,
         ...options,
       });
 

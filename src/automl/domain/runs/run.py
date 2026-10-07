@@ -20,7 +20,20 @@ class RunConfig:
     features_excluded: list[str] = field(default_factory=list)
     features_priority: list[str] = field(default_factory=list)
     group_column: str | None = None
+    time_budget_seconds: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def effective_time_budget(self) -> float | None:
+        """Returns the operational time budget in seconds, checking field first, then fallback to legacy extra dict."""
+        if self.time_budget_seconds is not None:
+            return float(self.time_budget_seconds)
+        if self.extra and "time_budget" in self.extra:
+            try:
+                return float(self.extra["time_budget"])
+            except (ValueError, TypeError):
+                pass
+        return None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,11 +49,17 @@ class RunConfig:
             "features_excluded": list(self.features_excluded),
             "features_priority": list(self.features_priority),
             "group_column": self.group_column,
+            "time_budget_seconds": self.time_budget_seconds,
             "extra": dict(self.extra),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RunConfig:
+        raw_budget = data.get("time_budget_seconds")
+        if raw_budget is None and data.get("extra") and "time_budget" in data["extra"]:
+            raw_budget = data["extra"]["time_budget"]
+        budget_val = float(raw_budget) if raw_budget is not None else None
+
         return cls(
             task_type=data["task_type"],
             target=data["target"],
@@ -54,6 +73,7 @@ class RunConfig:
             features_excluded=list(data.get("features_excluded", [])),
             features_priority=list(data.get("features_priority", [])),
             group_column=data.get("group_column"),
+            time_budget_seconds=budget_val,
             extra=dict(data.get("extra", {})),
         )
 

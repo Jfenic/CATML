@@ -205,6 +205,7 @@ class AutoML:
             group_column=resolved_group_col,
             cv_folds=self.cv_folds if (self.cv_folds and self.cv_folds > 1) else 5,
             random_seed=self.random_state,
+            time_budget_seconds=self.time_budget,
             extra=extra_cfg,
         )
 
@@ -255,6 +256,11 @@ class AutoML:
         # Extract leaderboard
         raw_leaderboard = ws.repository.get_leaderboard(run.id)
         if not raw_leaderboard:
+            refreshed_run = ws.repository.get_run(run.id)
+            if refreshed_run and refreshed_run.config.extra.get("time_budget_exhausted"):
+                raise RuntimeError(
+                    f"Time budget of {self.time_budget}s expired before any candidate model completed training."
+                )
             raise RuntimeError("No models were successfully evaluated during fit().")
 
         leaderboard_rows = []

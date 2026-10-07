@@ -46,6 +46,41 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
     workspace_dir: str = ".automl/demo"
     static_dir: Path = Path(__file__).parent / "static"
+    auth_token: str | None = None
+    require_auth: bool = False
+
+    def _is_authenticated(self) -> bool:
+        if not self.require_auth or not self.auth_token:
+            return True
+
+        auth_header = self.headers.get("Authorization") if hasattr(self, "headers") and self.headers else None
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            if token == self.auth_token:
+                return True
+
+        parsed = urlparse(self.path)
+        query_params = parse_qs(parsed.query)
+        token_list = query_params.get("token")
+        if token_list and token_list[0].strip() == self.auth_token:
+            return True
+
+        return False
+
+    def _require_auth_or_reject(self) -> bool:
+        if self._is_authenticated():
+            return True
+        self._send_json(
+            {
+                "error": "Unauthorized",
+                "message": (
+                    "Authentication token required for remote workbench access. "
+                    "Provide via 'Authorization: Bearer <token>' header or '?token=<token>' query parameter."
+                ),
+            },
+            status=HTTPStatus.UNAUTHORIZED,
+        )
+        return False
 
     def _send_cors_headers(self) -> None:
         origin = self.headers.get("Origin") if hasattr(self, "headers") and self.headers else None
@@ -80,6 +115,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self) -> None:
+        if not self._require_auth_or_reject():
+            return
+
         parsed = urlparse(self.path)
         path = parsed.path
         query_params = parse_qs(parsed.query)
@@ -770,6 +808,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         self._send_json({"error": "Not Found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        if not self._require_auth_or_reject():
+            return
+
         parsed = urlparse(self.path)
         path = parsed.path
 
@@ -1264,7 +1305,27 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json({"status": "error", "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo", host: str = "127.0.0.1") -> None:
+def run_web_dashboard(
+    port: int = 8080,
+    workspace_dir: str = ".automl/demo",
+    host: str = "127.0.0.1",
+    auth_token: str | None = None,
+    insecure_no_auth: bool = False,
+) -> None:
+    import secrets
+
+    is_local = host in {"127.0.0.1", "localhost", "::1"}
+    effective_token = auth_token
+
+    if not is_local and not insecure_no_auth:
+        AutoMLWebHandler.require_auth = True
+        if not effective_token:
+            effective_token = secrets.token_urlsafe(16)
+        AutoMLWebHandler.auth_token = effective_token
+    else:
+        AutoMLWebHandler.require_auth = False
+        AutoMLWebHandler.auth_token = None
+
     AutoMLWebHandler.workspace_dir = workspace_dir
     server = ThreadingHTTPServer((host, port), AutoMLWebHandler)
     from automl.infrastructure.jobs.worker import JobWorker
@@ -1274,11 +1335,22 @@ def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo", hos
     except Exception:
         server.server_close()
         raise
+
     print("=" * 65)
     print(f"  CATML AutoML Workbench (Platform V{__version__})")
-    print(f"  Running locally at: http://{host}:{port}")
-    print(f"  Connected Workspace: {workspace_dir}")
-    print("  Hexagonal UI Adapter • CQRS • Observability & Control")
+    if not is_local and not insecure_no_auth:
+        print(f"  Bound to external interface: http://{host}:{port}")
+        print("  SECURITY NOTICE: Remote binding protected with authentication token.")
+        print(f"  Access token: {effective_token}")
+        print(f"  Direct browser URL: http://{host}:{port}/?token={effective_token}")
+    elif not is_local and insecure_no_auth:
+        print(f"  Bound to external interface: http://{host}:{port}")
+        print("  WARNING: Workbench is exposed on non-localhost interface WITHOUT authentication!")
+        print("  Ensure this instance is guarded behind a secure reverse proxy or private VPN.")
+    else:
+        print(f"  Running locally at: http://{host}:{port}")
+        print(f"  Connected Workspace: {workspace_dir}")
+        print("  Hexagonal UI Adapter • CQRS • Observability & Control")
     print("  Press Ctrl+C to terminate.")
     print("=" * 65)
     try:
@@ -1296,4 +1368,5 @@ if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
     ws = sys.argv[2] if len(sys.argv) > 2 else ".automl/default"
     host = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
-    run_web_dashboard(port=port, workspace_dir=ws, host=host)
+    token = sys.argv[4] if len(sys.argv) > 4 else None
+    run_web_dashboard(port=port, workspace_dir=ws, host=host, auth_token=token)
