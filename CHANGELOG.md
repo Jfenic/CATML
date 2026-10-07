@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2026-10-07 — Trust Patch
+
+### Fixed & Hardened
+- **Fail-Safe Anti-Leakage Execution:** `AutoML.fit()` and `RuleBasedExperimentPlanner` now automatically prioritize `profile.recommended_feature_names`, ensuring columns flagged with target or group leakage are excluded from candidate model training by default.
+- **Localhost & Privacy Hardening:** Workbench server now binds strictly to `127.0.0.1` by default (opt-in `--host 0.0.0.0` available via CLI) and eliminated permissive wildcard `Access-Control-Allow-Origin: *` headers, ensuring local isolation.
+- **Filesystem Confinement for Media:** `/api/media/preview` now strictly verifies that all image paths reside within the workspace or dataset directories, blocking path traversal and arbitrary filesystem reads.
+- **Deterministic Reproducibility:** Propagated `random_state` from `AutoML` constructor directly into `RunConfig.random_seed` and all downstream estimators and cross-validation splitters.
+- **Leaderboard Ranking for Minimization Metrics:** Corrected `AutoMLResult.leaderboard()` and `SQLiteExperimentRepository.get_leaderboard()` to sort ascendingly for loss/error metrics (`mae`, `rmse`, `mse`, `loss`), placing the lowest-error model at rank 1.
+- **Removed Simulated Evidence:** Removed synthetic `public_lb = score * 0.9999` and fake delta from benchmark submission endpoints.
+- **Transparent Product Messaging:** Refocused `README.md` hero on trust, automatic leakage protection, reproducible experiments, and controlled agent access.
+
+---
+
 ## [0.8.0] - 2026-10-07
 
 ### Added

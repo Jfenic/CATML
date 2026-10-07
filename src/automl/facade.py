@@ -44,7 +44,9 @@ class AutoMLResult:
             return pd.DataFrame()
         df = pd.DataFrame(self._leaderboard_data)
         if "score" in df.columns:
-            df = df.sort_values(by="score", ascending=False).reset_index(drop=True)
+            is_minimize = str(self.metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+            df = df.sort_values(by="score", ascending=is_minimize).reset_index(drop=True)
+            df["rank"] = range(1, len(df) + 1)
         return df
 
     def predict(self, X: pd.DataFrame | np.ndarray) -> np.ndarray:
@@ -202,9 +204,16 @@ class AutoML:
             validation_strategy=val_strategy,
             group_column=resolved_group_col,
             cv_folds=self.cv_folds if (self.cv_folds and self.cv_folds > 1) else 5,
+            random_seed=self.random_state,
             extra=extra_cfg,
         )
-        feature_names = ws.get_feature_registry(dataset.id).active_feature_names(target_col)
+
+        # Fail-safe: prioritize recommended features (automatically excludes leakage columns and non-predictive IDs)
+        if profile and profile.recommended_feature_names:
+            feature_names = [f for f in profile.recommended_feature_names if f in df.columns and f != target_col]
+        else:
+            feature_names = ws.get_feature_registry(dataset.id).active_feature_names(target_col)
+
         if resolved_group_col and resolved_group_col in feature_names:
             feature_names = [f for f in feature_names if f != resolved_group_col]
 

@@ -680,7 +680,8 @@ def launch_ui_cli(args: argparse.Namespace) -> int:
         ws_dir = str(s6e9_ws if s6e9_ws.exists() else demo_ws)
 
     port = args.port or 8080
-    run_web_dashboard(port=port, workspace_dir=ws_dir)
+    host = getattr(args, "host", "127.0.0.1")
+    run_web_dashboard(port=port, workspace_dir=ws_dir, host=host)
     return 0
 
 
@@ -867,6 +868,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ui_parser = sub.add_parser("ui", help="Launch interactive web dashboard")
     ui_parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
+    ui_parser.add_argument("--host", default="127.0.0.1", help="Web server host interface (default: 127.0.0.1 for local privacy; use 0.0.0.0 to expose externally)")
     ui_parser.add_argument("--workspace", help="Connected workspace directory (default: auto)")
     ui_parser.set_defaults(func=launch_ui_cli)
 

@@ -47,14 +47,19 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
     workspace_dir: str = ".automl/demo"
     static_dir: Path = Path(__file__).parent / "static"
 
+    def _send_cors_headers(self) -> None:
+        origin = self.headers.get("Origin") if hasattr(self, "headers") and self.headers else None
+        if origin and (origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
     def _send_json(self, data: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         payload = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(payload)
 
@@ -68,9 +73,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self._send_cors_headers()
         self.end_headers()
 
     def do_HEAD(self) -> None:
@@ -323,9 +326,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
                 self.send_header("Content-Length", str(len(data)))
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                self._send_cors_headers()
                 self.end_headers()
                 self.wfile.write(data)
                 return
@@ -375,30 +376,48 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": f"Unsupported image format: {candidate_path.suffix}"}, HTTPStatus.BAD_REQUEST)
                 return
 
-            resolved_path = None
+            ws_root = Path(self.workspace_dir).resolve()
+            allowed_roots = [ws_root, ws_root.parent, Path.cwd().resolve()]
+
             if dataset_id:
                 dataset = ws.repository.get_dataset(dataset_id)
-                if dataset:
-                    ds_dir = Path(dataset.path).parent.resolve()
-                    candidate_rel = (ds_dir / img_path_str).resolve()
-                    if candidate_rel.is_file():
-                        resolved_path = candidate_rel
+                if dataset and dataset.path:
+                    allowed_roots.append(Path(dataset.path).parent.resolve())
+            else:
+                for ds in ws.repository.list_datasets():
+                    if ds.path:
+                        allowed_roots.append(Path(ds.path).parent.resolve())
 
-            if not resolved_path:
-                if candidate_path.is_file():
-                    resolved_path = candidate_path.resolve()
+            resolved_path = None
+
+            if candidate_path.is_absolute():
+                cand = candidate_path.resolve()
+                if any(cand.is_relative_to(r) for r in allowed_roots):
+                    if cand.is_file():
+                        resolved_path = cand
+                    else:
+                        self._send_json({"error": f"Image file not found: {img_path_str}"}, HTTPStatus.NOT_FOUND)
+                        return
                 else:
-                    ws_rel = (Path(self.workspace_dir) / img_path_str).resolve()
-                    if ws_rel.is_file():
-                        resolved_path = ws_rel
+                    if cand.exists():
+                        self._send_json({"error": f"Access denied: path outside workspace: {img_path_str}"}, HTTPStatus.FORBIDDEN)
+                        return
+                    else:
+                        self._send_json({"error": f"Image file not found: {img_path_str}"}, HTTPStatus.NOT_FOUND)
+                        return
+            else:
+                for root in allowed_roots:
+                    cand = (root / img_path_str).resolve()
+                    if any(cand.is_relative_to(r) for r in allowed_roots) and cand.is_file():
+                        resolved_path = cand
+                        break
 
-            if not resolved_path or not resolved_path.is_file() or resolved_path.suffix.lower() not in allowed_extensions:
+            if not resolved_path or not resolved_path.is_file():
                 self._send_json({"error": f"Image file not found: {img_path_str}"}, HTTPStatus.NOT_FOUND)
                 return
 
-            str_res = str(resolved_path)
-            if str_res.startswith("/etc") or str_res.startswith("/proc") or str_res.startswith("/sys"):
-                self._send_json({"error": "Access denied"}, HTTPStatus.FORBIDDEN)
+            if resolved_path.suffix.lower() not in allowed_extensions:
+                self._send_json({"error": f"Unsupported image format: {resolved_path.suffix}"}, HTTPStatus.BAD_REQUEST)
                 return
 
             mime_map = {
@@ -418,7 +437,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Cache-Control", "public, max-age=3600")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self._send_cors_headers()
                 self.end_headers()
                 self.wfile.write(data)
                 return
@@ -692,8 +711,6 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     submissions.append({
                         "experiment": e.name,
                         "cv": round(best_t.primary_score, 5),
-                        "public_lb": round(best_t.primary_score * 0.9999, 5),
-                        "delta": "-0.0001",
                         "status": "VERIFIED" if best_t.succeeded else "FAILED",
                     })
 
@@ -745,7 +762,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/csv; charset=utf-8")
             self.send_header("Content-Disposition", f'attachment; filename="{p.name}"')
             self.send_header("Content-Length", str(len(content)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self._send_cors_headers()
             self.end_headers()
             self.wfile.write(content)
             return
@@ -1247,9 +1264,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json({"status": "error", "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo") -> None:
+def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo", host: str = "127.0.0.1") -> None:
     AutoMLWebHandler.workspace_dir = workspace_dir
-    server = ThreadingHTTPServer(("0.0.0.0", port), AutoMLWebHandler)
+    server = ThreadingHTTPServer((host, port), AutoMLWebHandler)
     from automl.infrastructure.jobs.worker import JobWorker
     worker = JobWorker(workspace_dir)
     try:
@@ -1259,7 +1276,7 @@ def run_web_dashboard(port: int = 8080, workspace_dir: str = ".automl/demo") -> 
         raise
     print("=" * 65)
     print(f"  CATML AutoML Workbench (Platform V{__version__})")
-    print(f"  Running locally at: http://localhost:{port}")
+    print(f"  Running locally at: http://{host}:{port}")
     print(f"  Connected Workspace: {workspace_dir}")
     print("  Hexagonal UI Adapter • CQRS • Observability & Control")
     print("  Press Ctrl+C to terminate.")
@@ -1278,4 +1295,5 @@ if __name__ == "__main__":
 
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
     ws = sys.argv[2] if len(sys.argv) > 2 else ".automl/default"
-    run_web_dashboard(port=port, workspace_dir=ws)
+    host = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
+    run_web_dashboard(port=port, workspace_dir=ws, host=host)

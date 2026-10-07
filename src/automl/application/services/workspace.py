@@ -259,6 +259,7 @@ class AutoMLWorkspace:
         validation_strategy: str | None = None,
         group_column: str | None = None,
         cv_folds: int = 5,
+        random_seed: int = 42,
         extra: dict[str, Any] | None = None,
     ) -> AutoMLRun:
         problem = self.repository.get_problem_definition(dataset.id)
@@ -276,6 +277,7 @@ class AutoMLWorkspace:
             validation_strategy=strat,
             group_column=group_column,
             cv_folds=cv_folds,
+            random_seed=random_seed,
             extra=dict(extra or {}),
         )
         run = AutoMLRun(
