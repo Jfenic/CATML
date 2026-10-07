@@ -56,9 +56,10 @@ all = [
     "langgraph>=0.2.0",
     "langgraph-checkpoint>=2.0.0",
     "langgraph-checkpoint-sqlite>=2.0.0",
-]
-full = [
-    "catboost>=1.2",
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "timm>=0.9",
+    "pillow>=9.0",
 ]
 
 [project.scripts]

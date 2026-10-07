@@ -16,11 +16,17 @@ from automl.domain.ports import ModelPluginPort
 
 
 class TimmVisionPlugin(ModelPluginPort):
-    """CATML Model Plugin for TIMM / TorchVision with transparent CPU/CI fallback."""
+    """CATML Model Plugin for Vision Representation + Downstream Head (MLP / Gradient Boosting).
+
+    Operates in tandem with ImageEncoderNode: TorchVision/timm extracts visual representations,
+    and this plugin trains a downstream neural MLP or gradient boosting head on the resulting
+    multimodal feature space. (Note: This is a representation head, not end-to-end backpropagation
+    fine-tuning of the vision backbone).
+    """
 
     def __init__(self, use_fallback_if_missing: bool = True) -> None:
         self.plugin_id = "timm_vision"
-        self.name = "TIMM / TorchVision Deep Vision Estimator"
+        self.name = "Vision Feature Head (MLP on Extracted Embeddings)"
         self.version = "1.0.0"
         self.plugin_type = PluginType.MODEL
         self.use_fallback_if_missing = use_fallback_if_missing

@@ -5,7 +5,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-591%20Passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-595%20Passing-brightgreen.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-87%25%2B-brightgreen.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
@@ -20,7 +20,7 @@ CATML is engineered from the ground up with **distinct advantages**:
 
 1. **🤖 Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within strict budget leases and cooperative cancellation controls.
 2. **⚡ 3-Line Ergonomics:** Simple, intuitive scikit-learn interface (`automl.fit(df, target="churn")`) backed by a pure hexagonal domain and CQRS application buses.
-3. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts for database-free, workspace-independent production inference.
+3. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts with streaming SHA-256 integrity checksums for database-free, workspace-independent production inference.
 4. **🛡️ "Propose ≠ Accept" Scientific Discipline:** Empirical trial evaluation with out-of-fold (OOF) target encoding and strict data leakage prevention before promoting any model to production.
 5. **🔒 100% Local-First & Private:** Executes entirely on your machine with a persistent SQLite task worker; zero telemetry, zero forced cloud lock-in.
 
@@ -70,7 +70,7 @@ catml fit data.csv --target churn --models logistic_regression,random_forest --j
 Output:
 ```text
 =================================================================
-  CATML Automated Machine Learning (Platform V0.7.0)
+  CATML Automated Machine Learning (Platform V0.8.0)
 =================================================================
   Dataset:     examples/data/customers_churn.csv
   Target:      churn
@@ -97,7 +97,7 @@ Output:
 
 ## Interactive Web Workbench (Visual ML Lab)
 
-CATML includes a built-in interactive Neo-Industrial visual dashboard for monitoring runs, inspecting datasets, and managing experiments:
+CATML includes a built-in interactive Tech Minimalista Premium visual dashboard for monitoring runs, inspecting datasets, and managing experiments:
 
 ```bash
 catml ui --port 8080 --workspace .automl/demo
@@ -160,12 +160,22 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### Optional Model Backends
+### Optional Modality & Agentic Extensions
 
-Native gradient boosting libraries are optional. If absent, fallback estimators from scikit-learn are used seamlessly:
+Install optional capability packages as needed for your workload:
 
 ```bash
-pip install lightgbm xgboost catboost
+# Gradient boosting backends (LightGBM, XGBoost, CatBoost)
+pip install "catml[models]"
+
+# Deep learning vision representations (PyTorch, torchvision, timm, Pillow)
+pip install "catml[vision]"
+
+# Agentic orchestration & MCP server (LangGraph, MCP)
+pip install "catml[mcp,agents]"
+
+# Full stack with all extensions
+pip install "catml[all]"
 ```
 
 ---
@@ -223,7 +233,7 @@ pytest --cov=src/automl --cov-fail-under=85
 |---|---|---|
 | **Tabular Classification & Regression** | **Stable** | LightGBM, XGBoost, CatBoost, Scikit-learn, Voting Ensembles, N-Model OOF Blending, Level-2 Stacking, Temporal Dynamics, and Group Anti-Leakage. |
 | **Text Representations (NLP)** | **Available** | Sublinear TF-IDF n-gram extractor with automated `is_text_column` discovery and multimodal column fusion. |
-| **Image Representations (Vision)** | **Available** | Representation-level vision with PyTorch/torchvision (`resnet18`, etc.) or deterministic hash mode, image file detection, gallery preview in Workbench. |
+| **Image Representations (Vision)** | **Available** | Representation-level vision with PyTorch/torchvision backbone (`catml[vision]`, feature extractor + downstream estimators), deterministic hash encoder (testing/benchmarks fallback), image path discovery, and gallery preview in Workbench. |
 | **Agent Governance (MCP & LangGraph)** | **Available** | Native Model Context Protocol (stdio/HTTP), LangGraph StateGraph orchestrator, persistent SQLite ledger, human approval flow, and token auditing. |
 | **Native Vision (Detection / Segmentation)** | *Roadmap* | Planned for future v1.x with specialized deep learning backends. |
 | **Biomedical Extensions (`catml[medical]`)** | *Roadmap* | Planned extension for DICOM/NIfTI with strict zero data egress. |

@@ -11,6 +11,23 @@ import numpy as np
 import pandas as pd
 
 
+def _compute_file_sha256(path: Path, chunk_size: int = 65536) -> str:
+    """
+    Compute the SHA-256 digest of a file in streaming chunks.
+
+    Notice on Integrity vs. Authenticity:
+        This checksum guarantees file integrity (detection of accidental disk
+        corruption or truncated transfers). It does NOT guarantee cryptographic
+        authenticity or non-repudiation against an active adversary modifying both
+        the artifact and the sidecar checksum file without digital signatures / PKI.
+    """
+    hasher = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(chunk_size):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
 @dataclass
 class ModelArtifact:
     """
@@ -154,14 +171,15 @@ class ModelArtifact:
         Args:
             path: Destination file path (e.g. 'model.pkl').
             generate_checksum: If True, writes a sidecar '.sha256' file with the artifact hash.
+                Note: The sidecar checksum guarantees integrity against accidental corruption,
+                not authenticity against untrusted adversaries.
         """
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, target)
         if generate_checksum:
             try:
-                with open(target, "rb") as f:
-                    digest = hashlib.sha256(f.read()).hexdigest()
+                digest = _compute_file_sha256(target)
                 sha_file = target.with_suffix(target.suffix + ".sha256")
                 sha_file.write_text(digest, encoding="utf-8")
             except Exception:
@@ -176,6 +194,8 @@ class ModelArtifact:
         Security Notice:
             Deserializing pickle/joblib files can execute arbitrary code. Only load
             CATML model artifacts from trusted sources and verified environments.
+            While SHA-256 sidecar verification protects against accidental file corruption
+            (integrity), it does NOT provide cryptographic signature verification (authenticity).
 
         Args:
             path: Path to the serialized artifact.
@@ -190,8 +210,7 @@ class ModelArtifact:
             if sha_file.is_file():
                 try:
                     expected_sha = sha_file.read_text(encoding="utf-8").strip()
-                    with open(target, "rb") as f:
-                        actual_sha = hashlib.sha256(f.read()).hexdigest()
+                    actual_sha = _compute_file_sha256(target)
                     if actual_sha != expected_sha:
                         raise ValueError(
                             f"Artifact checksum verification failed for '{target}'. "

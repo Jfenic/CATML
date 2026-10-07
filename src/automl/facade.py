@@ -101,6 +101,7 @@ class AutoML:
         workspace_dir: str | Path | None = None,
         group_column: str | None = None,
         image_columns: list[str] | None = None,
+        image_model: str | None = None,
     ) -> None:
         self.task = task
         self.metric = metric
@@ -111,6 +112,7 @@ class AutoML:
         self.workspace_dir = Path(workspace_dir) if workspace_dir is not None else None
         self.group_column = group_column
         self.image_columns = list(image_columns) if image_columns is not None else None
+        self.image_model = image_model
         self._result: AutoMLResult | None = None
 
     def fit(
@@ -120,6 +122,7 @@ class AutoML:
         text_columns: list[str] | None = None,
         image_columns: list[str] | None = None,
         group_column: str | None = None,
+        image_model: str | None = None,
     ) -> AutoMLResult:
         """
         Fit multiple candidate models on the dataset, evaluate their performance,
@@ -169,10 +172,13 @@ class AutoML:
         resolved_group_col = group_column or self.group_column
         resolved_image_cols = list(image_columns) if image_columns is not None else (list(self.image_columns) if self.image_columns is not None else None)
         resolved_text_cols = list(text_columns) if text_columns is not None else None
+        resolved_image_model = image_model or self.image_model
 
         extra_cfg: dict[str, Any] = {}
         if resolved_image_cols:
             extra_cfg["image_columns"] = resolved_image_cols
+        if resolved_image_model:
+            extra_cfg["image_model"] = resolved_image_model
         if resolved_text_cols:
             extra_cfg["text_columns"] = resolved_text_cols
         if self.time_budget:

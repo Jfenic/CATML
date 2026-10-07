@@ -67,7 +67,7 @@ class SklearnTrainer(TrainerPort):
 
             model_params = {
                 k: v for k, v in (execution.trial.parameters or {}).items()
-                if k not in ("text_columns", "image_columns", "time_budget")
+                if k not in ("text_columns", "image_columns", "image_model", "time_budget")
             }
 
             if self.plugin_registry and self.plugin_registry.has(execution.trial.model_id):
@@ -101,7 +101,17 @@ class SklearnTrainer(TrainerPort):
             if image_cols is None and execution.run and execution.run.config and execution.run.config.extra:
                 image_cols = execution.run.config.extra.get("image_columns")
 
-            pipeline = _build_pipeline(X, model, text_columns=text_cols, image_columns=image_cols)
+            image_model = execution.trial.parameters.get("image_model") if execution.trial.parameters else None
+            if image_model is None and execution.run and execution.run.config and execution.run.config.extra:
+                image_model = execution.run.config.extra.get("image_model")
+
+            pipeline = _build_pipeline(
+                X,
+                model,
+                text_columns=text_cols,
+                image_columns=image_cols,
+                image_model=image_model,
+            )
 
             metric_name = execution.metric
             strategy = (execution.validation_strategy or "holdout").lower()
@@ -301,7 +311,7 @@ class SklearnTrainer(TrainerPort):
     ) -> tuple[Pipeline, Any]:
         model_params = {
             k: v for k, v in (parameters or {}).items()
-            if k not in ("text_columns", "image_columns", "time_budget")
+            if k not in ("text_columns", "image_columns", "image_model", "time_budget")
         }
 
         if self.plugin_registry and self.plugin_registry.has(model_id):
@@ -321,7 +331,14 @@ class SklearnTrainer(TrainerPort):
 
         text_cols = parameters.get("text_columns") if parameters else None
         image_cols = parameters.get("image_columns") if parameters else None
-        pipeline = _build_pipeline(X_train, model, text_columns=text_cols, image_columns=image_cols)
+        image_model = parameters.get("image_model") if parameters else None
+        pipeline = _build_pipeline(
+            X_train,
+            model,
+            text_columns=text_cols,
+            image_columns=image_cols,
+            image_model=image_model,
+        )
         pipeline.fit(X_train, y_train_adapted)
         return pipeline, adapter
 
@@ -358,9 +375,10 @@ def _build_pipeline(
     model: Any,
     text_columns: list[str] | None = None,
     image_columns: list[str] | None = None,
+    image_model: str | None = None,
 ) -> Pipeline:
     from automl.engine.features.text import LightweightTextExtractor, is_text_column
-    from automl.plugins.modalities.image_plugin import is_image_column
+    from automl.plugins.modalities.image_plugin import is_image_column, ImageModalityPlugin
     from automl.engine.vision.image_encoder import ImageEncoderNode
 
     all_cols = list(X.columns)
@@ -417,11 +435,31 @@ def _build_pipeline(
                 )
             )
     if image_cols:
+        vision_available = ImageModalityPlugin().available()
+        chosen_image_model = image_model
+
+        if chosen_image_model is None:
+            if vision_available:
+                chosen_image_model = "resnet18"
+            else:
+                raise RuntimeError(
+                    f"Dataset contains image columns {image_cols}, but deep learning vision "
+                    "dependencies (PyTorch, torchvision, Pillow) are not installed. "
+                    "Install vision dependencies via `pip install 'catml[vision]'` or "
+                    "specify image_model='deterministic' explicitly for testing/benchmarks."
+                )
+
         for col in image_cols:
             transformers.append(
                 (
                     f"img_{col}",
-                    ImageEncoderNode(node_id=f"img_{col}", output_dim=64, handle_missing="zero"),
+                    ImageEncoderNode(
+                        node_id=f"img_{col}",
+                        model_name=chosen_image_model,
+                        output_dim=None if chosen_image_model not in ("deterministic", "hash") else 128,
+                        handle_missing="zero",
+                        allow_fallback=False,
+                    ),
                     col,
                 )
             )
