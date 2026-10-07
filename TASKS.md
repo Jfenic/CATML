@@ -45,6 +45,13 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Alinear honestidad de plugins de visión: renombrar `TimmVisionPlugin` a "Vision Feature Head (MLP on Extracted Embeddings)" y en UI a "Vision Feature MLP".
   - [x] Sincronizar hoja de ruta en `docs/MASTER_PLAN.md`: marcar capacidades completadas como `IMPLEMENTADO (SHIPPED IN 0.8)` y fases futuras como `v0.8.x` y `v1.0+`.
   - [x] Crear gobernanza y release engineering: `SECURITY.md`, `CHANGELOG.md` (formato Keep a Changelog) y `TRADEMARK.md` (política de marca CATML).
+- [x] **Paquete 4: Pulido Final para Release v0.8.0 & Smoke Test Automatizado**:
+  - [x] Corregir detección de dependencias en `ImageModalityPlugin.available()` requiriendo `torchvision` explícitamente junto con `torch` y `PIL`.
+  - [x] Modernizar resolución de pesos en `ImageEncoderNode` con fallback elegante a API moderna de TorchVision (`DEFAULT`) y mensaje informativo para entornos sin conexión (offline/air-gapped).
+  - [x] Atributo aprendido `feature_dim_` en `ImageEncoderNode` para preservar contratos en `get_feature_names_out`.
+  - [x] Añadir alias `VisionFeatureHeadPlugin` para desacoplar el concepto de representación visual del downstream head.
+  - [x] Packaging en `pyproject.toml`: migración de licencia a string SPDX `Apache-2.0` (eliminando warning de setuptools), metadatos `project.urls` y limpieza de extra `nlp`.
+  - [x] Script de validación de release `tests/smoke_test.py` y nuevo job de CI `package-smoke` para verificar instalación en entorno virtual aislado.
 
 
 ## Completed Phase: v0.9 Capability Layer, Lightweight NLP & Advanced Anti-Leakage Guardian

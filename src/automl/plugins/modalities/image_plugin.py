@@ -199,10 +199,11 @@ class ImageModalityPlugin(ModalityPluginPort):
         return self.available()
 
     def available(self) -> bool:
-        """Checks if deep learning vision frameworks (torch, timm, PIL) are installed."""
+        """Checks if deep learning vision frameworks (torch, torchvision, PIL) are installed."""
         try:
             import PIL  # noqa: F401
             import torch  # noqa: F401
+            import torchvision  # noqa: F401
 
             return True
         except ImportError:

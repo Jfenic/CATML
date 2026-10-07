@@ -22,3 +22,27 @@ jobs:
         run: python -m pip install -e ".[dev,mcp,agents]"
       - name: Run tests with coverage
         run: pytest --cov=automl --cov-report=term-missing --cov-fail-under=85
+
+  package-smoke:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip build wheel
+      - name: Build distribution packages (wheel + sdist)
+        run: python -m build
+      - name: Test installation in clean virtual environment
+        run: |
+          python -m venv test_env
+          ./test_env/bin/pip install dist/*.whl
+          ./test_env/bin/catml --help
+          ./test_env/bin/automl --help
+      - name: Run E2E release smoke test
+        run: |
+          ./test_env/bin/python tests/smoke_test.py
+

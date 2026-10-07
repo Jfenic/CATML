@@ -86,6 +86,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         self.input_modalities = (Modality.IMAGE,)
         self.output_modality = Modality.TABULAR
         self.is_fitted_ = False
+        self.feature_dim_: int | None = self.output_dim
         self._memory_cache: dict[str, np.ndarray] = {}
 
     @classmethod
@@ -115,8 +116,33 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         )
 
     def fit(self, X: Any, y: Any = None) -> ImageEncoderNode:
-        """Scikit-learn compatible fit method."""
+        """Scikit-learn compatible fit method.
+        Discovers and sets feature_dim_ for downstream pipeline contracts."""
         self.is_fitted_ = True
+        if self.feature_dim_ is None and self.output_dim is not None:
+            self.feature_dim_ = self.output_dim
+        elif self.feature_dim_ is None:
+            if self.model_name in ("deterministic", "hash"):
+                self.feature_dim_ = 128
+                self.output_dim = 128
+            else:
+                # Proactively discover feature dimension from sample if available
+                try:
+                    if hasattr(X, "iloc") and len(X) > 0:
+                        sample = [X.iloc[0, 0] if getattr(X, "ndim", 1) == 2 else X.iloc[0]]
+                    elif isinstance(X, (list, tuple)) and len(X) > 0:
+                        sample = [X[0]]
+                    elif hasattr(X, "__len__") and len(X) > 0:
+                        sample = [X[0]]
+                    else:
+                        sample = []
+                    if sample:
+                        probed = self._try_deep_learning_encode(sample)
+                        if probed is not None and probed.shape[1] > 0:
+                            self.feature_dim_ = probed.shape[1]
+                            self.output_dim = probed.shape[1]
+                except Exception:
+                    pass
         return self
 
     def transform(self, X: Any) -> np.ndarray:
@@ -131,7 +157,7 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
     def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
         """Returns generated embedding feature names for scikit-learn pipeline feature tracking."""
         prefix = f"{self.node_id}_" if self.node_id else "img_emb_"
-        dim = self.output_dim if self.output_dim is not None else 512
+        dim = self.feature_dim_ or self.output_dim or 512
         return np.array([f"{prefix}{i}" for i in range(dim)], dtype=object)
 
     def execute(self, inputs: Any) -> np.ndarray:
@@ -376,9 +402,19 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
 
             model_fn = getattr(tv_models, model_name)
             try:
-                weights_attr = f"{model_name.title().replace('_', '')}_Weights"
-                if hasattr(tv_models, weights_attr):
-                    weights = getattr(tv_models, weights_attr).DEFAULT
+                weights = None
+                if hasattr(tv_models, "get_model_weights"):
+                    try:
+                        weights = tv_models.get_model_weights(model_name).DEFAULT
+                    except Exception:
+                        pass
+
+                if weights is None:
+                    weights_attr = f"{model_name.title().replace('_', '')}_Weights"
+                    if hasattr(tv_models, weights_attr):
+                        weights = getattr(tv_models, weights_attr).DEFAULT
+
+                if weights is not None:
                     model = model_fn(weights=weights)
                 else:
                     model = model_fn(pretrained=True)
@@ -387,7 +423,10 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
                     raise RuntimeError(
                         f"Failed to load pretrained weights for vision backbone '{self.model_name}': {e}. "
                         "CATML requires pretrained weights for semantic feature extraction and does "
-                        "not use uninitialized random neural networks as a fallback."
+                        "not use uninitialized random neural networks as a fallback. "
+                        "Note: TorchVision downloads pretrained weights upon first run unless cached locally "
+                        "in '~/.cache/torch/hub/checkpoints'. For offline/air-gapped environments, "
+                        "pre-populate the PyTorch cache directory."
                     ) from e
                 warnings.warn(
                     f"Failed to load pretrained weights for '{self.model_name}' ({e}). Falling back to deterministic embedding.",
@@ -436,7 +475,9 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
                     if self.output_dim is None:
                         # Dynamically preserve native neural backbone dimensions (e.g. 512 for ResNet18)
                         self.output_dim = feats_np.shape[1]
-                    elif feats_np.shape[1] != self.output_dim:
+                    self.feature_dim_ = self.output_dim
+
+                    if feats_np.shape[1] != self.output_dim:
                         if feats_np.shape[1] > self.output_dim:
                             feats_np = feats_np[:, : self.output_dim]
                         else:
