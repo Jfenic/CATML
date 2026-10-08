@@ -93,3 +93,37 @@ def test_cqrs_queries_dispatch_via_query_bus(tmp_path):
     found_trial = qry.dispatch(GetTrialQuery(trial_id))
     assert found_trial is not None
     assert found_trial.id == trial_id
+
+
+def test_modular_registries_can_be_composed_independently(tmp_path):
+    """
+    Validates that each sub-context registry (core, job, experiment, feature, inference)
+    can be composed modularly on clean buses without monolithic coupling.
+    """
+    from automl.application.bus.command_bus import CommandBus
+    from automl.application.bus.query_bus import QueryBus
+    from automl.application.queries.workspace_queries import ListTaskTypesQuery
+    from automl.application.registries import (
+        register_core_handlers,
+        register_experiment_handlers,
+        register_feature_handlers,
+        register_inference_handlers,
+        register_job_handlers,
+    )
+    from automl.application.services.workspace import AutoMLWorkspace
+
+    ws = AutoMLWorkspace.load_or_create("clean_modular", root_dir=tmp_path / "mod_ws")
+    cb = CommandBus()
+    qb = QueryBus()
+
+    # Core only
+    register_core_handlers(ws, cb, qb)
+    task_types = qb.dispatch(ListTaskTypesQuery())
+    assert len(task_types) > 0
+
+    # Independent composition of other registries
+    register_job_handlers(ws, cb, qb)
+    register_experiment_handlers(ws, cb, qb)
+    register_feature_handlers(ws, cb, qb)
+    register_inference_handlers(ws, cb, qb)
+

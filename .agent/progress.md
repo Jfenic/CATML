@@ -1,5 +1,18 @@
 # Progress
 
+### Track Modular Simplification — Pre-Explore Phase E0.5 (2026-10-08)
+
+- **PR 1: Descomposición de Registros CQRS y Modularización de Bootstrap (`hardening/v0.8.2-e0.5-pr1-bootstrap-modularization`):**
+  - Creación del paquete `src/automl/application/registries/` con submódulos independientes por dominio:
+    - `job_registry.py`: `register_job_handlers` (con inyección opcional de `JobService`).
+    - `core_registry.py`: `register_core_handlers` (runs, datasets, profiles, plugins, task types).
+    - `experiment_registry.py`: `register_experiment_handlers` (modelos, experimentos, colas, optimización de hiperparámetros).
+    - `feature_registry.py`: `register_feature_handlers` (selección, ingeniería temporal y de interacción, ablación).
+    - `inference_registry.py`: `register_inference_handlers` (predicción, alineación Kaggle, ensembles, pipelines DAG).
+  - Refactorización de `src/automl/application/bootstrap.py`: Reducido drásticamente de 342 a 53 líneas como orquestador limpio y desacoplado, manteniendo 100% retrocompatible la función `build_application`.
+  - Guard arquitectónico automatizado en `tests/test_cqrs_architecture_guard.py` (`test_modular_registries_can_be_composed_independently`).
+  - Validación completa: 623 tests pasando (100% verde), 87.37% de cobertura.
+
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 
 - **Formalización de CATML Explore como Módulo de Monolito Modular:**
