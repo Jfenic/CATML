@@ -83,9 +83,9 @@ class JobService:
         if action == "retry" and job.status == JobStatus.FAILED and job.operation == "experiment":
             changes["retry_failed_models"] = True
         self.repository.change(job.id, allowed & {job.status}, **changes)
-        if action == "resume":
+        if action == "resume" and job.run_id:
             run = self.workspace.repository.get_run(job.run_id)
-            if run.status == RunStatus.PAUSED:
+            if run and run.status == RunStatus.PAUSED:
                 run.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
                 self.workspace.repository.save_run(run)
         return job.id

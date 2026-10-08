@@ -64,17 +64,18 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Erradicar fallbacks silenciosos a `accuracy`/`r2`.
   - [x] Hardening de presupuesto temporal cooperativo y autenticación remota HTTP/MCP.
   - [x] 622 tests pasando (100% verde), 87.37% de cobertura.
-- [ ] **Fase E0.5 — Simplificación Previa y Modularización de Registro/Contratos (Pre-Explore Surgical Refactoring)**:
+- [x] **Fase E0.5 — Simplificación Previa y Modularización de Registro/Contratos (Pre-Explore Surgical Refactoring)**:
   - [x] **PR 1 — Simplificación de dependencias y modularización de `bootstrap.py`**:
     - [x] Descomponer el registro monolítico en submódulos por contexto funcional en `src/automl/application/registries/` (`job_registry`, `core_registry`, `experiment_registry`, `feature_registry`, `inference_registry`).
     - [x] Reducir `bootstrap.py` a punto limpio de orquestación (de 342 a 53 líneas), manteniendo compatibilidad 100% de `build_application`.
     - [x] Añadir guard arquitectónico de composición independiente en `tests/test_cqrs_architecture_guard.py`.
     - [x] 623 tests pasando (100% verde), 87.37% de cobertura.
-  - [ ] **PR 2 — Contratos y límites de módulos (Dataset sin target y Jobs desacoplados)**:
-    - [ ] Desacoplar `Dataset` y `dataset_profiler` permitiendo `target_column: str | None = None`.
-    - [ ] Desacoplar persistencia en `sqlite_repository.py` para admitir `target_column NULL`.
-    - [ ] Desacoplar modelo `Job` y `sqlite_jobs.py` para permitir `run_id: str | None = None`.
-    - [ ] Tests de compatibilidad para datasets y jobs sin target.
+  - [x] **PR 2 — Contratos y límites de módulos (Dataset sin target y Jobs desacoplados)**:
+    - [x] Desacoplar `Dataset`, `DatasetProfile` y `dataset_profiler` permitiendo `target_column: str | None = None` y `task_type: str | None = None`.
+    - [x] Desacoplar persistencia en `sqlite_repository.py` admitiendo `target_column TEXT NULL` y `task_type TEXT NULL`.
+    - [x] Desacoplar modelo `Job` y `sqlite_jobs.py` para permitir `run_id: str | None = None` con migración resiliente si existía `NOT NULL`.
+    - [x] `AutoMLWorkspace.register_dataset(target=None)` y planificación no supervisada por defecto (`TaskType.CLUSTERING`).
+    - [x] Suite de tests dedicada en `tests/test_unsupervised_datasets_and_decoupled_jobs.py` (4 tests). 627 tests pasando (100% verde), 87.38% de cobertura.
 - [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
   - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
   - [ ] Soporte de estudios sin columna objetivo (`target=None`).

@@ -23,9 +23,9 @@ ACTIVE_STATUSES = {JobStatus.RUNNING, JobStatus.PAUSE_REQUESTED, JobStatus.CANCE
 class Job:
     id: str
     operation: str
-    run_id: str
-    payload: dict[str, Any]
-    idempotency_key: str
+    run_id: str | None = None
+    payload: dict[str, Any] = field(default_factory=dict)
+    idempotency_key: str = ""
     status: JobStatus = JobStatus.QUEUED
     completed: int = 0
     total: int = 0

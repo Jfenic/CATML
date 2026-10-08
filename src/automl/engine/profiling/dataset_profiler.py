@@ -344,22 +344,24 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
             raise FileNotFoundError(f"Dataset not found: {path}")
         df = load_dataframe(path)
 
-    if dataset.target_column not in df.columns:
+    has_target = dataset.target_column is not None
+    if has_target and dataset.target_column not in df.columns:
         raise ValueError(f"Target column '{dataset.target_column}' not in dataset")
 
     row_count = len(df)
-    target_series = df[dataset.target_column]
+    target_series = df[dataset.target_column] if has_target else None
 
     # Target numeric proxy for calculating target correlation
     target_numeric: pd.Series | None = None
-    if pd.api.types.is_numeric_dtype(target_series):
-        target_numeric = target_series
-    else:
-        unique_targets = target_series.dropna().unique()
-        if len(unique_targets) == 2:
-            target_numeric = (target_series == unique_targets[1]).astype(float)
-        elif len(unique_targets) > 2:
-            target_numeric = target_series.astype("category").cat.codes.astype(float)
+    if target_series is not None:
+        if pd.api.types.is_numeric_dtype(target_series):
+            target_numeric = target_series
+        else:
+            unique_targets = target_series.dropna().unique()
+            if len(unique_targets) == 2:
+                target_numeric = (target_series == unique_targets[1]).astype(float)
+            elif len(unique_targets) > 2:
+                target_numeric = target_series.astype("category").cat.codes.astype(float)
 
     columns: list[ColumnProfile] = []
     recommendations: list[dict[str, Any]] = []
@@ -450,7 +452,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     pass
 
                 # If dataset target column is present, calculate box plot by target class
-                if dataset.target_column in df.columns and name != dataset.target_column:
+                if has_target and dataset.target_column in df.columns and name != dataset.target_column:
                     try:
                         tgt_series = df[dataset.target_column]
                         target_classes = tgt_series.dropna().unique().tolist()
@@ -481,7 +483,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     except Exception:
                         pass
 
-            if target_numeric is not None and name != dataset.target_column and len(clean_s) > 1:
+            if target_numeric is not None and (not has_target or name != dataset.target_column) and len(clean_s) > 1:
                 try:
                     c = float(series.corr(target_numeric))
                     if not pd.isna(c):
@@ -490,7 +492,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     pass
         else:
             vc = series.value_counts(dropna=False).head(10)
-            tgt_series = df[dataset.target_column] if dataset.target_column in df.columns and name != dataset.target_column else None
+            tgt_series = df[dataset.target_column] if has_target and dataset.target_column in df.columns and name != dataset.target_column else None
             for val, cnt in vc.items():
                 val_str = str(val) if not pd.isna(val) else "<NULL>"
                 cat_info: dict[str, Any] = {
@@ -509,7 +511,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                 top_cats.append(cat_info)
 
         # Generate smart actionable recommendations
-        if name != dataset.target_column:
+        if not has_target or name != dataset.target_column:
             if is_group_cand and group_report and group_report["leakage_detected"]:
                 recommendations.append({
                     "column": name,
@@ -632,7 +634,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
         )
 
     # Multi-collinearity detection and full correlation matrix
-    numeric_cols = [c.name for c in columns if c.mean is not None and c.name != dataset.target_column and not c.is_identifier]
+    numeric_cols = [c.name for c in columns if c.mean is not None and (not has_target or c.name != dataset.target_column) and not c.is_identifier]
     correlation_matrix_data: dict[str, Any] = {}
     if len(numeric_cols) >= 2:
         try:
@@ -691,8 +693,9 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
     # Temporal & Sequential Structure Analysis
     temporal_struct = detect_sequential_structure(df, target_column=dataset.target_column)
     if temporal_struct.is_sequential:
+        fallback_col = dataset.target_column or (temporal_struct.temporal_columns[0] if temporal_struct.temporal_columns else "order")
         recommendations.append({
-            "column": temporal_struct.order_column or (temporal_struct.temporal_columns[0] if temporal_struct.temporal_columns else dataset.target_column),
+            "column": temporal_struct.order_column or (temporal_struct.temporal_columns[0] if temporal_struct.temporal_columns else fallback_col),
             "type": "temporal",
             "badge": "Sequential Dynamics",
             "severity": "info",

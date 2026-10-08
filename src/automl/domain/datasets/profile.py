@@ -37,8 +37,8 @@ class Dataset:
     workspace_id: str
     name: str
     path: str
-    target_column: str
-    task_type: str
+    target_column: str | None = None
+    task_type: str | None = None
 
 
 @dataclass
@@ -46,8 +46,8 @@ class DatasetProfile:
     dataset_id: str
     row_count: int
     column_count: int
-    target_column: str
-    task_type: str
+    target_column: str | None = None
+    task_type: str | None = None
     columns: list[ColumnProfile] = field(default_factory=list)
     preview_rows: list[dict[str, Any]] = field(default_factory=list)
     recommendations: list[dict[str, Any]] = field(default_factory=list)
@@ -133,7 +133,8 @@ class DatasetProfile:
         return [
             r["column"]
             for r in self.recommendations
-            if r.get("type") in {"leakage", "group_leakage"} and r.get("column") != self.target_column
+            if r.get("type") in {"leakage", "group_leakage"}
+            and (self.target_column is None or r.get("column") != self.target_column)
         ]
 
     @property
@@ -146,5 +147,7 @@ class DatasetProfile:
         return [
             c.name
             for c in self.columns
-            if c.name != self.target_column and not c.is_identifier and c.name not in leakage_cols
+            if (self.target_column is None or c.name != self.target_column)
+            and not c.is_identifier
+            and c.name not in leakage_cols
         ]
