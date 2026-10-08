@@ -62,8 +62,13 @@
     - Respuesta explícita `403 Forbidden` ante intentos de escape del directorio de estáticos.
   - Suite de pruebas de seguridad exhaustiva en `tests/test_workbench_file_confinement.py` (4 tests).
   - Validación completa: 639 tests pasando (100% verde), 87.39% de cobertura.
-
-
+- **PR C (PR #82): Atomicidad Transaccional de Migraciones SQLite y Rollback Verificado (`hardening/v0.8.2-sqlite-migration-atomicity`):**
+  - Reemplazo de `conn.executescript()` por transacciones deterministas explícitas `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK` en `SQLiteExperimentRepository._migrate()` (`src/automl/infrastructure/database/sqlite_repository.py`) y `SQLiteJobRepository._migrate()` (`src/automl/infrastructure/database/sqlite_jobs.py`).
+  - Configuración temporal de `conn.isolation_level = None` durante la ventana de migración DDL, garantizando control transaccional estricto ante excepciones intermedias y restaurándolo fielmente en bloques `finally`.
+  - Verificación estricta de conteo de registros antes y después de la reconstrucción de tablas (`post_count == pre_count`), levantando `RuntimeError` y ejecutando `ROLLBACK` si se detecta cualquier discrepancia o truncamiento de datos.
+  - Limpieza de tablas temporales (`_dg_tmp_datasets`, `_dg_tmp_jobs`) en caso de rollback, asegurando que la base de datos retenga su esquema íntegro original y cero artefactos residuales o bloqueos.
+  - Suite de pruebas dedicada para verificar rollback atómico ante fallos forzados de migración en `tests/test_sqlite_legacy_migrations.py` (`test_datasets_migration_failure_rolls_back_atomically`, `test_jobs_migration_failure_rolls_back_atomically`).
+  - Validación completa: 641 tests pasando (100% verde), 87.41% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 
