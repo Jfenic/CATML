@@ -1,341 +1,57 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from automl.application.bus.command_bus import CommandBus
 from automl.application.bus.query_bus import QueryBus
-from automl.application.commands.workspace_commands import (
-    AddModelCommand,
-    CancelRunCommand,
-    CloneRunCommand,
-    CreateExperimentCommand,
-    CreateFeatureSetCommand,
-    ExcludeFeatureCommand,
-    ExcludeModelCommand,
-    ExecuteNextExperimentCommand,
-    PauseRunCommand,
-    PlanExperimentsCommand,
-    PrioritizeCandidateCommand,
-    PrioritizeFeatureCommand,
-    ResumeRunCommand,
-    RunExperimentCommand,
-    RunScheduledExperimentsCommand,
-    OptimizeExperimentCommand,
-    SelectFeaturesCommand,
-    PlanAblationExperimentsCommand,
-    PromoteCandidateFeatureSetCommand,
-    GenerateSubmissionCommand,
-    GenerateOOFSubmissionCommand,
-    ExecutePipelineCommand,
-    GenerateTemporalFeaturesCommand,
-    BuildEnsembleCommand,
-)
-from automl.application.queries.workspace_queries import (
-    CompareExperimentsQuery,
-    GetBestTrialQuery,
-    GetDatasetProfileQuery,
-    GetExperimentQueueQuery,
-    GetExperimentTrialsQuery,
-    GetLeaderboardQuery,
-    GetTaskPlanQuery,
-    ListCandidatesQuery,
-    ListExperimentsQuery,
-    ListFeatureSetsQuery,
-    ListModelsQuery,
-    ListTaskTypesQuery,
-    GetFeatureEvidenceQuery,
-    ListCandidateFeatureSetsQuery,
-    GetFeatureRankingQuery,
-    ListPluginsQuery,
-    PredictDatasetQuery,
-    ValidatePipelineGraphQuery,
-    GetPipelineExecutionOrderQuery,
-    GetOOFResultQuery,
-    DetectTemporalStructureQuery,
-    GetMetaKnowledgeQuery,
-    GetRunQuery,
-    ListRunsQuery,
-    GetDatasetQuery,
-    ListDatasetsQuery,
-    GetTrialQuery,
-    GetExperimentQuery,
-    ListTrialResultsQuery,
+from automl.application.registries import (
+    register_core_handlers,
+    register_experiment_handlers,
+    register_feature_handlers,
+    register_inference_handlers,
+    register_job_handlers,
 )
 from automl.application.services.workspace import AutoMLWorkspace
-from automl.application.services.jobs import JobService
-from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
-from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
-from automl.infrastructure.database.sqlite_jobs import SQLiteJobRepository
 
-
-
-def _run_experiment(workspace: AutoMLWorkspace, cmd: RunExperimentCommand):
-    experiment = workspace.repository.get_experiment(cmd.experiment_id)
-    if experiment is None:
-        raise KeyError(f"Experiment not found: {cmd.experiment_id}")
-    run = workspace._get_run(cmd.run_id)
-    if experiment.run_id != run.id:
-        raise ValueError(f"Experiment {experiment.id} does not belong to run {run.id}")
-    return workspace.run_experiment(run, experiment)
+if TYPE_CHECKING:
+    from automl.application.services.jobs import JobService
 
 
 def register_handlers(
     workspace: AutoMLWorkspace,
     command_bus: CommandBus,
     query_bus: QueryBus,
+    job_service: JobService | None = None,
 ) -> None:
-    jobs = JobService(workspace, SQLiteJobRepository(workspace.repository.db_path))
-    command_bus.register(SubmitJobCommand, jobs.submit)
-    command_bus.register(ControlJobCommand, jobs.control)
-    query_bus.register(GetJobQuery, lambda q: jobs.get(q.job_id))
-    query_bus.register(ListJobsQuery, lambda q: jobs.list(q.run_id))
-    command_bus.register(AddModelCommand, lambda cmd: workspace.include_model(workspace._get_run(cmd.run_id), cmd.model_id))
-    command_bus.register(
-        ExcludeModelCommand,
-        lambda cmd: workspace.exclude_model(workspace._get_run(cmd.run_id), cmd.model_id),
-    )
-    command_bus.register(
-        ExcludeFeatureCommand,
-        lambda cmd: workspace.exclude_feature(cmd.dataset_id, cmd.feature_name, run_id=cmd.run_id),
-    )
-    command_bus.register(
-        PrioritizeFeatureCommand,
-        lambda cmd: workspace.prioritize_feature(
-            cmd.dataset_id,
-            cmd.feature_name,
-            score=cmd.score,
-            run_id=cmd.run_id,
-        ),
-    )
-    command_bus.register(
-        CreateFeatureSetCommand,
-        lambda cmd: workspace.create_feature_set(
-            cmd.dataset_id,
-            cmd.name,
-            cmd.feature_names,
-            lineage=cmd.lineage,
-        ),
-    )
-    command_bus.register(
-        CreateExperimentCommand,
-        lambda cmd: workspace.create_experiment(
-            workspace._get_run(cmd.run_id),
-            name=cmd.name,
-            feature_names=cmd.feature_names,
-            feature_set_id=cmd.feature_set_id,
-            model_ids=cmd.model_ids,
-            hypothesis=cmd.hypothesis,
-            priority=cmd.priority,
-            validation_strategy=cmd.validation_strategy,
-            group_column=cmd.group_column,
-        ),
-    )
-    command_bus.register(
-        RunExperimentCommand,
-        lambda cmd: _run_experiment(workspace, cmd),
-    )
-    command_bus.register(PauseRunCommand, lambda cmd: workspace.pause_run(cmd.run_id))
-    command_bus.register(ResumeRunCommand, lambda cmd: workspace.resume_run(cmd.run_id))
-    command_bus.register(CancelRunCommand, lambda cmd: workspace.cancel_run(cmd.run_id))
-    command_bus.register(CloneRunCommand, lambda cmd: workspace.clone_run(cmd.run_id, cmd.new_name))
-    command_bus.register(
-        PlanExperimentsCommand,
-        lambda cmd: workspace.plan_experiments(
-            cmd.run_id,
-            auto_enqueue=cmd.auto_enqueue,
-            user_priorities=cmd.user_priorities,
-        ),
-    )
-    command_bus.register(
-        PrioritizeCandidateCommand,
-        lambda cmd: workspace.prioritize_candidate(
-            cmd.run_id,
-            cmd.candidate_id,
-            cmd.priority,
-        ),
-    )
-    command_bus.register(
-        ExecuteNextExperimentCommand,
-        lambda cmd: workspace.execute_next_experiment(cmd.run_id, budget=cmd.budget),
-    )
-    command_bus.register(
-        RunScheduledExperimentsCommand,
-        lambda cmd: workspace.run_scheduled_experiments(
-            cmd.run_id,
-            max_experiments=cmd.max_experiments,
-            max_trials=cmd.max_trials,
-            budget=cmd.budget,
-        ),
-    )
-    command_bus.register(
-        OptimizeExperimentCommand,
-        lambda cmd: workspace.optimize_experiment(
-            run_id=cmd.run_id,
-            experiment_id=cmd.experiment_id,
-            model_id=cmd.model_id,
-            optimizer=cmd.optimizer,
-            n_trials=cmd.n_trials,
-            timeout_seconds=cmd.timeout_seconds,
-            patience=cmd.patience,
-            min_delta=cmd.min_delta,
-        ),
-    )
-    command_bus.register(
-        SelectFeaturesCommand,
-        lambda cmd: workspace.select_features(cmd.run_id, strategy=cmd.strategy),
-    )
-    command_bus.register(
-        PlanAblationExperimentsCommand,
-        lambda cmd: workspace.plan_ablation_experiments(
-            cmd.run_id,
-            base_feature_names=cmd.base_feature_names,
-            model_ids=cmd.model_ids,
-            max_features=cmd.max_features,
-            auto_enqueue=cmd.auto_enqueue,
-        ),
-    )
-    command_bus.register(
-        PromoteCandidateFeatureSetCommand,
-        lambda cmd: workspace.promote_candidate_feature_set(
-            cmd.run_id,
-            cmd.candidate_id,
-            new_name=cmd.new_name,
-        ),
-    )
-    command_bus.register(
-        GenerateSubmissionCommand,
-        lambda cmd: workspace.generate_submission(
-            run_id=cmd.run_id,
-            test_dataset_path=cmd.test_dataset_path,
-            output_path=cmd.output_path,
-            id_column=cmd.id_column,
-            template_path=cmd.template_path,
-            experiment_id=cmd.experiment_id,
-            trial_id=cmd.trial_id,
-            predict_proba=cmd.predict_proba,
-        ),
-    )
-    command_bus.register(
-        ExecutePipelineCommand,
-        lambda cmd: workspace.execute_pipeline(cmd.graph, cmd.inputs),
-    )
-    command_bus.register(
-        GenerateTemporalFeaturesCommand,
-        lambda cmd: workspace.generate_temporal_features(
-            run_id=cmd.run_id,
-            dataset_id=cmd.dataset_id,
-            max_lags=cmd.max_lags,
-            include_lags=cmd.include_lags,
-            include_deltas=cmd.include_deltas,
-            include_cyclical=cmd.include_cyclical,
-        ),
-    )
-    query_bus.register(
-        DetectTemporalStructureQuery,
-        lambda q: workspace.detect_temporal_structure(q.dataset_id),
-    )
-    query_bus.register(
-        GetMetaKnowledgeQuery,
-        lambda q: workspace.get_meta_knowledge(q.dataset_id, run_id=q.run_id),
-    )
-    command_bus.register(
-        BuildEnsembleCommand,
-        lambda cmd: workspace.build_ensemble(
-            run_id=cmd.run_id,
-            model_ids=cmd.model_ids,
-            method=cmd.method,
-            meta_model=cmd.meta_model,
-            folds=cmd.folds,
-            name=cmd.name,
-        ).id,
-    )
-    command_bus.register(GenerateOOFSubmissionCommand, workspace.generate_oof_submission)
-    query_bus.register(GetOOFResultQuery, lambda q: workspace.get_oof_result(q.run_id, q.experiment_id))
-
-    query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
-    query_bus.register(
-        GetDatasetProfileQuery,
-        lambda q: workspace.get_dataset_profile(q.dataset_id),
-    )
-    query_bus.register(
-        GetLeaderboardQuery,
-        lambda q: workspace.leaderboard(workspace._get_run(q.run_id)),
-    )
-    query_bus.register(CompareExperimentsQuery, lambda q: workspace.compare_experiments(q.experiment_ids))
-    query_bus.register(
-        ListExperimentsQuery,
-        lambda q: workspace.list_experiments(q.run_id),
-    )
-    query_bus.register(
-        ListFeatureSetsQuery,
-        lambda q: workspace.list_feature_sets(q.dataset_id),
-    )
-    query_bus.register(GetRunQuery, lambda q: workspace.get_run(q.run_id))
-    query_bus.register(ListRunsQuery, lambda q: workspace.list_runs(dataset_id=q.dataset_id))
-    query_bus.register(GetDatasetQuery, lambda q: workspace.get_dataset(q.dataset_id))
-    query_bus.register(ListDatasetsQuery, lambda _q: workspace.list_datasets())
-    query_bus.register(GetTrialQuery, lambda q: workspace.get_trial(q.trial_id))
-    query_bus.register(GetExperimentQuery, lambda q: workspace.get_experiment(q.experiment_id))
-    query_bus.register(ListTrialResultsQuery, lambda q: workspace.list_trial_results(q.experiment_id))
-    query_bus.register(GetTaskPlanQuery, lambda q: workspace.get_task_plan(q.dataset_id))
-    query_bus.register(ListTaskTypesQuery, lambda _q: workspace.list_task_types())
-    query_bus.register(
-        GetExperimentQueueQuery,
-        lambda q: workspace.get_experiment_queue(q.run_id),
-    )
-    query_bus.register(
-        ListCandidatesQuery,
-        lambda q: workspace.list_candidates(q.run_id),
-    )
-    query_bus.register(
-        GetBestTrialQuery,
-        lambda q: workspace.get_best_trial(q.experiment_id),
-    )
-    query_bus.register(
-        GetExperimentTrialsQuery,
-        lambda q: workspace.get_experiment_trials(q.experiment_id),
-    )
-    query_bus.register(
-        GetFeatureEvidenceQuery,
-        lambda q: workspace.get_feature_evidence(q.run_id, q.feature_id),
-    )
-    query_bus.register(
-        ListCandidateFeatureSetsQuery,
-        lambda q: workspace.list_candidate_feature_sets(q.run_id),
-    )
-    query_bus.register(
-        GetFeatureRankingQuery,
-        lambda q: workspace.get_feature_ranking(q.run_id, method=q.method),
-    )
-    query_bus.register(
-        ListPluginsQuery,
-        lambda q: workspace.list_plugins(plugin_type=q.plugin_type, task_type=q.task_type),
-    )
-    query_bus.register(
-        PredictDatasetQuery,
-        lambda q: workspace.predict(
-            run_id=q.run_id,
-            test_dataset_path=q.test_dataset_path,
-            experiment_id=q.experiment_id,
-            trial_id=q.trial_id,
-            predict_proba=q.predict_proba,
-            template_path=q.template_path,
-            id_column=q.id_column,
-        ),
-    )
-    query_bus.register(
-        ValidatePipelineGraphQuery,
-        lambda q: workspace.validate_pipeline_graph(q.graph),
-    )
-    query_bus.register(
-        GetPipelineExecutionOrderQuery,
-        lambda q: workspace.get_pipeline_execution_order(q.graph),
-    )
+    """
+    Registers all CQRS command and query handlers by domain context.
+    
+    Sub-context registries:
+      - Job registry: asynchronous task queue and job management
+      - Core registry: workspaces, runs, datasets, dataset profiles, task types, plugins
+      - Experiment registry: candidate models, trials, training executions, priority queues
+      - Feature registry: feature discovery, selection, ablation, metadata lineages
+      - Inference registry: predictions, submissions, ensembles, OOF, and pipelines
+    """
+    register_job_handlers(workspace, command_bus, query_bus, job_service=job_service)
+    register_core_handlers(workspace, command_bus, query_bus)
+    register_experiment_handlers(workspace, command_bus, query_bus)
+    register_feature_handlers(workspace, command_bus, query_bus)
+    register_inference_handlers(workspace, command_bus, query_bus)
 
 
-
-
-def build_application(root_dir: str | None = None) -> tuple[AutoMLWorkspace, CommandBus, QueryBus]:
+def build_application(
+    root_dir: str | None = None,
+    job_service: JobService | None = None,
+) -> tuple[AutoMLWorkspace, CommandBus, QueryBus]:
+    """
+    Application composition root.
+    
+    Constructs the AutoMLWorkspace, instantiates CommandBus and QueryBus,
+    and registers all modular handlers.
+    """
     workspace = AutoMLWorkspace.load_or_create("default", root_dir=root_dir)
     command_bus = CommandBus()
     query_bus = QueryBus()
-    register_handlers(workspace, command_bus, query_bus)
+    register_handlers(workspace, command_bus, query_bus, job_service=job_service)
     return workspace, command_bus, query_bus
