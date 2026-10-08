@@ -96,10 +96,23 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Restricción de `/api/media/preview` a raíces estrictamente autorizadas (`ws_root` y directorios de datasets registrados), eliminando `ws_root.parent` y `Path.cwd()` para impedir accesos no autorizados al directorio padre del usuario o del proyecto.
     - [x] Comprobación estricta de pertenencia a directorio para `/static/` con `target_file.is_relative_to(static_root)` y respuesta `403 Forbidden` ante intentos de path traversal.
     - [x] Suite de tests de seguridad dedicada en `tests/test_workbench_file_confinement.py` (4 tests). 639 tests pasando (100% verde), 87.39% de cobertura.
-  - [ ] **PR C — Atomicidad Transaccional de Migraciones SQLite**:
-    - [ ] Transacción explícita completa y rollback verificado en migraciones SQLite.
-  - [ ] **PR D — Consistencia del Producto (Dirección de Métricas, Benchmarks y Actividad Real)**:
-    - [ ] Unificar dirección de métricas en benchmarks y reemplazar actividad predefinida por eventos reales en Workbench.
+  - [x] **PR C (PR #82) — Atomicidad Transaccional de Migraciones SQLite**:
+    - [x] Transacción explícita completa y rollback verificado en migraciones SQLite (`SQLiteExperimentRepository._migrate` y `SQLiteJobRepository._migrate`).
+    - [x] Conteo de registros previo y posterior (`post_count == pre_count`) y limpieza de tablas temporales.
+    - [x] Tests unitarios con rollback probado ante excepciones forzadas en `tests/test_sqlite_legacy_migrations.py`.
+    - [x] 641 tests pasando (100% verde), 87.41% de cobertura.
+  - [x] **PR D (PR #83) — Consistencia del Producto (Dirección de Métricas, Benchmarks y Actividad Real)**:
+    - [x] Unificar dirección de métricas en benchmarks (`is_minimizing_metric`) y selección del mejor modelo según la métrica (`min` para pérdida, `max` para ganancia).
+    - [x] Erradicación total de mock data en Workbench (`_build_real_activity_feed` en `server.py` y carga dinámica de `agent_ledger.db` en `/api/agent/hypotheses`).
+    - [x] Tests unitarios en `tests/test_benchmark_metric_direction.py` y `tests/test_workbench_activity_consistency.py`.
+    - [x] 651 tests pasando (100% verde), 87.32% de cobertura.
+  - [x] **PR E (PR #84) — Hardening Complementario (Protección XSS, Alineación de Métricas en Workbench y Confinamiento Estricto de Descargas)**:
+    - [x] Protección XSS en frontend: módulo `src/automl/interfaces/web/static/js/utils.js` con `escapeHtml` y sanitización integral en `agent.js`, `overview.js` y `kaggle.js`.
+    - [x] Segregación de métricas en `/api/overview` (`server.py`): eliminación de comparaciones escalares entre métricas incomparables; reporte contextualizado (`best_metric`, `best_score`, `best_model`) y desglose completo por métrica (`best_by_metric`).
+    - [x] Benchmarks: cálculo de `delta_vs_baseline` en `BenchmarkRunner` con sentido de mejora positivo ($\Delta > 0$) tanto para métricas de pérdida (reducción de error) como de ganancia.
+    - [x] Confinamiento estricto de `/api/kaggle/download`: restricción exclusiva al subdirectorio `submissions/` o artefactos de exportación autorizados (`exports/`), bloqueando rutas relativas a la raíz del workspace o extensiones no pertinentes.
+    - [x] Suite de tests dedicada en `tests/test_workbench_xss_protection.py` (5 tests) y ampliación de `tests/test_workbench_file_confinement.py` (4 tests).
+    - [x] 656 tests pasando (100% verde), 87.33% de cobertura.
 - [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
   - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
   - [ ] Soporte de estudios sin columna objetivo (`target=None`).

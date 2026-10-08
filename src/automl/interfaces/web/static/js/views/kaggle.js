@@ -6,6 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
+import { escapeHtml } from "../utils.js";
 
 export class KaggleView {
   constructor() {
@@ -138,11 +139,11 @@ export class KaggleView {
                 <tbody>
                   ${st.submissions && st.submissions.length > 0 ? st.submissions.map(sub => `
                     <tr>
-                      <td class="font-medium text-slate-200">${sub.experiment}</td>
+                      <td class="font-medium text-slate-200">${escapeHtml(sub.experiment)}</td>
                       <td class="font-mono text-emerald-400 font-bold">${sub.cv != null ? Number(sub.cv).toFixed(5) : "—"}</td>
                       <td class="font-mono text-slate-200">${sub.public_lb != null ? Number(sub.public_lb).toFixed(5) : "—"}</td>
-                      <td class="font-mono text-xs text-indigo-400">${sub.delta || "—"}</td>
-                      <td><span class="${sub.status === 'VERIFIED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono font-semibold">${sub.status}</span></td>
+                      <td class="font-mono text-xs text-indigo-400">${escapeHtml(sub.delta || "—")}</td>
+                      <td><span class="${sub.status === 'VERIFIED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono font-semibold">${escapeHtml(sub.status)}</span></td>
                     </tr>
                   `).join("") : `
                     <tr>

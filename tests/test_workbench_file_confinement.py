@@ -117,6 +117,22 @@ def test_kaggle_download_confinement(tmp_path: Path):
     resp = wfile.getvalue().decode("utf-8", errors="ignore")
     assert "404 Not Found" in resp
 
+    # I. Valid CSV file directly in workspace root (outside submissions/) must be rejected
+    root_csv = ws_dir / "root_data.csv"
+    root_csv.write_text("sensitive_data,123\n", encoding="utf-8")
+    handler, wfile = _create_handler(ws_dir, f"/api/kaggle/download?file={root_csv.resolve()}")
+    handler.do_GET()
+    resp = wfile.getvalue().decode("utf-8", errors="ignore")
+    assert "403 Forbidden" in resp or "Access denied" in resp
+    assert "sensitive_data" not in resp
+
+    # J. Relative traversal pointing into workspace root from submissions must be rejected
+    handler, wfile = _create_handler(ws_dir, "/api/kaggle/download?file=../root_data.csv")
+    handler.do_GET()
+    resp = wfile.getvalue().decode("utf-8", errors="ignore")
+    assert "403 Forbidden" in resp or "Access denied" in resp
+    assert "sensitive_data" not in resp
+
 
 def test_media_preview_confinement_and_parent_exclusion(tmp_path: Path):
     ws_dir = tmp_path / "ws"

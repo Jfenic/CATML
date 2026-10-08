@@ -325,8 +325,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         if path == "/api/overview":
             runs = ws.list_runs()
             all_trials = []
-            best_score = None
-            best_model = "-"
+            best_by_metric: dict[str, dict] = {}
+            active_run_top: dict | None = None
             recent_datasets = []
 
             for r in runs:
@@ -338,18 +338,42 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     top = lb[0]
                     score = float(top["score"])
                     model_id = str(top["model_id"])
-                    metric_name = str(top.get("metric", "")).lower()
+                    metric_name = str(top.get("metric") or r.config.metric or "score").lower()
                     is_minimize = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
-                    if best_score is None:
-                        best_score = score
-                        best_model = model_id
+
+                    if metric_name not in best_by_metric:
+                        best_by_metric[metric_name] = {
+                            "score": score,
+                            "model_id": model_id,
+                            "run_id": r.id,
+                            "metric": metric_name,
+                        }
                     else:
-                        if is_minimize and score < best_score:
-                            best_score = score
-                            best_model = model_id
-                        elif not is_minimize and score > best_score:
-                            best_score = score
-                            best_model = model_id
+                        cur_score = best_by_metric[metric_name]["score"]
+                        if (is_minimize and score < cur_score) or (not is_minimize and score > cur_score):
+                            best_by_metric[metric_name] = {
+                                "score": score,
+                                "model_id": model_id,
+                                "run_id": r.id,
+                                "metric": metric_name,
+                            }
+
+                    # Track active or latest run for top-level scalar display
+                    is_running = r.status.value == "RUNNING"
+                    if is_running and (active_run_top is None or active_run_top.get("status") != "RUNNING"):
+                        active_run_top = {
+                            "score": score,
+                            "model_id": model_id,
+                            "metric": metric_name,
+                            "status": "RUNNING",
+                        }
+                    elif active_run_top is None:
+                        active_run_top = {
+                            "score": score,
+                            "model_id": model_id,
+                            "metric": metric_name,
+                            "status": r.status.value,
+                        }
 
                 ds = ws.get_dataset(r.dataset_id)
                 if ds and ds.name not in [d["name"] for d in recent_datasets]:
@@ -376,8 +400,19 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         "features": profile.column_count if profile else None,
                     })
 
-            if best_score is None:
+            if active_run_top:
+                best_score = active_run_top["score"]
+                best_model = active_run_top["model_id"]
+                best_metric = active_run_top["metric"]
+            elif best_by_metric:
+                first_metric = next(iter(best_by_metric.values()))
+                best_score = first_metric["score"]
+                best_model = first_metric["model_id"]
+                best_metric = first_metric["metric"]
+            else:
                 best_score = 0.0
+                best_model = "-"
+                best_metric = "-"
 
             activity_feed = _build_real_activity_feed(
                 ws=ws,
@@ -396,6 +431,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "total_trials": len(all_trials),
                 "best_score": best_score,
                 "best_model": best_model,
+                "best_metric": best_metric,
+                "best_by_metric": best_by_metric,
                 "recent_datasets": recent_datasets,
                 "activity_feed": activity_feed,
             })
@@ -973,25 +1010,33 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
             ws_root = Path(self.workspace_dir).resolve()
+            submissions_dir = (ws_root / "submissions").resolve()
+            exports_dir = (ws_root / "exports").resolve()
+            allowed_dirs = [submissions_dir, exports_dir]
+
             raw_path = Path(file_param)
 
-            # Resolve candidate path safely against workspace boundaries
+            # Whitelist allowed submission and export extensions only
+            allowed_download_exts = {".csv", ".tsv", ".parquet", ".pq", ".zip"}
+            if raw_path.suffix.lower() not in allowed_download_exts:
+                self._send_json({"error": f"Access denied: unsupported file type: {raw_path.suffix}"}, HTTPStatus.FORBIDDEN)
+                return
+
+            # Resolve candidate path safely
             if raw_path.is_absolute():
                 cand = raw_path.resolve()
             else:
-                # Check relative path against submissions subfolder or workspace root
-                sub_candidate = (ws_root / "submissions" / raw_path).resolve()
-                cand = sub_candidate if sub_candidate.is_file() else (ws_root / raw_path).resolve()
+                # Check relative path strictly against submissions subfolder or exports
+                cand = (submissions_dir / raw_path).resolve()
+                if not cand.exists() and (exports_dir / raw_path).resolve().exists():
+                    cand = (exports_dir / raw_path).resolve()
 
-            # Strict confinement: must be strictly within workspace_dir
-            if not cand.is_relative_to(ws_root):
-                self._send_json({"error": f"Access denied: path outside workspace: {file_param}"}, HTTPStatus.FORBIDDEN)
-                return
-
-            # Whitelist allowed submission and export extensions
-            allowed_download_exts = {".csv", ".tsv", ".parquet", ".pq", ".json", ".zip", ".txt"}
-            if cand.suffix.lower() not in allowed_download_exts:
-                self._send_json({"error": f"Access denied: unsupported file type: {cand.suffix}"}, HTTPStatus.FORBIDDEN)
+            # Strict confinement: candidate MUST reside strictly within submissions or exports directory
+            if not any(cand.is_relative_to(d) for d in allowed_dirs):
+                self._send_json(
+                    {"error": f"Access denied: downloads are restricted to submissions and export artifacts: {file_param}"},
+                    HTTPStatus.FORBIDDEN,
+                )
                 return
 
             if not cand.is_file():
@@ -1002,11 +1047,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             content_types = {
                 ".csv": "text/csv; charset=utf-8",
                 ".tsv": "text/tab-separated-values; charset=utf-8",
-                ".json": "application/json; charset=utf-8",
                 ".parquet": "application/octet-stream",
                 ".pq": "application/octet-stream",
                 ".zip": "application/zip",
-                ".txt": "text/plain; charset=utf-8",
             }
             ctype = content_types.get(cand.suffix.lower(), "application/octet-stream")
 

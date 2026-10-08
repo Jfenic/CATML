@@ -8,6 +8,7 @@
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { icon } from "../icons.js";
+import { escapeHtml } from "../utils.js";
 
 export class OverviewView {
   constructor() {
@@ -52,13 +53,13 @@ export class OverviewView {
         <div class="space-y-4">
           <div class="flex items-start justify-between border-b border-[#242A36] pb-3">
             <div>
-              <div class="text-[10px] font-mono text-[#8B95A7] uppercase tracking-wider">Experiment / ID: ${activeRun.id}</div>
-              <h3 class="text-base font-semibold font-sans text-[#F7F8FA] mt-0.5">${activeRun.dataset_name || activeRun.id}</h3>
-              <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Task: ${(activeRun.task_type || "Classification").replace("_", " ")} • Metric: ${activeRun.metric || "CV"}</p>
+              <div class="text-[10px] font-mono text-[#8B95A7] uppercase tracking-wider">Experiment / ID: ${escapeHtml(activeRun.id)}</div>
+              <h3 class="text-base font-semibold font-sans text-[#F7F8FA] mt-0.5">${escapeHtml(activeRun.dataset_name || activeRun.id)}</h3>
+              <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Task: ${escapeHtml((activeRun.task_type || "Classification").replace("_", " "))} • Metric: ${escapeHtml(activeRun.metric || "CV")}</p>
             </div>
             <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1.5">
               ${isRunning ? '<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : '<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>'}
-              <span>${activeRun.status || "READY"}</span>
+              <span>${escapeHtml(activeRun.status || "READY")}</span>
             </span>
           </div>
 
@@ -69,11 +70,11 @@ export class OverviewView {
             </div>
             <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
               <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Best Model</span>
-              <span class="text-[#F7F8FA] font-sans font-medium text-sm mt-0.5 block truncate">${activeRun.best_model || "None"}</span>
+              <span class="text-[#F7F8FA] font-sans font-medium text-sm mt-0.5 block truncate">${escapeHtml(activeRun.best_model || "None")}</span>
             </div>
             <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
               <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Status</span>
-              <span class="text-[#4F67FF] font-mono font-medium text-sm mt-0.5 block">${activeRun.status || "READY"}</span>
+              <span class="text-[#4F67FF] font-mono font-medium text-sm mt-0.5 block">${escapeHtml(activeRun.status || "READY")}</span>
             </div>
             <div class="p-3 rounded-xl bg-[#161B26] border border-[#242A36]">
               <span class="text-[10px] text-[#8B95A7] font-sans font-medium uppercase block">Trials Tested</span>
@@ -93,7 +94,7 @@ export class OverviewView {
           </div>
 
           <div class="pt-2 flex flex-wrap justify-between items-center gap-3">
-            <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs flex items-center space-x-1.5" title="Download autonomous inference artifact (zero workspace dependencies)">
+            <a href="/api/models/export?run_id=${encodeURIComponent(activeRun.id)}" class="btn-signal text-xs flex items-center space-x-1.5" title="Download autonomous inference artifact (zero workspace dependencies)">
               ${icon("download", "icon-sm")}
               <span>Export winning model (.pkl)</span>
             </a>
@@ -121,17 +122,17 @@ export class OverviewView {
     // Zone 2 markup (Best Results Leaderboard)
     const runsRows = runs.length > 0
       ? runs.map((r, idx) => `
-          <tr class="cursor-pointer hover:bg-[#161B26]/60 run-row-item ${idx === 0 ? 'champion-lead bg-[#161B26]/30' : ''}" data-run-id="${r.id}">
+          <tr class="cursor-pointer hover:bg-[#161B26]/60 run-row-item ${idx === 0 ? 'champion-lead bg-[#161B26]/30' : ''}" data-run-id="${escapeHtml(r.id)}">
             <td class="font-mono text-xs font-semibold text-[#F7F8FA]">
               ${idx === 0 ? '<span class="text-[#4F67FF] mr-1">▌01</span>' : `<span class="text-[#8B95A7]/60 mr-1">${String(idx + 1).padStart(2, '0')}</span>`}
-              ${r.dataset_name || r.id}
+              ${escapeHtml(r.dataset_name || r.id)}
             </td>
-            <td><span class="text-xs text-[#8B95A7] font-sans capitalize">${(r.task_type || "Classification").replace("_", " ")}</span></td>
-            <td><span class="badge-sys px-2 py-0.5 rounded text-xs font-mono uppercase">${r.best_model || "—"}</span></td>
-            <td class="font-mono text-xs text-[#8B95A7]">${r.metric || "CV"}</td>
+            <td><span class="text-xs text-[#8B95A7] font-sans capitalize">${escapeHtml((r.task_type || "Classification").replace("_", " "))}</span></td>
+            <td><span class="badge-sys px-2 py-0.5 rounded text-xs font-mono uppercase">${escapeHtml(r.best_model || "—")}</span></td>
+            <td class="font-mono text-xs text-[#8B95A7]">${escapeHtml(r.metric || "CV")}</td>
             <td class="font-mono font-bold text-[#22C55E] text-sm">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
             <td class="text-right">
-              <a href="/api/models/export?run_id=${r.id}" onclick="event.stopPropagation()" class="px-2.5 py-1 text-[11px] font-mono font-semibold text-[#4F67FF] hover:text-white bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/25 rounded-md transition-all inline-flex items-center space-x-1" title="Download ModelArtifact (.pkl)">
+              <a href="/api/models/export?run_id=${encodeURIComponent(r.id)}" onclick="event.stopPropagation()" class="px-2.5 py-1 text-[11px] font-mono font-semibold text-[#4F67FF] hover:text-white bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/25 rounded-md transition-all inline-flex items-center space-x-1" title="Download ModelArtifact (.pkl)">
                 ${icon("download", "icon-sm")}
                 <span>.pkl</span>
               </a>
@@ -150,10 +151,10 @@ export class OverviewView {
     const datasets = overview.recent_datasets || [];
     const datasetsHtml = datasets.length > 0
       ? datasets.slice(0, 4).map(ds => `
-          <div class="flex items-center justify-between p-3 rounded-xl bg-[#161B26] border border-[#252C38] cursor-pointer hover:border-[#4F67FF]/40 transition-colors dataset-item-card" data-dataset-id="${ds.id}">
+          <div class="flex items-center justify-between p-3 rounded-xl bg-[#161B26] border border-[#252C38] cursor-pointer hover:border-[#4F67FF]/40 transition-colors dataset-item-card" data-dataset-id="${escapeHtml(ds.id)}">
             <div>
-              <div class="font-mono font-semibold text-xs text-[#F7F8FA]">${ds.name}</div>
-              <div class="text-[11px] text-[#8B95A7] font-sans mt-0.5">${ds.task_type || "Classification"} • ${ds.rows != null ? Number(ds.rows).toLocaleString() : "—"} rows</div>
+              <div class="font-mono font-semibold text-xs text-[#F7F8FA]">${escapeHtml(ds.name)}</div>
+              <div class="text-[11px] text-[#8B95A7] font-sans mt-0.5">${escapeHtml(ds.task_type || "Classification")} • ${ds.rows != null ? Number(ds.rows).toLocaleString() : "—"} rows</div>
             </div>
             <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono">${ds.features != null ? `${ds.features} cols` : "Ready"}</span>
           </div>
@@ -172,10 +173,10 @@ export class OverviewView {
           const badgeClass = act.type === "ACCEPT" ? "badge-gain" : act.type === "REJECT" ? "badge-err" : act.type === "PLAN" ? "badge-intel" : "badge-sys";
           return `
             <div class="flex items-start space-x-3 p-3 rounded-xl bg-[#161B26] border border-[#252C38]">
-              <span class="${badgeClass} px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">${act.type || "INFO"}</span>
+              <span class="${badgeClass} px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">${escapeHtml(act.type || "INFO")}</span>
               <div class="flex-1 font-sans text-xs">
-                <span class="text-[#F7F8FA] font-medium">${act.title}:</span>
-                <span class="text-[#8B95A7] ml-1">${act.description}</span>
+                <span class="text-[#F7F8FA] font-medium">${escapeHtml(act.title)}:</span>
+                <span class="text-[#8B95A7] ml-1">${escapeHtml(act.description)}</span>
               </div>
             </div>
           `;
@@ -204,18 +205,18 @@ export class OverviewView {
         <!-- Top KPI row -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div class="metric-block">
-            <div class="metric-lbl">Best Validated Score</div>
+            <div class="metric-lbl">Best Validated Score${overview.best_metric && overview.best_metric !== "-" ? ` (${escapeHtml(overview.best_metric.toUpperCase())})` : ""}</div>
             <div class="metric-val text-[#22C55E] mt-1">${bestScoreText}</div>
-            <div class="text-[11px] font-sans text-[#8B95A7] mt-1">Model: <span class="text-[#F7F8FA] font-medium font-mono">${bestModelText}</span></div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1">Model: <span class="text-[#F7F8FA] font-medium font-mono">${escapeHtml(bestModelText)}</span></div>
           </div>
 
           <div class="metric-block">
             <div class="metric-lbl">Active Experiment</div>
             <div class="metric-val text-[#F7F8FA] mt-1 flex items-center space-x-2">
               <span class="inline-block w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-[#F59E0B] animate-pulse' : (activeRun ? 'bg-[#22C55E]' : 'bg-[#242A36]')}"></span>
-              <span class="text-xl">${activeRun ? activeRun.status : "IDLE"}</span>
+              <span class="text-xl">${activeRun ? escapeHtml(activeRun.status) : "IDLE"}</span>
             </div>
-            <div class="text-[11px] font-sans text-[#8B95A7] mt-1 truncate">${activeRun ? `${activeRun.dataset_name || activeRun.id}` : "No active run"}</div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1 truncate">${activeRun ? `${escapeHtml(activeRun.dataset_name || activeRun.id)}` : "No active run"}</div>
           </div>
 
           <div class="metric-block">
