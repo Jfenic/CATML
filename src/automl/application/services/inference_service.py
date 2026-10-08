@@ -198,10 +198,11 @@ class InferenceService:
         target_trial_id = trial_id
 
         if target_exp_id is None:
-            leaderboard = self.workspace.repository.get_leaderboard(run_id)
-            if not leaderboard:
+            leaderboard = self.workspace.repository.get_leaderboard(run_id, include_failed=False)
+            valid_trials = [res for res in leaderboard if res.succeeded]
+            if not valid_trials:
                 raise ValueError(f"No completed trials found in run '{run_id}'. Cannot export artifact.")
-            best_trial_res = leaderboard[0]
+            best_trial_res = valid_trials[0]
             target_exp_id = best_trial_res.experiment_id
             target_trial_id = best_trial_res.trial_id
 

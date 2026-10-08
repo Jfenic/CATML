@@ -98,7 +98,7 @@ class ExperimentRepositoryPort(Protocol):
     def list_trial_results(self, experiment_id: str) -> list[TrialResult]:
         ...
 
-    def get_leaderboard(self, run_id: str) -> list[TrialResult]:
+    def get_leaderboard(self, run_id: str, include_failed: bool = False) -> list[TrialResult]:
         ...
 
 

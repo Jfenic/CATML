@@ -42,8 +42,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Extracción de `InferenceService` en `src/automl/application/services/inference_service.py` (predicción, alineación de plantillas Kaggle, generación de envíos y exportación de `ModelArtifact`).
   - [x] Extracción de `FeatureEngineeringService` en `src/automl/application/services/feature_service.py` (características derivadas, análisis de dinámica temporal, estrategias de selección multi-método, planificación de ablación y promoción de conjuntos de características).
   - [x] Delegación 100% retrocompatible en `AutoMLWorkspace` preservando firmas públicas y reduciendo `workspace.py` en más de 740 líneas.
+- [x] **Resolución de Auditoría Técnica y Hardening de Confiabilidad ML**:
+  - [x] **[Crítico] Inversión de signo de métricas de error (MAE, RMSE, MSE, Log Loss)**: En `sklearn_trainer.py`, los scores negativos retornados por `cross_val_score` para estimadores de pérdida (`neg_mean_absolute_error`, `neg_root_mean_squared_error`, etc.) se invierten (`scores = -scores`), produciendo valores positivos reales. En `workspace.py`, la dirección de optimización y el ordenamiento del leaderboard para estas métricas es estrictamente minimizante (`ASC`), asegurando que el modelo con menor error gane siempre.
+  - [x] **[Alto] Exclusión de trials fallidos en leaderboard y selección del ganador**: En `sqlite_repository.py` y `ports.py`, `get_leaderboard()` filtra por defecto los trials que fallaron (`include_failed=False`). En `facade.py` e `inference_service.py`, la selección del modelo ganador y la exportación de `ModelArtifact` excluye explícitamente cualquier trial con `failure_reason` o `succeeded is False`.
+  - [x] **[Alto] Eliminación de sustitución silenciosa de métricas no soportadas**: En `sklearn_trainer.py` (`_sklearn_scoring` y `_compute_metrics`), se eliminó el fallback silencioso a `accuracy` o `r2`. Métricas no soportadas levantan `ValueError`. Se añadió soporte de primera clase para `mse`, `log_loss`, `balanced_accuracy`, `precision`, `recall` y plugins métricos vía `make_scorer`.
+  - [x] **[Medio-alto] Documentación de Time Budget Cooperativo**: En `facade.py`, se documentó explícitamente que `time_budget` opera a nivel global entre modelos de forma cooperativa y no como un timeout preemptivo atómico por proceso.
+  - [x] **[Medio-alto] Hardening HTTP/MCP y Robustez en Datasets Reducidos**: El Workbench soporta paso seguro de tokens vía fragmento `#token=` que se limpia inmediatamente de la URL con `history.replaceState`. El servidor MCP emite advertencia de seguridad (`SECURITY NOTICE`) si se expone `streamable-http` fuera de localhost. `SklearnTrainer` adapta inteligentemente los folds de KFold y splits holdout en datasets pequeños para evitar divisiones de muestra única.
+  - [x] Suite de pruebas dedicada en `tests/test_audit_findings.py` (4 tests). 622 tests pasando (100% verde), 87.37% de cobertura.
 - [x] **Validación y Cobertura**:
-  - [x] 618 tests pasando (100% de la suite). Cobertura total del 87.39% (requisito >= 85%).
+  - [x] 622 tests pasando (100% de la suite). Cobertura total del 87.37% (requisito >= 85%).
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
