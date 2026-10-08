@@ -29,16 +29,41 @@ class SQLiteJobRepository:
                 run_id_notnull = (run_id_col["notnull"] if hasattr(run_id_col, "keys") else run_id_col[3]) if run_id_col else 0
                 if run_id_notnull == 1:
                     logger.info("Migrating legacy jobs table to support nullable run_id")
-                    connection.execute("CREATE TABLE jobs_dg_tmp (id TEXT PRIMARY KEY, "
-                                       "idempotency_key TEXT UNIQUE NOT NULL, run_id TEXT, "
-                                       "status TEXT NOT NULL, data TEXT NOT NULL)")
-                    connection.execute("INSERT INTO jobs_dg_tmp SELECT id, idempotency_key, run_id, status, data FROM jobs")
-                    connection.execute("DROP TABLE jobs")
-                    connection.execute("ALTER TABLE jobs_dg_tmp RENAME TO jobs")
-                    connection.execute("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)")
+                    pre_count_row = connection.execute("SELECT COUNT(*) FROM jobs").fetchone()
+                    pre_count = pre_count_row[0] if pre_count_row else 0
+
+                    old_isolation = connection.isolation_level
+                    try:
+                        connection.isolation_level = None
+                        connection.execute("BEGIN IMMEDIATE")
+                        connection.execute("CREATE TABLE jobs_dg_tmp (id TEXT PRIMARY KEY, "
+                                           "idempotency_key TEXT UNIQUE NOT NULL, run_id TEXT, "
+                                           "status TEXT NOT NULL, data TEXT NOT NULL)")
+                        connection.execute("INSERT INTO jobs_dg_tmp SELECT id, idempotency_key, run_id, status, data FROM jobs")
+                        connection.execute("DROP TABLE jobs")
+                        connection.execute("ALTER TABLE jobs_dg_tmp RENAME TO jobs")
+                        connection.execute("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)")
+
+                        post_count_row = connection.execute("SELECT COUNT(*) FROM jobs").fetchone()
+                        post_count = post_count_row[0] if post_count_row else 0
+                        if post_count != pre_count:
+                            raise RuntimeError(f"Jobs migration data loss detected: expected {pre_count}, found {post_count}")
+
+                        connection.execute("COMMIT")
+                    except Exception as exc:
+                        try:
+                            connection.execute("ROLLBACK")
+                        except Exception:
+                            pass
+                        logger.error("Failed to migrate jobs table schema: %s", exc)
+                        raise RuntimeError(f"Failed to migrate jobs table schema: {exc}") from exc
+                    finally:
+                        connection.isolation_level = old_isolation
             except Exception as exc:
-                logger.error("Failed to migrate jobs table schema: %s", exc)
-                raise RuntimeError(f"Failed to migrate jobs table schema: {exc}") from exc
+                if not isinstance(exc, RuntimeError):
+                    logger.error("Failed to migrate jobs table schema: %s", exc)
+                    raise RuntimeError(f"Failed to migrate jobs table schema: {exc}") from exc
+                raise
 
     @contextmanager
     def _connect(self):

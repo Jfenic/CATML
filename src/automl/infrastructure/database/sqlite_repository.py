@@ -259,8 +259,14 @@ class SQLiteExperimentRepository:
 
         if target_notnull == 1 or task_type_notnull == 1:
             logger.info("Migrating legacy datasets table: converting target_column and task_type to nullable columns")
+            pre_count_row = conn.execute("SELECT COUNT(*) FROM datasets").fetchone()
+            pre_count = pre_count_row[0] if pre_count_row else 0
+
+            old_isolation = conn.isolation_level
             try:
-                conn.executescript(
+                conn.isolation_level = None  # Autocommit mode for explicit transaction management
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
                     """
                     CREATE TABLE datasets_dg_tmp (
                         id TEXT PRIMARY KEY,
@@ -269,16 +275,35 @@ class SQLiteExperimentRepository:
                         path TEXT NOT NULL,
                         target_column TEXT,
                         task_type TEXT
-                    );
-                    INSERT INTO datasets_dg_tmp (id, workspace_id, name, path, target_column, task_type)
-                        SELECT id, workspace_id, name, path, target_column, task_type FROM datasets;
-                    DROP TABLE datasets;
-                    ALTER TABLE datasets_dg_tmp RENAME TO datasets;
+                    )
                     """
                 )
+                conn.execute(
+                    """
+                    INSERT INTO datasets_dg_tmp (id, workspace_id, name, path, target_column, task_type)
+                        SELECT id, workspace_id, name, path, target_column, task_type FROM datasets
+                    """
+                )
+                conn.execute("DROP TABLE datasets")
+                conn.execute("ALTER TABLE datasets_dg_tmp RENAME TO datasets")
+
+                post_count_row = conn.execute("SELECT COUNT(*) FROM datasets").fetchone()
+                post_count = post_count_row[0] if post_count_row else 0
+                if post_count != pre_count:
+                    raise RuntimeError(
+                        f"Migration data loss detected: expected {pre_count} rows, found {post_count}"
+                    )
+
+                conn.execute("COMMIT")
             except Exception as exc:
+                try:
+                    conn.execute("ROLLBACK")
+                except Exception:
+                    pass
                 logger.error("Failed to migrate datasets table schema: %s", exc)
                 raise RuntimeError(f"Failed to migrate datasets table schema: {exc}") from exc
+            finally:
+                conn.isolation_level = old_isolation
 
     # --- datasets ---
 
