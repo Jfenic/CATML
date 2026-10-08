@@ -42,6 +42,10 @@ def vision_web_server(tmp_path: Path):
     workspace_dir = str(tmp_path / "vision_workspace")
     AutoMLWebHandler.workspace_dir = workspace_dir
 
+    from automl.application.bootstrap import build_application
+    ws, _, _ = build_application(root_dir=workspace_dir)
+    ws.register_dataset(name="Vision Fixture Dataset", path=csv_path, target="target")
+
     server = ThreadingHTTPServer(("127.0.0.1", 0), AutoMLWebHandler)
     host, port = server.server_address
 

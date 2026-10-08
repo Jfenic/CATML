@@ -49,6 +49,20 @@
     - `row_count >= 10` en `detect_target_correlation_leakage` para evitar falsos positivos en datasets sintéticos toy/unit tests ($N < 10$).
   - Suite de pruebas exhaustiva en `tests/test_anti_leakage_guardian.py` (6 tests).
   - Validación completa: 635 tests pasando (100% verde), 87.29% de cobertura.
+- **PR B (PR #81): Seguridad del Workbench (Confinamiento de Archivos y Sanitización de Rutas) (`hardening/v0.8.2-workbench-file-confinement`):**
+  - Confinamiento estricto de `/api/kaggle/download` (`src/automl/interfaces/web/server.py`):
+    - Resolución segura de rutas y validación de pertenencia al directorio del workspace (`is_relative_to(ws_root)`).
+    - Lista blanca de extensiones para descargas (`.csv`, `.tsv`, `.parquet`, `.pq`, `.json`, `.zip`, `.txt`).
+    - Bloqueo fail-closed con `403 Forbidden` ante intentos de path traversal (`../../`), rutas absolutas externas (`/etc/passwd`) o symlinks que apunten fuera del workspace.
+  - Confinamiento estricto de `/api/media/preview`:
+    - Eliminación de `ws_root.parent` y `Path.cwd()` de la lista `allowed_roots`, restringiendo la lectura exclusivamente a `ws_root` y a los directorios de datasets registrados.
+    - Bloqueo preventivo de acceso a archivos del directorio padre o directorios externos del sistema.
+  - Sanitización rigurosa de `/static/`:
+    - Sustitución de comprobaciones basadas en `str.startswith` por `target_file.is_relative_to(static_root)`.
+    - Respuesta explícita `403 Forbidden` ante intentos de escape del directorio de estáticos.
+  - Suite de pruebas de seguridad exhaustiva en `tests/test_workbench_file_confinement.py` (4 tests).
+  - Validación completa: 639 tests pasando (100% verde), 87.39% de cobertura.
+
 
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
