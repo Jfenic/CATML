@@ -132,9 +132,13 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/static/"):
-            rel_path = path[len("/static/"):]
-            target_file = (self.static_dir / rel_path).resolve()
-            if str(target_file).startswith(str(self.static_dir.resolve())) and target_file.is_file():
+            rel_path = path[len("/static/"):].lstrip("/")
+            static_root = self.static_dir.resolve()
+            target_file = (static_root / rel_path).resolve()
+            if not target_file.is_relative_to(static_root):
+                self._send_json({"error": "Access denied: path outside static directory"}, HTTPStatus.FORBIDDEN)
+                return
+            if target_file.is_file():
                 mime_types = {
                     ".html": "text/html; charset=utf-8",
                     ".js": "application/javascript; charset=utf-8",
@@ -415,16 +419,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
             ws_root = Path(self.workspace_dir).resolve()
-            allowed_roots = [ws_root, ws_root.parent, Path.cwd().resolve()]
+            allowed_roots = [ws_root]
 
             if dataset_id:
                 dataset = ws.get_dataset(dataset_id)
                 if dataset and dataset.path:
-                    allowed_roots.append(Path(dataset.path).parent.resolve())
+                    d_path = Path(dataset.path).resolve()
+                    allowed_roots.append(d_path.parent if d_path.is_file() else d_path)
             else:
                 for ds in ws.list_datasets():
                     if ds.path:
-                        allowed_roots.append(Path(ds.path).parent.resolve())
+                        d_path = Path(ds.path).resolve()
+                        allowed_roots.append(d_path.parent if d_path.is_file() else d_path)
 
             resolved_path = None
 
@@ -445,8 +451,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         return
             else:
                 for root in allowed_roots:
-                    cand = (root / img_path_str).resolve()
-                    if any(cand.is_relative_to(r) for r in allowed_roots) and cand.is_file():
+                    cand = (root / candidate_path).resolve()
+                    if cand.is_relative_to(root) and cand.is_file():
                         resolved_path = cand
                         break
 
@@ -791,14 +797,48 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             if not file_param:
                 self._send_json({"error": "file parameter is required"}, HTTPStatus.BAD_REQUEST)
                 return
-            p = Path(file_param).resolve()
-            if not p.is_file():
+
+            ws_root = Path(self.workspace_dir).resolve()
+            raw_path = Path(file_param)
+
+            # Resolve candidate path safely against workspace boundaries
+            if raw_path.is_absolute():
+                cand = raw_path.resolve()
+            else:
+                # Check relative path against submissions subfolder or workspace root
+                sub_candidate = (ws_root / "submissions" / raw_path).resolve()
+                cand = sub_candidate if sub_candidate.is_file() else (ws_root / raw_path).resolve()
+
+            # Strict confinement: must be strictly within workspace_dir
+            if not cand.is_relative_to(ws_root):
+                self._send_json({"error": f"Access denied: path outside workspace: {file_param}"}, HTTPStatus.FORBIDDEN)
+                return
+
+            # Whitelist allowed submission and export extensions
+            allowed_download_exts = {".csv", ".tsv", ".parquet", ".pq", ".json", ".zip", ".txt"}
+            if cand.suffix.lower() not in allowed_download_exts:
+                self._send_json({"error": f"Access denied: unsupported file type: {cand.suffix}"}, HTTPStatus.FORBIDDEN)
+                return
+
+            if not cand.is_file():
                 self._send_json({"error": f"File not found: {file_param}"}, HTTPStatus.NOT_FOUND)
                 return
-            content = p.read_bytes()
+
+            content = cand.read_bytes()
+            content_types = {
+                ".csv": "text/csv; charset=utf-8",
+                ".tsv": "text/tab-separated-values; charset=utf-8",
+                ".json": "application/json; charset=utf-8",
+                ".parquet": "application/octet-stream",
+                ".pq": "application/octet-stream",
+                ".zip": "application/zip",
+                ".txt": "text/plain; charset=utf-8",
+            }
+            ctype = content_types.get(cand.suffix.lower(), "application/octet-stream")
+
             self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "text/csv; charset=utf-8")
-            self.send_header("Content-Disposition", f'attachment; filename="{p.name}"')
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Disposition", f'attachment; filename="{cand.name}"')
             self.send_header("Content-Length", str(len(content)))
             self._send_cors_headers()
             self.end_headers()

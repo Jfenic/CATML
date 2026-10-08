@@ -91,10 +91,11 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Validar variables en `AutoMLWorkspace.create_experiment()` con soporte para `allow_leakage=True`.
     - [x] Calibrar thresholds estadísticos en `dataset_profiler.py` (`cardinality_ratio <= 0.90` en group hints, `row_count >= 10` en correlación de target) para evitar falsos positivos en features continuas y datasets enanos.
     - [x] Suite de tests dedicada en `tests/test_anti_leakage_guardian.py` (6 tests). 635 tests pasando (100% verde), 87.29% de cobertura.
-  - [ ] **PR B — Seguridad del Workbench (Confinamiento de Archivos y Sanitización de Rutas)**:
-    - [ ] Confinamiento de `/api/kaggle/download` a identificadores de artefactos registrados.
-    - [ ] Restricción de `/api/media/preview` a raíces estrictamente autorizadas sin path traversal ni escape de symlinks.
-    - [ ] Comprobación estricta de pertenencia a directorio para `/static/`.
+  - [x] **PR B (PR #81) — Seguridad del Workbench (Confinamiento de Archivos y Sanitización de Rutas)**:
+    - [x] Confinamiento de `/api/kaggle/download` estrictamente dentro del workspace con lista blanca de extensiones (`.csv`, `.tsv`, `.parquet`, `.pq`, `.json`, `.zip`, `.txt`) y bloqueo fail-closed de path traversal (`403 Forbidden`).
+    - [x] Restricción de `/api/media/preview` a raíces estrictamente autorizadas (`ws_root` y directorios de datasets registrados), eliminando `ws_root.parent` y `Path.cwd()` para impedir accesos no autorizados al directorio padre del usuario o del proyecto.
+    - [x] Comprobación estricta de pertenencia a directorio para `/static/` con `target_file.is_relative_to(static_root)` y respuesta `403 Forbidden` ante intentos de path traversal.
+    - [x] Suite de tests de seguridad dedicada en `tests/test_workbench_file_confinement.py` (4 tests). 639 tests pasando (100% verde), 87.39% de cobertura.
   - [ ] **PR C — Atomicidad Transaccional de Migraciones SQLite**:
     - [ ] Transacción explícita completa y rollback verificado en migraciones SQLite.
   - [ ] **PR D — Consistencia del Producto (Dirección de Métricas, Benchmarks y Actividad Real)**:
