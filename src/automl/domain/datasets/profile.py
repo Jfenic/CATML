@@ -151,3 +151,57 @@ class DatasetProfile:
             and not c.is_identifier
             and c.name not in leakage_cols
         ]
+
+    def resolve_safe_feature_names(
+        self,
+        requested_features: list[str] | None = None,
+        exclude_columns: list[str] | None = None,
+        allow_leakage: bool = False,
+    ) -> list[str]:
+        """
+        Resolves safe predictive feature names by strictly filtering out:
+        1. Target column
+        2. Non-predictive identifier columns
+        3. Confirmed leakage columns (target leakage, group leakage)
+        4. Explicit exclusions (e.g., group entity column)
+
+        Raises:
+            ValueError: If requested_features contain leakage (when allow_leakage=False)
+                        or if no safe predictive features remain.
+        """
+        if self.task_type == "clustering" or not self.target_column or self.row_count < 10:
+            leakage_set = set()
+        else:
+            leakage_set = set(self.leakage_column_names)
+
+        id_set = set(self.identifier_column_names) if self.row_count >= 10 else set()
+        excludes = set(exclude_columns or [])
+        if self.target_column and self.task_type != "clustering":
+            excludes.add(self.target_column)
+
+        if requested_features is not None:
+            if not allow_leakage:
+                found_leakages = sorted(set(requested_features) & leakage_set)
+                if found_leakages:
+                    raise ValueError(
+                        f"Features contain confirmed data leakage columns: {', '.join(found_leakages)}. "
+                        "Exclude them to prevent data contamination."
+                    )
+            candidates = [f for f in requested_features if f not in excludes and (allow_leakage or f not in id_set)]
+        else:
+            candidates = [
+                c.name
+                for c in self.columns
+                if c.name not in excludes
+                and (allow_leakage or c.name not in id_set)
+                and (allow_leakage or c.name not in leakage_set)
+            ]
+
+        if not candidates:
+            all_discarded = sorted(leakage_set | id_set | excludes)
+            raise ValueError(
+                "No safe feature candidates available for training. "
+                f"All candidate features are either target, identifiers, or have severe data leakage: {', '.join(all_discarded)}"
+            )
+
+        return candidates

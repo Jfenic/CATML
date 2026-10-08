@@ -122,7 +122,7 @@ def detect_is_group_candidate(
 
     cardinality_ratio = unique_count / row_count if row_count > 0 else 0.0
 
-    if name_has_group_hint and unique_count >= 2:
+    if name_has_group_hint and unique_count >= 2 and cardinality_ratio <= 0.90:
         return True
 
     if name_is_id and unique_count >= 2 and cardinality_ratio <= 0.90:
@@ -554,7 +554,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                     "description": f"Contains {null_count} missing entries. Imputation or exclusion recommended.",
                     "action": "impute",
                 })
-            elif target_corr is not None and abs(target_corr) >= 0.999:
+            elif target_corr is not None and abs(target_corr) >= 0.999 and row_count >= 10:
                 recommendations.append({
                     "column": name,
                     "type": "leakage",

@@ -48,8 +48,13 @@ class JobExecutor:
                     run = self.workspace._get_run(job.run_id)
                     dataset = self.workspace._get_dataset(run.dataset_id)
                     profile = self.workspace.repository.get_dataset_profile(dataset.id)
-                    args["feature_names"] = [c.name for c in profile.columns
-                                             if not c.is_identifier and c.name != dataset.target_column]
+                    if profile and hasattr(profile, "resolve_safe_feature_names"):
+                        args["feature_names"] = profile.resolve_safe_feature_names(
+                            exclude_columns=[run.config.group_column] if run.config.group_column else None,
+                        )
+                    else:
+                        args["feature_names"] = [c.name for c in profile.columns
+                                                 if not c.is_identifier and c.name != dataset.target_column]
                 args.setdefault("name", "Background experiment")
                 experiment = self.commands.dispatch(CreateExperimentCommand(run_id=job.run_id, **args))
                 experiment_id = experiment.id

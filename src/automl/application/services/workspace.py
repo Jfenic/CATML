@@ -422,6 +422,7 @@ class AutoMLWorkspace:
         priority: str = "normal",
         validation_strategy: str | None = None,
         group_column: str | None = None,
+        allow_leakage: bool = False,
     ) -> Experiment:
         dataset = self._get_dataset(run.dataset_id)
         priority_value = ExperimentPriority.parse(priority).value
@@ -437,9 +438,27 @@ class AutoMLWorkspace:
                     f"not run dataset {run.dataset_id}"
                 )
             resolved_features = feature_set.feature_names
+        profile = self.repository.get_dataset_profile(run.dataset_id)
+        effective_group = group_column or run.config.group_column
+        exclude_cols = [effective_group] if effective_group else None
+
         if resolved_features is None:
-            registry = self.get_feature_registry(run.dataset_id)
-            resolved_features = registry.active_feature_names(dataset.target_column)
+            if profile and hasattr(profile, "resolve_safe_feature_names"):
+                resolved_features = profile.resolve_safe_feature_names(
+                    exclude_columns=exclude_cols,
+                    allow_leakage=allow_leakage,
+                )
+            else:
+                registry = self.get_feature_registry(run.dataset_id)
+                resolved_features = registry.active_feature_names(dataset.target_column)
+        else:
+            if profile and hasattr(profile, "resolve_safe_feature_names"):
+                resolved_features = profile.resolve_safe_feature_names(
+                    requested_features=resolved_features,
+                    exclude_columns=exclude_cols,
+                    allow_leakage=allow_leakage,
+                )
+
         if not resolved_features:
             raise ValueError("An experiment requires at least one feature")
 

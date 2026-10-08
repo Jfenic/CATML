@@ -29,6 +29,28 @@
   - Actualización del contador en `README.md` a 629 tests passing y clarificación de `statsmodels` en `docs/decisions/008-catml-explore-modular-monolith.md`.
   - Validación completa: 629 tests pasando (100% verde), 87.37% de cobertura.
 
+### Track Security & Reliability Hardening — Auditoría Técnica Oct 2026 (2026-10-08)
+
+- **PR A (PR #80): Blindaje Anti-Leakage Centralizado y Fail-Closed (`hardening/v0.8.2-anti-leakage-guardian`):**
+  - Centralización de la política de resolución de variables seguras en `DatasetProfile.resolve_safe_feature_names()` (`src/automl/domain/datasets/profile.py`):
+    - Filtrado riguroso de target, identifiers y columnas con leakage confirmado (target leakage y group leakage).
+    - Soporte para tareas no supervisadas / clustering (desactivación de target leakage cuando no existe variable objetivo o `task_type == "clustering"`).
+    - Parámetro de escape explícito `allow_leakage: bool = False` para estudios controlados / benchmarks.
+  - Fail-closed preventivo en `AutoML.fit()` (`src/automl/facade.py`):
+    - Se elimina el reciclaje inseguro de variables activas del registro cuando todas están contaminadas; interrupción inmediata con `ValueError` explicativo.
+  - Blindaje en `RuleBasedExperimentPlanner` (`src/automl/engine/planning/experiment_planner.py`):
+    - Se elimina el fallback permisivo que reciclaba columnas tras filtrado total; retorna lista vacía de candidatos si no existen features seguras.
+  - Blindaje en `JobExecutor` (`src/automl/application/services/job_executor.py`):
+    - Resolución segura automática de features excluyendo leakage para jobs de entrenamiento en background.
+  - Validación estricta en `AutoMLWorkspace.create_experiment()` (`src/automl/application/services/workspace.py`):
+    - Verificación contra leakage al crear experimentos manuales, propagando `allow_leakage` a través de `CreateExperimentCommand` y el bus CQRS.
+  - Calibración de heurísticas estadísticas en `dataset_profiler.py`:
+    - `cardinality_ratio <= 0.90` en `detect_is_group_candidate` para evitar falsos positivos en variables continuas (como `account_balance`).
+    - `row_count >= 10` en `detect_target_correlation_leakage` para evitar falsos positivos en datasets sintéticos toy/unit tests ($N < 10$).
+  - Suite de pruebas exhaustiva en `tests/test_anti_leakage_guardian.py` (6 tests).
+  - Validación completa: 635 tests pasando (100% verde), 87.29% de cobertura.
+
+
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 
 - **Formalización de CATML Explore como Módulo de Monolito Modular:**
