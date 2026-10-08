@@ -28,8 +28,6 @@ from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.policies.budget import BudgetPolicy
 from automl.domain.ports import (
     ExperimentPlannerPort,
-    FeatureAnalysisContext,
-    FeatureSelectorPort,
     OptimizerPort,
     PriorityScorerPort,
     TrialExecution,
@@ -38,17 +36,10 @@ from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.domain.tasks.problem_definition import ProblemDefinition
 from automl.domain.tasks.task_type import TASK_CATALOG, TaskType, default_metric_for
-from automl.engine.features.reduction.pca import PCAReducer
-from automl.engine.features.selection.correlation import CorrelationSelector
-from automl.engine.features.selection.ensemble import EnsembleRankSelector
-from automl.engine.features.selection.importance import TreeImportanceSelector
-from automl.engine.features.selection.mutual_information import MutualInformationSelector
-from automl.engine.features.selection.variance import VarianceSelector
 from automl.engine.optimization.early_stopping import EarlyStoppingPolicy
 from automl.engine.optimization.random_search import RandomSearchOptimizer
 from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
 from automl.engine.optimization.trial_factory import TrialFactory
-from automl.engine.planning.ablation_planner import AblationPlanner
 from automl.engine.planning.experiment_planner import RuleBasedExperimentPlanner
 from automl.engine.planning.task_planner import plan_from_dataframe
 from automl.engine.priority.scheduler import ExperimentQueue, Scheduler
@@ -59,9 +50,6 @@ from automl.engine.training.sklearn_trainer import SklearnTrainer
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
 from automl.domain.modalities.modality import Modality
 from automl.domain.pipelines.graph import NodeType, PipelineGraph, PipelineNode
-from automl.engine.pipeline.fusion import FeatureFusionNode
-from automl.engine.pipeline.graph_validator import GraphValidator
-from automl.engine.vision.image_encoder import ImageEncoderNode
 from automl.plugins.metrics.business_metrics import CostSensitiveMetricPlugin, WeightedF1MetricPlugin
 from automl.plugins.modalities.image_plugin import ImageModalityPlugin
 from automl.plugins.models.catboost_plugin import CatBoostPlugin
@@ -109,6 +97,30 @@ class AutoMLWorkspace:
     _candidate_feature_sets: dict[str, list[FeatureSetCandidate]] = field(default_factory=dict)
     _feature_ranks: dict[str, list[FeatureRank]] = field(default_factory=dict)
     _run_deadlines: dict[str, float] = field(default_factory=dict)
+    _pipeline_service: Any = field(default=None, repr=False)
+    _inference_service: Any = field(default=None, repr=False)
+    _feature_service: Any = field(default=None, repr=False)
+
+    @property
+    def pipeline_service(self):
+        if self._pipeline_service is None:
+            from automl.application.services.pipeline_service import PipelineExecutionService
+            self._pipeline_service = PipelineExecutionService(self)
+        return self._pipeline_service
+
+    @property
+    def inference_service(self):
+        if self._inference_service is None:
+            from automl.application.services.inference_service import InferenceService
+            self._inference_service = InferenceService(self)
+        return self._inference_service
+
+    @property
+    def feature_service(self):
+        if self._feature_service is None:
+            from automl.application.services.feature_service import FeatureEngineeringService
+            self._feature_service = FeatureEngineeringService(self)
+        return self._feature_service
 
     def _get_or_create_run_deadline(self, run: AutoMLRun) -> float | None:
         budget = run.config.effective_time_budget
@@ -221,16 +233,62 @@ class AutoMLWorkspace:
     def get_dataset(self, dataset_id: str) -> Dataset:
         return self._get_dataset(dataset_id)
 
+    def list_datasets(self) -> list[Dataset]:
+        return (
+            self.repository.list_datasets(workspace_id=self.id)
+            if hasattr(self.repository, "list_datasets")
+            else list(self._datasets.values())
+        )
+
+    def get_dataset_profile(self, dataset_id: str) -> DatasetProfile | None:
+        return self.repository.get_dataset_profile(dataset_id)
+
+    def save_dataset_profile(self, profile: DatasetProfile) -> None:
+        self.repository.save_dataset_profile(profile)
+
+    def save_run(self, run: AutoMLRun) -> None:
+        self.repository.save_run(run)
+
+    def get_trial(self, trial_id: str) -> Trial | None:
+        return self.repository.get_trial(trial_id)
+
+    def get_experiment(self, experiment_id: str) -> Experiment | None:
+        return self.repository.get_experiment(experiment_id)
+
+    def list_experiments(self, run_id: str) -> list[Experiment]:
+        return self.repository.list_experiments(run_id)
+
+    def list_trial_results(self, experiment_id: str) -> list[TrialResult]:
+        return self.repository.list_trial_results(experiment_id)
+
+    def get_leaderboard_results(self, run_id: str) -> list[TrialResult]:
+        return self.repository.get_leaderboard(run_id)
+
+    def list_feature_sets(self, dataset_id: str) -> list[Any]:
+        return self.repository.list_feature_sets(dataset_id)
+
     def register_dataset(
         self,
         name: str,
-        path: str | Path,
+        path: str | Path | Any,
         target: str,
         task_type: str | None = None,
     ) -> Dataset:
         dataset_id = f"ds_{uuid.uuid4().hex[:8]}"
-        resolved = str(Path(path).resolve())
-        df = load_dataframe(resolved)
+        if isinstance(path, pd.DataFrame):
+            df = path.copy()
+            ds_dir = self.root_dir / "datasets"
+            ds_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                save_path = ds_dir / f"{dataset_id}.parquet"
+                df.to_parquet(save_path)
+            except Exception:
+                save_path = ds_dir / f"{dataset_id}.csv"
+                df.to_csv(save_path, index=False)
+            resolved = str(save_path.resolve())
+        else:
+            resolved = str(Path(path).resolve())
+            df = load_dataframe(resolved)
         if task_type:
             resolved_task = TaskType.parse(task_type)
         else:
@@ -727,23 +785,12 @@ class AutoMLWorkspace:
         expression_type: str = "formula",
     ) -> Any:
         """Validate and evaluate a derived feature definition on dataset without modifying it."""
-        from automl.domain.features.derived_feature import (
-            DerivedFeatureDefinition,
-            DerivedFeatureType,
-        )
-        from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
-
-        dataset = self._get_dataset(dataset_id)
-        df = load_dataframe(dataset.path)
-
-        def_obj = DerivedFeatureDefinition(
+        return self.feature_service.validate_derived_feature(
+            dataset_id=dataset_id,
             name=name,
-            expression_type=DerivedFeatureType(expression_type),
             expression=expression,
+            expression_type=expression_type,
         )
-        engine = DerivedFeatureEngine()
-        result, _ = engine.evaluate(df, def_obj)
-        return result
 
     def apply_derived_feature(
         self,
@@ -754,32 +801,13 @@ class AutoMLWorkspace:
         description: str = "",
     ) -> tuple[Any, Any]:
         """Evaluate and apply a derived feature to the dataset, re-profiling the dataset and saving changes."""
-        from automl.domain.features.derived_feature import (
-            DerivedFeatureDefinition,
-            DerivedFeatureType,
-        )
-        from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
-
-        dataset = self._get_dataset(dataset_id)
-        df = load_dataframe(dataset.path)
-
-        def_obj = DerivedFeatureDefinition(
+        return self.feature_service.apply_derived_feature(
+            dataset_id=dataset_id,
             name=name,
-            expression_type=DerivedFeatureType(expression_type),
             expression=expression,
+            expression_type=expression_type,
             description=description,
         )
-        engine = DerivedFeatureEngine()
-        updated_df, result = engine.apply(df, def_obj)
-
-        # Save updated dataframe to dataset path
-        updated_df.to_csv(dataset.path, index=False)
-
-        # Re-profile dataset so new feature is part of the profile schema and available for experiments
-        profile = profile_dataset(dataset, updated_df)
-        self.repository.save_dataset_profile(profile)
-
-        return result, profile
 
     def suggest_derived_features(
         self,
@@ -787,50 +815,14 @@ class AutoMLWorkspace:
         llm_provider: Any = None,
     ) -> list[dict[str, Any]]:
         """Suggest candidate derived features tailored to dataset profile and validate them."""
-        from automl.application.agents.specialists.feature_advisor import FeatureAdvisor
-
-        dataset = self._get_dataset(dataset_id)
-        df = load_dataframe(dataset.path)
-        profile = self.repository.get_dataset_profile(dataset_id)
-
-        all_cols = [c.name for c in profile.columns] if profile else list(df.columns)
-        numeric_cols = [
-            c.name for c in (profile.columns if profile else [])
-            if any(term in str(c.dtype).lower() for term in ("numeric", "float", "int"))
-        ]
-        if not numeric_cols:
-            numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-
-        target_col = getattr(dataset, "target_column", getattr(dataset, "target", ""))
-        questionnaire = self.repository.get_dataset_questionnaire(dataset_id)
-        domain_hint = questionnaire.domain_hint if questionnaire else "general_tabular"
-
-        advisor = FeatureAdvisor(llm_provider=llm_provider)
-        candidates = advisor.propose_features(
-            column_names=all_cols,
-            numeric_columns=numeric_cols,
-            target_column=target_col,
-            domain_hint=domain_hint,
+        return self.feature_service.suggest_derived_features(
+            dataset_id=dataset_id,
+            llm_provider=llm_provider,
         )
-        valid_defs, results = advisor.validate_and_filter(df, candidates)
-
-        suggestions = []
-        for prop, res in zip(valid_defs, results):
-            suggestions.append({
-                "definition": prop.to_dict(),
-                "evaluation": res.to_dict(),
-            })
-        return suggestions
 
     def detect_temporal_structure(self, dataset_id: str) -> dict[str, Any]:
         """Inspects dataset and returns detected temporal periodicities and sequential columns."""
-        from automl.engine.profiling.dataset_profiler import detect_sequential_structure
-
-        dataset = self._get_dataset(dataset_id)
-        df = load_dataframe(dataset.path)
-        target_col = getattr(dataset, "target_column", getattr(dataset, "target", None))
-        structure = detect_sequential_structure(df, target_column=target_col)
-        return structure.to_dict()
+        return self.feature_service.detect_temporal_structure(dataset_id=dataset_id)
 
     def generate_temporal_features(
         self,
@@ -846,63 +838,15 @@ class AutoMLWorkspace:
         Discovers temporal dynamics (lags, deltas, cyclical periodicities) and registers
         candidate FeatureSet instances obeying 'Propose != Accept'.
         """
-        from automl.engine.features.generation.temporal_generator import TemporalDynamicsGenerator
-        from automl.engine.profiling.dataset_profiler import detect_sequential_structure
-
-        run = self._get_run(run_id)
-        effective_dataset_id = dataset_id or run.dataset_id
-        dataset = self._get_dataset(effective_dataset_id)
-        df = load_dataframe(dataset.path)
-        target_col = getattr(dataset, "target_column", getattr(dataset, "target", None))
-
-        base_features = self.get_feature_registry(effective_dataset_id).active_feature_names(target_col)
-        structure = detect_sequential_structure(df, target_column=target_col)
-
-        generator = TemporalDynamicsGenerator(
+        return self.feature_service.generate_temporal_features(
+            run_id=run_id,
+            dataset_id=dataset_id,
             max_lags=max_lags,
             include_lags=include_lags,
             include_deltas=include_deltas,
             include_cyclical=include_cyclical,
             include_rolling=include_rolling,
         )
-        proposed_features = generator.propose_features(
-            df=df,
-            feature_names=base_features,
-            target_column=target_col,
-            temporal_structure=structure,
-        )
-
-        candidate_feature_sets = generator.propose_candidate_feature_sets(
-            base_features=base_features,
-            generated_features=proposed_features,
-            dataset_id=effective_dataset_id,
-        )
-
-        candidates_as_fsc = generator.propose_candidate_sets_as_candidates(
-            base_features=base_features,
-            generated_features=proposed_features,
-        )
-        if run.id not in self._candidate_feature_sets:
-            self._candidate_feature_sets[run.id] = []
-        self._candidate_feature_sets[run.id].extend(candidates_as_fsc)
-
-        created_sets: list[FeatureSet] = []
-        for fs in candidate_feature_sets:
-            self.repository.save_feature_set(fs)
-            created_sets.append(fs)
-            self._emit("FeatureSetCreated", fs.to_dict(), run_id=run.id)
-
-        self._emit(
-            "TemporalFeaturesGenerated",
-            {
-                "run_id": run.id,
-                "dataset_id": effective_dataset_id,
-                "generated_features_count": len(proposed_features),
-                "candidate_sets_count": len(created_sets),
-            },
-            run_id=run.id,
-        )
-        return created_sets
 
     def list_task_types(self) -> list[dict]:
         rows = []
@@ -1421,126 +1365,7 @@ class AutoMLWorkspace:
         run_id: str,
         strategy: FeatureSelectionStrategy | None = None,
     ) -> list[FeatureSetCandidate]:
-        run = self._get_run(run_id)
-        if run.status == RunStatus.CANCELLED:
-            raise RuntimeError(f"Run {run_id} is cancelled")
-
-        strat = strategy or FeatureSelectionStrategy()
-        dataset = self._get_dataset(run.dataset_id)
-        feature_registry = self.get_feature_registry(run.dataset_id)
-        active_features = feature_registry.active_feature_names(run.config.target)
-
-        task_type_str = (
-            run.config.task_type.value
-            if hasattr(run.config.task_type, "value")
-            else str(run.config.task_type)
-        )
-        context = FeatureAnalysisContext(
-            dataset_path=dataset.path,
-            target_column=dataset.target_column,
-            task_type=task_type_str,
-            active_feature_names=active_features,
-            random_seed=run.config.random_seed,
-        )
-
-        selectors: list[FeatureSelectorPort] = []
-        for method in strat.methods:
-            if method == "mutual_information":
-                selectors.append(MutualInformationSelector())
-            elif method in ("importance", "tree_importance"):
-                selectors.append(TreeImportanceSelector())
-            elif method == "correlation":
-                selectors.append(CorrelationSelector())
-            elif method == "variance":
-                selectors.append(VarianceSelector())
-
-        if not selectors:
-            selectors = [MutualInformationSelector(), TreeImportanceSelector()]
-
-        all_ranks: dict[str, list[FeatureRank]] = {}
-        for sel in selectors:
-            sel.fit(context)
-            all_ranks[sel.method_id] = sel.rank_features()
-
-        for feature_name in active_features:
-            evidence = (
-                self.repository.get_feature_evidence(run.id, feature_name)
-                or FeatureEvidence(feature_id=feature_name)
-            )
-            if "mutual_information" in all_ranks:
-                for r in all_ranks["mutual_information"]:
-                    if r.feature_name == feature_name:
-                        evidence.mutual_information = r.score
-            if "importance" in all_ranks:
-                for r in all_ranks["importance"]:
-                    if r.feature_name == feature_name:
-                        evidence.shap_importance = r.score
-            evidence.confidence = 0.8
-            self.repository.save_feature_evidence(run.id, evidence)
-
-        if len(selectors) > 1:
-            ensemble_sel = EnsembleRankSelector(
-                selectors=selectors,
-                combine_method=strat.combine_method,
-            )
-            combined_ranks = ensemble_sel.combine_rankings(
-                all_ranks, combine_method=strat.combine_method
-            )
-        else:
-            combined_ranks = all_ranks[selectors[0].method_id]
-
-        self._feature_ranks[run.id] = combined_ranks
-
-        candidates: list[FeatureSetCandidate] = []
-        for k in strat.top_k:
-            if k <= len(combined_ranks):
-                selected_names = [r.feature_name for r in combined_ranks[:k]]
-                candidates.append(
-                    FeatureSetCandidate.create(
-                        name=f"selected_top_{k}",
-                        feature_names=selected_names,
-                        method=strat.combine_method if len(selectors) > 1 else selectors[0].method_id,
-                        k=k,
-                        metadata={
-                            "strategy": strat.to_dict(),
-                            "features": selected_names,
-                        },
-                    )
-                )
-
-        if strat.include_reduction:
-            pca = PCAReducer()
-            for var in strat.reduction_variances:
-                try:
-                    pca.fit(context, n_components=var)
-                    candidates.append(
-                        FeatureSetCandidate.create(
-                            name=f"pca_var_{int(var*100)}",
-                            feature_names=[f"PC{i+1}" for i in range(pca.n_components())],
-                            method="pca",
-                            k=pca.n_components(),
-                            metadata={
-                                "variance_threshold": var,
-                                "explained_variance": pca.explained_variance_ratio(),
-                            },
-                        )
-                    )
-                except Exception:
-                    pass
-
-        self._candidate_feature_sets[run.id] = candidates
-
-        self._emit(
-            "FeaturesSelected",
-            {
-                "run_id": run_id,
-                "strategy": strat.to_dict(),
-                "candidates": [c.name for c in candidates],
-                "top_features": [r.feature_name for r in combined_ranks[:5]],
-            },
-            run_id=run.id,
-        )
-        return candidates
+        return self.feature_service.select_features(run_id=run_id, strategy=strategy)
 
     def plan_ablation_experiments(
         self,
@@ -1550,66 +1375,13 @@ class AutoMLWorkspace:
         max_features: int = 5,
         auto_enqueue: bool = True,
     ) -> list[ExperimentCandidate]:
-        run = self._get_run(run_id)
-        if run.status == RunStatus.CANCELLED:
-            raise RuntimeError(f"Run {run_id} is cancelled")
-
-        feature_registry = self.get_feature_registry(run.dataset_id)
-        all_active = feature_registry.active_feature_names(run.config.target)
-
-        features_base = base_feature_names or all_active
-        if not features_base:
-            return []
-
-        ranked = self._feature_ranks.get(run.id, [])
-        if ranked:
-            ranked_names = [r.feature_name for r in ranked if r.feature_name in features_base]
-            targets = ranked_names[:max_features]
-        else:
-            targets = features_base[:max_features]
-
-        chosen_model = (
-            model_ids[0]
-            if model_ids
-            else (run.config.models_include[0] if run.config.models_include else None)
+        return self.feature_service.plan_ablation_experiments(
+            run_id=run_id,
+            base_feature_names=base_feature_names,
+            model_ids=model_ids,
+            max_features=max_features,
+            auto_enqueue=auto_enqueue,
         )
-
-        ablation_planner = AblationPlanner()
-        candidates = ablation_planner.propose_ablation(
-            run=run,
-            base_feature_names=features_base,
-            features_to_ablate=targets,
-            model_id=chosen_model,
-        )
-
-        profile = self.repository.get_dataset_profile(run.dataset_id)
-        if profile is None:
-            dataset = self._get_dataset(run.dataset_id)
-            profile = profile_dataset(dataset)
-            self.repository.save_dataset_profile(profile)
-
-        for candidate in candidates:
-            score = self.scorer.score(
-                candidate=candidate,
-                run=run,
-                profile=profile,
-            )
-            candidate.priority = score
-
-        if auto_enqueue:
-            queue = self.get_experiment_queue(run.id)
-            queue.enqueue_all(candidates)
-
-        self._emit(
-            "AblationExperimentsPlanned",
-            {
-                "run_id": run_id,
-                "candidate_count": len(candidates),
-                "ablated_features": targets,
-            },
-            run_id=run.id,
-        )
-        return candidates
 
     def promote_candidate_feature_set(
         self,
@@ -1617,52 +1389,24 @@ class AutoMLWorkspace:
         candidate_id: str,
         new_name: str | None = None,
     ) -> FeatureSet:
-        run = self._get_run(run_id)
-        candidates = self._candidate_feature_sets.get(run.id, [])
-        candidate = next(
-            (c for c in candidates if c.id == candidate_id or c.name == candidate_id),
-            None,
+        return self.feature_service.promote_candidate_feature_set(
+            run_id=run_id,
+            candidate_id=candidate_id,
+            new_name=new_name,
         )
-        if candidate is None:
-            raise KeyError(f"Candidate feature set not found: {candidate_id}")
-
-        feature_set_name = new_name or candidate.name
-        feature_set = self.create_feature_set(
-            dataset_id=run.dataset_id,
-            name=feature_set_name,
-            feature_names=candidate.feature_names,
-            lineage=f"promoted_from_{candidate.method}_{candidate.id}",
-        )
-        self._emit(
-            "FeatureSetPromoted",
-            {
-                "run_id": run.id,
-                "candidate_id": candidate.id,
-                "feature_set_id": feature_set.id,
-                "feature_names": feature_set.feature_names,
-            },
-            run_id=run.id,
-        )
-        return feature_set
 
     def get_feature_evidence(
         self,
         run_id: str,
         feature_id: str | None = None,
     ) -> FeatureEvidence | list[FeatureEvidence] | None:
-        if feature_id:
-            return self.repository.get_feature_evidence(run_id, feature_id)
-        return self.repository.list_feature_evidence(run_id)
+        return self.feature_service.get_feature_evidence(run_id=run_id, feature_id=feature_id)
 
     def list_candidate_feature_sets(self, run_id: str) -> list[dict]:
-        candidates = self._candidate_feature_sets.get(run_id, [])
-        return [c.to_dict() for c in candidates]
+        return self.feature_service.list_candidate_feature_sets(run_id=run_id)
 
     def get_feature_ranking(self, run_id: str, method: str | None = None) -> list[dict]:
-        ranks = self._feature_ranks.get(run_id, [])
-        if method:
-            ranks = [r for r in ranks if r.method == method]
-        return [r.to_dict() for r in ranks]
+        return self.feature_service.get_feature_ranking(run_id=run_id, method=method)
 
     # --- V0.6 Plugin System ---
 
@@ -1725,124 +1469,15 @@ class AutoMLWorkspace:
         template_path: str | Path | None = None,
         id_column: str | None = None,
     ) -> list[Any]:
-        run = self._get_run(run_id)
-        dataset = self._get_dataset(run.dataset_id)
-
-        target_trial_id = trial_id
-        target_experiment_id = experiment_id
-        target_model_id = None
-        parameters: dict[str, Any] = {}
-
-        if target_trial_id:
-            trial = self.repository.get_trial(target_trial_id)
-            if trial is None:
-                raise KeyError(f"Trial '{target_trial_id}' not found.")
-            target_experiment_id = trial.experiment_id
-            target_model_id = trial.model_id
-            parameters = dict(trial.parameters or {})
-        elif target_experiment_id:
-            experiment = self.repository.get_experiment(target_experiment_id)
-            if experiment is None:
-                raise KeyError(f"Experiment '{target_experiment_id}' not found.")
-            lb = self.repository.get_leaderboard(run.id)
-            exp_results = [r for r in lb if r.experiment_id == target_experiment_id]
-            if exp_results:
-                best = exp_results[0]
-                target_model_id = best.model_id
-                t = self.repository.get_trial(best.trial_id)
-                parameters = dict(t.parameters or {}) if t else {}
-            else:
-                target_model_id = experiment.model_ids[0] if experiment.model_ids else "random_forest"
-        else:
-            lb = self.repository.get_leaderboard(run.id)
-            if not lb:
-                raise ValueError(f"Run '{run_id}' has no completed trials in its leaderboard to predict with.")
-            best = lb[0]
-            target_experiment_id = best.experiment_id
-            target_model_id = best.model_id
-            t = self.repository.get_trial(best.trial_id)
-            parameters = dict(t.parameters or {}) if t else {}
-
-        experiment = self.repository.get_experiment(target_experiment_id)
-        if experiment is None:
-            raise KeyError(f"Experiment '{target_experiment_id}' not found.")
-        if experiment.run_id != run.id:
-            if target_trial_id:
-                raise ValueError(
-                    f"Trial '{target_trial_id}' (experiment '{target_experiment_id}') does not belong to run '{run_id}'."
-                )
-            raise ValueError(f"Experiment '{target_experiment_id}' does not belong to run '{run_id}'.")
-
-        test_df = load_dataframe(test_dataset_path)
-        if experiment.validation_strategy == "oof":
-            from automl.application.services.oof_submission import cached_oof_predictions
-            raw_preds = cached_oof_predictions(self, run_id, experiment.id, test_dataset_path, predict_proba)
-        else:
-            feature_names = experiment.feature_names
-
-            train_df = load_dataframe(dataset.path)
-            X_train = train_df[feature_names]
-            y_train = train_df[dataset.target_column]
-
-            missing_features = [f for f in feature_names if f not in test_df.columns]
-            if missing_features:
-                raise ValueError(f"Test dataset is missing required features: {missing_features}")
-            X_test = test_df[feature_names]
-
-            trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
-            preds = trainer.fit_and_predict(
-                X_train=X_train,
-                y_train=y_train,
-                X_test=X_test,
-                model_id=target_model_id,
-                task_type=dataset.task_type,
-                parameters=parameters,
-                predict_proba=predict_proba,
-            )
-            raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)
-
-        if template_path is not None:
-            import pandas as pd
-            try:
-                template_df = load_dataframe(template_path)
-            except Exception as e:
-                raise ValueError(f"Template CSV is empty or invalid: {e}") from e
-            if template_df.empty:
-                raise ValueError("Template CSV is empty.")
-            if id_column:
-                if id_column not in template_df.columns:
-                    raise ValueError(f"Specified ID column '{id_column}' not found in template CSV.")
-                if id_column not in test_df.columns:
-                    raise ValueError(f"Specified ID column '{id_column}' not found in test dataset.")
-                actual_id_col = id_column
-            else:
-                candidate_id = next(
-                    (c for c in template_df.columns if c in test_df.columns and (
-                        c.lower() in {"id", "passengerid", "customer_id", "guid"} or c.lower().endswith("_id")
-                    )),
-                    None,
-                )
-                if candidate_id is None:
-                    first_col = template_df.columns[0]
-                    if first_col in test_df.columns:
-                        candidate_id = first_col
-                    else:
-                        raise ValueError(
-                            f"Could not automatically detect matching ID column between template {list(template_df.columns)} and test dataset {list(test_df.columns)}. Please specify id_column."
-                        )
-                actual_id_col = candidate_id
-
-            test_preds_series = pd.Series(raw_preds, index=test_df[actual_id_col].values)
-            aligned_preds = template_df[actual_id_col].map(test_preds_series)
-            if aligned_preds.isna().any():
-                missing_mask = aligned_preds.isna()
-                missing_sample = template_df[actual_id_col][missing_mask].head(5).tolist()
-                raise ValueError(
-                    f"Template contains {missing_mask.sum()} IDs not found in the test dataset predictions (e.g. {missing_sample})."
-                )
-            return aligned_preds.tolist()
-
-        return raw_preds
+        return self.inference_service.predict(
+            run_id=run_id,
+            test_dataset_path=test_dataset_path,
+            experiment_id=experiment_id,
+            trial_id=trial_id,
+            predict_proba=predict_proba,
+            template_path=template_path,
+            id_column=id_column,
+        )
 
     def generate_submission(
         self,
@@ -1855,15 +1490,16 @@ class AutoMLWorkspace:
         trial_id: str | None = None,
         predict_proba: bool = False,
     ) -> dict[str, Any]:
-        preds = self.predict(
+        return self.inference_service.generate_submission(
             run_id=run_id,
             test_dataset_path=test_dataset_path,
+            output_path=output_path,
+            id_column=id_column,
+            template_path=template_path,
             experiment_id=experiment_id,
             trial_id=trial_id,
             predict_proba=predict_proba,
         )
-        return self._write_submission(run_id, test_dataset_path, output_path, preds,
-                                      id_column, template_path, predict_proba)
 
     def export_model_artifact(
         self,
@@ -1871,253 +1507,31 @@ class AutoMLWorkspace:
         experiment_id: str | None = None,
         trial_id: str | None = None,
     ) -> Any:
-        """
-        Fits and exports a standalone, portable ModelArtifact for the specified or winning trial.
-        """
-        run = self._get_run(run_id)
-        dataset = self._get_dataset(run.dataset_id)
-
-        target_exp_id = experiment_id
-        target_trial_id = trial_id
-
-        if target_exp_id is None:
-            leaderboard = self.repository.get_leaderboard(run_id)
-            if not leaderboard:
-                raise ValueError(
-                    f"No completed trials found in run '{run_id}'. Cannot export artifact."
-                )
-            best_trial_res = leaderboard[0]
-            target_exp_id = best_trial_res.experiment_id
-            target_trial_id = best_trial_res.trial_id
-
-        experiment = self.repository.get_experiment(target_exp_id)
-        if experiment is None:
-            raise KeyError(f"Experiment '{target_exp_id}' not found.")
-
-        target_trial = None
-        if target_trial_id:
-            target_trial = self.repository.get_trial(target_trial_id)
-        if target_trial is None:
-            trial_results = self.repository.list_trial_results(target_exp_id)
-            if trial_results:
-                target_trial = self.repository.get_trial(trial_results[0].trial_id)
-
-        if target_trial is None:
-            raise ValueError(f"No trial found for experiment '{target_exp_id}'.")
-
-        from automl.engine.profiling.dataset_profiler import load_dataframe
-
-        train_df = load_dataframe(dataset.path)
-        feature_names = experiment.feature_names
-        X_train = train_df[feature_names]
-        y_train = train_df[dataset.target_column]
-
-        from automl.engine.training.sklearn_trainer import SklearnTrainer
-
-        params = dict(target_trial.parameters or {})
-        if run.config and run.config.extra:
-            if "text_columns" in run.config.extra and "text_columns" not in params:
-                params["text_columns"] = run.config.extra["text_columns"]
-            if "image_columns" in run.config.extra and "image_columns" not in params:
-                params["image_columns"] = run.config.extra["image_columns"]
-            if "image_model" in run.config.extra and "image_model" not in params:
-                params["image_model"] = run.config.extra["image_model"]
-
-        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
-        pipeline, adapter = trainer.fit_pipeline(
-            X_train=X_train,
-            y_train=y_train,
-            model_id=target_trial.model_id,
-            task_type=dataset.task_type,
-            parameters=params,
-        )
-
-        from automl.artifacts.model_artifact import ModelArtifact
-
-        score = 0.0
-        metric = "score"
-        leaderboard = self.repository.get_leaderboard(run_id)
-        for res in leaderboard:
-            if res.trial_id == target_trial.id:
-                score = res.primary_score
-                metric = res.primary_metric
-                break
-
-        import sys
-        from datetime import datetime, timezone
-        from importlib.metadata import version, PackageNotFoundError
-        from automl import __version__
-
-        dep_versions: dict[str, str] = {"catml": __version__}
-        for name in (
-            "numpy",
-            "pandas",
-            "scikit-learn",
-            "joblib",
-            "lightgbm",
-            "xgboost",
-            "catboost",
-            "optuna",
-            "torch",
-            "torchvision",
-            "timm",
-            "pillow",
-        ):
-            try:
-                dep_versions[name] = version(name)
-            except PackageNotFoundError:
-                pass
-
-        estimator_step = pipeline[-1] if hasattr(pipeline, "__getitem__") and hasattr(pipeline, "steps") else pipeline
-
-        dataset_hash = None
-        if hasattr(dataset, "path") and dataset.path:
-            dp = Path(dataset.path)
-            if dp.is_file():
-                import hashlib
-                digest = hashlib.sha256()
-                with dp.open("rb") as stream:
-                    for block in iter(lambda: stream.read(1024 * 1024), b""):
-                        digest.update(block)
-                dataset_hash = digest.hexdigest()
-
-        provenance = {
-            "catml_version": __version__,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "python_version": sys.version.split()[0],
-            "estimator_class": type(estimator_step).__name__,
-            "estimator_module": type(estimator_step).__module__,
-            "dependencies": dep_versions,
-            "dataset_id": dataset.id,
-            "dataset_path": str(dataset.path) if hasattr(dataset, "path") else None,
-            "dataset_hash": dataset_hash,
-            "seed": getattr(getattr(run, "config", None), "random_seed", None),
-        }
-
-        return ModelArtifact(
-            pipeline=pipeline,
-            model_id=target_trial.model_id,
-            task_type=dataset.task_type,
-            feature_names=feature_names,
-            target_name=dataset.target_column,
-            target_adapter=adapter,
-            metric=metric,
-            score=score,
-            parameters=target_trial.parameters or {},
-            metadata={
-                "run_id": run_id,
-                "experiment_id": target_exp_id,
-                "trial_id": target_trial.id,
-            },
-            provenance=provenance,
+        return self.inference_service.export_model_artifact(
+            run_id=run_id,
+            experiment_id=experiment_id,
+            trial_id=trial_id,
         )
 
     def _write_submission(
-        self, run_id, test_dataset_path, output_path, preds,
-        id_column=None, template_path=None, predict_proba=False,
+        self,
+        run_id: str,
+        test_dataset_path: str | Path,
+        output_path: str | Path,
+        preds: list[Any],
+        id_column: str | None = None,
+        template_path: str | Path | None = None,
+        predict_proba: bool = False,
     ) -> dict[str, Any]:
-        if self.execution_check:
-            self.execution_check()
-        run = self._get_run(run_id)
-        dataset = self._get_dataset(run.dataset_id)
-
-        from automl.engine.profiling.dataset_profiler import load_dataframe
-        import pandas as pd
-        test_df = load_dataframe(test_dataset_path)
-
-        template_used = None
-        if template_path is not None:
-            try:
-                template_df = load_dataframe(template_path)
-            except Exception as e:
-                raise ValueError(f"Template CSV is empty or invalid: {e}") from e
-            if template_df.empty:
-                raise ValueError("Template CSV is empty.")
-
-            if id_column:
-                if id_column not in template_df.columns:
-                    raise ValueError(f"Specified ID column '{id_column}' not found in template CSV.")
-                if id_column not in test_df.columns:
-                    raise ValueError(f"Specified ID column '{id_column}' not found in test dataset.")
-                actual_id_col = id_column
-            else:
-                candidate_id = next(
-                    (c for c in template_df.columns if c in test_df.columns and (
-                        c.lower() in {"id", "passengerid", "customer_id", "guid"} or c.lower().endswith("_id")
-                    )),
-                    None,
-                )
-                if candidate_id is None:
-                    first_col = template_df.columns[0]
-                    if first_col in test_df.columns:
-                        candidate_id = first_col
-                    else:
-                        raise ValueError(
-                            f"Could not automatically detect matching ID column between template {list(template_df.columns)} and test dataset {list(test_df.columns)}. Please pass id_column explicitly."
-                        )
-                actual_id_col = candidate_id
-
-            target_cols = [c for c in template_df.columns if c != actual_id_col]
-            if not target_cols:
-                raise ValueError("Template CSV must contain at least one target column in addition to the ID column.")
-
-            test_preds_series = pd.Series(preds, index=test_df[actual_id_col].values)
-            aligned_preds = template_df[actual_id_col].map(test_preds_series)
-            if aligned_preds.isna().any():
-                missing_mask = aligned_preds.isna()
-                missing_sample = template_df[actual_id_col][missing_mask].head(5).tolist()
-                raise ValueError(
-                    f"Template contains {missing_mask.sum()} IDs not found in the test dataset predictions (e.g. {missing_sample})."
-                )
-
-            submission_df = template_df.copy()
-            target_col = target_cols[0]
-            submission_df[target_col] = aligned_preds.values
-            submission_df = submission_df[template_df.columns]
-            template_used = str(Path(template_path).resolve())
-        else:
-            if id_column:
-                if id_column not in test_df.columns:
-                    raise ValueError(f"ID column '{id_column}' not found in test dataset.")
-                ids = test_df[id_column]
-                actual_id_col = id_column
-            else:
-                candidate_id = next((c for c in ["id", "Id", "ID", "PassengerId", "customer_id"] if c in test_df.columns), None)
-                if candidate_id:
-                    ids = test_df[candidate_id]
-                    actual_id_col = candidate_id
-                else:
-                    ids = pd.Series(range(len(test_df)), name="id")
-                    actual_id_col = "id"
-
-            target_col = dataset.target_column or "prediction"
-            submission_df = pd.DataFrame({
-                actual_id_col: ids,
-                target_col: preds,
-            })
-
-        out = Path(output_path)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        submission_df.to_csv(out, index=False)
-
-        self._emit(
-            "SubmissionGenerated",
-            {
-                "run_id": run_id,
-                "output_path": str(out.resolve()),
-                "row_count": len(submission_df),
-            },
+        return self.inference_service._write_submission(
             run_id=run_id,
+            test_dataset_path=test_dataset_path,
+            output_path=output_path,
+            preds=preds,
+            id_column=id_column,
+            template_path=template_path,
+            predict_proba=predict_proba,
         )
-
-        return {
-            "output_path": str(out.resolve()),
-            "row_count": len(submission_df),
-            "id_column": actual_id_col,
-            "target_column": target_col,
-            "predict_proba": predict_proba,
-            "template_used": template_used,
-        }
 
     def generate_oof_submission(self, command) -> str:
         from automl.application.services.oof_submission import generate_oof_submission
@@ -2129,13 +1543,11 @@ class AutoMLWorkspace:
 
     def validate_pipeline_graph(self, graph: PipelineGraph) -> None:
         """Validates that a pipeline graph is well-formed, acyclic, and modality-consistent."""
-        validator = GraphValidator()
-        validator.validate(graph)
+        self.pipeline_service.validate_pipeline_graph(graph)
 
     def get_pipeline_execution_order(self, graph: PipelineGraph) -> list[PipelineNode]:
         """Returns the topologically sorted execution order of nodes in the pipeline graph."""
-        validator = GraphValidator()
-        return validator.get_execution_order(graph)
+        return self.pipeline_service.get_pipeline_execution_order(graph)
 
     def build_multimodal_pipeline(
         self,
@@ -2147,99 +1559,18 @@ class AutoMLWorkspace:
         pipeline_name: str = "Multimodal Tabular + Vision Pipeline",
     ) -> PipelineGraph:
         """Constructs a validated standard multimodal DAG with tabular and vision branches."""
-        graph = PipelineGraph(id=pipeline_id, name=pipeline_name)
-
-        tab_node = PipelineNode(
-            node_id=tabular_source_id,
-            node_type=NodeType.SOURCE,
-            input_modalities=(Modality.TABULAR,),
-            output_modality=Modality.TABULAR,
-            name="Tabular Data Source",
+        return self.pipeline_service.build_multimodal_pipeline(
+            tabular_source_id=tabular_source_id,
+            image_source_id=image_source_id,
+            model_id=model_id,
+            embedding_dim=embedding_dim,
+            pipeline_id=pipeline_id,
+            pipeline_name=pipeline_name,
         )
-        img_node = PipelineNode(
-            node_id=image_source_id,
-            node_type=NodeType.SOURCE,
-            input_modalities=(Modality.IMAGE,),
-            output_modality=Modality.IMAGE,
-            name="Image Data Source",
-        )
-        encoder_node = ImageEncoderNode(
-            node_id="image_encoder",
-            output_dim=embedding_dim,
-        ).to_pipeline_node()
-        fusion_node = FeatureFusionNode(
-            node_id="fusion",
-            default_prefix="img_emb",
-        ).to_pipeline_node()
-        model_node = PipelineNode(
-            node_id="model",
-            node_type=NodeType.MODEL,
-            input_modalities=(Modality.TABULAR,),
-            output_modality=Modality.TABULAR,
-            name=f"Model({model_id})",
-            parameters={"model_id": model_id},
-        )
-
-        for n in [tab_node, img_node, encoder_node, fusion_node, model_node]:
-            graph.add_node(n)
-
-        graph.add_edge(image_source_id, "image_encoder")
-        graph.add_edge(tabular_source_id, "fusion")
-        graph.add_edge("image_encoder", "fusion")
-        graph.add_edge("fusion", "model")
-
-        self.validate_pipeline_graph(graph)
-        return graph
 
     def execute_pipeline(self, graph: PipelineGraph, inputs: dict[str, Any]) -> Any:
         """Executes a pipeline DAG given modal inputs, returning the terminal node's output."""
-        validator = GraphValidator()
-        execution_order = validator.get_execution_order(graph)
-
-        node_outputs: dict[str, Any] = {}
-
-        for node in execution_order:
-            if node.node_type == NodeType.SOURCE:
-                data = inputs.get(node.node_id)
-                if data is None:
-                    for k, v in inputs.items():
-                        if k in node.node_id or (hasattr(node.output_modality, "value") and k == node.output_modality.value):
-                            data = v
-                            break
-                if data is None:
-                    raise KeyError(f"Missing required input for source node '{node.node_id}' in pipeline execution.")
-                node_outputs[node.node_id] = data
-
-            elif node.node_type == NodeType.ENCODER:
-                incoming = graph.get_incoming_nodes(node.node_id)
-                if not incoming:
-                    raise ValueError(f"Encoder node '{node.node_id}' has no incoming inputs.")
-                src_data = node_outputs[incoming[0].node_id]
-                encoder = ImageEncoderNode.from_pipeline_node(node)
-                node_outputs[node.node_id] = encoder.transform(src_data)
-
-            elif node.node_type == NodeType.FUSION:
-                incoming = graph.get_incoming_nodes(node.node_id)
-                if not incoming:
-                    raise ValueError(f"Fusion node '{node.node_id}' has no incoming inputs.")
-                fusion_dict = {inc.node_id: node_outputs[inc.node_id] for inc in incoming}
-                fusion = FeatureFusionNode.from_pipeline_node(node)
-                node_outputs[node.node_id] = fusion.fuse(fusion_dict)
-
-            elif node.node_type == NodeType.PREPROCESSOR:
-                incoming = graph.get_incoming_nodes(node.node_id)
-                src_data = node_outputs[incoming[0].node_id]
-                node_outputs[node.node_id] = src_data
-
-            elif node.node_type == NodeType.MODEL:
-                incoming = graph.get_incoming_nodes(node.node_id)
-                src_data = node_outputs[incoming[0].node_id]
-                node_outputs[node.node_id] = src_data
-
-        terminal_nodes = graph.get_terminal_nodes()
-        if len(terminal_nodes) == 1:
-            return node_outputs[terminal_nodes[0].node_id]
-        return {tn.node_id: node_outputs[tn.node_id] for tn in terminal_nodes}
+        return self.pipeline_service.execute_pipeline(graph, inputs)
 
     def fit_predict_multimodal(
         self,
@@ -2250,52 +1581,13 @@ class AutoMLWorkspace:
         task_type: str = "binary_classification",
     ) -> dict[str, Any]:
         """Trains a model on the fused representations produced by a multimodal DAG pipeline."""
-        fused_df = self.execute_pipeline(graph, inputs)
-        if not isinstance(fused_df, pd.DataFrame):
-            fused_df = pd.DataFrame(fused_df)
-
-        y = np.asarray(target)
-        model_plugin = self.plugin_registry.get_model_plugin(model_id)
-
-        if model_plugin is not None:
-            model = model_plugin.build_estimator()
-            model.fit(fused_df, y)
-            preds = model.predict(fused_df)
-        else:
-            trainer = SklearnTrainer(model_registry=self.model_registry)
-            trial_exec = trainer.train(
-                task_type=task_type,
-                model_id=model_id,
-                hyperparameters={},
-                X_train=fused_df,
-                y_train=y,
-                metric=default_metric_for(task_type),
-            )
-            model = trial_exec.model
-            preds = model.predict(fused_df)
-
-        metric_name = default_metric_for(task_type)
-        if task_type == "binary_classification":
-            from sklearn.metrics import accuracy_score
-            score = float(accuracy_score(y, preds))
-        elif task_type == "regression":
-            from sklearn.metrics import r2_score
-            score = float(r2_score(y, preds))
-        else:
-            from sklearn.metrics import accuracy_score
-            score = float(accuracy_score(y, preds))
-
-        return {
-            "model_id": model_id,
-            "task_type": task_type,
-            "metric": metric_name,
-            "score": score,
-            "fused_feature_names": list(fused_df.columns),
-            "feature_count": fused_df.shape[1],
-            "sample_count": fused_df.shape[0],
-            "predictions": preds,
-            "graph_id": graph.id,
-        }
+        return self.pipeline_service.fit_predict_multimodal(
+            graph=graph,
+            inputs=inputs,
+            target=target,
+            model_id=model_id,
+            task_type=task_type,
+        )
 
     # --- Meta-Learning & Warm Starts ---
 

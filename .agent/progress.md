@@ -1,5 +1,31 @@
 # Progress
 
+### Track Hardening Phase 2 — v0.8.2 Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition (2026-10-08)
+
+- Rama de trabajo `hardening/v0.8.2-phase2-modular-and-cqrs` desde `main` (`ec69771`).
+- **Ingestión Polimórfica y Soporte Nativo de Parquet/DataFrames (`src/automl/engine/profiling/dataset_profiler.py`, `src/automl/application/services/workspace.py`, `src/automl/facade.py`, `pyproject.toml`):**
+  - Función `load_dataframe()` en `dataset_profiler.py` con parsing automático de `.parquet`, `.pq`, `.json`, `.jsonl`, `.tsv` y `.csv`. Manejo con mensaje amigable de `ImportError` solicitando `pyarrow` o `fastparquet` si no se encuentran instalados.
+  - Actualización de `profile_dataset()` para delegar en `load_dataframe()`.
+  - En `AutoMLWorkspace.register_dataset()`, polimorfismo que acepta `pd.DataFrame` directamente, persistiendo de forma automática en el subdirectorio `datasets/` del workspace y registrándolo sin requerir guardado manual externo por parte del usuario.
+  - En `AutoML.fit()` (`facade.py`), polimorfismo para aceptar rutas en `str` o `Path` (además de DataFrames y matrices numpy), integrándose fluidamente con `_standardize_input()`.
+  - Definición del extra `parquet = ["pyarrow>=14.0"]` en `pyproject.toml` e inclusión de `pyarrow` en el grupo `all`.
+  - Pruebas unitarias y de integración en `tests/test_parquet_and_polymorphic_ingestion.py` (4 tests).
+- **Frontera Arquitectónica CQRS Estricta y Erradicación de Fugas de Estado (`src/automl/application/queries/workspace_queries.py`, `src/automl/application/bootstrap.py`, `src/automl/application/services/workspace.py`, `src/automl/facade.py`, `src/automl/interfaces/web/server.py`, `src/automl/interfaces/cli/agent_session_cli.py`):**
+  - Formalización de consultas tipadas en `QueryBus`: `GetRunQuery`, `ListRunsQuery`, `GetDatasetQuery`, `ListDatasetsQuery`, `GetTrialQuery`, `GetExperimentQuery`, `ListTrialResultsQuery`.
+  - Registro de los nuevos handlers en `src/automl/application/bootstrap.py` desacoplados de infraestructura directa.
+  - Métodos de consulta públicos agregados a `AutoMLWorkspace`: `list_datasets()`, `get_dataset_profile()`, `save_dataset_profile()`, `save_run()`, `get_trial()`, `get_experiment()`, `list_experiments()`, `list_trial_results()`, `get_leaderboard_results()`, `list_feature_sets()`.
+  - Erradicación de todas las llamadas directas a `ws.repository` en la fachada (`facade.py`) y en el servidor web (`interfaces/web/server.py`).
+  - Eliminado el monkey-patching sobre `ws` en `agent_session_cli.py`.
+  - Guard arquitectónico automatizado instalado en `tests/test_cqrs_architecture_guard.py` (2 tests verificando 0 ocurrencias de fugas privadas en interfaces/presentación y despacho vía `QueryBus`).
+- **Descomposición del God Module `workspace.py` en Servicios Especializados de Aplicación:**
+  - `src/automl/application/services/pipeline_service.py` (`PipelineExecutionService`): extracción de validación de grafos, orden topológico de ejecución, construcción de DAG multimodal, ejecución y fit/predict.
+  - `src/automl/application/services/inference_service.py` (`InferenceService`): extracción de predicción, alineación de plantillas Kaggle, generación de envíos y exportación de `ModelArtifact`.
+  - `src/automl/application/services/feature_service.py` (`FeatureEngineeringService`): extracción de características derivadas, análisis de dinámica temporal, estrategias de selección multi-método, planificación de ablación y promoción de conjuntos de características.
+  - Delegación 100% retrocompatible en `AutoMLWorkspace` preservando firmas públicas y reduciendo el tamaño de `workspace.py` en más de 740 líneas (~2,550 a ~1,800 líneas).
+- **Validación y Cobertura:**
+  - 618 tests pasando (100% verde). Cobertura total del 87.39% (requisito >= 85%).
+  - CLI `automl --help` y `automl task list` verificados exitosamente.
+
 ### Track Hardening Phase 1 — v0.8.2 Operational Budget, Fail-Closed Artifacts & Remote Web Security (2026-10-07)
 
 - Rama de trabajo `hardening/v0.8.2-phase1-20261007` desde `main` (`7c78f13`).

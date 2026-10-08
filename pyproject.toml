@@ -32,6 +32,7 @@ dev = [
     "pytest-cov>=4.1",
     "build>=1.0",
     "wheel>=0.40",
+    "pyarrow>=14.0",
 ]
 mcp = [
     "mcp>=1.2.0",
@@ -52,6 +53,9 @@ vision = [
     "timm>=0.9",
     "pillow>=9.0",
 ]
+parquet = [
+    "pyarrow>=14.0",
+]
 all = [
     "catboost>=1.2",
     "lightgbm>=4.0",
@@ -64,6 +68,7 @@ all = [
     "torchvision>=0.15",
     "timm>=0.9",
     "pillow>=9.0",
+    "pyarrow>=14.0",
 ]
 
 [project.scripts]

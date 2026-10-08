@@ -21,7 +21,31 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
 - [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
-## Now (Active Phase — v0.8.2 Phase 1: Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
+## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
+
+- [x] **Ingestión Polimórfica y Soporte Nativo de Parquet/DataFrames**:
+  - [x] Soporte nativo para `.parquet`, `.pq`, `.json`, `.jsonl`, `.tsv` y `.csv` en `src/automl/engine/profiling/dataset_profiler.py` (`load_dataframe`).
+  - [x] Mensaje informativo claro con `ImportError` guiando al usuario para instalar `pyarrow` o `fastparquet` si no están presentes.
+  - [x] En `AutoMLWorkspace.register_dataset()`: aceptación de `pd.DataFrame` directamente, persistiendo de forma automática en `datasets/` (.parquet o .csv) y registrando el dataset.
+  - [x] En `AutoML.fit()` (`facade.py`): soporte polimórfico para rutas en `str` o `Path` (además de `pd.DataFrame` y `np.ndarray`).
+  - [x] Extra `parquet = ["pyarrow>=14.0"]` añadido a `pyproject.toml` e incluido en grupo `all`.
+  - [x] Tests unitarios en `tests/test_parquet_and_polymorphic_ingestion.py` (4 tests).
+- [x] **Frontera Arquitectónica CQRS Estricta y Eliminación de Fugas de Estado**:
+  - [x] Formalización de consultas DTO en `QueryBus` (`src/automl/application/queries/workspace_queries.py`): `GetRunQuery`, `ListRunsQuery`, `GetDatasetQuery`, `ListDatasetsQuery`, `GetTrialQuery`, `GetExperimentQuery`, `ListTrialResultsQuery`.
+  - [x] Registro y resolución limpia de handlers en `src/automl/application/bootstrap.py`.
+  - [x] Adición de métodos de consulta públicos en `AutoMLWorkspace` para evitar acoplamiento directo con infraestructura (`list_datasets`, `get_dataset_profile`, `save_dataset_profile`, `save_run`, `get_trial`, `get_experiment`, `list_experiments`, `list_trial_results`, `get_leaderboard_results`, `list_feature_sets`).
+  - [x] Eliminadas todas las llamadas directas a `ws.repository` en la fachada (`facade.py`) y en la API web (`interfaces/web/server.py`).
+  - [x] Eliminada la inyección monkey-patch en `src/automl/interfaces/cli/agent_session_cli.py`.
+  - [x] Guard arquitectónico automatizado en `tests/test_cqrs_architecture_guard.py` (2 tests verificando 0 ocurrencias de fugas privadas en capas de presentación e interfaces y despacho vía `QueryBus`).
+- [x] **Descomposición del God Module `workspace.py` en Servicios de Aplicación**:
+  - [x] Extracción de `PipelineExecutionService` en `src/automl/application/services/pipeline_service.py` (validación de grafos, orden topológico de ejecución, construcción de DAG multimodal, ejecución y fit/predict).
+  - [x] Extracción de `InferenceService` en `src/automl/application/services/inference_service.py` (predicción, alineación de plantillas Kaggle, generación de envíos y exportación de `ModelArtifact`).
+  - [x] Extracción de `FeatureEngineeringService` en `src/automl/application/services/feature_service.py` (características derivadas, análisis de dinámica temporal, estrategias de selección multi-método, planificación de ablación y promoción de conjuntos de características).
+  - [x] Delegación 100% retrocompatible en `AutoMLWorkspace` preservando firmas públicas y reduciendo `workspace.py` en más de 740 líneas.
+- [x] **Validación y Cobertura**:
+  - [x] 618 tests pasando (100% de la suite). Cobertura total del 87.39% (requisito >= 85%).
+
+## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
 - [x] **Cumplimiento Real y Operacional de `time_budget`**:
   - [x] Añadido campo formal `time_budget_seconds: float | None` a `RunConfig` con propiedad `effective_time_budget` retrocompatible con `extra["time_budget"]`.

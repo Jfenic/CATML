@@ -120,7 +120,7 @@ class AutoML:
 
     def fit(
         self,
-        data: pd.DataFrame | np.ndarray,
+        data: pd.DataFrame | np.ndarray | str | Path,
         target: str | pd.Series | np.ndarray | None = None,
         text_columns: list[str] | None = None,
         image_columns: list[str] | None = None,
@@ -132,8 +132,8 @@ class AutoML:
         and construct the winning standalone ModelArtifact.
 
         Args:
-            data: Feature matrix as pandas DataFrame or 2D numpy array.
-            target: Target column name (str) if data is DataFrame, or target values
+            data: Feature matrix as pandas DataFrame, 2D numpy array, or file path (CSV/Parquet).
+            target: Target column name (str) if data is DataFrame/path, or target values
                     (Series/ndarray).
             text_columns: Optional list of column names containing freeform natural language
                           text to be transformed via n-gram TF-IDF representations. If omitted,
@@ -161,13 +161,9 @@ class AutoML:
 
         ws, cmd, qry = build_application(root_dir=str(ws_root))
 
-        # Persist dataset for workspace ingestion
-        dataset_csv = ws_root / "dataset.csv"
-        df.to_csv(dataset_csv, index=False)
-
         dataset = ws.register_dataset(
             name="fit_dataset",
-            path=dataset_csv,
+            path=df,
             target=target_col,
             task_type=resolved_task_type.value,
         )
@@ -187,7 +183,7 @@ class AutoML:
         if self.time_budget:
             extra_cfg["time_budget"] = self.time_budget
 
-        profile = ws.repository.get_dataset_profile(dataset.id)
+        profile = ws.get_dataset_profile(dataset.id)
         if not resolved_group_col and profile and profile.has_group_leakage and profile.group_candidates:
             resolved_group_col = profile.group_candidates[0]
 
@@ -254,9 +250,9 @@ class AutoML:
                 ws.run_experiment(run_id=run.id, experiment_id=experiment.id)
 
         # Extract leaderboard
-        raw_leaderboard = ws.repository.get_leaderboard(run.id)
+        raw_leaderboard = ws.get_leaderboard_results(run.id)
         if not raw_leaderboard:
-            refreshed_run = ws.repository.get_run(run.id)
+            refreshed_run = ws.get_run(run.id)
             if refreshed_run and refreshed_run.config.extra.get("time_budget_exhausted"):
                 raise RuntimeError(
                     f"Time budget of {self.time_budget}s expired before any candidate model completed training."
@@ -265,7 +261,7 @@ class AutoML:
 
         leaderboard_rows = []
         for rank, res in enumerate(raw_leaderboard, start=1):
-            t_obj = ws.repository.get_trial(res.trial_id)
+            t_obj = ws.get_trial(res.trial_id)
             leaderboard_rows.append({
                 "rank": rank,
                 "model_id": res.model_id,
@@ -324,9 +320,19 @@ class AutoML:
 
     def _standardize_input(
         self,
-        data: pd.DataFrame | np.ndarray,
+        data: pd.DataFrame | np.ndarray | str | Path,
         target: str | pd.Series | np.ndarray | None,
     ) -> tuple[pd.DataFrame, str]:
+        if isinstance(data, Path) or (
+            isinstance(data, str)
+            and (
+                Path(data).exists()
+                or any(data.lower().endswith(ext) for ext in (".csv", ".parquet", ".pq", ".json", ".jsonl", ".tsv"))
+            )
+        ):
+            from automl.engine.profiling.dataset_profiler import load_dataframe
+            data = load_dataframe(data)
+
         if isinstance(data, pd.DataFrame):
             if isinstance(target, str):
                 if target not in data.columns:
