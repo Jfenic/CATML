@@ -9,6 +9,16 @@ from automl import AutoML
 from automl.application.bootstrap import build_application
 from automl.engine.profiling.dataset_profiler import load_dataframe
 
+try:
+    import pyarrow  # noqa: F401
+    HAS_PARQUET = True
+except ImportError:
+    try:
+        import fastparquet  # noqa: F401
+        HAS_PARQUET = True
+    except ImportError:
+        HAS_PARQUET = False
+
 
 def test_load_dataframe_formats(tmp_path):
     df_sample = pd.DataFrame({"col_a": [1, 2, 3], "col_b": ["x", "y", "z"]})
@@ -26,10 +36,11 @@ def test_load_dataframe_formats(tmp_path):
     pd.testing.assert_frame_equal(df_sample, loaded_tsv)
 
     # 3. Parquet
-    parquet_file = tmp_path / "data.parquet"
-    df_sample.to_parquet(parquet_file)
-    loaded_pq = load_dataframe(parquet_file)
-    pd.testing.assert_frame_equal(df_sample, loaded_pq)
+    if HAS_PARQUET:
+        parquet_file = tmp_path / "data.parquet"
+        df_sample.to_parquet(parquet_file)
+        loaded_pq = load_dataframe(parquet_file)
+        pd.testing.assert_frame_equal(df_sample, loaded_pq)
 
     # 4. JSON
     json_file = tmp_path / "data.json"
@@ -63,11 +74,12 @@ def test_workspace_register_dataset_polymorphism(tmp_path):
     assert ws.get_dataset(ds_df.id) is not None
 
     # 2. Register from Parquet file
-    pq_path = tmp_path / "features.parquet"
-    df.to_parquet(pq_path)
-    ds_pq = ws.register_dataset(name="from_pq", path=pq_path, target="y")
-    assert ds_pq.id.startswith("ds_")
-    assert ds_pq.path == str(pq_path.resolve())
+    if HAS_PARQUET:
+        pq_path = tmp_path / "features.parquet"
+        df.to_parquet(pq_path)
+        ds_pq = ws.register_dataset(name="from_pq", path=pq_path, target="y")
+        assert ds_pq.id.startswith("ds_")
+        assert ds_pq.path == str(pq_path.resolve())
 
 
 def test_automl_fit_with_parquet_and_csv_paths(tmp_path):
@@ -80,19 +92,29 @@ def test_automl_fit_with_parquet_and_csv_paths(tmp_path):
         "label": np.random.choice([0, 1], size=n),
     })
 
-    pq_file = tmp_path / "train.parquet"
-    df.to_parquet(pq_file)
+    # 1. Fit using CSV file path directly
+    csv_file = tmp_path / "train.csv"
+    df.to_csv(csv_file, index=False)
+    automl_csv = AutoML(time_budget=15, cv_folds=2, random_state=42)
+    res_csv = automl_csv.fit(data=csv_file, target="label")
+    assert res_csv is not None
+    assert len(res_csv.leaderboard()) > 0
+    preds_csv = automl_csv.predict(df[["num1", "num2", "cat1"]])
+    assert len(preds_csv) == n
 
-    # Fit using file path directly
-    automl = AutoML(time_budget=15, cv_folds=2, random_state=42)
-    result = automl.fit(data=pq_file, target="label")
+    # 2. Fit using Parquet file path directly
+    if HAS_PARQUET:
+        pq_file = tmp_path / "train.parquet"
+        df.to_parquet(pq_file)
 
-    assert result is not None
-    lb = result.leaderboard()
-    assert len(lb) > 0
-    assert "rank" in lb.columns
-    assert "score" in lb.columns
+        automl = AutoML(time_budget=15, cv_folds=2, random_state=42)
+        result = automl.fit(data=pq_file, target="label")
 
-    # Verify predictions
-    preds = automl.predict(df[["num1", "num2", "cat1"]])
-    assert len(preds) == n
+        assert result is not None
+        lb = result.leaderboard()
+        assert len(lb) > 0
+        assert "rank" in lb.columns
+        assert "score" in lb.columns
+
+        preds = automl.predict(df[["num1", "num2", "cat1"]])
+        assert len(preds) == n
