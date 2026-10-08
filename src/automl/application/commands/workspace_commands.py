@@ -54,6 +54,7 @@ class CreateExperimentCommand:
     priority: str = "normal"
     validation_strategy: str | None = None
     group_column: str | None = None
+    allow_leakage: bool = False
 
 
 @dataclass(frozen=True)

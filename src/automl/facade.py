@@ -233,14 +233,18 @@ class AutoML:
             extra=extra_cfg,
         )
 
-        # Fail-safe: prioritize recommended features (automatically excludes leakage columns and non-predictive IDs)
-        if profile and profile.recommended_feature_names:
-            feature_names = [f for f in profile.recommended_feature_names if f in df.columns and f != target_col]
+        # Strict anti-leakage resolution: automatically excludes leakage columns and non-predictive IDs
+        exclude_cols = [resolved_group_col] if resolved_group_col else None
+        if profile and hasattr(profile, "resolve_safe_feature_names"):
+            feature_names = profile.resolve_safe_feature_names(
+                exclude_columns=exclude_cols,
+            )
         else:
             feature_names = ws.get_feature_registry(dataset.id).active_feature_names(target_col)
-
-        if resolved_group_col and resolved_group_col in feature_names:
-            feature_names = [f for f in feature_names if f != resolved_group_col]
+            if exclude_cols:
+                feature_names = [f for f in feature_names if f not in exclude_cols]
+            if not feature_names:
+                raise ValueError(f"No safe feature candidates available for training on dataset '{dataset.name}'.")
 
         # Plan and run candidate models
         if self.models:

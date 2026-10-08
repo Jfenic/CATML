@@ -82,6 +82,23 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Erradicación de excepciones silenciadas (`except Exception: pass`) reemplazadas por logging estructurado y fallos explícitos fail-closed.
     - [x] Suite de pruebas exhaustiva con esquemas legacy y datos preexistentes en `tests/test_sqlite_legacy_migrations.py` (2 tests).
     - [x] 629 tests pasando (100% verde), 87.37% de cobertura.
+- [ ] **Hardening de Seguridad y Robustez de Entrenamiento (Auditoría Técnica Oct 2026)**:
+  - [x] **PR A (PR #80) — Blindaje Anti-Leakage Centralizado y Fail-Closed**:
+    - [x] Centralizar política de selección de variables en `DatasetProfile.resolve_safe_feature_names()`.
+    - [x] Parar con `ValueError` fail-closed en `AutoML.fit()` (`facade.py`) cuando todas las variables son descartadas por leakage o identifiers.
+    - [x] Retornar lista vacía de candidatos en `RuleBasedExperimentPlanner` si sólo existen variables con leakage.
+    - [x] Excluir automáticamente leakage en `JobExecutor` para ejecuciones con generación por defecto de features.
+    - [x] Validar variables en `AutoMLWorkspace.create_experiment()` con soporte para `allow_leakage=True`.
+    - [x] Calibrar thresholds estadísticos en `dataset_profiler.py` (`cardinality_ratio <= 0.90` en group hints, `row_count >= 10` en correlación de target) para evitar falsos positivos en features continuas y datasets enanos.
+    - [x] Suite de tests dedicada en `tests/test_anti_leakage_guardian.py` (6 tests). 635 tests pasando (100% verde), 87.29% de cobertura.
+  - [ ] **PR B — Seguridad del Workbench (Confinamiento de Archivos y Sanitización de Rutas)**:
+    - [ ] Confinamiento de `/api/kaggle/download` a identificadores de artefactos registrados.
+    - [ ] Restricción de `/api/media/preview` a raíces estrictamente autorizadas sin path traversal ni escape de symlinks.
+    - [ ] Comprobación estricta de pertenencia a directorio para `/static/`.
+  - [ ] **PR C — Atomicidad Transaccional de Migraciones SQLite**:
+    - [ ] Transacción explícita completa y rollback verificado en migraciones SQLite.
+  - [ ] **PR D — Consistencia del Producto (Dirección de Métricas, Benchmarks y Actividad Real)**:
+    - [ ] Unificar dirección de métricas en benchmarks y reemplazar actividad predefinida por eventos reales en Workbench.
 - [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
   - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
   - [ ] Soporte de estudios sin columna objetivo (`target=None`).

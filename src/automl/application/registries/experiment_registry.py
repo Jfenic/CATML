@@ -78,6 +78,7 @@ def register_experiment_handlers(
             priority=cmd.priority,
             validation_strategy=cmd.validation_strategy,
             group_column=cmd.group_column,
+            allow_leakage=cmd.allow_leakage,
         ),
     )
     command_bus.register(
