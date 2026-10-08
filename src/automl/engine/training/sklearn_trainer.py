@@ -128,6 +128,14 @@ class SklearnTrainer(TrainerPort):
             }:
                 from sklearn.model_selection import KFold, StratifiedKFold, TimeSeriesSplit, GroupKFold
                 n_splits = max(2, execution.cv_folds or 5)
+                if len(X) >= 4:
+                    if metric_name.lower() == "r2":
+                        n_splits = min(n_splits, max(2, len(X) // 2))
+                    else:
+                        n_splits = min(n_splits, len(X))
+                else:
+                    n_splits = min(n_splits, max(2, len(X)))
+
                 groups = None
                 if strategy in {"group_kfold", "group_cv", "grouped_kfold"}:
                     if not execution.group_column or execution.group_column not in df.columns:
@@ -139,20 +147,30 @@ class SklearnTrainer(TrainerPort):
                 elif strategy in {"time_series", "time_series_split"}:
                     cv_splitter = TimeSeriesSplit(n_splits=n_splits)
                 elif strategy == "stratified_kfold" and execution.task_type != "regression":
-                    cv_splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=execution.random_seed)
+                    min_class_count = int(pd.Series(y_adapted).value_counts().min()) if len(y_adapted) > 0 else 0
+                    if min_class_count < 2:
+                        cv_splitter = KFold(n_splits=min(n_splits, max(2, len(X))), shuffle=True, random_state=execution.random_seed)
+                    else:
+                        cv_splitter = StratifiedKFold(n_splits=min(n_splits, min_class_count), shuffle=True, random_state=execution.random_seed)
                 else:
                     cv_splitter = KFold(n_splits=n_splits, shuffle=True, random_state=execution.random_seed)
 
+                scoring = _sklearn_scoring(metric_name, execution.task_type, self.plugin_registry)
                 scores = cross_val_score(
                     pipeline,
                     X,
                     y_adapted,
                     cv=cv_splitter,
                     groups=groups,
-                    scoring=_sklearn_scoring(metric_name, execution.task_type),
+                    scoring=scoring,
                     n_jobs=1,
                     error_score="raise",
                 )
+                if isinstance(scoring, str) and scoring.startswith("neg_"):
+                    scores = -scores
+                elif hasattr(scoring, "_greater_is_better") and not scoring._greater_is_better:
+                    scores = -scores
+
                 primary_score = float(np.mean(scores))
                 if np.isnan(primary_score):
                     raise ValueError(f"Cross-validation returned NaN scores: {scores}")
@@ -174,13 +192,32 @@ class SklearnTrainer(TrainerPort):
                     y_train = y_adapted.iloc[train_idx] if hasattr(y_adapted, "iloc") else y_adapted[train_idx]
                     y_test = y_adapted.iloc[test_idx] if hasattr(y_adapted, "iloc") else y_adapted[test_idx]
                 else:
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        X,
-                        y_adapted,
-                        test_size=execution.test_size,
-                        random_state=execution.random_seed,
-                        stratify=y_adapted if execution.task_type != "regression" else None,
-                    )
+                    stratify_target = y_adapted if execution.task_type != "regression" else None
+                    effective_test_size = execution.test_size
+                    if stratify_target is not None:
+                        n_samples = len(y_adapted)
+                        n_classes = len(np.unique(y_adapted))
+                        if n_classes >= 2 and n_samples >= 2 * n_classes:
+                            computed_test = int(n_samples * execution.test_size) if execution.test_size < 1.0 else int(execution.test_size)
+                            if computed_test < n_classes:
+                                effective_test_size = n_classes
+
+                    try:
+                        X_train, X_test, y_train, y_test = train_test_split(
+                            X,
+                            y_adapted,
+                            test_size=effective_test_size,
+                            random_state=execution.random_seed,
+                            stratify=stratify_target,
+                        )
+                    except ValueError:
+                        X_train, X_test, y_train, y_test = train_test_split(
+                            X,
+                            y_adapted,
+                            test_size=execution.test_size,
+                            random_state=execution.random_seed,
+                            stratify=None,
+                        )
                 pipeline.fit(X_train, y_train)
                 predictions = pipeline.predict(X_test)
 
@@ -203,7 +240,9 @@ class SklearnTrainer(TrainerPort):
                             X_test,
                             execution.task_type,
                         )
-                        primary_score = secondary.get(metric_name, secondary.get("accuracy", 0.0))
+                        if metric_name not in secondary:
+                            raise ValueError(f"Metric '{metric_name}' is not supported for task '{execution.task_type}'.")
+                        primary_score = secondary[metric_name]
                 else:
                     secondary = _compute_metrics(
                         y_test,
@@ -212,7 +251,12 @@ class SklearnTrainer(TrainerPort):
                         X_test,
                         execution.task_type,
                     )
-                    primary_score = secondary.get(metric_name, secondary.get("accuracy", 0.0))
+                    if metric_name not in secondary:
+                        raise ValueError(f"Metric '{metric_name}' is not supported for task '{execution.task_type}'.")
+                    primary_score = secondary[metric_name]
+
+                if np.isnan(primary_score):
+                    raise ValueError(f"Evaluation returned NaN score for metric '{metric_name}'")
 
             elapsed = time.perf_counter() - started
             trial.status = TrialStatus.COMPLETED
@@ -227,7 +271,7 @@ class SklearnTrainer(TrainerPort):
                 model_id=trial.model_id,
                 primary_metric=metric_name,
                 primary_score=float(primary_score),
-                secondary_metrics={k: float(v) for k, v in secondary.items() if isinstance(v, (int, float))},
+                secondary_metrics={k: float(v) for k, v in secondary.items() if isinstance(v, (int, float)) and not np.isnan(v)},
                 training_time_seconds=elapsed,
                 artifacts=artifacts,
             )
@@ -468,7 +512,7 @@ def _build_pipeline(
     return Pipeline([("preprocessor", preprocessor), ("model", model)])
 
 
-def _sklearn_scoring(metric_name: str, task_type: str) -> str:
+def _sklearn_scoring(metric_name: str, task_type: str, plugin_registry: Any = None) -> Any:
     mapping = {
         "accuracy": "accuracy",
         "f1": "f1_weighted",
@@ -476,10 +520,27 @@ def _sklearn_scoring(metric_name: str, task_type: str) -> str:
         "r2": "r2",
         "mae": "neg_mean_absolute_error",
         "rmse": "neg_root_mean_squared_error",
+        "mse": "neg_mean_squared_error",
+        "log_loss": "neg_log_loss",
+        "balanced_accuracy": "balanced_accuracy",
+        "precision": "precision_weighted",
+        "recall": "recall_weighted",
     }
     if metric_name in mapping:
         return mapping[metric_name]
-    return "accuracy" if task_type != "regression" else "r2"
+
+    if plugin_registry and plugin_registry.has(metric_name):
+        plugin = plugin_registry.get_metric_plugin(metric_name)
+        if plugin:
+            from sklearn.metrics import make_scorer
+
+            return make_scorer(
+                lambda y_true, y_pred, **kwargs: plugin.compute(y_true, y_pred),
+                greater_is_better=getattr(plugin, "greater_is_better", True),
+                response_method="predict" if not getattr(plugin, "requires_probabilities", False) else "predict_proba",
+            )
+
+    raise ValueError(f"Unsupported metric '{metric_name}' for task '{task_type}'.")
 
 
 def _compute_metrics(
@@ -493,15 +554,29 @@ def _compute_metrics(
     if task_type == "regression":
         metrics["r2"] = float(r2_score(y_true, predictions))
         metrics["mae"] = float(mean_absolute_error(y_true, predictions))
-        metrics["rmse"] = float(np.sqrt(mean_squared_error(y_true, predictions)))
+        mse_val = float(mean_squared_error(y_true, predictions))
+        metrics["mse"] = mse_val
+        metrics["rmse"] = float(np.sqrt(mse_val))
         return metrics
 
     metrics["accuracy"] = float(accuracy_score(y_true, predictions))
     metrics["f1"] = float(f1_score(y_true, predictions, average="weighted"))
+    if task_type in ("binary_classification", "multiclass_classification"):
+        try:
+            from sklearn.metrics import balanced_accuracy_score
+            metrics["balanced_accuracy"] = float(balanced_accuracy_score(y_true, predictions))
+        except Exception:
+            pass
     if task_type == "binary_classification":
         try:
             proba = pipeline.predict_proba(X_test)[:, 1]
             metrics["roc_auc"] = float(roc_auc_score(y_true, proba))
+        except Exception:
+            pass
+        try:
+            from sklearn.metrics import log_loss
+            proba_all = pipeline.predict_proba(X_test)
+            metrics["log_loss"] = float(log_loss(y_true, proba_all))
         except Exception:
             pass
     return metrics

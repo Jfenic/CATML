@@ -9,10 +9,23 @@ export class CATMLApiClient {
 
   _getAuthToken() {
     try {
+      const hash = window.location.hash ? window.location.hash.substring(1) : "";
+      const hashParams = new URLSearchParams(hash);
+      const hashToken = hashParams.get("token");
+      if (hashToken) {
+        sessionStorage.setItem("catml_token", hashToken);
+        try {
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+        } catch (_) {}
+        return hashToken;
+      }
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get("token");
       if (urlToken) {
         sessionStorage.setItem("catml_token", urlToken);
+        try {
+          history.replaceState(null, "", window.location.pathname);
+        } catch (_) {}
         return urlToken;
       }
       return sessionStorage.getItem("catml_token") || null;

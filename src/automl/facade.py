@@ -106,6 +106,34 @@ class AutoML:
         image_columns: list[str] | None = None,
         image_model: str | None = None,
     ) -> None:
+        """
+        Initialize the AutoML runner.
+
+        Parameters
+        ----------
+        task / task_type: str | None
+            Type of ML task ('binary_classification', 'multiclass_classification', 'regression', 'clustering').
+        metric: str | None
+            Evaluation metric (e.g. 'roc_auc', 'f1', 'r2', 'mae', 'rmse', 'mse', 'log_loss').
+        cv_folds: int
+            Number of cross-validation splits (default: 5).
+        time_budget: int | None
+            Cooperative time budget in seconds across experiments and trials. Checked before
+            starting each candidate trial. Running model fits are allowed to complete gracefully
+            without mid-training interruption; subsequent trials are halted once the deadline expires.
+        models: list[str] | None
+            Specific model identifiers to evaluate.
+        random_state: int
+            Seed for reproducible dataset splits and model initialization.
+        workspace_dir: str | Path | None
+            Custom directory path for workspace artifacts and experiment tracking.
+        group_column: str | None
+            Column name representing entity or cluster groups to enforce non-overlapping splits.
+        image_columns: list[str] | None
+            Column names containing paths to image files for multimodal representation learning.
+        image_model: str | None
+            Image encoder backbone ('deterministic', 'resnet18', etc.).
+        """
         self.task = task or task_type
         self.metric = metric
         self.cv_folds = cv_folds
@@ -249,9 +277,10 @@ class AutoML:
                 )
                 ws.run_experiment(run_id=run.id, experiment_id=experiment.id)
 
-        # Extract leaderboard
-        raw_leaderboard = ws.get_leaderboard_results(run.id)
-        if not raw_leaderboard:
+        # Extract leaderboard (excluding failed trials)
+        raw_leaderboard = ws.get_leaderboard_results(run.id, include_failed=False)
+        valid_leaderboard = [r for r in raw_leaderboard if r.succeeded]
+        if not valid_leaderboard:
             refreshed_run = ws.get_run(run.id)
             if refreshed_run and refreshed_run.config.extra.get("time_budget_exhausted"):
                 raise RuntimeError(
@@ -260,7 +289,7 @@ class AutoML:
             raise RuntimeError("No models were successfully evaluated during fit().")
 
         leaderboard_rows = []
-        for rank, res in enumerate(raw_leaderboard, start=1):
+        for rank, res in enumerate(valid_leaderboard, start=1):
             t_obj = ws.get_trial(res.trial_id)
             leaderboard_rows.append({
                 "rank": rank,

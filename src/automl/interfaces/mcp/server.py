@@ -646,6 +646,12 @@ def run_mcp_service(
     )
     server = create_mcp_server(root_dir=root_dir)
     if transport == "streamable-http":
+        if host not in ("127.0.0.1", "localhost"):
+            logger.warning(
+                "SECURITY NOTICE: MCP Streamable-HTTP server is binding to external interface '%s'. "
+                "Ensure network access is restricted or protected by an authenticated TLS reverse proxy.",
+                host,
+            )
         logger.info(f"Iniciando CATML MCP Streamable-HTTP Server en http://{host}:{port}{streamable_http_path}...")
         server.run(transport="streamable-http", host=host, port=port, streamable_http_path=streamable_http_path)
     else:

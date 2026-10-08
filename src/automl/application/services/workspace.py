@@ -261,8 +261,8 @@ class AutoMLWorkspace:
     def list_trial_results(self, experiment_id: str) -> list[TrialResult]:
         return self.repository.list_trial_results(experiment_id)
 
-    def get_leaderboard_results(self, run_id: str) -> list[TrialResult]:
-        return self.repository.get_leaderboard(run_id)
+    def get_leaderboard_results(self, run_id: str, include_failed: bool = False) -> list[TrialResult]:
+        return self.repository.get_leaderboard(run_id, include_failed=include_failed)
 
     def list_feature_sets(self, dataset_id: str) -> list[Any]:
         return self.repository.list_feature_sets(dataset_id)
@@ -650,8 +650,8 @@ class AutoMLWorkspace:
         )
         return cloned
 
-    def leaderboard(self, run: AutoMLRun) -> list[dict]:
-        rows = self.repository.get_leaderboard(run.id)
+    def leaderboard(self, run: AutoMLRun, include_failed: bool = False) -> list[dict]:
+        rows = self.repository.get_leaderboard(run.id, include_failed=include_failed)
         return [
             {
                 "trial_id": r.trial_id,
@@ -665,9 +665,9 @@ class AutoMLWorkspace:
             for r in rows
         ]
 
-    def get_leaderboard(self, run_or_id: str | AutoMLRun) -> list[dict]:
+    def get_leaderboard(self, run_or_id: str | AutoMLRun, include_failed: bool = False) -> list[dict]:
         run = run_or_id if isinstance(run_or_id, AutoMLRun) else self._get_run(run_or_id)
-        return self.leaderboard(run)
+        return self.leaderboard(run, include_failed=include_failed)
 
     def compare_experiments(self, experiment_ids: list[str]) -> list[dict]:
         rows = self.repository.compare_experiments(experiment_ids)
@@ -1160,7 +1160,11 @@ class AutoMLWorkspace:
         if metric_plugin is not None:
             direction = "maximize" if metric_plugin.greater_is_better else "minimize"
         else:
-            direction = "minimize" if run.config.metric in {"mae", "rmse"} else "maximize"
+            direction = (
+                "minimize"
+                if str(run.config.metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+                else "maximize"
+            )
 
         # Check meta-learning warm start priors
         warm_params: dict[str, Any] | None = None
@@ -1324,7 +1328,7 @@ class AutoMLWorkspace:
         if not valid:
             return None
 
-        is_minimize = valid[0].primary_metric in {"mae", "rmse"}
+        is_minimize = str(valid[0].primary_metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
         best = min(valid, key=lambda r: r.primary_score) if is_minimize else max(valid, key=lambda r: r.primary_score)
 
         trial = self.repository.get_trial(best.trial_id)

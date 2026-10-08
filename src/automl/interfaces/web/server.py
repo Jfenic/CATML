@@ -1342,7 +1342,8 @@ def run_web_dashboard(
         print(f"  Bound to external interface: http://{host}:{port}")
         print("  SECURITY NOTICE: Remote binding protected with authentication token.")
         print(f"  Access token: {effective_token}")
-        print(f"  Direct browser URL: http://{host}:{port}/?token={effective_token}")
+        print(f"  Direct secure URL (fragment, not sent over HTTP): http://{host}:{port}/#token={effective_token}")
+        print(f"  Alternative query URL: http://{host}:{port}/?token={effective_token}")
     elif not is_local and insecure_no_auth:
         print(f"  Bound to external interface: http://{host}:{port}")
         print("  WARNING: Workbench is exposed on non-localhost interface WITHOUT authentication!")

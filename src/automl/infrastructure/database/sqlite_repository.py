@@ -584,7 +584,7 @@ class SQLiteExperimentRepository:
             ).fetchall()
         return [_row_to_result(row) for row in rows]
 
-    def get_leaderboard(self, run_id: str) -> list[TrialResult]:
+    def get_leaderboard(self, run_id: str, include_failed: bool = False) -> list[TrialResult]:
         with self._connect() as conn:
             is_minimize = False
             run_row = conn.execute("SELECT config_json FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -598,11 +598,13 @@ class SQLiteExperimentRepository:
                     pass
 
             order = "ASC" if is_minimize else "DESC"
+            failed_clause = "" if include_failed else "AND (tr.failure_reason IS NULL OR tr.failure_reason = '')"
             rows = conn.execute(
                 f"""
                 SELECT tr.* FROM trial_results tr
                 JOIN experiments e ON e.id = tr.experiment_id
                 WHERE e.run_id = ?
+                {failed_clause}
                 ORDER BY tr.primary_score {order}
                 """,
                 (run_id,),

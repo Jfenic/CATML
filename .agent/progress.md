@@ -22,8 +22,16 @@
   - `src/automl/application/services/inference_service.py` (`InferenceService`): extracción de predicción, alineación de plantillas Kaggle, generación de envíos y exportación de `ModelArtifact`.
   - `src/automl/application/services/feature_service.py` (`FeatureEngineeringService`): extracción de características derivadas, análisis de dinámica temporal, estrategias de selección multi-método, planificación de ablación y promoción de conjuntos de características.
   - Delegación 100% retrocompatible en `AutoMLWorkspace` preservando firmas públicas y reduciendo el tamaño de `workspace.py` en más de 740 líneas (~2,550 a ~1,800 líneas).
+- **Resolución de Auditoría Técnica y Hardening de Confiabilidad ML (`src/automl/engine/training/sklearn_trainer.py`, `src/automl/infrastructure/database/sqlite_repository.py`, `src/automl/application/services/workspace.py`, `src/automl/facade.py`, `src/automl/interfaces/mcp/server.py`, `src/automl/interfaces/web/server.py`, `src/automl/interfaces/web/static/js/api.js`, `tests/test_audit_findings.py`):**
+  - **Signo de MAE/RMSE/MSE/Log Loss en CV**: En `sklearn_trainer.py`, los scores de `cross_val_score` con scoring `neg_...` o `_greater_is_better=False` se invierten mediante `scores = -scores`. El leaderboard y optimizador en `workspace.py` ordenan ascendentemente (`ASC`) y minimizan, garantizando que el menor error ocupe la primera posición.
+  - **Exclusión de Trials Fallidos**: En `sqlite_repository.py`, `get_leaderboard()` agrega por defecto `AND (tr.failure_reason IS NULL OR tr.failure_reason = '')` (`include_failed=False`). En `facade.py`, `fit()` verifica que existan trials exitosos y descarta fallos; en `inference_service.py`, `export_model_artifact()` elige únicamente entre modelos con `res.succeeded is True`.
+  - **Eliminación de Sustitución Silenciosa de Métricas**: En `_sklearn_scoring()` y holdout `_compute_metrics()`, métricas no reconocidas levantan `ValueError` explícito en vez de recurrir a `accuracy`/`r2`. Se añadió soporte directo para `mse`, `log_loss`, `balanced_accuracy`, `precision`, `recall` y plugins métricos mediante `make_scorer`.
+  - **Clarificación de Time Budget**: Documentado en `facade.py` que `time_budget` es un límite cooperativo global entre modelos y no un timeout atómico por proceso.
+  - **Endurecimiento de Seguridad HTTP/MCP**: En `api.js` y `server.py`, paso de credenciales mediante URL hash fragment `#token=` (inmune a logs de proxy/historial de peticiones) y auto-limpieza con `history.replaceState`. En el servidor MCP Streamable-HTTP, advertencia de seguridad explícita (`SECURITY NOTICE`) si se expone a interfaces de red externas.
+  - **Robustez de Validación en Datasets Reducidos**: `SklearnTrainer` adapta `n_splits` en KFold para asegurar suficientes muestras de test y permitir cálculos estables de varianza ($R^2$), y en holdout ajusta `effective_test_size` para preservar representatividad de todas las clases.
+  - 4 tests automatizados de regresión en `tests/test_audit_findings.py`.
 - **Validación y Cobertura:**
-  - 618 tests pasando (100% verde). Cobertura total del 87.39% (requisito >= 85%).
+  - 622 tests pasando (100% verde). Cobertura total del 87.37% (requisito >= 85%).
   - CLI `automl --help` y `automl task list` verificados exitosamente.
 
 ### Track Hardening Phase 1 — v0.8.2 Operational Budget, Fail-Closed Artifacts & Remote Web Security (2026-10-07)
