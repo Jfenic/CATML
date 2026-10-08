@@ -51,11 +51,6 @@ def _resolve_workspace_and_ledger(
     ws, cmd, qry = build_application(root_dir=str(workspace_dir))
     ledger = SqliteAgentLedger(ledger_file)
 
-    if not hasattr(ws, "get_run"):
-        setattr(ws, "get_run", lambda r_id: ws._runs.get(r_id) or ws.repository.get_run(r_id))
-    if not hasattr(ws, "get_dataset"):
-        setattr(ws, "get_dataset", lambda d_id: ws._datasets.get(d_id) or ws.repository.get_dataset(d_id))
-
     tool_registry = create_full_tool_registry(
         query_bus=qry, command_bus=cmd, workspace=ws, ledger=ledger
     )

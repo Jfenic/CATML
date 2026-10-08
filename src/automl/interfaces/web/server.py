@@ -171,23 +171,23 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
         # 2. REST API endpoints
         if path == "/api/overview":
-            runs = ws.repository.list_runs()
+            runs = ws.list_runs()
             all_trials = []
             best_score = 0.0
             best_model = "-"
             recent_datasets = []
 
             for r in runs:
-                exps = ws.repository.list_experiments(r.id)
+                exps = ws.list_experiments(r.id)
                 for e in exps:
-                    all_trials.extend(ws.repository.list_trial_results(e.id))
+                    all_trials.extend(ws.list_trial_results(e.id))
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
                 if lb and lb[0]["score"] > best_score:
                     best_score = lb[0]["score"]
                     best_model = lb[0]["model_id"]
-                ds = ws.repository.get_dataset(r.dataset_id)
+                ds = ws.get_dataset(r.dataset_id)
                 if ds and ds.name not in [d["name"] for d in recent_datasets]:
-                    profile = ws.repository.get_dataset_profile(ds.id)
+                    profile = ws.get_dataset_profile(ds.id)
                     recent_datasets.append({
                         "id": ds.id,
                         "name": ds.name,
@@ -197,10 +197,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         "features": profile.column_count if profile else None,
                     })
 
-            all_ds = ws.repository.list_datasets() if hasattr(ws.repository, "list_datasets") else []
+            all_ds = ws.list_datasets()
             for ds in all_ds:
                 if ds.name not in [d["name"] for d in recent_datasets]:
-                    profile = ws.repository.get_dataset_profile(ds.id)
+                    profile = ws.get_dataset_profile(ds.id)
                     recent_datasets.append({
                         "id": ds.id,
                         "name": ds.name,
@@ -237,10 +237,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/datasets":
-            all_ds = ws.repository.list_datasets() if hasattr(ws.repository, "list_datasets") else []
+            all_ds = ws.list_datasets()
             result = []
             for ds in all_ds:
-                profile = ws.repository.get_dataset_profile(ds.id)
+                profile = ws.get_dataset_profile(ds.id)
                 result.append({
                     "id": ds.id,
                     "name": ds.name,
@@ -254,13 +254,13 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/runs":
-            runs = ws.repository.list_runs()
+            runs = ws.list_runs()
             result = []
             for r in runs:
-                dataset = ws.repository.get_dataset(r.dataset_id)
+                dataset = ws.get_dataset(r.dataset_id)
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
-                exps = ws.repository.list_experiments(r.id)
-                trials_cnt = sum(len(ws.repository.list_trial_results(e.id)) for e in exps)
+                exps = ws.list_experiments(r.id)
+                trials_cnt = sum(len(ws.list_trial_results(e.id)) for e in exps)
                 result.append({
                     "id": r.id,
                     "dataset_id": r.dataset_id,
@@ -283,10 +283,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             if not run_id:
                 self._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
                 return
-            exps = ws.repository.list_experiments(run_id)
+            exps = ws.list_experiments(run_id)
             result = []
             for e in exps:
-                trials = ws.repository.list_trial_results(e.id)
+                trials = ws.list_trial_results(e.id)
                 parameters = {t["trial_id"]: t["parameters"]
                               for t in qry.dispatch(GetExperimentTrialsQuery(e.id))}
                 best_trial = max(trials, key=lambda t: t.primary_score) if trials else None
@@ -340,7 +340,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         elif path == "/api/models/export":
             run_id = query_params.get("run_id", [""])[0]
             if not run_id:
-                runs = ws.repository.list_runs()
+                runs = ws.list_runs()
                 if runs:
                     run_id = runs[0].id
             if not run_id:
@@ -375,7 +375,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         elif path == "/api/models/export-info":
             run_id = query_params.get("run_id", [""])[0]
             if not run_id:
-                runs = ws.repository.list_runs()
+                runs = ws.list_runs()
                 if runs:
                     run_id = runs[0].id
             if not run_id:
@@ -418,11 +418,11 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             allowed_roots = [ws_root, ws_root.parent, Path.cwd().resolve()]
 
             if dataset_id:
-                dataset = ws.repository.get_dataset(dataset_id)
+                dataset = ws.get_dataset(dataset_id)
                 if dataset and dataset.path:
                     allowed_roots.append(Path(dataset.path).parent.resolve())
             else:
-                for ds in ws.repository.list_datasets():
+                for ds in ws.list_datasets():
                     if ds.path:
                         allowed_roots.append(Path(ds.path).parent.resolve())
 
@@ -488,7 +488,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             if not dataset_id:
                 self._send_json({"error": "dataset_id parameter required"}, HTTPStatus.BAD_REQUEST)
                 return
-            profile = ws.repository.get_dataset_profile(dataset_id)
+            profile = ws.get_dataset_profile(dataset_id)
             force_refresh = query_params.get("refresh", ["0"])[0] in ("1", "true")
             needs_enrichment = (
                 profile is None
@@ -497,7 +497,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 or any(getattr(c, "mean", None) is None for c in profile.columns if any(t in c.dtype.lower() for t in ("int", "float")))
             )
             if profile is None or force_refresh or needs_enrichment:
-                dataset = ws.repository.get_dataset(dataset_id)
+                dataset = ws.get_dataset(dataset_id)
                 if dataset and Path(dataset.path).exists():
                     try:
                         from automl.engine.profiling.dataset_profiler import profile_dataset, load_dataframe
@@ -508,7 +508,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             profile.row_count = len(df)
                         else:
                             profile = profile_dataset(dataset, df)
-                        ws.repository.save_dataset_profile(profile)
+                        ws.save_dataset_profile(profile)
                     except Exception as err:
                         if not profile:
                             self._send_json({"error": f"Error computing profile: {str(err)}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -548,12 +548,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             run_id = query_params.get("run_id", [""])[0]
             run = None
             if run_id:
-                run = ws.repository.get_run(run_id)
+                run = ws.get_run(run_id)
                 if run and not dataset_id:
                     dataset_id = run.dataset_id
 
             if not dataset_id:
-                runs = ws.repository.list_runs()
+                runs = ws.list_runs()
                 if runs:
                     run = runs[0]
                     dataset_id = run.dataset_id
@@ -563,17 +563,17 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "No dataset found in workspace"}, HTTPStatus.BAD_REQUEST)
                 return
 
-            dataset = ws.repository.get_dataset(dataset_id)
-            profile = ws.repository.get_dataset_profile(dataset_id)
+            dataset = ws.get_dataset(dataset_id)
+            profile = ws.get_dataset_profile(dataset_id)
             problem_def = qry.dispatch(GetTaskPlanQuery(dataset_id))
 
             plan_steps = []
             step_idx = 1
 
             if run_id:
-                exps = ws.repository.list_experiments(run_id)
+                exps = ws.list_experiments(run_id)
                 for e in exps:
-                    trials = ws.repository.list_trial_results(e.id)
+                    trials = ws.list_trial_results(e.id)
                     best_t = max(trials, key=lambda t: t.primary_score) if trials else None
                     plan_steps.append({
                         "step": step_idx,
@@ -652,15 +652,15 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             dataset_id = query_params.get("dataset_id", [""])[0]
             run_id = query_params.get("run_id", [""])[0]
             if run_id and not dataset_id:
-                run = ws.repository.get_run(run_id)
+                run = ws.get_run(run_id)
                 if run:
                     dataset_id = run.dataset_id
             if not dataset_id:
-                runs = ws.repository.list_runs()
+                runs = ws.list_runs()
                 if runs:
                     dataset_id = runs[0].dataset_id
             if not dataset_id:
-                datasets = ws.repository.list_datasets()
+                datasets = ws.list_datasets()
                 if datasets:
                     dataset_id = datasets[0].id
 
@@ -719,7 +719,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         elif path == "/api/dataset/questionnaire":
             dataset_id = query_params.get("dataset_id", [""])[0]
             if not dataset_id:
-                datasets = ws.repository.list_datasets()
+                datasets = ws.list_datasets()
                 dataset_id = datasets[0].id if datasets else ""
             if not dataset_id:
                 self._send_json({"error": "No dataset found"}, HTTPStatus.NOT_FOUND)
@@ -730,20 +730,20 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/kaggle/status":
             run_id = query_params.get("run_id", [""])[0]
-            run = ws.repository.get_run(run_id) if run_id else None
+            run = ws.get_run(run_id) if run_id else None
             if not run:
-                runs = ws.repository.list_runs()
+                runs = ws.list_runs()
                 run = runs[0] if runs else None
 
-            dataset = ws.repository.get_dataset(run.dataset_id) if run else None
-            profile = ws.repository.get_dataset_profile(run.dataset_id) if run else None
+            dataset = ws.get_dataset(run.dataset_id) if run else None
+            profile = ws.get_dataset_profile(run.dataset_id) if run else None
             lb = qry.dispatch(GetLeaderboardQuery(run.id)) if run else []
             best_cv = lb[0]["score"] if lb else None
 
-            exps = ws.repository.list_experiments(run.id) if run else []
+            exps = ws.list_experiments(run.id) if run else []
             submissions = []
             for e in exps:
-                trials = ws.repository.list_trial_results(e.id)
+                trials = ws.list_trial_results(e.id)
                 best_t = max(trials, key=lambda t: t.primary_score) if trials else None
                 if best_t:
                     submissions.append({
@@ -848,7 +848,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
                 dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
                 run = ws.create_run(dataset)
-                profile = ws.repository.get_dataset_profile(dataset.id)
+                profile = ws.get_dataset_profile(dataset.id)
 
                 self._send_json({
                     "status": "success",
@@ -893,7 +893,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     from automl.domain.runs.states import RunPhase, RunStatus
                     run = ws._get_run(run_id)
                     run.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
-                    ws.repository.save_run(run)
+                    ws.save_run(run)
                 self._send_json({"status": "success", "run_id": run_id, "state": "RUNNING"})
                 return
 
@@ -933,7 +933,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
-                profile = ws.repository.get_dataset_profile(dataset.id)
+                profile = ws.get_dataset_profile(dataset.id)
                 feature_names = payload.get("feature_names") or [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
@@ -974,7 +974,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
-                profile = ws.repository.get_dataset_profile(dataset.id)
+                profile = ws.get_dataset_profile(dataset.id)
                 feature_names = payload.get("feature_names") or [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
@@ -1014,7 +1014,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
-                profile = ws.repository.get_dataset_profile(dataset.id)
+                profile = ws.get_dataset_profile(dataset.id)
                 feature_names = [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
@@ -1135,8 +1135,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     )
                 )
 
-                exp = ws.repository.get_experiment(exp_id)
-                trials = ws.repository.list_trial_results(exp_id)
+                exp = ws.get_experiment(exp_id)
+                trials = ws.list_trial_results(exp_id)
                 res = trials[0] if trials else None
                 score = res.primary_score if res else 0.0
                 sec_metrics = res.secondary_metrics if res else {}
@@ -1213,7 +1213,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             elif path == "/api/dataset/questionnaire/generate":
                 dataset_id = payload.get("dataset_id")
                 if not dataset_id:
-                    datasets = ws.repository.list_datasets()
+                    datasets = ws.list_datasets()
                     dataset_id = datasets[0].id if datasets else ""
                 if not dataset_id:
                     self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)

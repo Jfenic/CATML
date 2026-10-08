@@ -51,6 +51,13 @@ from automl.application.queries.workspace_queries import (
     GetOOFResultQuery,
     DetectTemporalStructureQuery,
     GetMetaKnowledgeQuery,
+    GetRunQuery,
+    ListRunsQuery,
+    GetDatasetQuery,
+    ListDatasetsQuery,
+    GetTrialQuery,
+    GetExperimentQuery,
+    ListTrialResultsQuery,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 from automl.application.services.jobs import JobService
@@ -246,7 +253,7 @@ def register_handlers(
     query_bus.register(ListModelsQuery, lambda q: workspace.list_models(q.run_id, q.task_type))
     query_bus.register(
         GetDatasetProfileQuery,
-        lambda q: workspace.repository.get_dataset_profile(q.dataset_id),
+        lambda q: workspace.get_dataset_profile(q.dataset_id),
     )
     query_bus.register(
         GetLeaderboardQuery,
@@ -255,12 +262,19 @@ def register_handlers(
     query_bus.register(CompareExperimentsQuery, lambda q: workspace.compare_experiments(q.experiment_ids))
     query_bus.register(
         ListExperimentsQuery,
-        lambda q: workspace.repository.list_experiments(q.run_id),
+        lambda q: workspace.list_experiments(q.run_id),
     )
     query_bus.register(
         ListFeatureSetsQuery,
-        lambda q: workspace.repository.list_feature_sets(q.dataset_id),
+        lambda q: workspace.list_feature_sets(q.dataset_id),
     )
+    query_bus.register(GetRunQuery, lambda q: workspace.get_run(q.run_id))
+    query_bus.register(ListRunsQuery, lambda q: workspace.list_runs(dataset_id=q.dataset_id))
+    query_bus.register(GetDatasetQuery, lambda q: workspace.get_dataset(q.dataset_id))
+    query_bus.register(ListDatasetsQuery, lambda _q: workspace.list_datasets())
+    query_bus.register(GetTrialQuery, lambda q: workspace.get_trial(q.trial_id))
+    query_bus.register(GetExperimentQuery, lambda q: workspace.get_experiment(q.experiment_id))
+    query_bus.register(ListTrialResultsQuery, lambda q: workspace.list_trial_results(q.experiment_id))
     query_bus.register(GetTaskPlanQuery, lambda q: workspace.get_task_plan(q.dataset_id))
     query_bus.register(ListTaskTypesQuery, lambda _q: workspace.list_task_types())
     query_bus.register(

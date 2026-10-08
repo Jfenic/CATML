@@ -123,3 +123,40 @@ class DetectTemporalStructureQuery:
 class GetMetaKnowledgeQuery:
     dataset_id: str
     run_id: str | None = None
+
+
+@dataclass(frozen=True)
+class GetRunQuery:
+    run_id: str
+
+
+@dataclass(frozen=True)
+class ListRunsQuery:
+    dataset_id: str | None = None
+    workspace_id: str | None = None
+
+
+@dataclass(frozen=True)
+class GetDatasetQuery:
+    dataset_id: str
+
+
+@dataclass(frozen=True)
+class ListDatasetsQuery:
+    workspace_id: str | None = None
+
+
+@dataclass(frozen=True)
+class GetTrialQuery:
+    trial_id: str
+
+
+@dataclass(frozen=True)
+class GetExperimentQuery:
+    experiment_id: str
+
+
+@dataclass(frozen=True)
+class ListTrialResultsQuery:
+    experiment_id: str
+

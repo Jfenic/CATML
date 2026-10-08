@@ -342,7 +342,7 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
         path = Path(dataset.path)
         if not path.exists():
             raise FileNotFoundError(f"Dataset not found: {path}")
-        df = pd.read_csv(path)
+        df = load_dataframe(path)
 
     if dataset.target_column not in df.columns:
         raise ValueError(f"Target column '{dataset.target_column}' not in dataset")
@@ -741,5 +741,23 @@ def infer_task_type(target_series: pd.Series) -> str:
     return _infer(target_series).value
 
 
-def load_dataframe(path: str) -> pd.DataFrame:
-    return pd.read_csv(path)
+def load_dataframe(path: str | Path) -> pd.DataFrame:
+    """Load a DataFrame from disk supporting Parquet, JSON/JSONL, TSV, and CSV."""
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"Dataset file not found: {p}")
+
+    suffix = p.suffix.lower()
+    if suffix in {".parquet", ".pq"}:
+        try:
+            return pd.read_parquet(p)
+        except ImportError as exc:
+            raise ImportError(
+                f"Reading parquet file '{p.name}' requires 'pyarrow' or 'fastparquet'. "
+                "Install with `pip install pyarrow` or `pip install catml[parquet]`."
+            ) from exc
+    elif suffix in {".json", ".jsonl"}:
+        return pd.read_json(p, lines=(suffix == ".jsonl"))
+    elif suffix in {".tsv", ".tab"}:
+        return pd.read_csv(p, sep="\t")
+    return pd.read_csv(p)
