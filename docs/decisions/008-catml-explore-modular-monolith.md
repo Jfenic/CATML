@@ -53,5 +53,5 @@ Adoptamos **CATML Explore como un contexto funcional dentro de un monolito modul
 * **Cero sobrecoste de red:** Procesamiento 100% local sin latencia de microservicios ni puertos adicionales.
 
 ### Desafíos y Mitigaciones
-* **Tamaño del paquete:** Las dependencias estadísticas (`scipy`, `statsmodels`) se segregan bajo el extra opcional `catml[explore]`, protegiendo la instalación base tabular.
+* **Tamaño del paquete:** Las dependencias estadísticas avanzadas (`statsmodels`) se segregan bajo el extra opcional `catml[explore]`, mientras que `scipy` ya forma parte de las dependencias base tabulares.
 * **Gobierno de contexto en LLMs:** Las herramientas MCP aplican filtros y paginación para no desbordar el context window con análisis masivos.

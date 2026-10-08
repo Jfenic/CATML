@@ -2,8 +2,11 @@
 from datetime import datetime, timezone
 from contextlib import closing, contextmanager
 import json
+import logging
 import sqlite3
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from automl.domain.jobs.job import Job, JobStatus, ACTIVE_STATUSES
 
@@ -22,8 +25,10 @@ class SQLiteJobRepository:
             connection.execute("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)")
             try:
                 cols = connection.execute("PRAGMA table_info(jobs)").fetchall()
-                run_id_col = next((c for c in cols if c["name"] == "run_id"), None)
-                if run_id_col and run_id_col["notnull"] == 1:
+                run_id_col = next((c for c in cols if (c["name"] if hasattr(c, "keys") else c[1]) == "run_id"), None)
+                run_id_notnull = (run_id_col["notnull"] if hasattr(run_id_col, "keys") else run_id_col[3]) if run_id_col else 0
+                if run_id_notnull == 1:
+                    logger.info("Migrating legacy jobs table to support nullable run_id")
                     connection.execute("CREATE TABLE jobs_dg_tmp (id TEXT PRIMARY KEY, "
                                        "idempotency_key TEXT UNIQUE NOT NULL, run_id TEXT, "
                                        "status TEXT NOT NULL, data TEXT NOT NULL)")
@@ -31,8 +36,9 @@ class SQLiteJobRepository:
                     connection.execute("DROP TABLE jobs")
                     connection.execute("ALTER TABLE jobs_dg_tmp RENAME TO jobs")
                     connection.execute("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.error("Failed to migrate jobs table schema: %s", exc)
+                raise RuntimeError(f"Failed to migrate jobs table schema: {exc}") from exc
 
     @contextmanager
     def _connect(self):
