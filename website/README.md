@@ -38,7 +38,7 @@ The project is ready for deployment; creating a production deployment or connect
 - Installation is from the GitHub source checkout, without assuming a `catml` PyPI release.
 - The sample leaderboard is labeled **Example output**, not presented as benchmark evidence.
 - 461 tests / 87.53% coverage are a historical snapshot from the October 2, 2026 Workbench refinement, linked to commit `e4a2286`. They are not live CI status; update copy only with attributable validation evidence.
-- CATML Platform is explicitly planned. Its capabilities describe future intent, not a shipped service. There is no inactive waitlist or pricing page.
+- The public site describes the current open-source toolkit; technical roadmap details remain in the repository documentation.
 - Inference needs a compatible Python environment with CATML and the relevant estimator dependencies, but no original workspace/database.
 - The seven-step agent diagram is illustrative. Reasoning is supplied by an external compatible agent; CATML supplies tools, approvals, budgets and cooperative cancellation.
 

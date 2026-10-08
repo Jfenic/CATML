@@ -4,6 +4,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ### Track Landing — Public homepage (independent of Workbench)
 
+- [x] Aplicar CATML_monetizacion_privada.patch para retirar la estrategia comercial de la documentación y web públicas.
+
 - [x] Implementar homepage en `website/` con Vite, React y TypeScript; tokens Tech Minimalista, responsive 320–1440 px y accesibilidad comprobada.
 - [x] Integrar captura real del Workbench de `e4a2286` con dataset sintético, snippets acordes a la API, licencia MIT, instalación desde GitHub y Platform identificada como planificación.
 - [x] Preparar build estático, OpenGraph, favicon, tipografías locales, guía Vercel y comprobaciones en navegador.
