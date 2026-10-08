@@ -1,5 +1,10 @@
 # Progress
 
+### Documentación pública (2026-10-08)
+
+- Aplicado CATML_monetizacion_privada.patch en docs/private-commercial-strategy; retiradas referencias comerciales de documentación y landing.
+- Validación: build y comprobaciones web responsive/accesibilidad correctos; Python: 601 passed, 17 failed (fcntl no disponible y saltos CRLF en Windows), cobertura 86.22 %. gh no está disponible en este equipo.
+
 ### Track Hardening Phase 2 — v0.8.2 Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition (2026-10-08)
 
 - Rama de trabajo `hardening/v0.8.2-phase2-modular-and-cqrs` desde `main` (`ec69771`).
@@ -205,7 +210,7 @@
 - **Corrección de CI Workflow (`.github/workflows/ci.yml`):**
   - Añadido extra `agents` a la instalación en CI (`python -m pip install -e ".[dev,mcp,agents]"`) para garantizar presencia de `langgraph`, `langgraph-checkpoint` y `langgraph-checkpoint-sqlite` en las matrices de Python 3.10 y 3.12 de GitHub Actions.
 - **Plan Maestro de Producto, Arquitectura y Mercado (`docs/MASTER_PLAN.md`):**
-  - Formalización integral del documento rector de 20 secciones: posicionamiento (*"Train better models. Keep control"* / *"Bring AI to your data. Not your data to AI"*), regla de privacidad de cómputo hacia los datos, paridad de 4 interfaces (Python/CLI/Workbench/MCP), perfiles de políticas (`STRICT`/`PRIVATE`/`STANDARD`), taxonomía multimodal desacoplada de tareas, anti-leakage como diferenciador central, modelo de negocio Community vs Enterprise, y puertas de decisión (*Decision Gates*) orientadas a tracción de usuarios. Navegación enlazada en `docs/README.md` y `AGENTS.md`.
+  - Formalización del documento rector de arquitectura y producto: posicionamiento (*"Train better models. Keep control"* / *"Bring AI to your data. Not your data to AI"*), regla de privacidad de cómputo hacia los datos, paridad de 4 interfaces (Python/CLI/Workbench/MCP), perfiles de políticas (`STRICT`/`PRIVATE`/`STANDARD`), taxonomía multimodal desacoplada de tareas, anti-leakage como diferenciador central, y puertas de decisión (*Decision Gates*) orientadas a tracción de usuarios. Navegación enlazada en `docs/README.md` y `AGENTS.md`.
 
 ### Track AutoML Workbench — Vision Support & Interactive Multimodal UI (2026-10-06)
 
@@ -406,7 +411,7 @@
 ### Track Landing — 2026-10-02
 
 - Rama propia `feat/public-landing` desde `origin/main` (`e4a2286`), checkout `/tmp/catml-landing`. La tarea no cambia la rama ni los archivos del checkout principal; el usuario continúa el Workbench por separado.
-- Cambios de producto limitados a `website/`: homepage React/TypeScript/Vite clara, tokens de marca, fuentes locales, snippets, ejemplos etiquetados, Community MIT y Platform planned. No se modificó Workbench ni núcleo Python.
+- Cambios de producto limitados a `website/`: homepage React/TypeScript/Vite clara, tokens de marca, fuentes locales, snippets, ejemplos etiquetados, Community de código abierto. No se modificó Workbench ni núcleo Python.
 - Captura real del Dataset Inspector de main con dataset sintético en workspace temporal; scripts reproducibles para screenshot y tarjeta OpenGraph.
 - Build y comprobaciones Chromium/axe pasan en 320, 390, 768, 1024 y 1440 px; teclado, menú, portapapeles y movimiento reducido comprobados.
 - Primera suite completa: 460 passed, 1 timeout MCP, 87.53% coverage. Hallazgo ajeno a la landing registrado en [blackboard #52](https://github.com/Jfenic/CATML/issues/52); handshake pasa aislado. Segunda suite completa: 461 passed, 87.53% coverage (237.66 s). No se cambió Python; el timeout inicial permanece documentado como hallazgo de estabilidad.

@@ -1,6 +1,6 @@
 # CATML — Brand System: Tech Minimalista Premium
 
-> Comprehensive visual and identity specification for CATML Community and CATML Platform.  
+> Comprehensive visual and identity specification for the CATML open-source project.  
 > Transmits technical seriousness, next-generation AI, and enterprise-grade reliability across Web, Workbench, Documentation, GitHub, and Presentations.
 
 ---
@@ -601,32 +601,11 @@ Esto debería convertirse casi en un elemento central de la marca.
 
 ---
 
-# 16. Community vs Platform
+# 16. Presentación del producto de código abierto
 
-Visualmente evitaría que Community parezca el plan malo.
+La web pública debe documentar únicamente las capacidades disponibles: Python, CLI, Workbench, MCP y ejecución local.
 
-Algo así:
-
-```text
-CATML COMMUNITY                  CATML PLATFORM
-
-Open source                      Commercial
-Apache 2.0
-
-✓ Core AutoML                    ✓ Everything in Community
-✓ Python API                     ✓ Managed compute
-✓ CLI                            ✓ Team collaboration
-✓ Workbench                      ✓ Deployment
-✓ MCP                            ✓ Monitoring
-✓ Agents                         ✓ Governance
-✓ Local execution                ✓ Enterprise security
-
-[ Get CATML ]                    [ Join waitlist ]
-```
-
-Community está completo.
-
-Platform escala CATML.
+El diseño visual mantiene una identidad coherente entre documentación, web y Workbench, sin segmentar funciones por planes comerciales.
 
 ---
 
@@ -936,14 +915,13 @@ CATML
 │   ├── Local-first
 │   ├── Agent-native
 │   ├── Production-ready
-│   └── Open-core
+│   └── Open-source
 │
-└── Products
-    ├── CATML Community
-    └── CATML Platform
+└── Product
+    └── CATML
 ```
 
-Y esa última estructura es especialmente importante porque te permite mantener **una sola marca CATML**, en lugar de terminar con varios productos visualmente inconexos.
+La identidad CATML debe ser coherente en documentación, web y Workbench.
 
 ### Mi dirección final
 

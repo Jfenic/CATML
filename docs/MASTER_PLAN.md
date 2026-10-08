@@ -384,22 +384,7 @@ Caso de uso de expansión:
 
 ---
 
-## 18. Modelo de Ediciones: Community vs. Enterprise
-
-### CATML Community (Open Source / Apache-2.0)
-- 100% operativo en local.
-- CLI, Python SDK, Workbench visual, servidor MCP, ledger SQLite local, plugins tabulares y multimodales básicos.
-
-### CATML Enterprise (Fase de Demanda)
-- Despliegue en VPC privada u On-Premises corporativo.
-- Autenticación centralizada (SSO, RBAC).
-- Políticas corporativas globales y control de cuotas para equipos.
-- Workers distribuidos y colas sobre Kubernetes / GPUs dedicadas.
-- Registro centralizado de modelos y auditoría multi-usuario.
-
----
-
-## 19. Escalabilidad Desacoplada (Interfaces, no Infraestructura)
+## 18. Escalabilidad Desacoplada (Interfaces, no Infraestructura)
 
 El dominio define puertos puros independientes del sustrato de ejecución:
 - `WorkerBackendPort` (implementado hoy por `LocalWorker`, mañana por `K8sWorker`).
@@ -410,7 +395,7 @@ El núcleo hexagonal permanece inalterado ante cambios de infraestructura.
 
 ---
 
-## 20. Puertas de Decisión (Decision Gates)
+## 19. Puertas de Decisión (Decision Gates)
 
 Para evitar la sobreingeniería, el avance de fase exige evidencia verificable:
 
@@ -422,8 +407,6 @@ v0.9 ─────────────► Casos reales utilizan el core mu
 Vision Spike ─────► La arquitectura soporta cargas de deep learning sin deuda técnica
   │
 v1.0 (Agents) ────► Recuperación ante caídas probada de forma determinista
-  │
-Enterprise ───────► Empresas piloto solicitan formalmente despliegue multi-usuario
 ```
 
 ---

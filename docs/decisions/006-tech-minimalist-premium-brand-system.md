@@ -1,7 +1,7 @@
 # Decision: Tech Minimalista Premium Brand System (CATML Unified Identity)
 
 Estado: Aceptada. Fecha: 2026-10-02.  
-Alcance: Identidad visual, tipografía, paleta de colores y componentes para CATML Community y CATML Platform.  
+Alcance: Identidad visual, tipografía, paleta de colores y componentes del proyecto CATML.  
 Especificación técnica de referencia: [docs/design/tech-minimalist-brand-system.md](../design/tech-minimalist-brand-system.md).  
 Evolución de: [ADR 005: Neo-Industrial Visual ML Lab UI](005-neo-industrial-visual-ml-lab-ui.md).
 
@@ -9,14 +9,12 @@ Evolución de: [ADR 005: Neo-Industrial Visual ML Lab UI](005-neo-industrial-vis
 
 ## 1. Context
 
-CATML ha evolucionado de un prototipo de investigación y biblioteca local hacia un sistema **Open-Core** compuesto por:
-1. **CATML Community** (código abierto, Apache 2.0, motor de AutoML tabular local, CLI, Workbench y capacidades nativas de agentes MCP).
-2. **CATML Platform** (repositorio privado y producto comercial, orquestación distribuida, catálogo empresarial y soporte cloud).
+CATML ha evolucionado de un prototipo de investigación hacia un proyecto abierto (Apache 2.0) con motor AutoML local, CLI, Workbench e integración MCP.
 
 Para soportar este crecimiento y transmitir simultáneamente:
 - **Seriedad técnica y de ingeniería** frente a científicos de datos y MLOps,
 - **Capacidades agent-native de nueva generación** (interacción con LLMs mediante MCP),
-- **Confianza y solidez empresarial** para clientes que contraten la plataforma comercial,
+- **Confianza y solidez técnica** para usuarios y equipos que trabajan con datos privados,
 
 era indispensable unificar y elevar el sistema de diseño visual en toda la presencia del producto (Web, Workbench, Documentación, README de GitHub, CLI branding y presentaciones corporativas).
 
@@ -46,9 +44,9 @@ El diseño Neo-Industrial introducido en ADR 005 evoluciona de manera armoniosa:
 
 - **Positivas:**
   - Percepción inmediata de producto tecnológico maduro y de nivel enterprise.
-  - Coherencia visual total entre la versión Community y CATML Platform.
+  - Coherencia visual entre la web, el Workbench y la documentación.
   - Tokens CSS claros (`--catml-*`) directamente reutilizables en web, FastAPI endpoints y dashboards.
-  - Alineación de los cuatro mensajes clave de marca: *Local-First*, *Agent-Native*, *Production-Ready*, *Open-Core*.
+  - Alineación de los cuatro mensajes clave de marca: *Local-First*, *Agent-Native*, *Production-Ready*, *Open-Source*.
 - **Reglas de Implementación:**
   - Prohibido el uso de ilustraciones genéricas de IA (robots 3D, cerebros de neón flotantes, efectos de humo). Usar esquemas arquitectónicos limpios, código real y terminales de agentes.
   - El acento Electric Blue `#4F67FF` no debe emplearse en fondos de grandes bloques, sino en botones primarios, bordes de foco, estados de selección y progreso.
