@@ -86,6 +86,25 @@
     - En `AgentDrawer` (`agent.js`): renderizado dinámico con consulta asíncrona a `api.getAgentHypotheses()` y estado vacío explícito.
     - Suite de pruebas de consistencia en `tests/test_workbench_activity_consistency.py` (5 tests).
   - Validación completa: 651 tests pasando (100% verde), 87.32% de cobertura.
+- **PR E (PR #84): Hardening Complementario — Protección XSS, Segregación de Métricas en Workbench y Confinamiento Estricto de Descargas (`hardening/v0.8.2-workbench-xss-and-metrics-alignment`):**
+  - **Protección XSS y Sanitización Frontend (`src/automl/interfaces/web/static/js/utils.js`):**
+    - Creación de función `escapeHtml` para sanitización de HTML, strings dinámicos y atributos.
+    - Aplicación en `agent.js` (enunciados de hipótesis, acciones propuestas, decisiones y razones del crítico, IDs de hipótesis, dataset y task types).
+    - Aplicación en `overview.js` (feed de actividad, listado de datasets, filas del leaderboard y KPIs).
+    - Aplicación en `kaggle.js` (listado de experimentos de envíos y estados).
+  - **Alineación y Segregación de Métricas en `/api/overview` (`server.py`):**
+    - Erradicación de la comparación cruzada de métricas incomparables (`is_minimize` mezclado entre diferentes ejecuciones).
+    - Incorporación de `best_by_metric` en la respuesta JSON agrupando campeones por métrica sin mezclar escalas.
+    - Contextualización de `best_score`, `best_model` y nuevo campo `best_metric` asociados a la ejecución activa o más reciente.
+  - **Dirección de Mejora en Benchmarks (`src/automl/benchmarks/runner.py`):**
+    - Adaptación del cálculo de `delta_vs_baseline` para que tanto en métricas de ganancia (ROC-AUC) como de pérdida (RMSE, MAE), una mejora respecto a la línea base se exprese como ganancia positiva ($\Delta > 0$).
+  - **Confinamiento Estricto de Descargas en `/api/kaggle/download` (`server.py`):**
+    - Confinamiento exclusivo a `ws_root / "submissions"` (y `exports/`).
+    - Bloqueo preventivo de descargas arbitrarias de archivos ubicados en la raíz del workspace o con extensiones no tabulares/de archivo (`.csv`, `.tsv`, `.parquet`, `.pq`, `.zip`).
+  - **Suite de Pruebas Automatizadas:**
+    - `tests/test_workbench_xss_protection.py` (5 tests verificando sanitización de UI, segregación de métricas y cálculo de delta).
+    - Ampliación de `tests/test_workbench_file_confinement.py` (4 tests verificando rechazo de archivos en raíz del workspace).
+  - **Validación completa:** 656 tests pasando (100% verde), 87.33% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 

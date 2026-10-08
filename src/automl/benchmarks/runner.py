@@ -295,9 +295,18 @@ class BenchmarkRunner:
             )
 
         baseline = next((r for r in results if r["scenario_id"] == "baseline_all_features"), None)
-        if baseline and baseline["best_score"]:
+        if baseline and baseline["best_score"] is not None:
             for row in results:
-                row["delta_vs_baseline"] = round(row["best_score"] - baseline["best_score"], 4)
+                if row.get("best_score") is None:
+                    continue
+                # If metric is minimizing (lower is better, e.g. RMSE, loss, MAE),
+                # an improvement over baseline represents error reduction (baseline - score > 0).
+                # If metric is maximizing (higher is better, e.g. ROC-AUC, accuracy),
+                # an improvement represents score gain (score - baseline > 0).
+                if is_minimizing_metric(row.get("metric", "")):
+                    row["delta_vs_baseline"] = round(baseline["best_score"] - row["best_score"], 4)
+                else:
+                    row["delta_vs_baseline"] = round(row["best_score"] - baseline["best_score"], 4)
 
         return results
 

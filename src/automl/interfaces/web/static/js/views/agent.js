@@ -7,6 +7,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
+import { escapeHtml } from "../utils.js";
 
 export class AgentDrawer {
   constructor() {
@@ -44,7 +45,7 @@ export class AgentDrawer {
     const statusColor = activeRun ? "#22C55E" : "#8B95A7";
 
     const nextActionDesc = activeRun
-      ? `Evaluate candidate models and cross-validation performance on dataset <code class="font-mono text-[#4F67FF] bg-[#11151E] px-1 py-0.5 rounded">${dsName}</code>.`
+      ? `Evaluate candidate models and cross-validation performance on dataset <code class="font-mono text-[#4F67FF] bg-[#11151E] px-1 py-0.5 rounded">${escapeHtml(dsName)}</code>.`
       : `Register a dataset in the workspace to initiate autonomous exploration and model training.`;
 
     let hypothesesHtml = "";
@@ -66,9 +67,9 @@ export class AgentDrawer {
         const empiricalResults = (hyp.before_score !== null && hyp.before_score !== undefined)
           ? `
             <div class="bg-[#0D1017] p-2.5 rounded-lg border border-[#242A36] font-mono text-[11px] space-y-1">
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Benchmark:</span> <span class="text-[#F7F8FA]">${hyp.before_score}</span></div>
-              ${hyp.after_score !== null && hyp.after_score !== undefined ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Experiment:</span> <span class="${isPromoted ? 'text-[#22C55E]' : isRejected ? 'text-[#EF4444]' : 'text-[#F7F8FA]'} font-semibold">${hyp.after_score}</span></div>` : ''}
-              ${hyp.delta ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Delta:</span> <span class="${isPromoted ? 'text-[#22C55E]' : 'text-[#EF4444]'} font-bold">${hyp.delta}</span></div>` : ''}
+              <div class="flex justify-between"><span class="text-[#8B95A7]">Benchmark:</span> <span class="text-[#F7F8FA]">${escapeHtml(hyp.before_score)}</span></div>
+              ${hyp.after_score !== null && hyp.after_score !== undefined ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Experiment:</span> <span class="${isPromoted ? 'text-[#22C55E]' : isRejected ? 'text-[#EF4444]' : 'text-[#F7F8FA]'} font-semibold">${escapeHtml(hyp.after_score)}</span></div>` : ''}
+              ${hyp.delta ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Delta:</span> <span class="${isPromoted ? 'text-[#22C55E]' : 'text-[#EF4444]'} font-bold">${escapeHtml(hyp.delta)}</span></div>` : ''}
             </div>
           `
           : '';
@@ -76,11 +77,11 @@ export class AgentDrawer {
         const actionButtons = (!isPromoted && !isRejected)
           ? `
             <div class="flex items-center space-x-2 pt-2 border-t border-[#242A36]">
-              <button class="btn-hyp-action flex-1 bg-[#11151E] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg font-medium text-xs transition-colors flex items-center justify-center gap-1" data-hyp="${hyp.id}" data-action="reject">
+              <button class="btn-hyp-action flex-1 bg-[#11151E] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg font-medium text-xs transition-colors flex items-center justify-center gap-1" data-hyp="${escapeHtml(hyp.id)}" data-action="reject">
                 ${icon("x", "icon-sm")}
                 <span>Reject</span>
               </button>
-              <button class="btn-hyp-action flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors shadow-sm flex items-center justify-center gap-1" data-hyp="${hyp.id}" data-action="approve">
+              <button class="btn-hyp-action flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors shadow-sm flex items-center justify-center gap-1" data-hyp="${escapeHtml(hyp.id)}" data-action="approve">
                 ${icon("check", "icon-sm")}
                 <span>Approve Run</span>
               </button>
@@ -91,26 +92,26 @@ export class AgentDrawer {
         return `
           <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="font-mono font-semibold text-[#F7F8FA]">Hypothesis #${hyp.id ? String(hyp.id).slice(0, 8) : ''}</span>
+              <span class="font-mono font-semibold text-[#F7F8FA]">Hypothesis #${hyp.id ? escapeHtml(String(hyp.id).slice(0, 8)) : ''}</span>
               <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium flex items-center gap-1">
                 ${badgeIcon} <span>${badgeText}</span>
               </span>
             </div>
             <div class="space-y-1">
               <div class="text-[#8B95A7] text-[10px] uppercase font-mono">Statement</div>
-              <p class="text-[#F7F8FA] font-sans leading-relaxed">${hyp.statement || ''}</p>
+              <p class="text-[#F7F8FA] font-sans leading-relaxed">${escapeHtml(hyp.statement || '')}</p>
             </div>
             ${hyp.action ? `
               <div class="space-y-1">
                 <div class="text-[#8B95A7] text-[10px] uppercase font-mono">Proposed Action</div>
-                <p class="font-mono text-[#4F67FF] text-xs">${hyp.action}</p>
+                <p class="font-mono text-[#4F67FF] text-xs">${escapeHtml(hyp.action)}</p>
               </div>
             ` : ''}
             ${empiricalResults}
             ${hyp.critic_reason ? `
               <div class="p-2.5 rounded-lg bg-[#11151E] border border-[#242A36] space-y-1 text-[11px]">
-                <div class="font-medium text-[#F7F8FA]">Critic: ${hyp.critic_decision || 'Evaluated'}</div>
-                <div class="text-[#8B95A7] text-[10px] leading-relaxed">${hyp.critic_reason}</div>
+                <div class="font-medium text-[#F7F8FA]">Critic: ${escapeHtml(hyp.critic_decision || 'Evaluated')}</div>
+                <div class="text-[#8B95A7] text-[10px] leading-relaxed">${escapeHtml(hyp.critic_reason)}</div>
               </div>
             ` : ''}
             ${actionButtons}
@@ -139,9 +140,9 @@ export class AgentDrawer {
           <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-4 space-y-2.5">
             <div class="text-[10px] uppercase font-mono tracking-wider text-[#8B95A7] font-semibold">Active Context</div>
             <div class="space-y-1.5 font-mono text-xs">
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Dataset:</span> <span class="text-[#F7F8FA] font-semibold">${dsName}</span></div>
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Task:</span> <span class="text-[#F7F8FA]">${taskType}</span></div>
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Status:</span> <span class="font-semibold flex items-center gap-1.5" style="color: ${statusColor}"><span class="w-1.5 h-1.5 rounded-full" style="background-color: ${statusColor}"></span>${statusText}</span></div>
+              <div class="flex justify-between"><span class="text-[#8B95A7]">Dataset:</span> <span class="text-[#F7F8FA] font-semibold">${escapeHtml(dsName)}</span></div>
+              <div class="flex justify-between"><span class="text-[#8B95A7]">Task:</span> <span class="text-[#F7F8FA]">${escapeHtml(taskType)}</span></div>
+              <div class="flex justify-between"><span class="text-[#8B95A7]">Status:</span> <span class="font-semibold flex items-center gap-1.5" style="color: ${statusColor}"><span class="w-1.5 h-1.5 rounded-full" style="background-color: ${statusColor}"></span>${escapeHtml(statusText)}</span></div>
             </div>
           </div>
 
