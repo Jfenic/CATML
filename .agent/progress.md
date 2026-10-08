@@ -21,6 +21,13 @@
   - Salvaguardas en `JobService` (`src/automl/application/services/jobs.py`) para operaciones independientes de ejecuciones de AutoML.
   - Suite de pruebas unitarias y de integración en `tests/test_unsupervised_datasets_and_decoupled_jobs.py` (4 tests).
   - Validación completa: 627 tests pasando (100% verde), 87.38% de cobertura.
+- **PR 3 (PR #79): Hardening de Migraciones SQLite y Compatibilidad Retroactiva (`hardening/v0.8.2-sqlite-migrations-compatibility`):**
+  - Implementación de migración atómica determinista de la tabla `datasets` en `SQLiteExperimentRepository._migrate()` mediante reconstrucción transaccional cuando detecta `notnull == 1` en `target_column` o `task_type` de bases heredadas v0.8.0/v0.8.1.
+  - Implementación de migración determinista de la tabla `jobs` en `SQLiteJobRepository` relajando `run_id NOT NULL` con manejo estructurado.
+  - Erradicación de excepciones silenciadas (`except Exception: pass`) reemplazadas por logging estructurado y excepciones explícitas fail-closed (`RuntimeError`).
+  - Suite de pruebas dedicada con bases de datos heredadas y datos preexistentes en `tests/test_sqlite_legacy_migrations.py` (2 tests verificando 0 pérdida de datos y compatibilidad de inserción con `None`).
+  - Actualización del contador en `README.md` a 629 tests passing y clarificación de `statsmodels` en `docs/decisions/008-catml-explore-modular-monolith.md`.
+  - Validación completa: 629 tests pasando (100% verde), 87.37% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 

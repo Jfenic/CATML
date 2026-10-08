@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from automl.domain.datasets.profile import ColumnProfile, Dataset, DatasetProfile
 from automl.domain.experiments.trial import (
@@ -243,8 +246,39 @@ class SQLiteExperimentRepository:
                                     "UPDATE features SET semantic_type = 'identifier' WHERE dataset_id = ? AND name = ?",
                                     (d_id, col["name"]),
                                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Could not backfill semantic_type for existing features: %s", exc)
+
+        # Check datasets table for legacy NOT NULL constraints on target_column / task_type
+        dataset_info = conn.execute("PRAGMA table_info(datasets)").fetchall()
+        target_col = next((c for c in dataset_info if (c["name"] if hasattr(c, "keys") else c[1]) == "target_column"), None)
+        task_type_col = next((c for c in dataset_info if (c["name"] if hasattr(c, "keys") else c[1]) == "task_type"), None)
+
+        target_notnull = (target_col["notnull"] if hasattr(target_col, "keys") else target_col[3]) if target_col else 0
+        task_type_notnull = (task_type_col["notnull"] if hasattr(task_type_col, "keys") else task_type_col[3]) if task_type_col else 0
+
+        if target_notnull == 1 or task_type_notnull == 1:
+            logger.info("Migrating legacy datasets table: converting target_column and task_type to nullable columns")
+            try:
+                conn.executescript(
+                    """
+                    CREATE TABLE datasets_dg_tmp (
+                        id TEXT PRIMARY KEY,
+                        workspace_id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        path TEXT NOT NULL,
+                        target_column TEXT,
+                        task_type TEXT
+                    );
+                    INSERT INTO datasets_dg_tmp (id, workspace_id, name, path, target_column, task_type)
+                        SELECT id, workspace_id, name, path, target_column, task_type FROM datasets;
+                    DROP TABLE datasets;
+                    ALTER TABLE datasets_dg_tmp RENAME TO datasets;
+                    """
+                )
+            except Exception as exc:
+                logger.error("Failed to migrate datasets table schema: %s", exc)
+                raise RuntimeError(f"Failed to migrate datasets table schema: {exc}") from exc
 
     # --- datasets ---
 

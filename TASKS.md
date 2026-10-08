@@ -70,12 +70,18 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Reducir `bootstrap.py` a punto limpio de orquestación (de 342 a 53 líneas), manteniendo compatibilidad 100% de `build_application`.
     - [x] Añadir guard arquitectónico de composición independiente en `tests/test_cqrs_architecture_guard.py`.
     - [x] 623 tests pasando (100% verde), 87.37% de cobertura.
-  - [x] **PR 2 — Contratos y límites de módulos (Dataset sin target y Jobs desacoplados)**:
+  - [x] **PR 2 (PR #78) — Contratos y límites de módulos (Dataset sin target y Jobs desacoplados)**:
     - [x] Desacoplar `Dataset`, `DatasetProfile` y `dataset_profiler` permitiendo `target_column: str | None = None` y `task_type: str | None = None`.
     - [x] Desacoplar persistencia en `sqlite_repository.py` admitiendo `target_column TEXT NULL` y `task_type TEXT NULL`.
-    - [x] Desacoplar modelo `Job` y `sqlite_jobs.py` para permitir `run_id: str | None = None` con migración resiliente si existía `NOT NULL`.
+    - [x] Desacoplar modelo `Job` y `sqlite_jobs.py` para permitir `run_id: str | None = None`.
     - [x] `AutoMLWorkspace.register_dataset(target=None)` y planificación no supervisada por defecto (`TaskType.CLUSTERING`).
     - [x] Suite de tests dedicada en `tests/test_unsupervised_datasets_and_decoupled_jobs.py` (4 tests). 627 tests pasando (100% verde), 87.38% de cobertura.
+  - [x] **PR 3 (PR #79) — Hardening de Migraciones SQLite y Compatibilidad Retroactiva**:
+    - [x] Migración atómica determinista de la tabla `datasets` en `SQLiteExperimentRepository._migrate()` relajando restricciones `NOT NULL` sobre bases heredadas v0.8.0/v0.8.1.
+    - [x] Migración de la tabla `jobs` en `SQLiteJobRepository` relajando `run_id NOT NULL` sobre bases heredadas.
+    - [x] Erradicación de excepciones silenciadas (`except Exception: pass`) reemplazadas por logging estructurado y fallos explícitos fail-closed.
+    - [x] Suite de pruebas exhaustiva con esquemas legacy y datos preexistentes en `tests/test_sqlite_legacy_migrations.py` (2 tests).
+    - [x] 629 tests pasando (100% verde), 87.37% de cobertura.
 - [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
   - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
   - [ ] Soporte de estudios sin columna objetivo (`target=None`).
