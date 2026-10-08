@@ -37,6 +37,154 @@ from automl.application.queries.workspace_queries import (
 )
 
 
+def _build_real_activity_feed(
+    ws: Any,
+    qry: Any,
+    runs: list[Any],
+    all_trials: list[Any],
+    recent_datasets: list[dict],
+    workspace_dir: str,
+) -> list[dict]:
+    activity: list[dict] = []
+
+    # 1. Best CV leaderboard result
+    best_item = None
+    for r in runs:
+        lb = qry.dispatch(GetLeaderboardQuery(r.id))
+        if lb:
+            top = lb[0]
+            metric_name = str(top.get("metric", "")).lower()
+            is_min = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
+            score = float(top["score"])
+            if best_item is None:
+                best_item = (score, str(top["model_id"]), str(top.get("metric", "score")), is_min, str(r.id))
+            else:
+                prev_score, _, _, _, _ = best_item
+                if is_min and score < prev_score:
+                    best_item = (score, str(top["model_id"]), str(top.get("metric", "score")), is_min, str(r.id))
+                elif not is_min and score > prev_score:
+                    best_item = (score, str(top["model_id"]), str(top.get("metric", "score")), is_min, str(r.id))
+
+    if best_item:
+        score, model_id, metric, _, run_id = best_item
+        activity.append({
+            "type": "ACCEPT",
+            "title": f"Best CV Leaderboard: {model_id}",
+            "description": f"Model {model_id} achieved {score:.5f} ({metric}) on run {run_id[:8]}.",
+        })
+
+    # 2. Agent ledger events (promoted / rejected hypotheses)
+    ledger_file = Path(workspace_dir) / "agent_ledger.db"
+    if ledger_file.exists():
+        try:
+            from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+
+            ledger = SqliteAgentLedger(ledger_file)
+            for r in runs:
+                for h in ledger.list_hypotheses(r.id):
+                    h_status = h.status.value.lower() if hasattr(h.status, "value") else str(h.status).lower()
+                    h_id = getattr(h, "hypothesis_id", getattr(h, "id", "hyp"))
+                    if h_status == "accepted":
+                        activity.append({
+                            "type": "ACCEPT",
+                            "title": f"Agent Promoted: #{h_id[:8]}",
+                            "description": f"{h.reasoning} (Verified gain over baseline).",
+                        })
+                    elif h_status == "rejected":
+                        activity.append({
+                            "type": "REJECT",
+                            "title": f"Agent Rejected: #{h_id[:8]}",
+                            "description": f"{h.reasoning} (Rejected by empirical critic).",
+                        })
+                    elif h_status in ("proposed", "pending"):
+                        activity.append({
+                            "type": "PLAN",
+                            "title": f"Agent Proposed: #{h_id[:8]}",
+                            "description": h.reasoning,
+                        })
+        except Exception:
+            pass
+
+    # 3. Failed trials (empirical verification rejects)
+    for t in all_trials:
+        if not t.succeeded:
+            activity.append({
+                "type": "REJECT",
+                "title": f"Trial Rejected: {t.model_id}",
+                "description": f"Failed during execution: {t.failure_reason or 'Validation error'}.",
+            })
+
+    # 4. Anti-leakage guardian exclusions on datasets
+    for ds_info in recent_datasets:
+        profile = ws.get_dataset_profile(ds_info["id"])
+        if profile:
+            if profile.leakage_column_names:
+                leak_cols = ", ".join(sorted(profile.leakage_column_names))
+                activity.append({
+                    "type": "REJECT",
+                    "title": f"Anti-Leakage Guardian: {ds_info['name']}",
+                    "description": f"Automatically excluded contaminated columns ({leak_cols}) to protect generalization.",
+                })
+            if profile.identifier_column_names:
+                id_cols = ", ".join(sorted(profile.identifier_column_names))
+                activity.append({
+                    "type": "REJECT",
+                    "title": f"Pseudo-Identifier Filter: {ds_info['name']}",
+                    "description": f"Excluded non-predictive identifiers ({id_cols}).",
+                })
+
+    # 5. Background Jobs (if available)
+    if hasattr(ws, "job_service") and ws.job_service is not None:
+        try:
+            jobs = ws.job_service.list_jobs()
+            for j in jobs:
+                if j.status.value == "completed":
+                    activity.append({
+                        "type": "ACCEPT",
+                        "title": f"Job Completed: {j.job_type}",
+                        "description": f"Background job {j.id[:8]} finished successfully.",
+                    })
+                elif j.status.value == "failed":
+                    activity.append({
+                        "type": "REJECT",
+                        "title": f"Job Failed: {j.job_type}",
+                        "description": f"Job {j.id[:8]} failed: {j.error_message or 'Execution error'}.",
+                    })
+                elif j.status.value in ("running", "queued"):
+                    activity.append({
+                        "type": "PLAN",
+                        "title": f"Job {j.status.value.capitalize()}: {j.job_type}",
+                        "description": f"Job {j.id[:8]} progress: {j.progress_pct}%.",
+                    })
+        except Exception:
+            pass
+
+    # 6. Planned experiments
+    for r in runs:
+        exps = ws.list_experiments(r.id)
+        for e in exps:
+            models_str = ", ".join(e.model_ids) if hasattr(e, "model_ids") and e.model_ids else "models"
+            activity.append({
+                "type": "PLAN",
+                "title": f"Experiment Planned: {e.name}",
+                "description": f"Run {r.id[:8]} • models: {models_str} • priority: {e.priority}.",
+            })
+
+    # 7. Dataset registrations (if few other entries)
+    if len(activity) < 5:
+        for ds_info in recent_datasets:
+            profile = ws.get_dataset_profile(ds_info["id"])
+            rows_str = f"{profile.row_count} rows, {profile.column_count} features" if profile else "registered"
+            target_str = f"Target: {ds_info.get('target')}" if ds_info.get("target") else "Unsupervised"
+            activity.append({
+                "type": "INFO",
+                "title": f"Dataset Ingested: {ds_info['name']}",
+                "description": f"{rows_str}. {target_str}.",
+            })
+
+    return activity[:15]
+
+
 class AutoMLWebHandler(BaseHTTPRequestHandler):
     """
     HTTP request handler for the CATML interactive web dashboard / workbench.
@@ -177,7 +325,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         if path == "/api/overview":
             runs = ws.list_runs()
             all_trials = []
-            best_score = 0.0
+            best_score = None
             best_model = "-"
             recent_datasets = []
 
@@ -186,9 +334,23 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 for e in exps:
                     all_trials.extend(ws.list_trial_results(e.id))
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
-                if lb and lb[0]["score"] > best_score:
-                    best_score = lb[0]["score"]
-                    best_model = lb[0]["model_id"]
+                if lb:
+                    top = lb[0]
+                    score = float(top["score"])
+                    model_id = str(top["model_id"])
+                    metric_name = str(top.get("metric", "")).lower()
+                    is_minimize = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
+                    if best_score is None:
+                        best_score = score
+                        best_model = model_id
+                    else:
+                        if is_minimize and score < best_score:
+                            best_score = score
+                            best_model = model_id
+                        elif not is_minimize and score > best_score:
+                            best_score = score
+                            best_model = model_id
+
                 ds = ws.get_dataset(r.dataset_id)
                 if ds and ds.name not in [d["name"] for d in recent_datasets]:
                     profile = ws.get_dataset_profile(ds.id)
@@ -214,18 +376,17 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         "features": profile.column_count if profile else None,
                     })
 
-            # CATML activity feed (explanations, rule applications, validations)
-            activity_feed = [
-                {"type": "PLAN", "title": "Autonomous Planner", "description": f"Bayesian TPE optimization and model selection for {best_model if best_model != '-' else 'active dataset'}."},
-                {"type": "ACCEPT", "title": "Empirical Verification", "description": "Models and transformations verified by reproducible gain in cross-validation."},
-                {"type": "REJECT", "title": "Propose ≠ Accept Principle", "description": "Discarded candidate features with spurious residual correlation or collinearity."},
-            ]
-            if best_score > 0:
-                activity_feed.insert(0, {
-                    "type": "ACCEPT",
-                    "title": f"Best CV: {best_score:.5f}",
-                    "description": f"Model {best_model} leads cross-validation leaderboard.",
-                })
+            if best_score is None:
+                best_score = 0.0
+
+            activity_feed = _build_real_activity_feed(
+                ws=ws,
+                qry=qry,
+                runs=runs,
+                all_trials=all_trials,
+                recent_datasets=recent_datasets,
+                workspace_dir=self.workspace_dir,
+            )
 
             self._send_json({
                 "platform": "CATML AutoML Platform",
@@ -679,46 +840,59 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/agent/hypotheses":
+            run_id = query_params.get("run_id", [""])[0]
+            ledger_file = Path(self.workspace_dir) / "agent_ledger.db"
+            real_hypotheses = []
+            if ledger_file.exists():
+                try:
+                    from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+
+                    ledger = SqliteAgentLedger(ledger_file)
+                    target_runs = [run_id] if run_id else [r.id for r in ws.list_runs()]
+                    for r_id in target_runs:
+                        hyps = ledger.list_hypotheses(r_id)
+                        for h in hyps:
+                            h_status = h.status.value.lower() if hasattr(h.status, "value") else str(h.status).lower()
+                            h_id = getattr(h, "hypothesis_id", getattr(h, "id", "hyp"))
+                            critique_decision = "PENDING"
+                            if h_status == "accepted":
+                                critique_decision = "PROMOTE"
+                            elif h_status == "rejected":
+                                critique_decision = "REJECT"
+
+                            candidate_cfg = h.candidate_config if isinstance(h.candidate_config, dict) else {}
+                            crit_cfg = h.verification_criteria if isinstance(h.verification_criteria, dict) else {}
+
+                            before_score = h.baseline_metric
+                            after_score = (
+                                getattr(h, "verified_metric", None)
+                                or crit_cfg.get("verified_metric")
+                                or crit_cfg.get("after_score")
+                            )
+                            delta_str = None
+                            if before_score is not None and after_score is not None:
+                                delta_val = float(after_score) - float(before_score)
+                                delta_str = f"{delta_val:+.5f}"
+
+                            real_hypotheses.append({
+                                "id": h_id,
+                                "run_id": h.run_id,
+                                "statement": h.reasoning,
+                                "action": candidate_cfg.get("action", str(h.candidate_config)),
+                                "cost": crit_cfg.get("cost", "1 CV run"),
+                                "status": h_status.upper(),
+                                "before_score": before_score,
+                                "after_score": after_score,
+                                "delta": delta_str,
+                                "critic_decision": critique_decision,
+                                "critic_reason": getattr(h, "critique", ""),
+                            })
+                except Exception:
+                    pass
+
             self._send_json({
                 "principle": "Propose ≠ Accept",
-                "hypotheses": [
-                    {
-                        "id": "hyp_12",
-                        "statement": "Robust numerical scaling against extreme outliers.",
-                        "action": "Apply RobustScaler on high-kurtosis numerical features",
-                        "cost": "1 LightGBM 5-fold CV run",
-                        "status": "TESTED",
-                        "before_score": 0.94110,
-                        "after_score": 0.94132,
-                        "delta": "+0.00022",
-                        "critic_decision": "PROMOTE",
-                        "critic_reason": "Reproducible gain across folds with reduced residual variance.",
-                    },
-                    {
-                        "id": "hyp_13",
-                        "statement": "Exhaustive pairwise polynomial interactions without selection filtering.",
-                        "action": "Generate cross-products between numeric features",
-                        "cost": "1 LightGBM 5-fold CV run",
-                        "status": "TESTED",
-                        "before_score": 0.94110,
-                        "after_score": 0.94093,
-                        "delta": "-0.00017",
-                        "critic_decision": "REJECT",
-                        "critic_reason": "Collinear noise; degraded validation score. Rejected by Propose ≠ Accept rule.",
-                    },
-                    {
-                        "id": "hyp_14",
-                        "statement": "Smoothed m-estimate target encoding for categorical features.",
-                        "action": "Compute out-of-fold target encoding with m=10 regularization",
-                        "cost": "1 CatBoost 5-fold CV run",
-                        "status": "PROPOSED",
-                        "before_score": 0.94110,
-                        "after_score": None,
-                        "delta": None,
-                        "critic_decision": "PENDING",
-                        "critic_reason": "Awaiting approval in agent session.",
-                    },
-                ],
+                "hypotheses": real_hypotheses,
             })
             return
 

@@ -30,11 +30,27 @@ class BenchmarkScenario:
     executor: Callable[[AutoMLWorkspace, object, object, str, str], list[TrialResult]] | None = None
 
 
-def _best_result(results: list[TrialResult]) -> tuple[float, str | None]:
+def is_minimizing_metric(metric: str, ws: AutoMLWorkspace | None = None) -> bool:
+    """Returns True if the metric is minimizing (lower is better, e.g. loss/error metrics)."""
+    if ws is not None and hasattr(ws, "plugin_registry") and ws.plugin_registry is not None:
+        plugin = ws.plugin_registry.get_metric_plugin(metric)
+        if plugin is not None:
+            return not plugin.greater_is_better
+    return str(metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+
+
+def _best_result(
+    results: list[TrialResult],
+    metric: str = "roc_auc",
+    ws: AutoMLWorkspace | None = None,
+) -> tuple[float, str | None]:
     ok = [r for r in results if r.succeeded]
     if not ok:
         return 0.0, None
-    best = max(ok, key=lambda r: r.primary_score)
+    if is_minimizing_metric(metric, ws=ws):
+        best = min(ok, key=lambda r: r.primary_score)
+    else:
+        best = max(ok, key=lambda r: r.primary_score)
     return best.primary_score, best.model_id
 
 
@@ -240,7 +256,7 @@ class BenchmarkRunner:
             else:
                 trial_results = cmd.dispatch(RunExperimentCommand(run_id, experiment_id))
             elapsed = time.perf_counter() - started
-            best_score, best_model = _best_result(trial_results)
+            best_score, best_model = _best_result(trial_results, metric=scenario.metric, ws=ws)
 
             details = {
                 "description": scenario.description,
