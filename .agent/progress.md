@@ -12,6 +12,15 @@
   - Refactorización de `src/automl/application/bootstrap.py`: Reducido drásticamente de 342 a 53 líneas como orquestador limpio y desacoplado, manteniendo 100% retrocompatible la función `build_application`.
   - Guard arquitectónico automatizado en `tests/test_cqrs_architecture_guard.py` (`test_modular_registries_can_be_composed_independently`).
   - Validación completa: 623 tests pasando (100% verde), 87.37% de cobertura.
+- **PR 2: Desacoplamiento de Contratos para Datasets sin Target y Jobs sin Run ID (`hardening/v0.8.2-e0.5-pr2-contract-decoupling`):**
+  - Desacoplamiento de entidades `Dataset` y `DatasetProfile` (`src/automl/domain/datasets/profile.py`): campos opcionales `target_column: str | None = None` y `task_type: str | None = None`. Manejo seguro en propiedades computadas (`recommended_feature_names`, `leakage_column_names`).
+  - Flexibilización de `profile_dataset` (`src/automl/engine/profiling/dataset_profiler.py`): análisis descriptivo, cardinalidad, tipos semánticos y matrices de covarianza y colinealidad sin requerir variable objetivo supervisada.
+  - Persistencia de datasets en SQLite (`src/automl/infrastructure/database/sqlite_repository.py`): tabla `datasets` admite `target_column TEXT NULL` y `task_type TEXT NULL`.
+  - Ingestión de datasets en `AutoMLWorkspace.register_dataset()` con `target=None` y planificación de tareas por defecto (`TaskType.CLUSTERING`) vía `plan_from_dataframe` (`src/automl/engine/planning/task_planner.py`).
+  - Desacoplamiento de Jobs durables (`src/automl/domain/jobs/job.py`, `src/automl/infrastructure/database/sqlite_jobs.py`): `run_id: str | None = None` con migración resiliente en SQLite para bases existentes.
+  - Salvaguardas en `JobService` (`src/automl/application/services/jobs.py`) para operaciones independientes de ejecuciones de AutoML.
+  - Suite de pruebas unitarias y de integración en `tests/test_unsupervised_datasets_and_decoupled_jobs.py` (4 tests).
+  - Validación completa: 627 tests pasando (100% verde), 87.38% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 

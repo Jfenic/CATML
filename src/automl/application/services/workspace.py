@@ -271,7 +271,7 @@ class AutoMLWorkspace:
         self,
         name: str,
         path: str | Path | Any,
-        target: str,
+        target: str | None = None,
         task_type: str | None = None,
     ) -> Dataset:
         dataset_id = f"ds_{uuid.uuid4().hex[:8]}"
@@ -291,8 +291,10 @@ class AutoMLWorkspace:
             df = load_dataframe(resolved)
         if task_type:
             resolved_task = TaskType.parse(task_type)
-        else:
+        elif target is not None and target in df.columns:
             resolved_task = TaskType.parse(infer_task_type(df[target]))
+        else:
+            resolved_task = None
 
         dataset = Dataset(
             id=dataset_id,
@@ -300,19 +302,19 @@ class AutoMLWorkspace:
             name=name,
             path=resolved,
             target_column=target,
-            task_type=resolved_task.value,
+            task_type=resolved_task.value if resolved_task else None,
         )
         profile = profile_dataset(dataset)
         self._datasets[dataset_id] = dataset
         self.repository.save_dataset(dataset)
         self.repository.save_dataset_profile(profile)
 
-        problem = plan_from_dataframe(dataset, df, task_type=resolved_task if task_type else None)
+        problem = plan_from_dataframe(dataset, df, task_type=resolved_task)
         self.repository.save_problem_definition(problem)
 
         registry = FeatureRegistry()
         for column in profile.columns:
-            if column.name == target:
+            if target is not None and column.name == target:
                 continue
             feature = Feature(
                 id=f"feat_{column.name}",

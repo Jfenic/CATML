@@ -67,9 +67,9 @@ def plan_from_dataframe(
     df: pd.DataFrame,
     task_type: TaskType | None = None,
 ) -> ProblemDefinition:
-    if task_type == TaskType.CLUSTERING:
+    if task_type == TaskType.CLUSTERING or dataset.target_column is None:
         profile = _minimal_profile(dataset, df)
-        return plan_problem(dataset, profile, task_type=TaskType.CLUSTERING)
+        return plan_problem(dataset, profile, task_type=task_type or TaskType.CLUSTERING)
 
     if task_type is not None:
         profile = _minimal_profile(dataset, df)

@@ -26,10 +26,10 @@ class FeatureRegistry:
         feature = self._require(name)
         feature.prioritize(score)
 
-    def active_feature_names(self, target: str) -> list[str]:
+    def active_feature_names(self, target: str | None = None) -> list[str]:
         names: list[str] = []
         for feature in self._features.values():
-            if feature.name == target:
+            if target is not None and feature.name == target:
                 continue
             if feature.status == FeatureStatus.EXCLUDED:
                 continue

@@ -41,8 +41,8 @@ class SQLiteExperimentRepository:
                     workspace_id TEXT NOT NULL,
                     name TEXT NOT NULL,
                     path TEXT NOT NULL,
-                    target_column TEXT NOT NULL,
-                    task_type TEXT NOT NULL
+                    target_column TEXT,
+                    task_type TEXT
                 );
                 CREATE TABLE IF NOT EXISTS runs (
                     id TEXT PRIMARY KEY,

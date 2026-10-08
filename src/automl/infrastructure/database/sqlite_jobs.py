@@ -17,9 +17,22 @@ class SQLiteJobRepository:
         self.db_path = db_path
         with self._connect() as connection:
             connection.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, "
-                               "idempotency_key TEXT UNIQUE NOT NULL, run_id TEXT NOT NULL, "
+                               "idempotency_key TEXT UNIQUE NOT NULL, run_id TEXT, "
                                "status TEXT NOT NULL, data TEXT NOT NULL)")
             connection.execute("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)")
+            try:
+                cols = connection.execute("PRAGMA table_info(jobs)").fetchall()
+                run_id_col = next((c for c in cols if c["name"] == "run_id"), None)
+                if run_id_col and run_id_col["notnull"] == 1:
+                    connection.execute("CREATE TABLE jobs_dg_tmp (id TEXT PRIMARY KEY, "
+                                       "idempotency_key TEXT UNIQUE NOT NULL, run_id TEXT, "
+                                       "status TEXT NOT NULL, data TEXT NOT NULL)")
+                    connection.execute("INSERT INTO jobs_dg_tmp SELECT id, idempotency_key, run_id, status, data FROM jobs")
+                    connection.execute("DROP TABLE jobs")
+                    connection.execute("ALTER TABLE jobs_dg_tmp RENAME TO jobs")
+                    connection.execute("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status)")
+            except Exception:
+                pass
 
     @contextmanager
     def _connect(self):
@@ -57,8 +70,10 @@ class SQLiteJobRepository:
 
     def list(self, run_id: str | None = None) -> list[Job]:
         with self._connect() as connection:
-            rows = connection.execute("SELECT data FROM jobs WHERE (? IS NULL OR run_id=?) "
-                                      "ORDER BY rowid DESC", (run_id, run_id)).fetchall()
+            if run_id is None:
+                rows = connection.execute("SELECT data FROM jobs ORDER BY rowid DESC").fetchall()
+            else:
+                rows = connection.execute("SELECT data FROM jobs WHERE run_id=? ORDER BY rowid DESC", (run_id,)).fetchall()
         return [Job.from_dict(json.loads(row["data"])) for row in rows]
 
     def change(self, job_id: str, allowed: set[JobStatus], **changes) -> Job:
