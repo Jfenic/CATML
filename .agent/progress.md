@@ -1,5 +1,15 @@
 # Progress
 
+### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
+
+- **Formalización de CATML Explore como Módulo de Monolito Modular:**
+  - Registro de decisión arquitectónica en [`docs/decisions/008-catml-explore-modular-monolith.md`](docs/decisions/008-catml-explore-modular-monolith.md).
+  - Especificación funcional y de dominio en [`docs/features/catml-explore/spec.md`](docs/features/catml-explore/spec.md).
+  - Plan de implementación y roadmap por fases E0 a E6 en [`docs/features/catml-explore/plan.md`](docs/features/catml-explore/plan.md).
+  - Integración en [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) (Sección 21) y actualización del backlog operativo en [`TASKS.md`](TASKS.md).
+  - Definición del modelo de dominio: `DataSourceRef`, `StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `AnalysisHypothesis`, `EvidenceLink`.
+  - Establecimiento del principio *"La IA Interpreta, CATML Calcula"* para desacoplar el cálculo matemático determinista de la formulación de hipótesis por agentes en MCP/CLI.
+
 ### Documentación pública (2026-10-08)
 
 - Aplicado CATML_monetizacion_privada.patch en docs/private-commercial-strategy; retiradas referencias comerciales de documentación y landing.

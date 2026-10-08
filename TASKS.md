@@ -54,6 +54,45 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] **Validación y Cobertura**:
   - [x] 622 tests pasando (100% de la suite). Cobertura total del 87.37% (requisito >= 85%).
 
+## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
+
+> Plan de evolución arquitectónica como monolito modular con separación hexagonal y CQRS ([docs/features/catml-explore/plan.md](docs/features/catml-explore/plan.md), [ADR-008](docs/decisions/008-catml-explore-modular-monolith.md)).
+
+- [x] **Fase E0 — Estabilización del Núcleo (Core Stabilization)**:
+  - [x] Normalizar signo y orden de métricas de error (MAE, RMSE, MSE, Log Loss).
+  - [x] Excluir trials fallidos del leaderboard y selección de ganador.
+  - [x] Erradicar fallbacks silenciosos a `accuracy`/`r2`.
+  - [x] Hardening de presupuesto temporal cooperativo y autenticación remota HTTP/MCP.
+  - [x] 622 tests pasando (100% verde), 87.37% de cobertura.
+- [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
+  - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
+  - [ ] Soporte de estudios sin columna objetivo (`target=None`).
+  - [ ] Esquema de persistencia SQLite aditivo en `src/automl/infrastructure/database/sqlite_studies.py`.
+  - [ ] Servicio de aplicación `AnalysisStudyService` y operaciones CQRS (`CreateStudyCommand`, `GetStudyQuery`, etc.).
+  - [ ] Integración de análisis en segundo plano con `JobService`.
+  - [ ] CLI inicial `catml explore create/show` y herramienta MCP básica `analysis_create_study`.
+- [ ] **Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)** [Prioridad P0]:
+  - [ ] Motor numérico en `src/automl/engine/analysis/` (encapsulando `scipy` y `statsmodels` bajo el extra `catml[explore]`).
+  - [ ] Diagnóstico de calidad: distribuciones, asimetría, curtosis y detección multivariante de anomalías (Isolation Forest/Mahalanobis).
+  - [ ] Matrices de correlación (Pearson, Spearman) con p-valores corregidos.
+  - [ ] Asociaciones categóricas e información mutua estandarizada continua/discreta.
+  - [ ] Pruebas de hipótesis automáticas (t-test, Mann-Whitney, ANOVA, Levene) con cálculo obligatorio de tamaños del efecto e intervalos de confianza.
+  - [ ] Corrección por comparaciones múltiples (FDR Benjamini-Hochberg).
+- [ ] **Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)** [Prioridad P1]:
+  - [ ] Generador backend de `VisualizationSpec` declarativo con agregaciones y decodificación sin saturar el cliente.
+  - [ ] Vista Tech Minimalista en `src/automl/interfaces/web/static/js/views/explore.js` (tipografía Geist, 1px border, alta densidad informativa).
+  - [ ] Galería de hallazgos estadísticos con filtros dinámicos y matrices interactivas de calor.
+- [ ] **Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)** [Prioridad P0]:
+  - [ ] Tools MCP: `analysis_create_study`, `analysis_get_findings`, `analysis_get_visualizations`, `analysis_propose_experiment`.
+  - [ ] Paginación y control de presupuesto de tokens en llamadas MCP para agentes (Codex, Claude Code).
+  - [ ] CLI completa `catml explore list/run/findings/export`.
+- [ ] **Fase E5 — Agente Científico y Conexión con AutoML (Hypothesis Engine)** [Prioridad P1]:
+  - [ ] Mapeo determinista de hallazgos estadísticos a hipótesis de transformación ML.
+  - [ ] Entidad `EvidenceLink` vinculando hipótesis con experimentos AutoML.
+  - [ ] Protocolo "Propose ≠ Accept": validación empírica en el mismo split antes de promover transformaciones o feature sets.
+- [ ] **Fase E6 — Benchmarks Integrales y Preparación de Producto** [Prioridad P1]:
+  - [ ] Batería de 4 ejes: exactitud estadística (NIST/sintéticos), calidad AutoML, seguridad/MCP y suites de regresión.
+
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
 - [x] **Cumplimiento Real y Operacional de `time_budget`**:

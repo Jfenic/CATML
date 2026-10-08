@@ -411,6 +411,19 @@ v1.0 (Agents) ────► Recuperación ante caídas probada de forma determ
 
 ---
 
+## 21. CATML Explore: Análisis Científico y Descubrimiento Estadístico Guiado
+
+Como evolución arquitectónica de CATML ([ADR-008](decisions/008-catml-explore-modular-monolith.md) y [especificación de feature](features/catml-explore/spec.md)), la plataforma incorpora el contexto **CATML Explore**:
+
+* **Propósito:** Análisis científico de datos, diagnóstico de calidad, asociaciones no lineales y pruebas de hipótesis deterministas previas al modelado.
+* **Principio "La IA Interpreta, CATML Calcula":** Los algoritmos estadísticos producen hechos numéricos verificables (`StatisticalFinding`). Los agentes (Codex, Claude Code) consumen evidencia estructurada en lugar de alucinar patrones.
+* **Integración sin target obligatorio:** Permite analizar datasets sin columna objetivo supervisada antes de plantear problemas de ML.
+* **Cierre del ciclo con AutoML:** Hallazgo $\rightarrow$ Hipótesis $\rightarrow$ Experimento en AutoML $\rightarrow$ Verificación ("Propose ≠ Accept").
+
+Ver plan detallado de fases en [`docs/features/catml-explore/plan.md`](features/catml-explore/plan.md).
+
+---
+
 ## North Star
 
 > **CATML es la capa controlada donde humanos y agentes ejecutan Machine Learning sobre datos privados, utilizando los mejores backends disponibles sin perder gobernanza.**
