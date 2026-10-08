@@ -69,6 +69,23 @@
   - Limpieza de tablas temporales (`_dg_tmp_datasets`, `_dg_tmp_jobs`) en caso de rollback, asegurando que la base de datos retenga su esquema íntegro original y cero artefactos residuales o bloqueos.
   - Suite de pruebas dedicada para verificar rollback atómico ante fallos forzados de migración en `tests/test_sqlite_legacy_migrations.py` (`test_datasets_migration_failure_rolls_back_atomically`, `test_jobs_migration_failure_rolls_back_atomically`).
   - Validación completa: 641 tests pasando (100% verde), 87.41% de cobertura.
+- **PR D (PR #83): Consistencia del Producto — Dirección de Métricas, Benchmarks y Actividad Real del Workbench (`hardening/v0.8.2-product-consistency`):**
+  - **Dirección de Métricas en Benchmarks (`src/automl/benchmarks/runner.py`):**
+    - Adición de `is_minimizing_metric(metric, ws=None)` reconociendo de forma unificada métricas de pérdida (`mae`, `rmse`, `mse`, `loss`, `log_loss`) y plugins con `greater_is_better = False`.
+    - Actualización de `_best_result()` y `run_all()` para seleccionar el modelo con puntaje mínimo en métricas minimizantes (`min`) y máximo en maximizantes (`max`), evitando la selección invertida del peor modelo en benchmarks de regresión.
+    - Suite de pruebas dedicada en `tests/test_benchmark_metric_direction.py` (5 tests).
+  - **Actividad Real del Workbench y Eliminación de Mock Data (`src/automl/interfaces/web/server.py`, `src/automl/interfaces/web/static/js/views/agent.js`):**
+    - Extracción de `_build_real_activity_feed()` en `server.py` que compone eventos estrictamente desde el estado real del workspace:
+      - Ganadores legítimos de leaderboard con dirección de métrica respetada (`ACCEPT`).
+      - Exclusiones preventivas de leakage e identificadores por el Anti-Leakage Guardian (`REJECT`).
+      - Ensayos fallidos con su causa real de error (`REJECT`).
+      - Experimentos y jobs planificados o completados (`PLAN` / `ACCEPT`).
+      - Hipótesis promovidas, rechazadas o propuestas extraídas dinámicamente de `agent_ledger.db`.
+      - Workspace vacío retorna `activity_feed: []`, activando limpiamente el estado vacío nativo de la UI.
+    - En `/api/agent/hypotheses`: eliminación de hipótesis mockeadas (`hyp_12`, `hyp_13`, `hyp_14`) y sustitución por consulta dinámica a `SqliteAgentLedger`.
+    - En `AgentDrawer` (`agent.js`): renderizado dinámico con consulta asíncrona a `api.getAgentHypotheses()` y estado vacío explícito.
+    - Suite de pruebas de consistencia en `tests/test_workbench_activity_consistency.py` (5 tests).
+  - Validación completa: 651 tests pasando (100% verde), 87.32% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 
