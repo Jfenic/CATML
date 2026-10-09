@@ -88,7 +88,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Erradicación de excepciones silenciadas (`except Exception: pass`) reemplazadas por logging estructurado y fallos explícitos fail-closed.
     - [x] Suite de pruebas exhaustiva con esquemas legacy y datos preexistentes en `tests/test_sqlite_legacy_migrations.py` (2 tests).
     - [x] 629 tests pasando (100% verde), 87.37% de cobertura.
-- [ ] **Hardening de Seguridad y Robustez de Entrenamiento (Auditoría Técnica Oct 2026)**:
+- [x] **Hardening de Seguridad y Robustez de Entrenamiento (Auditoría Técnica Oct 2026)**:
   - [x] **PR A (PR #80) — Blindaje Anti-Leakage Centralizado y Fail-Closed**:
     - [x] Centralizar política de selección de variables en `DatasetProfile.resolve_safe_feature_names()`.
     - [x] Parar con `ValueError` fail-closed en `AutoML.fit()` (`facade.py`) cuando todas las variables son descartadas por leakage o identifiers.
@@ -119,7 +119,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Confinamiento estricto de `/api/kaggle/download`: restricción exclusiva al subdirectorio `submissions/` o artefactos de exportación autorizados (`exports/`), bloqueando rutas relativas a la raíz del workspace o extensiones no pertinentes.
     - [x] Suite de tests dedicada en `tests/test_workbench_xss_protection.py` (5 tests) y ampliación de `tests/test_workbench_file_confinement.py` (4 tests).
     - [x] 656 tests pasando (100% verde), 87.33% de cobertura.
-  - [x] **PR G — Flexibilidad Anti-Leakage en Planificación e Integridad de Métricas en Workbench**:
+  - [x] **PR G (PR #86) — Flexibilidad Anti-Leakage en Planificación e Integridad de Métricas en Workbench**:
     - [x] Soporte para `strict=False` en `DatasetProfile.resolve_safe_feature_names()` y uso en `RuleBasedExperimentPlanner.propose()` para tolerar datasets con columnas mixtas de leakage y predictoras.
     - [x] Segregación de métricas por dataset en `/api/overview` (`best_by_dataset`), soporte para scores `0.0` en hipótesis y valores iniciales limpios.
     - [x] Suites de pruebas en `tests/test_anti_leakage_guardian.py` y `tests/test_workbench_activity_consistency.py`.
