@@ -6,6 +6,7 @@ import { store } from "./store.js";
 import { bus } from "./bus.js";
 import { api } from "./api.js";
 import { JobsPanel } from "./views/jobs.js";
+import { isRunActive } from "./utils.js";
 
 import { OverviewView } from "./views/overview.js";
 import { StudioView } from "./views/studio.js";
@@ -104,7 +105,7 @@ class App {
         }
       }
 
-      const isAnyRunning = (runs || []).some(r => r.status === "RUNNING");
+      const isAnyRunning = Boolean(overview && overview.is_active) || (runs || []).some(r => isRunActive(r));
       const statusBadge = document.getElementById("globalStatusBadge");
       const sysHw = document.getElementById("sysHardwareHeader");
       if (sysHw) {

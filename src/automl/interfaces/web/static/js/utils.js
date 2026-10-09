@@ -18,3 +18,29 @@ export function escapeHtml(val) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+export const ACTIVE_RUN_STATUSES = new Set([
+  "CREATED",
+  "PROFILING",
+  "PLANNING",
+  "EXPERIMENTING",
+  "OPTIMIZING",
+  "FINALIZING",
+  "RUNNING",
+]);
+
+/**
+ * Checks if a run is actively running or queued.
+ * @param {object|string} run - The run object or status string.
+ * @returns {boolean} True if the run status is active.
+ */
+export function isRunActive(run) {
+  if (!run) return false;
+  if (typeof run === "object" && typeof run.is_active === "boolean") {
+    return run.is_active;
+  }
+  const status = typeof run === "string" ? run : run.status;
+  if (!status) return false;
+  return ACTIVE_RUN_STATUSES.has(String(status).toUpperCase());
+}
+

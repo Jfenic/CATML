@@ -6,6 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
+import { isRunActive } from "../utils.js";
 
 export class NewExperimentModal {
   constructor() {
@@ -23,7 +24,7 @@ export class NewExperimentModal {
   render() {
     const state = store.getState();
     const runs = state.runs || [];
-    const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || null;
+    const activeRun = runs.find(r => isRunActive(r)) || runs[0] || null;
     const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
     const customFeatures = state.customFeatures || null;
 
@@ -228,7 +229,7 @@ export class NewExperimentModal {
 
       try {
         const state = store.getState();
-        const activeRun = state.runs.find(r => r.status === "RUNNING") || state.runs[0] || null;
+        const activeRun = state.runs.find(r => isRunActive(r)) || state.runs[0] || null;
         if (!activeRun) {
           alert("No active AutoML run found. Please create a run or register a dataset first.");
           return;

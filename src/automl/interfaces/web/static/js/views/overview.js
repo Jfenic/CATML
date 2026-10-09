@@ -9,6 +9,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../utils.js";
+import { isRunActive } from "../utils.js";
 
 export class OverviewView {
   constructor() {
@@ -33,10 +34,10 @@ export class OverviewView {
     };
 
     const runs = state.runs || [];
-    const activeRun = runs.find(r => r.status === "RUNNING") || runs[0] || null;
-    const isRunning = activeRun && activeRun.status === "RUNNING";
+    const activeRun = runs.find(r => isRunActive(r)) || runs[0] || null;
+    const isRunning = isRunActive(activeRun);
 
-    const bestScoreText = overview.best_score != null && overview.best_score > 0
+    const bestScoreText = overview.best_score != null
       ? Number(overview.best_score).toFixed(4)
       : (activeRun && activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—");
 

@@ -16,6 +16,32 @@ class RunStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
+ACTIVE_RUN_STATUSES: set[RunStatus] = {
+    RunStatus.CREATED,
+    RunStatus.PROFILING,
+    RunStatus.PLANNING,
+    RunStatus.EXPERIMENTING,
+    RunStatus.OPTIMIZING,
+    RunStatus.FINALIZING,
+}
+
+
+def is_active_run_status(status: RunStatus | str | None) -> bool:
+    """Returns True if the run status indicates active or queued execution."""
+    if status is None:
+        return False
+    val = status.value if hasattr(status, "value") else str(status)
+    return val in {
+        "CREATED",
+        "PROFILING",
+        "PLANNING",
+        "EXPERIMENTING",
+        "OPTIMIZING",
+        "FINALIZING",
+        "RUNNING",
+    }
+
+
 class RunPhase(str, Enum):
     DATASET_REGISTRATION = "DATASET_REGISTRATION"
     DATASET_PROFILING = "DATASET_PROFILING"

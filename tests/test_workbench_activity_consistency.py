@@ -203,3 +203,166 @@ def test_agent_hypotheses_dynamic_resolution_from_ledger(tmp_path: Path):
     assert ret["statement"] == "Log transform high skewness target"
     assert ret["critic_decision"] == "PROMOTE"
     assert ret["delta"] == "-0.25000"
+
+
+def test_workbench_selects_active_experimenting_run_over_completed_run(tmp_path: Path):
+    from automl.domain.runs.states import RunPhase, RunStatus
+
+    ws_dir = tmp_path / "active_run_ws"
+    ws, _, _ = build_application(root_dir=str(ws_dir))
+
+    csv_file = ws_dir / "data.csv"
+    csv_file.write_text("x,y\n1,0\n2,1\n3,0\n4,1\n", encoding="utf-8")
+
+    ds = ws.register_dataset(name="benchmark_ds", path=str(csv_file), target="y")
+
+    # Run 1: Completed earlier
+    run1 = ws.create_run(dataset=ds, metric="accuracy")
+    exp1 = ws.create_experiment(run=run1, name="exp_old", model_ids=["logistic_regression"])
+    t1 = TrialResult(
+        trial_id="t_done",
+        experiment_id=exp1.id,
+        model_id="logistic_regression",
+        primary_metric="accuracy",
+        primary_score=0.91,
+    )
+    ws.repository.save_trial_result(t1)
+    run1.transition_to(RunStatus.COMPLETED)
+    ws.save_run(run1)
+
+    # Run 2: Currently active (e.g. EXPERIMENTING)
+    run2 = ws.create_run(dataset=ds, metric="roc_auc")
+    exp2 = ws.create_experiment(run=run2, name="exp_active", model_ids=["lightgbm"])
+    t2 = TrialResult(
+        trial_id="t_active",
+        experiment_id=exp2.id,
+        model_id="lightgbm",
+        primary_metric="roc_auc",
+        primary_score=0.88,
+    )
+    ws.repository.save_trial_result(t2)
+    run2.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
+    ws.save_run(run2)
+
+    # Test /api/overview
+    handler, wfile = _create_handler(ws_dir, "/api/overview")
+    handler.do_GET()
+    status, data = _parse_response_json(wfile)
+
+    assert status == 200
+    assert data["is_active"] is True
+    # The active run (Run 2: lightgbm / roc_auc / 0.88) takes precedence over the completed one
+    assert data["best_model"] == "lightgbm"
+    assert data["best_score"] == 0.88
+    assert data["best_metric"] == "roc_auc"
+
+    # Test /api/runs
+    handler_runs, wfile_runs = _create_handler(ws_dir, "/api/runs")
+    handler_runs.do_GET()
+    status_runs, runs_data = _parse_response_json(wfile_runs)
+
+    assert status_runs == 200
+    assert len(runs_data) == 2
+    run1_dict = next(r for r in runs_data if r["id"] == run1.id)
+    run2_dict = next(r for r in runs_data if r["id"] == run2.id)
+    assert run1_dict["is_active"] is False
+    assert run1_dict["status"] == "COMPLETED"
+    assert run2_dict["is_active"] is True
+    assert run2_dict["status"] == "EXPERIMENTING"
+
+
+def test_activity_feed_multi_run_segregated_without_comparing_incompatible_metrics(tmp_path: Path):
+    ws_dir = tmp_path / "multi_feed_ws"
+    ws, _, _ = build_application(root_dir=str(ws_dir))
+
+    csv_file = ws_dir / "data.csv"
+    csv_file.write_text("x,y\n1,0\n2,1\n3,0\n4,1\n", encoding="utf-8")
+
+    ds1 = ws.register_dataset(name="ds_loss", path=str(csv_file), target="y", task_type="regression")
+    run1 = ws.create_run(dataset=ds1, metric="rmse")
+    exp1 = ws.create_experiment(run=run1, name="exp_rmse", model_ids=["ridge"])
+    t1 = TrialResult(
+        trial_id="t_rmse",
+        experiment_id=exp1.id,
+        model_id="ridge",
+        primary_metric="rmse",
+        primary_score=0.42,
+    )
+    ws.repository.save_trial_result(t1)
+
+    ds2 = ws.register_dataset(name="ds_auc", path=str(csv_file), target="y", task_type="binary_classification")
+    run2 = ws.create_run(dataset=ds2, metric="roc_auc")
+    exp2 = ws.create_experiment(run=run2, name="exp_auc", model_ids=["xgboost"])
+    t2 = TrialResult(
+        trial_id="t_auc",
+        experiment_id=exp2.id,
+        model_id="xgboost",
+        primary_metric="roc_auc",
+        primary_score=0.88,
+    )
+    ws.repository.save_trial_result(t2)
+
+    handler, wfile = _create_handler(ws_dir, "/api/overview")
+    handler.do_GET()
+    status, data = _parse_response_json(wfile)
+
+    assert status == 200
+    feed = data["activity_feed"]
+    lb_events = [e for e in feed if e["type"] == "ACCEPT" and "Best CV Leaderboard" in e["title"]]
+    # Must have 2 distinct leaderboard events (one per run), not 1 mixed event
+    assert len(lb_events) == 2
+
+    ridge_event = next(e for e in lb_events if "ridge" in e["title"])
+    assert "0.42" in ridge_event["description"]
+    assert "rmse" in ridge_event["description"]
+    assert "ds_loss" in ridge_event["description"]
+
+    xgb_event = next(e for e in lb_events if "xgboost" in e["title"])
+    assert "0.88" in xgb_event["description"]
+    assert "roc_auc" in xgb_event["description"]
+    assert "ds_auc" in xgb_event["description"]
+
+
+def test_domain_is_active_run_status_and_run_property():
+    from automl.domain.runs.states import RunStatus, is_active_run_status
+    from automl.domain.runs.run import AutoMLRun, RunConfig
+
+    assert is_active_run_status(RunStatus.CREATED) is True
+    assert is_active_run_status(RunStatus.PROFILING) is True
+    assert is_active_run_status(RunStatus.PLANNING) is True
+    assert is_active_run_status(RunStatus.EXPERIMENTING) is True
+    assert is_active_run_status(RunStatus.OPTIMIZING) is True
+    assert is_active_run_status(RunStatus.FINALIZING) is True
+    assert is_active_run_status("RUNNING") is True
+
+    assert is_active_run_status(RunStatus.COMPLETED) is False
+    assert is_active_run_status(RunStatus.PAUSED) is False
+    assert is_active_run_status(RunStatus.FAILED) is False
+    assert is_active_run_status(RunStatus.CANCELLED) is False
+    assert is_active_run_status(None) is False
+
+    cfg = RunConfig(target="y", task_type="binary_classification")
+    run_active = AutoMLRun(id="run_act", workspace_id="ws_1", dataset_id="ds_1", config=cfg, status=RunStatus.OPTIMIZING)
+    assert run_active.is_active is True
+
+    run_done = AutoMLRun(id="run_fin", workspace_id="ws_1", dataset_id="ds_1", config=cfg, status=RunStatus.COMPLETED)
+    assert run_done.is_active is False
+
+
+def test_workbench_frontend_active_status_and_agent_error_alert():
+    utils_path = Path("src/automl/interfaces/web/static/js/utils.js")
+    assert utils_path.exists()
+    content = utils_path.read_text(encoding="utf-8")
+    assert "export const ACTIVE_RUN_STATUSES" in content
+    assert "export function isRunActive" in content
+
+    agent_path = Path("src/automl/interfaces/web/static/js/views/agent.js")
+    agent_content = agent_path.read_text(encoding="utf-8")
+    assert 'alert("Agent action failed: "' in agent_content
+    assert 'alert("Agent action scheduled: "' not in agent_content
+
+    overview_path = Path("src/automl/interfaces/web/static/js/views/overview.js")
+    overview_content = overview_path.read_text(encoding="utf-8")
+    assert "isRunActive" in overview_content
+    assert "overview.best_score != null" in overview_content
+

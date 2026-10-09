@@ -91,3 +91,9 @@ class AutoMLRun:
         self.status = status
         if phase is not None:
             self.current_phase = phase
+
+    @property
+    def is_active(self) -> bool:
+        from automl.domain.runs.states import is_active_run_status
+
+        return is_active_run_status(self.status)
