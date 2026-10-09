@@ -6,6 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
+import { isRunActive } from "../utils.js";
 
 export class StudioView {
   constructor() {
@@ -42,7 +43,7 @@ export class StudioView {
       const state = store.getState();
       const runs = state.runs || [];
       this.activeRun = runs.find(r => r.id === state.activeRunId)
-        || runs.find(r => r.status === "RUNNING")
+        || runs.find(r => isRunActive(r))
         || runs[0]
         || null;
 
@@ -83,7 +84,7 @@ export class StudioView {
       return;
     }
 
-    const isRunning = activeRun.status === "RUNNING";
+    const isRunning = isRunActive(activeRun);
     const isPaused = activeRun.status === "PAUSED";
     const bestScoreText = activeRun.best_score != null
       ? Number(activeRun.best_score).toFixed(5)

@@ -105,6 +105,22 @@
     - `tests/test_workbench_xss_protection.py` (5 tests verificando sanitización de UI, segregación de métricas y cálculo de delta).
     - Ampliación de `tests/test_workbench_file_confinement.py` (4 tests verificando rechazo de archivos en raíz del workspace).
   - **Validación completa:** 656 tests pasando (100% verde), 87.33% de cobertura.
+- **PR F (PR #85): Alineación de Estado Activo y Feed de Actividad en Workbench (`hardening/v0.8.2-workbench-active-state-and-feed-alignment`):**
+  - **Resolución de Estados Activos en Dominio y API (`src/automl/domain/runs/states.py`, `src/automl/domain/runs/run.py`, `src/automl/interfaces/web/server.py`):**
+    - Definición del conjunto canónico `ACTIVE_RUN_STATUSES` (`CREATED`, `PROFILING`, `PLANNING`, `EXPERIMENTING`, `OPTIMIZING`, `FINALIZING`) y función `is_active_run_status()`.
+    - Adición de `@property def is_active(self) -> bool` en `AutoMLRun`.
+    - Exposición del flag `is_active` en las respuestas JSON de `/api/runs` y `/api/overview`.
+    - Selección prioritaria de ejecuciones activas sobre ejecuciones completadas para la vista principal del Workbench.
+  - **Segregación del Feed de Actividad (`server.py`):**
+    - Erradicación de la comparación escalar cruzada entre métricas incompatibles (`score < prev_score`) en `_build_real_activity_feed()`.
+    - Emisión contextualizada de eventos de leaderboard por ejecución con indicación explícita de métrica, dataset e ID de run.
+  - **Consistencia Frontend & Tech Minimalista (`utils.js`, `overview.js`, `app.js`, `agent.js`, `studio.js`, `new_experiment.js`, `compare.js`, `kaggle.js`, `knowledge.js`, `pipeline.js`):**
+    - Función exportada `isRunActive()` en `utils.js` consumida en todas las vistas del Workbench y en el polling global (`app.js`).
+    - Soporte en `overview.js` para scores iguales a `0.0` y métricas con valores negativos ($R^2 < 0$) mediante `overview.best_score != null`.
+    - Corrección del mensaje en el bloque de captura de error al programar el plan del agente en `agent.js` (`"Agent action failed: "`).
+  - **Suite de Pruebas Automatizadas:**
+    - Nuevos tests en `tests/test_workbench_activity_consistency.py` (`test_workbench_selects_active_experimenting_run_over_completed_run`, `test_activity_feed_multi_run_segregated_without_comparing_incompatible_metrics`, `test_domain_is_active_run_status_and_run_property`, `test_workbench_frontend_active_status_and_agent_error_alert`).
+  - **Validación completa:** 660 tests pasando (100% verde), 87.31% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 

@@ -6,6 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
+import { isRunActive } from "../utils.js";
 
 export class KnowledgeView {
   constructor() {
@@ -35,7 +36,7 @@ export class KnowledgeView {
       const state = store.getState();
       const runs = state.runs || [];
       this.activeRun = runs.find(r => r.id === state.activeRunId)
-        || runs.find(r => r.status === "RUNNING")
+        || runs.find(r => isRunActive(r))
         || runs[0]
         || null;
 

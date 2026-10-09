@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from automl import __version__
+from automl.domain.runs.states import is_active_run_status
 from automl.application.bootstrap import build_application
 from automl.application.commands.job_commands import SubmitJobCommand, ControlJobCommand
 from automl.application.queries.job_queries import GetJobQuery, ListJobsQuery
@@ -47,31 +48,34 @@ def _build_real_activity_feed(
 ) -> list[dict]:
     activity: list[dict] = []
 
-    # 1. Best CV leaderboard result
-    best_item = None
+    # 1. Best CV leaderboard result per run
     for r in runs:
         lb = qry.dispatch(GetLeaderboardQuery(r.id))
         if lb:
             top = lb[0]
-            metric_name = str(top.get("metric", "")).lower()
-            is_min = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
             score = float(top["score"])
-            if best_item is None:
-                best_item = (score, str(top["model_id"]), str(top.get("metric", "score")), is_min, str(r.id))
-            else:
-                prev_score, _, _, _, _ = best_item
-                if is_min and score < prev_score:
-                    best_item = (score, str(top["model_id"]), str(top.get("metric", "score")), is_min, str(r.id))
-                elif not is_min and score > prev_score:
-                    best_item = (score, str(top["model_id"]), str(top.get("metric", "score")), is_min, str(r.id))
-
-    if best_item:
-        score, model_id, metric, _, run_id = best_item
-        activity.append({
-            "type": "ACCEPT",
-            "title": f"Best CV Leaderboard: {model_id}",
-            "description": f"Model {model_id} achieved {score:.5f} ({metric}) on run {run_id[:8]}.",
-        })
+            model_id = str(top["model_id"])
+            metric = str(top.get("metric") or getattr(r.config, "metric", "score") or "score")
+            run_id = str(r.id)
+            ds_name = None
+            if hasattr(ws, "get_dataset") and getattr(r, "dataset_id", None):
+                try:
+                    ds_obj = ws.get_dataset(r.dataset_id)
+                    if ds_obj and hasattr(ds_obj, "name"):
+                        ds_name = ds_obj.name
+                except Exception:
+                    pass
+            if not ds_name:
+                for d in recent_datasets:
+                    if d.get("id") == getattr(r, "dataset_id", None):
+                        ds_name = d.get("name")
+                        break
+            ds_desc = f" on dataset {ds_name}" if ds_name else ""
+            activity.append({
+                "type": "ACCEPT",
+                "title": f"Best CV Leaderboard: {model_id}",
+                "description": f"Model {model_id} achieved {score:.5f} ({metric}){ds_desc} (run {run_id[:8]}).",
+            })
 
     # 2. Agent ledger events (promoted / rejected hypotheses)
     ledger_file = Path(workspace_dir) / "agent_ledger.db"
@@ -359,13 +363,14 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             }
 
                     # Track active or latest run for top-level scalar display
-                    is_running = r.status.value == "RUNNING"
-                    if is_running and (active_run_top is None or active_run_top.get("status") != "RUNNING"):
+                    is_active = is_active_run_status(r.status)
+                    if is_active and (active_run_top is None or not active_run_top.get("is_active")):
                         active_run_top = {
                             "score": score,
                             "model_id": model_id,
                             "metric": metric_name,
-                            "status": "RUNNING",
+                            "status": r.status.value,
+                            "is_active": True,
                         }
                     elif active_run_top is None:
                         active_run_top = {
@@ -373,6 +378,17 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "model_id": model_id,
                             "metric": metric_name,
                             "status": r.status.value,
+                            "is_active": is_active,
+                        }
+                else:
+                    is_active = is_active_run_status(r.status)
+                    if is_active and (active_run_top is None or not active_run_top.get("is_active")):
+                        active_run_top = {
+                            "score": None,
+                            "model_id": "-",
+                            "metric": str(getattr(r.config, "metric", "-") or "-").lower(),
+                            "status": r.status.value,
+                            "is_active": True,
                         }
 
                 ds = ws.get_dataset(r.dataset_id)
@@ -400,7 +416,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         "features": profile.column_count if profile else None,
                     })
 
-            if active_run_top:
+            if active_run_top and active_run_top.get("score") is not None:
                 best_score = active_run_top["score"]
                 best_model = active_run_top["model_id"]
                 best_metric = active_run_top["metric"]
@@ -429,6 +445,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "workspace": self.workspace_dir,
                 "total_runs": len(runs),
                 "total_trials": len(all_trials),
+                "is_active": any(is_active_run_status(r.status) for r in runs),
                 "best_score": best_score,
                 "best_model": best_model,
                 "best_metric": best_metric,
@@ -472,6 +489,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "target": r.config.target,
                     "metric": r.config.metric,
                     "status": r.status.value,
+                    "is_active": is_active_run_status(r.status),
                     "best_score": lb[0]["score"] if lb else None,
                     "best_model": lb[0]["model_id"] if lb else None,
                     "trials_count": trials_cnt,

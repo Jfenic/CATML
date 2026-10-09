@@ -51,8 +51,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] **[Medio-alto] Documentación de Time Budget Cooperativo**: En `facade.py`, se documentó explícitamente que `time_budget` opera a nivel global entre modelos de forma cooperativa y no como un timeout preemptivo atómico por proceso.
   - [x] **[Medio-alto] Hardening HTTP/MCP y Robustez en Datasets Reducidos**: El Workbench soporta paso seguro de tokens vía fragmento `#token=` que se limpia inmediatamente de la URL con `history.replaceState`. El servidor MCP emite advertencia de seguridad (`SECURITY NOTICE`) si se expone `streamable-http` fuera de localhost. `SklearnTrainer` adapta inteligentemente los folds de KFold y splits holdout en datasets pequeños para evitar divisiones de muestra única.
   - [x] Suite de pruebas dedicada en `tests/test_audit_findings.py` (4 tests). 622 tests pasando (100% verde), 87.37% de cobertura.
+- [x] **Alineación de Estado Activo y Feed de Actividad en Workbench (PR #85)**:
+  - [x] Definición canónica de `ACTIVE_RUN_STATUSES`, helper `is_active_run_status()` y propiedad `run.is_active`.
+  - [x] Exposición de flag `is_active` en `/api/runs` y `/api/overview`, priorizando ejecuciones vivas sobre ejecuciones completadas.
+  - [x] Segregación del feed de actividad en Workbench sin mezclar métricas incomparables.
+  - [x] Función compartida `isRunActive()` en frontend (`utils.js`) y soporte de score 0.0 y $R^2 < 0$.
+  - [x] Corrección de mensaje de error al programar plan en `agent.js`.
 - [x] **Validación y Cobertura**:
-  - [x] 622 tests pasando (100% de la suite). Cobertura total del 87.37% (requisito >= 85%).
+  - [x] 660 tests pasando (100% de la suite). Cobertura total del 87.31% (requisito >= 85%).
 
 ## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 

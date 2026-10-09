@@ -197,7 +197,7 @@ export class AgentDrawer {
         store.toggleAgentDrawer(false);
         store.setNav("studio");
       } catch (err) {
-        alert("Agent action scheduled: " + (err.message || "OK"));
+        alert("Agent action failed: " + (err.message || "Failed"));
         store.toggleAgentDrawer(false);
       }
     });
