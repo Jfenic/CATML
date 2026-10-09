@@ -160,6 +160,13 @@ export class CATMLApiClient {
     });
   }
 
+  async createRun(datasetId) {
+    return this._fetch("/api/run/create", {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId }),
+    });
+  }
+
   async _controlRunJobs(runId, action, statuses) {
     const jobs = (await this.getJobs(runId)).filter(job => statuses.includes(job.status));
     if (!jobs.length) return null;

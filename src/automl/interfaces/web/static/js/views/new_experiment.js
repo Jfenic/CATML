@@ -24,6 +24,11 @@ export class NewExperimentModal {
   render() {
     const state = store.getState();
     const runs = state.runs || [];
+    const activeRun = (runs || []).find(r => r.dataset_id === state.activeDatasetId)
+      || runs.find(r => isRunActive(r))
+      || runs[0]
+      || null;
+    const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
     const activeDs = state.activeDataset
       || (state.datasets || []).find(d => d.id === state.activeDatasetId)
       || (activeRun ? { name: activeRun.dataset_name, target_column: activeRun.target, task_type: activeRun.task_type } : null)
@@ -230,9 +235,22 @@ export class NewExperimentModal {
 
       try {
         const state = store.getState();
-        const activeRun = state.runs.find(r => isRunActive(r)) || state.runs[0] || null;
+        let activeRun = (state.runs || []).find(r => r.dataset_id === state.activeDatasetId) || null;
         if (!activeRun) {
-          alert("No active AutoML run found. Please create a run or register a dataset first.");
+          const freshRuns = await api.getRuns().catch(() => []);
+          store.setState({ runs: freshRuns });
+          activeRun = freshRuns.find(r => r.dataset_id === state.activeDatasetId) || null;
+        }
+        if (!activeRun && state.activeDatasetId) {
+          const createRes = await api.createRun(state.activeDatasetId).catch(() => null);
+          if (createRes && createRes.run_id) {
+            const freshRuns = await api.getRuns().catch(() => []);
+            store.setState({ runs: freshRuns, activeRunId: createRes.run_id });
+            activeRun = freshRuns.find(r => r.id === createRes.run_id) || { id: createRes.run_id, dataset_id: state.activeDatasetId };
+          }
+        }
+        if (!activeRun) {
+          alert("No se encontró ninguna ejecución activa. Por favor selecciona o registra un dataset primero.");
           return;
         }
 

@@ -1370,6 +1370,26 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     self._send_json({"error": f"Could not inspect file: {load_err}"}, HTTPStatus.BAD_REQUEST)
                     return
 
+            elif path == "/api/run/create":
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                dataset = ws.get_dataset(dataset_id)
+                if not dataset:
+                    self._send_json({"error": f"Dataset {dataset_id} not found"}, HTTPStatus.NOT_FOUND)
+                    return
+                run = ws.create_run(dataset)
+                self._send_json({
+                    "status": "success",
+                    "run_id": run.id,
+                    "dataset_id": dataset.id,
+                    "task_type": run.config.task_type,
+                    "target": run.config.target,
+                    "metric": run.config.metric,
+                })
+                return
+
             elif path == "/api/run/pause":
                 run_id = payload.get("run_id")
                 if not run_id:
