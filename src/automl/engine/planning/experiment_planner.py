@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import logging
 import uuid
 from typing import Any
 
@@ -13,6 +12,8 @@ from automl.domain.models.registry import ModelRegistry
 from automl.domain.ports import ExperimentPlannerPort
 from automl.domain.runs.run import AutoMLRun
 from automl.domain.tasks.task_type import TaskType
+
+logger = logging.getLogger(__name__)
 
 
 class RuleBasedExperimentPlanner(ExperimentPlannerPort):
@@ -43,8 +44,10 @@ class RuleBasedExperimentPlanner(ExperimentPlannerPort):
                 active_features = profile.resolve_safe_feature_names(
                     requested_features=active_features,
                     exclude_columns=[run.config.group_column] if run.config.group_column else None,
+                    strict=False,
                 )
-            except ValueError:
+            except ValueError as err:
+                logger.warning("Automated experiment planning aborted: %s", err)
                 return []
         else:
             if profile and hasattr(profile, "identifier_column_names"):
