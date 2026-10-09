@@ -280,7 +280,13 @@ class App {
   }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+function boot() {
   const app = new App();
   app.init();
-});
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}

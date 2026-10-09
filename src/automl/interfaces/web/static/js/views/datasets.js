@@ -192,6 +192,12 @@ export class DatasetsView {
 
         <!-- Variable Visual Analytics Modal Container -->
         <div id="variableModalContainer"></div>
+      </div>
+    `;
+
+    this._bindEvents();
+  }
+
   _renderHealthCard(p) {
     const hasLeakage = Boolean(p.has_leakage || (p.leakage_columns && p.leakage_columns.length > 0));
     const hasGroupLeakage = Boolean(p.has_group_leakage || (p.group_leakage_reports && p.group_leakage_reports.length > 0));

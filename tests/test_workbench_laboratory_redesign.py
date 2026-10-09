@@ -87,3 +87,21 @@ def test_app_js_routes_home_and_laboratory_views():
     assert 'case "experiments":' in content
     assert 'case "evidence":' in content
     assert "_updateSidebarActiveDataset" in content
+
+
+def test_javascript_syntax_validity():
+    import shutil
+    import subprocess
+
+    node_bin = shutil.which("node")
+    if not node_bin:
+        pytest.skip("Node.js not installed on system")
+
+    js_dir = Path("src/automl/interfaces/web/static/js")
+    js_files = list(js_dir.glob("*.js")) + list((js_dir / "views").glob("*.js"))
+    assert len(js_files) > 0
+
+    for js_file in js_files:
+        result = subprocess.run([node_bin, "--check", str(js_file)], capture_output=True, text=True)
+        assert result.returncode == 0, f"Syntax error in {js_file}:\n{result.stderr}"
+
