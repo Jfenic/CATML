@@ -138,6 +138,10 @@ class AutoMLWorkspace:
         import time
         return time.monotonic() >= deadline
 
+    def __post_init__(self) -> None:
+        if self.repository is not None and hasattr(self.repository, "plugin_registry"):
+            self.repository.plugin_registry = self.plugin_registry
+
     @classmethod
     def create(cls, name: str, root_dir: str | Path | None = None) -> AutoMLWorkspace:
         base = Path(root_dir or Path.cwd() / ".automl" / name)

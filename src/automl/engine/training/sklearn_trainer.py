@@ -166,9 +166,12 @@ class SklearnTrainer(TrainerPort):
                     n_jobs=1,
                     error_score="raise",
                 )
-                if isinstance(scoring, str) and scoring.startswith("neg_"):
-                    scores = -scores
-                elif hasattr(scoring, "_greater_is_better") and not scoring._greater_is_better:
+                is_neg = (
+                    (isinstance(scoring, str) and scoring.startswith("neg_"))
+                    or _is_minimizing_metric(metric_name, self.plugin_registry)
+                    or getattr(scoring, "_sign", 1) == -1
+                )
+                if is_neg:
                     scores = -scores
 
                 primary_score = float(np.mean(scores))
@@ -512,6 +515,14 @@ def _build_pipeline(
     return Pipeline([("preprocessor", preprocessor), ("model", model)])
 
 
+def _is_minimizing_metric(metric_name: str, plugin_registry: Any = None) -> bool:
+    if plugin_registry and hasattr(plugin_registry, "has") and plugin_registry.has(metric_name):
+        plugin = plugin_registry.get_metric_plugin(metric_name)
+        if plugin is not None and hasattr(plugin, "greater_is_better"):
+            return not plugin.greater_is_better
+    return str(metric_name).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+
+
 def _sklearn_scoring(metric_name: str, task_type: str, plugin_registry: Any = None) -> Any:
     mapping = {
         "accuracy": "accuracy",
@@ -534,11 +545,20 @@ def _sklearn_scoring(metric_name: str, task_type: str, plugin_registry: Any = No
         if plugin:
             from sklearn.metrics import make_scorer
 
-            return make_scorer(
-                lambda y_true, y_pred, **kwargs: plugin.compute(y_true, y_pred),
-                greater_is_better=getattr(plugin, "greater_is_better", True),
-                response_method="predict" if not getattr(plugin, "requires_probabilities", False) else "predict_proba",
-            )
+            req_proba = getattr(plugin, "requires_probabilities", False)
+            greater = getattr(plugin, "greater_is_better", True)
+            try:
+                return make_scorer(
+                    lambda y_true, y_pred, **kwargs: plugin.compute(y_true, y_pred),
+                    greater_is_better=greater,
+                    response_method="predict" if not req_proba else "predict_proba",
+                )
+            except TypeError:
+                return make_scorer(
+                    lambda y_true, y_pred, **kwargs: plugin.compute(y_true, y_pred),
+                    greater_is_better=greater,
+                    needs_proba=req_proba,
+                )
 
     raise ValueError(f"Unsupported metric '{metric_name}' for task '{task_type}'.")
 

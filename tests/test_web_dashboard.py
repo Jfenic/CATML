@@ -194,10 +194,37 @@ def test_web_dashboard_dataset_and_experiment_flow(running_web_server):
         assert "warm_start" in k
 
     # 9. Test Agent Hypotheses ("Proponer != Aceptar") via GET & POST
+    from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+    from automl.domain.agents.entities import Hypothesis
+
+    ws_dir = running_web_server["tmp_path"] / "test_workspace"
+    ledger = SqliteAgentLedger(ws_dir / "agent_ledger.db")
+    hyp = Hypothesis(
+        hypothesis_id="hyp_12",
+        run_id=run_id,
+        reasoning="Test hypothesis for validation",
+        candidate_config={"action_type": "run_experiment"},
+        target_metric="roc_auc",
+        metric_direction="maximize",
+        baseline_metric=0.80,
+        verification_criteria={"cost": "1 CV run"},
+        status="proposed",
+    )
+    ledger.save_hypothesis(hyp)
+
     with urlopen(f"{base}/api/agent/hypotheses?run_id={run_id}") as resp:
         assert resp.status == 200
         agent_data = json.loads(resp.read().decode("utf-8"))
         assert "hypotheses" in agent_data
+        assert any(h["id"] == "hyp_12" for h in agent_data["hypotheses"])
+
+    # Non-existent hypothesis must return 404 Not Found
+    import urllib.error
+    unknown_payload = json.dumps({"hypothesis_id": "hyp_nonexistent", "action": "approve"}).encode("utf-8")
+    req_unknown = Request(f"{base}/api/agent/action", data=unknown_payload, headers={"Content-Type": "application/json"})
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        urlopen(req_unknown)
+    assert exc_info.value.code == 404
 
     agent_act_payload = json.dumps({"hypothesis_id": "hyp_12", "action": "approve"}).encode("utf-8")
     req = Request(f"{base}/api/agent/action", data=agent_act_payload, headers={"Content-Type": "application/json"})
@@ -205,6 +232,12 @@ def test_web_dashboard_dataset_and_experiment_flow(running_web_server):
         assert resp.status == 200
         act_res = json.loads(resp.read().decode("utf-8"))
         assert act_res["status"] == "success"
+        assert act_res["new_status"] == "accepted"
+
+    # Verify decision is persisted in ledger
+    reloaded_hyp = ledger.get_hypothesis("hyp_12")
+    assert reloaded_hyp is not None
+    assert reloaded_hyp.status == "accepted"
 
     # 10. Test Kaggle Status via GET
     with urlopen(f"{base}/api/kaggle/status?run_id={run_id}") as resp:

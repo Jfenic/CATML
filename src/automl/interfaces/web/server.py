@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+logger = logging.getLogger("catml.web")
 
 from automl import __version__
 from automl.domain.runs.states import is_active_run_status
@@ -200,6 +203,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
     static_dir: Path = Path(__file__).parent / "static"
     auth_token: str | None = None
     require_auth: bool = False
+    MAX_PAYLOAD_SIZE: int = 50 * 1024 * 1024  # 50 MB
 
     def _is_authenticated(self) -> bool:
         if not self.require_auth or not self.auth_token:
@@ -214,8 +218,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query_params = parse_qs(parsed.query)
         token_list = query_params.get("token")
-        if token_list and token_list[0].strip() == self.auth_token:
-            return True
+        if token_list:
+            method = getattr(self, "command", "GET")
+            if method != "GET":
+                logger.warning("Rejected query token on state-mutating HTTP %s request to %s", method, parsed.path)
+                return False
+            if token_list[0].strip() == self.auth_token:
+                logger.warning(
+                    "Insecure authentication via URL query string '?token=' on %s. "
+                    "Use 'Authorization: Bearer <token>' header or URL hash fragment '#token=' instead.",
+                    parsed.path,
+                )
+                return True
 
         return False
 
@@ -227,7 +241,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "error": "Unauthorized",
                 "message": (
                     "Authentication token required for remote workbench access. "
-                    "Provide via 'Authorization: Bearer <token>' header or '?token=<token>' query parameter."
+                    "Provide via 'Authorization: Bearer <token>' header."
                 ),
             },
             status=HTTPStatus.UNAUTHORIZED,
@@ -1226,7 +1240,25 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
         try:
             content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > self.MAX_PAYLOAD_SIZE:
+                self._send_json(
+                    {
+                        "error": "Payload Too Large",
+                        "message": f"Request size exceeds limit of {self.MAX_PAYLOAD_SIZE // (1024 * 1024)}MB",
+                    },
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                )
+                return
             body = self.rfile.read(content_length)
+            if len(body) > self.MAX_PAYLOAD_SIZE:
+                self._send_json(
+                    {
+                        "error": "Payload Too Large",
+                        "message": f"Request size exceeds limit of {self.MAX_PAYLOAD_SIZE // (1024 * 1024)}MB",
+                    },
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                )
+                return
             payload = json.loads(body.decode("utf-8")) if body else {}
         except Exception as e:
             self._send_json({"error": f"Invalid JSON payload: {e}"}, HTTPStatus.BAD_REQUEST)
@@ -1715,12 +1747,61 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
             elif path == "/api/agent/action":
-                hyp_id = payload.get("hypothesis_id")
-                action = payload.get("action")  # 'approve' or 'reject'
+                hyp_id = payload.get("hypothesis_id") or payload.get("approval_id")
+                action = (payload.get("action") or "").strip().lower()
+                reviewer = payload.get("reviewer") or "workbench_user"
+                notes = payload.get("notes")
+
+                if not hyp_id:
+                    self._send_json({"error": "hypothesis_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                if action not in ("approve", "reject"):
+                    self._send_json(
+                        {"error": "Invalid action. Allowed actions are 'approve' or 'reject'."},
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
+
+                ledger_file = Path(self.workspace_dir) / "agent_ledger.db"
+                from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+                from automl.application.agents.ports import ApprovalStatus
+
+                ledger = SqliteAgentLedger(ledger_file)
+                hyp = ledger.get_hypothesis(hyp_id)
+                appr = ledger.get_approval(hyp_id)
+
+                if hyp is None and appr is None:
+                    self._send_json(
+                        {
+                            "error": f"Hypothesis or approval request '{hyp_id}' not found in agent ledger.",
+                            "hypothesis_id": hyp_id,
+                        },
+                        HTTPStatus.NOT_FOUND,
+                    )
+                    return
+
+                new_hyp_status = None
+                new_appr_status = None
+
+                if hyp is not None:
+                    new_hyp_status = "accepted" if action == "approve" else "rejected"
+                    hyp.status = new_hyp_status
+                    ledger.save_hypothesis(hyp)
+
+                if appr is not None:
+                    new_appr_status = ApprovalStatus.APPROVED if action == "approve" else ApprovalStatus.REJECTED
+                    reviewer_info = f"{reviewer} ({notes})" if notes else reviewer
+                    ledger.update_approval_status(
+                        approval_id=hyp_id,
+                        status=new_appr_status,
+                        reviewer=reviewer_info,
+                    )
+
                 self._send_json({
                     "status": "success",
                     "hypothesis_id": hyp_id,
                     "action": action,
+                    "new_status": new_hyp_status or (new_appr_status.value if new_appr_status else action),
                     "message": f"Hypothesis {hyp_id} {action}ed by human operator.",
                 })
                 return

@@ -143,10 +143,10 @@ def test_unsupported_metric_raises_error_no_silent_substitution():
     assert _sklearn_scoring("balanced_accuracy", task_type="binary_classification") == "balanced_accuracy"
 
 
-def test_mcp_streamable_http_external_host_security_warning(caplog):
+def test_mcp_streamable_http_external_host_security(caplog):
     """
-    Finding 5: MCP service must log a security notice when streamable-http binds
-    to a non-localhost interface.
+    Finding H3: MCP service must reject external binding without authentication
+    (fail-closed) and log a warning only when insecure_no_auth=True.
     """
     from automl.interfaces.mcp.server import run_mcp_service
 
@@ -154,8 +154,97 @@ def test_mcp_streamable_http_external_host_security_warning(caplog):
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
 
-        with caplog.at_level(logging.WARNING):
+        # 1. External host without token and without insecure_no_auth must fail closed
+        with pytest.raises(PermissionError, match="Refusing to bind MCP streamable-http server to external interface '0.0.0.0'"):
             run_mcp_service(transport="streamable-http", host="0.0.0.0", port=8000)
 
-        assert any("SECURITY NOTICE" in rec.message for rec in caplog.records)
+        # 2. External host with insecure_no_auth=True logs critical warning and proceeds
+        with caplog.at_level(logging.WARNING):
+            run_mcp_service(transport="streamable-http", host="0.0.0.0", port=8000, insecure_no_auth=True)
+
+        assert any("CRITICAL SECURITY WARNING" in rec.message for rec in caplog.records)
         assert any("0.0.0.0" in rec.message for rec in caplog.records)
+
+
+def test_custom_minimization_metric_cv_positive_sign(tmp_path):
+    """
+    Finding H2: Custom metric with greater_is_better=False in cross-validation
+    must produce positive error/cost values (normalized sign).
+    """
+    from automl.application.plugins.registry import PluginRegistry
+    from automl.engine.training.sklearn_trainer import SklearnTrainer
+    from automl.domain.runs.run import RunConfig, AutoMLRun
+    from automl.domain.experiments.trial import Trial, Experiment, ExperimentStatus
+    from automl.domain.ports import TrialExecution
+
+    from dataclasses import dataclass, field
+    from automl.domain.ports import PluginType, PluginCapability
+
+    @dataclass
+    class CustomCostMetric:
+        plugin_id: str = "custom_cost"
+        name: str = "Custom Cost"
+        version: str = "1.0.0"
+        plugin_type: PluginType = PluginType.METRIC
+        capabilities: PluginCapability = field(default_factory=PluginCapability)
+        greater_is_better: bool = False
+        requires_probabilities: bool = False
+
+        def compute(self, y_true, y_pred, y_prob=None):
+            return float(np.mean(np.abs(y_true - y_pred)))
+
+    reg = PluginRegistry()
+    reg.register(CustomCostMetric())
+
+    np.random.seed(42)
+    n = 30
+    df = pd.DataFrame({
+        "x": np.random.randn(n),
+        "y": 2.0 * np.random.randn(n) + 5.0,
+    })
+    csv_file = tmp_path / "df_cost.csv"
+    df.to_csv(csv_file, index=False)
+
+    trainer = SklearnTrainer(plugin_registry=reg)
+    exp = Experiment(
+        id="e_cost",
+        run_id="run_cost",
+        name="exp_cost",
+        hypothesis="test",
+        feature_names=["x"],
+        metric="custom_cost",
+        model_ids=["ridge"],
+        status=ExperimentStatus.RUNNING,
+    )
+    run_obj = AutoMLRun(
+        id="run_cost",
+        workspace_id="ws_cost",
+        dataset_id="ds_cost",
+        config=RunConfig(target="y", task_type="regression", metric="custom_cost"),
+    )
+    trial_obj = Trial(
+        id="t_cost",
+        experiment_id="e_cost",
+        model_id="ridge",
+        parameters={},
+    )
+    trial_exec = TrialExecution(
+        trial=trial_obj,
+        experiment=exp,
+        run=run_obj,
+        feature_names=["x"],
+        dataset_path=str(csv_file),
+        target_column="y",
+        task_type="regression",
+        metric="custom_cost",
+        validation_strategy="kfold",
+        test_size=0.2,
+        cv_folds=3,
+        random_seed=42,
+    )
+
+    result = trainer.run(trial_exec)
+    assert result.succeeded
+    # Score must be strictly positive (real positive cost, NOT inverted scikit-learn negative)
+    assert result.primary_score > 0.0, f"Expected positive cost, got {result.primary_score}"
+

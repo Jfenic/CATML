@@ -64,3 +64,49 @@ def test_workbench_auth_insecure_no_auth_flag():
     handler.headers = {}
     handler.path = "/api/overview"
     assert handler._is_authenticated() is True
+
+
+def test_workbench_auth_query_token_rejected_on_post():
+    AutoMLWebHandler.require_auth = True
+    AutoMLWebHandler.auth_token = "secret_workbench_key_123"
+
+    try:
+        handler_post = AutoMLWebHandler.__new__(AutoMLWebHandler)
+        handler_post.command = "POST"
+        handler_post.headers = {}
+        handler_post.path = "/api/run/create?token=secret_workbench_key_123"
+        # Query tokens are strictly rejected on state-mutating operations
+        assert handler_post._is_authenticated() is False
+
+        # But Bearer header succeeds on POST
+        handler_post_bearer = AutoMLWebHandler.__new__(AutoMLWebHandler)
+        handler_post_bearer.command = "POST"
+        handler_post_bearer.headers = {"Authorization": "Bearer secret_workbench_key_123"}
+        handler_post_bearer.path = "/api/run/create"
+        assert handler_post_bearer._is_authenticated() is True
+    finally:
+        AutoMLWebHandler.require_auth = False
+        AutoMLWebHandler.auth_token = None
+
+
+def test_workbench_payload_size_limit():
+    handler = AutoMLWebHandler.__new__(AutoMLWebHandler)
+    handler.headers = {"Content-Length": str(AutoMLWebHandler.MAX_PAYLOAD_SIZE + 100)}
+    handler.path = "/api/jobs"
+    handler.command = "POST"
+
+    sent_data = {}
+    sent_status = None
+
+    def mock_send_json(data, status=HTTPStatus.OK):
+        nonlocal sent_data, sent_status
+        sent_data = data
+        sent_status = status
+
+    handler._send_json = mock_send_json
+    handler.require_auth = False
+    handler.auth_token = None
+
+    handler.do_POST()
+    assert sent_status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "Payload Too Large" in sent_data.get("error", "")

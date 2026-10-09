@@ -1,4 +1,4 @@
-"""One cooperative local worker, protected by a process-level workspace lease."""
+import sys
 import threading
 
 from automl.application.bootstrap import build_application
@@ -19,15 +19,25 @@ class JobWorker:
         self._executing = False
 
     def start(self, background: bool = True):
-        import fcntl
         if self._lease is not None:
             raise RuntimeError("Worker already started")
         lease = self.lock_path.open("a+")
-        try:
-            fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            lease.close()
-            raise RuntimeError("Another worker owns this workspace") from None
+        if sys.platform == "win32":
+            import msvcrt
+            try:
+                msvcrt.locking(lease.fileno(), msvcrt.LK_NBLCK, 1)
+            except (OSError, IOError):
+                lease.close()
+                raise RuntimeError("Another worker owns this workspace") from None
+        else:
+            try:
+                import fcntl
+                fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                lease.close()
+                raise RuntimeError("Another worker owns this workspace") from None
+            except ImportError:
+                pass
         self._lease = lease
         self._stop.clear()
         self._thread = None

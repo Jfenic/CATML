@@ -903,6 +903,8 @@ def main(argv: list[str] | None = None) -> int:
     mcp_parser.add_argument("--host", default="127.0.0.1", help="Host interface for streamable-http (default: 127.0.0.1)")
     mcp_parser.add_argument("--port", type=int, default=8000, help="Port for streamable-http (default: 8000)")
     mcp_parser.add_argument("--path", default="/mcp", help="Path prefix for streamable-http (default: /mcp)")
+    mcp_parser.add_argument("--token", default=None, help="Authentication token for streamable-http transport")
+    mcp_parser.add_argument("--insecure-no-auth", action="store_true", help="Allow binding to external interfaces without authentication token (INSECURE)")
     mcp_parser.set_defaults(func=mcp_cli)
 
     agent_parser = sub.add_parser("agent", help="LLM Agent governance, approvals, and audit ledger")

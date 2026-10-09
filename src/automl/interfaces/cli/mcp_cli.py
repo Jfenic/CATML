@@ -12,6 +12,8 @@ def run_mcp_cli(args: argparse.Namespace) -> int:
     host = getattr(args, "host", "127.0.0.1") or "127.0.0.1"
     port = getattr(args, "port", 8000) or 8000
     path = getattr(args, "path", "/mcp") or "/mcp"
+    token = getattr(args, "token", None)
+    insecure = getattr(args, "insecure_no_auth", False)
     try:
         from automl.interfaces.mcp.server import HAS_MCP, run_mcp_service
         if not HAS_MCP:
@@ -20,13 +22,18 @@ def run_mcp_cli(args: argparse.Namespace) -> int:
                 "Instálalas con: pip install '.[mcp]'\n"
             )
             return 1
-        run_mcp_service(
-            root_dir=workspace_path,
-            transport=transport,
-            host=host,
-            port=port,
-            streamable_http_path=path,
-        )
+        kwargs = {
+            "root_dir": workspace_path,
+            "transport": transport,
+            "host": host,
+            "port": port,
+            "streamable_http_path": path,
+        }
+        if token is not None:
+            kwargs["auth_token"] = token
+        if insecure:
+            kwargs["insecure_no_auth"] = insecure
+        run_mcp_service(**kwargs)
         return 0
     except ImportError as e:
         sys.stderr.write(

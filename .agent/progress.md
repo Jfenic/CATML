@@ -1,5 +1,32 @@
 # Progress
 
+### Track Technical Audit Remediation & System Hardening (2026-10-09)
+
+- **Remediación Integral de Hallazgos de Auditoría Técnica (Commit `5caa1f5`):**
+  - **H1 (Aprobación real de agentes en Workbench):**
+    - Se integró `POST /api/agent/action` con `SqliteAgentLedger` en `src/automl/interfaces/web/server.py`.
+    - Validación de existencia de hipótesis y solicitudes de aprobación en el ledger (fail-closed `404 Not Found` ante identificadores desconocidos).
+    - Transición de estado persistida transaccionalmente (`proposed` $\to$ `accepted` / `rejected`), registrando revisor y notas del operador humano.
+  - **H2 (Normalización del signo en métricas personalizadas de minimización en CV):**
+    - En `src/automl/engine/training/sklearn_trainer.py`, se eliminó la dependencia sobre el atributo privado inexistente `_greater_is_better` de scikit-learn.
+    - Se incorporó `_is_minimizing_metric(metric_name, plugin_registry)` e inspección de `_sign == -1` para invertir el signo negativo producido por scikit-learn en validación cruzada.
+    - Sincronización de `plugin_registry` en `SQLiteExperimentRepository.get_leaderboard()` y `AutoMLWorkspace.__post_init__()` para ordenar métricas personalizadas minimizables ascendentemente (`ASC`), garantizando consistencia idéntica entre holdout, CV, Optuna y leaderboard.
+  - **H3 (Autenticación estricta en servidor MCP para interfaces remotas):**
+    - En `src/automl/interfaces/mcp/server.py`, el transporte `streamable-http` rechaza enlaces externos (`host != 127.0.0.1`) sin token de autenticación (`PermissionError` fail-closed).
+    - Soporte para `--token` y `--insecure-no-auth` en CLI (`main.py` y `mcp_cli.py`), incorporando `BearerAuthMiddleware` en la aplicación Starlette subyacente.
+  - **H4 (Límite explícito de tamaño de payload HTTP):**
+    - En `src/automl/interfaces/web/server.py`, se estableció `MAX_PAYLOAD_SIZE = 50 MB`.
+    - `do_POST` valida `Content-Length` y bytes leídos retornando inmediatamente `413 Payload Too Large` ante solicitudes excesivas antes de saturar memoria.
+  - **H5 (Endurecimiento de autenticación remota en Workbench):**
+    - `_is_authenticated()` en `server.py` rechaza tajantemente tokens en query string (`?token=`) para peticiones de mutación de estado (`POST`).
+    - En peticiones `GET`, emite advertencia de seguridad instando al uso de cabeceras `Authorization: Bearer <token>` o fragmentos `#token=`.
+  - **H6 (Declaración de versión de scikit-learn):**
+    - En `pyproject.toml`, se actualizó la dependencia mínima a `scikit-learn>=1.4.0` para garantizar disponibilidad de `response_method` en `make_scorer`.
+    - Se añadió fallback defensivo en `sklearn_trainer.py` (`needs_proba`) para retrocompatibilidad total.
+  - **H8 (Compatibilidad multiplataforma en bloqueo de workspaces):**
+    - En `src/automl/infrastructure/jobs/worker.py`, se implementó bloqueo condicional con `msvcrt` en entornos Windows y `fcntl` en sistemas Unix.
+  - **Validación:** Suite completa de pruebas superada (673 pruebas, 0 fallos), cobertura total mantenida en 86.67% (umbral CI $\ge 85\%$).
+
 ### Track Modular Simplification — Pre-Explore Phase E0.5 (2026-10-08)
 
 - **PR 1: Descomposición de Registros CQRS y Modularización de Bootstrap (`hardening/v0.8.2-e0.5-pr1-bootstrap-modularization`):**

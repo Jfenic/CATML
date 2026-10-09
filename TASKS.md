@@ -64,8 +64,25 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Rediseño de la vista Dataset (`src/automl/interfaces/web/static/js/views/datasets.js`): Pestañas «Resumen» (métricas de perfil, salud de datos Anti-Leakage Guardian, recomendaciones y preview crudo), «Columnas» (tabla de variables, filtros, selección interactiva) y «Exploración» (panel conceptual de capacidades estadísticas para CATML Explore Fase E1).
   - [x] Integración de contexto de dataset activo en `store.js` (`setActiveDataset`, `getActiveDataset`), `app.js`, `studio.js`, `overview.js` y `new_experiment.js`.
   - [x] Suite de tests automatizada en `tests/test_workbench_laboratory_redesign.py` (3 tests). 667 tests pasando (100% verde).
+- [x] **Rediseño UI Workbench — Modal de Ingestión Polimórfico (Fase 2)**:
+  - [x] Modal de Ingestión Polimórfica (`RegisterDatasetModal` en `register_dataset_modal.js`):
+    - Subida Drag & Drop con subida base64 al servidor (`POST /api/dataset/upload`).
+    - Navegador de archivos local en servidor con exploración de carpetas y búsqueda (`GET /api/files/browse`).
+    - Entrada manual de ruta con inspección instantánea de esquema (`POST /api/dataset/inspect-file`).
+    - Sugerencia automática de columna target y soporte explícito para datasets no supervisados (`target=None`).
+  - [x] Creación dinámica de runs (`POST /api/run/create`) vinculados al dataset activo.
+  - [x] Scoping limpio de variables en `new_experiment.js` y `datasets.js` (`activeRun`, `recentDs`).
+  - [x] Tests de validación e integración en `tests/test_workbench_laboratory_redesign.py` (6 tests).
+- [x] **Remediación Integral de Auditoría Técnica (Octubre 9, 2026 — Commit `5caa1f5`)**:
+  - [x] **H1 [Alta] Aprobación real de agentes en Workbench**: `POST /api/agent/action` integrado con `SqliteAgentLedger`, validación estricta de existencia (404 ante IDs inexistentes), transición de estado persistida en SQLite y registro de revisor humano.
+  - [x] **H2 [Alta] Sentido de métricas personalizadas en CV**: Eliminado `_greater_is_better` inexistente; normalización de signo con `_is_minimizing_metric()` e inspección de `_sign == -1`; sincronización de `plugin_registry` en `SQLiteExperimentRepository.get_leaderboard()` para ordenamiento ascendente (`ASC`).
+  - [x] **H3 [Alta] Autenticación remota en servidor MCP**: Transporte `streamable-http` rechaza enlaces externos sin autenticación (`PermissionError` fail-closed); flags `--token` y `--insecure-no-auth` en CLI con `BearerAuthMiddleware` en Starlette.
+  - [x] **H4 [Media-alta] Límite de tamaño HTTP explícito**: Límite `MAX_PAYLOAD_SIZE = 50 MB` en `server.py`, rechazando peticiones excesivas con `413 Payload Too Large`.
+  - [x] **H5 [Media-alta] Endurecimiento de autenticación remota**: Rechazo de tokens en query string (`?token=`) para operaciones POST; advertencia de seguridad en peticiones GET.
+  - [x] **H6 [Media] Compatibilidad de versión scikit-learn**: Declaración de `scikit-learn>=1.4.0` en `pyproject.toml` con fallback defensivo (`needs_proba`) en `make_scorer`.
+  - [x] **H8 [Media] Bloqueo multiplataforma en worker**: Uso de `msvcrt` en Windows y `fcntl` en Unix en `worker.py`.
 - [x] **Validación y Cobertura**:
-  - [x] 667 tests pasando (100% de la suite). Cobertura total del 87.32% (requisito >= 85%).
+  - [x] 673 tests pasando (100% de la suite). Cobertura total de 86.67% (umbral CI >= 85%).
 
 ## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 
