@@ -94,7 +94,7 @@ export class WorkbenchStore {
     this.setState({
       activeDatasetId: datasetId,
       activeDataset: ds,
-      activeRunId: matchingRun ? matchingRun.id : this._state.activeRunId,
+      activeRunId: matchingRun ? matchingRun.id : null,
     });
   }
 

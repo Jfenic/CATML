@@ -68,6 +68,28 @@ export class CATMLApiClient {
     }
   }
 
+  async downloadFile(endpoint, filename = "download.csv") {
+    const url = `${this.baseUrl}${endpoint}`;
+    const token = this._getAuthToken();
+    const headers = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  }
+
   // GET queries
   async getOverview() {
     return this._fetch("/api/overview");
@@ -217,10 +239,15 @@ export class CATMLApiClient {
   }
 
   async createAndRunExperiment(payload, onProgress) {
-    return this._runJob("experiment", payload.run_id, {
+    const jobPayload = {
       name: payload.name || "Workbench experiment",
       model_ids: payload.models || ["lightgbm"],
-    }, onProgress);
+    };
+    if (payload.feature_names) jobPayload.feature_names = payload.feature_names;
+    if (payload.validation_strategy) jobPayload.validation_strategy = payload.validation_strategy;
+    if (payload.budget) jobPayload.budget = payload.budget;
+    if (payload.mode) jobPayload.mode = payload.mode;
+    return this._runJob("experiment", payload.run_id, jobPayload, onProgress);
   }
 
   async optimizeExperiment(payload) {

@@ -14,6 +14,7 @@ export class NewExperimentModal {
     this.mode = "auto"; // 'auto', 'guided', 'manual'
     this.budget = "balanced"; // 'quick', 'balanced', 'thorough'
     this.validationStrategy = "stratified_kfold";
+    this.customFeatures = [];
   }
 
   mount(container) {
@@ -23,6 +24,8 @@ export class NewExperimentModal {
 
   render() {
     const state = store.getState();
+    this.customFeatures = state.selectedFeatures || [];
+    const customFeatures = this.customFeatures;
     const runs = state.runs || [];
     const activeRun = (runs || []).find(r => r.dataset_id === state.activeDatasetId)
       || runs.find(r => isRunActive(r))
@@ -308,7 +311,7 @@ export class NewExperimentModal {
           mode: this.mode,
           budget: this.budget,
           models: selectedModels,
-          feature_names: customFeatures && customFeatures.length > 0 ? customFeatures : undefined,
+          feature_names: this.customFeatures && this.customFeatures.length > 0 ? this.customFeatures : undefined,
           validation_strategy: this.validationStrategy,
         }, job => {
           const percent = job.total ? Math.round(job.completed * 100 / job.total) : 0;

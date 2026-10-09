@@ -71,6 +71,12 @@ export class PipelineView {
     const rowCountText = p && p.row_count ? `${Number(p.row_count).toLocaleString()} rows` : "Raw Data";
     const colCountText = p && p.column_count ? `${p.column_count} cols` : "Features";
 
+    const hasModels = topModels.length > 0;
+    const dagStatusText = hasModels
+      ? "Pipeline Trained & Aligned"
+      : (p ? "Schema Inferred" : "Pending Ingestion");
+    const dagStatusBadgeClass = hasModels ? "badge-gain" : (p ? "badge-sys" : "badge-warn");
+
     this.container.innerHTML = `
       <div class="space-y-6">
         <div class="workbench-card p-4 flex items-center justify-between">
@@ -81,7 +87,7 @@ export class PipelineView {
               <p class="text-xs text-[#8B95A7] font-sans">Reproducible DAG for data ingestion, preprocessing, feature generation, and ensemble orchestration.</p>
             </div>
           </div>
-          <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>DAG Validated</span></span>
+          <span class="${dagStatusBadgeClass} text-xs px-2.5 py-0.5 rounded-md font-mono font-medium inline-flex items-center gap-1">${icon(hasModels ? "check" : "circle", "icon-sm")} <span>${dagStatusText}</span></span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -255,24 +261,24 @@ export class PipelineView {
         extra: "<div>Rule: Drop features with >99% unique cardinality</div>",
       },
       NumericalImputer: {
-        name: "Numerical Imputer & Scaler",
-        status: "Completed",
-        description: "Missing value imputation followed by standard or robust scaling.",
+        name: "Numerical Imputer & StandardScaler",
+        status: p ? "Configured" : "Pending",
+        description: "Missing value imputation with median/mean followed by standard feature normalization.",
         input: `${numCols} numeric columns`,
         output: `${numCols} scaled features`,
-        extra: "<div>Method: Median imputation + RobustScaler</div>",
+        extra: "<div>Method: SimpleImputer + StandardScaler</div>",
       },
       CategoricalEncoder: {
-        name: "Categorical Encoder",
-        status: "Completed",
-        description: "Out-of-fold target encoding and ordinal mapping for tree models.",
+        name: "Categorical Encoder & TargetAdapter",
+        status: p ? "Configured" : "Pending",
+        description: "One-hot encoding and target-aligned normalization for categorical feature columns.",
         input: `${catCols} categorical columns`,
         output: `${catCols} encoded features`,
-        extra: "<div>TargetAdapter: Textual / Object label normalization</div>",
+        extra: "<div>Method: OneHotEncoder + Ordinal / TargetAdapter</div>",
       },
       ImageEncoderNode: {
         name: "ImageEncoderNode (Multimodal Vision)",
-        status: "Active",
+        status: imgCols > 0 ? "Active" : "Bypassed",
         description: "Extracts deep visual representation embeddings using timm / PyTorch backends, with graceful fallback to standard feature maps.",
         input: `${imgCols} image path columns / raw image sources`,
         output: `${imgCols * 512 || 512} dense embedding features`,
@@ -280,7 +286,7 @@ export class PipelineView {
       },
       FeatureGenerator: {
         name: "FeatureGenerator (Propose ≠ Accept)",
-        status: "Completed",
+        status: "Configured",
         description: "Autonomous interaction hypothesis generator producing candidate pairwise features.",
         input: `${columns.length} base features`,
         output: "Empirically accepted features",
@@ -288,11 +294,11 @@ export class PipelineView {
       },
       Prediction: {
         name: "Prediction & Submission",
-        status: "Ready",
-        description: "Generates aligned submission.csv for holdout / test records.",
-        input: "Test dataset",
+        status: this.leaderboard.length > 0 ? "Ready" : "Pending Training",
+        description: "Generates aligned predictions or submission artifact for holdout / test records.",
+        input: "Test dataset / features",
         output: "submission.csv",
-        extra: "<div>Valid format, bounds, and null checks verified</div>",
+        extra: "<div>Format: Aligned test predictions</div>",
       },
     };
 
@@ -304,7 +310,7 @@ export class PipelineView {
       return {
         name: `${model.model_id.toUpperCase()} Model`,
         status: "Evaluated",
-        description: `Model trained and evaluated on 5-fold stratified cross-validation.`,
+        description: `Model trained and evaluated on ${run ? (run.validation_strategy || '5-fold CV') : 'cross-validation'}.`,
         input: "Active Feature Set",
         output: "Out-of-fold probability / prediction vector",
         extra: `<div>CV Score: ${Number(model.score).toFixed(5)}</div><div>Time: ${model.training_time_seconds ? Number(model.training_time_seconds).toFixed(2) + 's' : '—'}</div>`,

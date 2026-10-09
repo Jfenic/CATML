@@ -27,6 +27,20 @@
     - En `src/automl/infrastructure/jobs/worker.py`, se implementó bloqueo condicional con `msvcrt` en entornos Windows y `fcntl` en sistemas Unix.
   - **Validación:** Suite completa de pruebas superada (673 pruebas, 0 fallos), cobertura total mantenida en 86.67% (umbral CI $\ge 85\%$).
 
+- **Remediación Integral de Auditoría UX/UI Frontend (Workbench):**
+  - **F01 (Telemetría de recursos y workers real en `studio.js`):** Eliminados valores simulados (CPU 60%, RAM 45%, workers predefinidos y logs falsos). Sustituido por métricas de ejecución reales (número de modelos entrenados, tiempo total y tiempos individuales por estimador).
+  - **F02 (Diagrama de ejecución desacoplado y verificado en `pipeline.js`):** Eliminado badge falso "DAG Validated"; descripción verídica de preprocesadores (`StandardScaler` y `OneHotEncoder` / `TargetAdapter`) y estrategia de CV adaptada al experimento activo.
+  - **F03 (Eliminación de mock inventado en `knowledge.js`):** Retirado fallback decorativo "Standard Tabular Benchmark" con similitud 85%. Sustituido por estado honesto "Sin historial suficiente para meta-aprendizaje en este dataset".
+  - **F04 (Corrección de ReferenceError en `new_experiment.js`):** `customFeatures` encapsulado en `this.customFeatures = store.getState().selectedFeatures || []` y enlazado correctamente al dispatch de `createAndRunExperiment`.
+  - **F05 (Botones de acción reales en lugar de dummy alerts):** "Promote Best Parameters" en `studio.js` y "Use Warm Start" en `knowledge.js` persisten los hiperparámetros óptimos y priors en el store de la aplicación (`warmStartParams` y `promotedParams`).
+  - **F06 (Propagación completa de opciones en `createAndRunExperiment` y `job_executor.py`):** `feature_names`, `validation_strategy`, `budget` ("quick" $\to$ 60s, "balanced" $\to$ 300s, "thorough" $\to$ 1200s) y `mode` se propagan desde la interfaz a los comandos CQRS y config del Run.
+  - **F07 (Sincronización de dataset activo y ejecución):** `setActiveDataset()` en `store.js` desvincula la ejecución anterior cuando se cambia a un dataset sin experimentos previos, previniendo divergencias de contexto.
+  - **F09 (Checklist pre-vuelo honesto en `kaggle.js`):** Eliminados checkmarks verdes y "PASS/ALIGNED" previos a la validación. Muestra estados pendientes neutrales hasta que se sube una plantilla o se generan inferencias.
+  - **F10 (Sentido de optimización HPO en `studio.js`):** Selección del mejor trial de Optuna considerando la dirección de la métrica (minimización vs maximización).
+  - **F11 (Descargas autenticadas con token Bearer):** Método `api.downloadFile(endpoint, filename)` con soporte de headers `Authorization: Bearer <token>` y descarga vía blob en `kaggle.js`.
+  - **F12 & F15 (Accesibilidad y navegación móvil):** Retirado `select-none` del body para permitir selección y copia de texto/tablas; añadido botón hamburguesa responsive para pantallas móviles `< md`.
+  - **F13 & F14 (Consistencia de versiones y terminología):** Harmonizados badges a `v0.8.2` y etiquetado claro del flujo de trabajo.
+
 ### Track Modular Simplification — Pre-Explore Phase E0.5 (2026-10-08)
 
 - **PR 1: Descomposición de Registros CQRS y Modularización de Bootstrap (`hardening/v0.8.2-e0.5-pr1-bootstrap-modularization`):**

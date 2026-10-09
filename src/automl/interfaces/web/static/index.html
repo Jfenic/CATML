@@ -46,11 +46,15 @@
   </script>
   <link rel="stylesheet" href="/static/css/workbench.css">
 </head>
-<body class="bg-[#080A0F] text-[#F7F8FA] min-h-screen flex flex-col font-sans select-none antialiased">
+<body class="bg-[#080A0F] text-[#F7F8FA] min-h-screen flex flex-col font-sans antialiased">
 
   <!-- Top Mission Control Bar -->
   <header class="bg-[#0D1017] border-b border-[#242A36] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
     <div class="flex items-center space-x-6">
+      <button id="btnToggleMobileSidebar" class="md:hidden text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded-lg border border-[#242A36] hover:bg-[#161B26] transition-colors" aria-label="Abrir menú">
+        <i data-lucide="menu" class="icon icon-sm"></i>
+      </button>
+
       <div class="flex items-center space-x-2.5 cursor-pointer" onclick="location.reload()">
         <span class="font-bold text-base text-[#F7F8FA] tracking-tight font-sans">CATML</span>
         <span class="text-xs text-[#8B95A7] font-medium border-l border-[#242A36] pl-2.5">Workbench</span>
@@ -93,7 +97,7 @@
   <!-- App Body: Sidebar + Main Canvas -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Navigation Sidebar -->
-    <aside class="w-64 bg-[#0D1017] border-r border-[#242A36] p-3 flex flex-col justify-between hidden md:flex">
+    <aside id="sidebarNav" class="w-64 bg-[#0D1017] border-r border-[#242A36] p-3 flex flex-col justify-between hidden md:flex transition-all duration-200">
       <div class="space-y-2">
         <!-- Laboratorio Local Context Header -->
         <div class="px-2 pt-1 pb-2 border-b border-[#242A36]">
@@ -153,7 +157,7 @@
             <i data-lucide="bot" class="icon text-[#4F67FF]"></i>
             <span class="font-sans font-medium">Asistente</span>
           </div>
-          <span class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V1.0</span>
+          <span class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">v0.8.2</span>
         </a>
 
         <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="compare">

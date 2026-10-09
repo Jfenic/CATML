@@ -81,8 +81,21 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] **H5 [Media-alta] Endurecimiento de autenticación remota**: Rechazo de tokens en query string (`?token=`) para operaciones POST; advertencia de seguridad en peticiones GET.
   - [x] **H6 [Media] Compatibilidad de versión scikit-learn**: Declaración de `scikit-learn>=1.4.0` en `pyproject.toml` con fallback defensivo (`needs_proba`) en `make_scorer`.
   - [x] **H8 [Media] Bloqueo multiplataforma en worker**: Uso de `msvcrt` en Windows y `fcntl` en Unix en `worker.py`.
+- [x] **Remediación Integral de Auditoría UX/UI Frontend (Workbench)**:
+  - [x] **F01 [Crítico UX]**: Retirados CPU 60%, RAM 45%, 5 workers fijos y logs predefinidos en `studio.js`; telemetría real conectada con ejecuciones y tiempos por estimador.
+  - [x] **F02 [Crítico UX]**: Retirado badge simulado `DAG Validated` en `pipeline.js`; sustituido por estado verificado (`Pipeline Trained & Aligned` / `Schema Inferred`); corregidas descripciones a `StandardScaler` y `OneHotEncoder` / `TargetAdapter`.
+  - [x] **F03 [Crítico UX]**: Retirado fallback mock "Standard Tabular Benchmark" (85% similar) en `knowledge.js`; renderizado de estado vacío honesto.
+  - [x] **F04 [Medio-alto]**: Subsanado `ReferenceError: customFeatures is not defined` en `new_experiment.js`, encapsulado en instancia y vinculado al dispatch.
+  - [x] **F05 [Medio-alto]**: Conectados botones simulados ("Promote Best Parameters" y "Use Warm Start") a almacenamiento reactivo en store (`promotedParams`, `warmStartParams`).
+  - [x] **F06 [Medio-alto]**: Propagación completa de opciones en `createAndRunExperiment` y soporte seguro de presupuesto en `job_executor.py` (`time_budget_seconds`).
+  - [x] **F07 [Medio]**: Desvinculación de ejecución huérfana en `store.setActiveDataset()` al cambiar a datasets sin runs previos.
+  - [x] **F09 [Medio]**: Checklist pre-flight de Kaggle en `kaggle.js` muestra estados pendientes neutrales hasta verificación empírica.
+  - [x] **F10 [Medio]**: Selección del trial óptimo en HPO guiado por dirección de métrica (minimización vs maximización).
+  - [x] **F11 [Medio]**: Enlace de descarga de submissions sustituido por `api.downloadFile()` con autenticación Bearer via blob.
+  - [x] **F12 & F15 [Medio]**: Accesibilidad mejorada: eliminado `select-none` del body; menú responsive con botón hamburguesa para pantallas `< md`.
+  - [x] **F13 & F14 [Bajo]**: Terminología armonizada y versión alineada a `v0.8.2`.
 - [x] **Validación y Cobertura**:
-  - [x] 673 tests pasando (100% de la suite). Cobertura total de 86.67% (umbral CI >= 85%).
+  - [x] 676 tests pasando (100% de la suite). Cobertura total mantenida $\ge 85\%$.
 
 ## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 

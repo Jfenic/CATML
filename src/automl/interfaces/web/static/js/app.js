@@ -170,10 +170,26 @@ class App {
   }
 
   _bindNavigation() {
+    const sidebar = document.getElementById("sidebarNav");
+    const toggleMobileBtn = document.getElementById("btnToggleMobileSidebar");
+
+    if (toggleMobileBtn && sidebar) {
+      toggleMobileBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("hidden");
+        sidebar.classList.toggle("absolute");
+        sidebar.classList.toggle("z-30");
+        sidebar.classList.toggle("h-[calc(100vh-53px)]");
+      });
+    }
+
     document.querySelectorAll(".nav-item").forEach(item => {
       item.addEventListener("click", e => {
         e.preventDefault();
         const navId = item.getAttribute("data-nav");
+        if (sidebar && sidebar.classList.contains("absolute")) {
+          sidebar.classList.add("hidden");
+          sidebar.classList.remove("absolute", "z-30", "h-[calc(100vh-53px)]");
+        }
         if (navId === "agent") {
           store.toggleAgentDrawer(true);
         } else {

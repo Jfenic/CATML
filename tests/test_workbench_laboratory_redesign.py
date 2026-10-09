@@ -130,6 +130,8 @@ const views = [
   { name: 'KaggleView', path: './src/automl/interfaces/web/static/js/views/kaggle.js' },
   { name: 'DatasetsView', path: './src/automl/interfaces/web/static/js/views/datasets.js' },
   { name: 'RegisterDatasetModal', path: './src/automl/interfaces/web/static/js/views/register_dataset_modal.js' },
+  { name: 'NewExperimentModal', path: './src/automl/interfaces/web/static/js/views/new_experiment.js' },
+  { name: 'SwitchDatasetModal', path: './src/automl/interfaces/web/static/js/views/switch_dataset_modal.js' },
 ];
 
 async function run() {
@@ -199,6 +201,100 @@ def test_file_browse_and_inspect_api_endpoints(tmp_path):
     assert sent_data.get("status") == "success"
     assert sent_data.get("columns") == ["feature1", "feature2", "churn"]
     assert sent_data.get("suggested_target") == "churn"
+
+
+def test_frontend_audit_remediations_honesty_and_accessibility():
+    # 1. index.html checks
+    index_content = Path("src/automl/interfaces/web/static/index.html").read_text(encoding="utf-8")
+    assert "select-none" not in index_content, "F15: select-none must be removed from body"
+    assert 'id="btnToggleMobileSidebar"' in index_content, "F12: mobile sidebar toggle button must exist"
+    assert "v0.8.2" in index_content, "F13: version badges should be consistent"
+
+    # 2. knowledge.js checks (no fake benchmark mock fallback)
+    knowledge_content = Path("src/automl/interfaces/web/static/js/views/knowledge.js").read_text(encoding="utf-8")
+    assert "Standard Tabular Benchmark" not in knowledge_content, "F03: fake benchmark mock must be removed"
+
+    # 3. studio.js checks (no fake CPU 60% / RAM 45% or fake 5 workers)
+    studio_content = Path("src/automl/interfaces/web/static/js/views/studio.js").read_text(encoding="utf-8")
+    assert "CPU Allocation" not in studio_content, "F01: hardcoded fake CPU allocation must be removed"
+    assert "Worker Fold 5" not in studio_content, "F01: hardcoded fake worker folds must be removed"
+
+    # 4. pipeline.js checks (no fake DAG Validated badge, accurate preprocessors)
+    pipeline_content = Path("src/automl/interfaces/web/static/js/views/pipeline.js").read_text(encoding="utf-8")
+    assert "<span>DAG Validated</span>" not in pipeline_content, "F02: hardcoded DAG Validated badge must be removed"
+    assert "StandardScaler" in pipeline_content, "F02: Numerical imputer should describe StandardScaler"
+    assert "OneHotEncoder" in pipeline_content, "F02: Categorical encoder should describe OneHotEncoder"
+
+    # 5. api.js checks (downloadFile method & createAndRunExperiment options forwarding)
+    api_content = Path("src/automl/interfaces/web/static/js/api.js").read_text(encoding="utf-8")
+    assert "downloadFile(" in api_content, "F11: downloadFile with bearer auth handling must exist in api.js"
+    assert "jobPayload.feature_names = payload.feature_names" in api_content, "F06: feature_names must be forwarded"
+    assert "jobPayload.validation_strategy = payload.validation_strategy" in api_content, "F06: validation_strategy must be forwarded"
+    assert "jobPayload.budget = payload.budget" in api_content, "F06: budget must be forwarded"
+    assert "jobPayload.mode = payload.mode" in api_content, "F06: mode must be forwarded"
+
+
+def test_job_executor_budget_propagation(tmp_path):
+    from unittest.mock import MagicMock
+    from automl.application.services.job_executor import JobExecutor
+    from automl.domain.jobs.job import Job, JobStatus
+    from automl.domain.runs.run import AutoMLRun, RunConfig
+
+    workspace = MagicMock()
+    commands = MagicMock()
+    repo = MagicMock()
+
+    mock_run = AutoMLRun(
+        id="run-1",
+        workspace_id="ws-1",
+        dataset_id="ds-1",
+        config=RunConfig(task_type="classification", target="target"),
+    )
+    mock_dataset = MagicMock()
+    mock_dataset.id = "ds-1"
+    mock_dataset.target_column = "target"
+    profile = MagicMock()
+    profile.columns = []
+    repo.get_dataset_profile.return_value = profile
+
+    workspace._get_run.return_value = mock_run
+    workspace._get_dataset.return_value = mock_dataset
+    workspace.repository = repo
+
+    mock_experiment = MagicMock()
+    mock_experiment.id = "exp-1"
+    mock_experiment.run_id = "run-1"
+    commands.dispatch.return_value = mock_experiment
+
+    query_bus = MagicMock()
+    executor = JobExecutor(workspace=workspace, command_bus=commands, query_bus=query_bus, repository=repo)
+
+    job = Job(
+        id="job-1",
+        run_id="run-1",
+        operation="experiment",
+        status=JobStatus.RUNNING,
+        payload={"budget": "quick", "name": "Quick Test", "models": ["lightgbm"]},
+    )
+
+    # Mock execution control check and trial results
+    executor.workspace.execution_check = MagicMock()
+    executor.workspace.run_experiment = MagicMock()
+    repo.get.return_value = job
+    repo.get_checkpoint.return_value = None
+    mock_trial = MagicMock(succeeded=True)
+    repo.list_trial_results.return_value = [mock_trial]
+
+    executor.execute(job)
+
+    # Assert budget was translated to seconds on run.config
+    assert mock_run.config.time_budget_seconds == 60.0
+    workspace.repository.save_run.assert_called_with(mock_run)
+    # Assert commands.dispatch was called with valid command args
+    dispatched_cmd = commands.dispatch.call_args[0][0]
+    assert dispatched_cmd.name == "Quick Test"
+    assert dispatched_cmd.run_id == "run-1"
+
 
 
 

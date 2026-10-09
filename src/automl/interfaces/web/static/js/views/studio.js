@@ -496,12 +496,18 @@ export class StudioView {
         </div>
       `;
     } else if (this.activeTab === "hpo") {
-      // Find best trial across experiments
+      // Find best trial across experiments taking metric direction into account
+      const metricLower = (this.activeRun?.metric || "").toLowerCase();
+      const isMinimizing = ["mae", "rmse", "mse", "loss", "log_loss"].some(m => metricLower.includes(m));
       let bestTrial = null;
       for (const e of this.experiments) {
         for (const t of (e.trials || [])) {
-          if (!bestTrial || t.score > bestTrial.score) {
-            bestTrial = t;
+          if (t.score != null) {
+            if (!bestTrial) {
+              bestTrial = t;
+            } else if (isMinimizing ? t.score < bestTrial.score : t.score > bestTrial.score) {
+              bestTrial = t;
+            }
           }
         }
       }
@@ -511,7 +517,7 @@ export class StudioView {
           <div class="flex items-center justify-between">
             <div>
               <h4 class="text-sm font-bold text-slate-200">HYPERPARAMETER SEARCH (Optuna TPE)</h4>
-              <p class="text-xs text-slate-400">Best Trial: <span class="font-mono text-emerald-400 font-bold">${bestTrial ? bestTrial.trial_id : "#1"}</span> • Score: <span class="font-mono text-emerald-400 font-bold">${bestTrial ? bestTrial.score.toFixed(5) : "—"}</span></p>
+              <p class="text-xs text-slate-400">Best Trial: <span class="font-mono text-emerald-400 font-bold">${bestTrial ? (bestTrial.trial_id || "#1") : "—"}</span> • Score (${activeRun ? activeRun.metric : "CV"}): <span class="font-mono text-emerald-400 font-bold">${bestTrial && bestTrial.score != null ? Number(bestTrial.score).toFixed(5) : "—"}</span></p>
             </div>
             <button id="btnStopHPOAndPromote" class="btn-signal">
               <span class="inline-flex items-center gap-1.5">${icon("zap", "icon-sm")} <span>Promote Best Parameters</span></span>
@@ -530,73 +536,74 @@ export class StudioView {
                 `).join("")}
               </div>
             ` : `
-              <div class="text-xs text-slate-400 font-mono">depth: 6 • learning_rate: 0.05 • n_estimators: 300 (Default Search Configuration)</div>
+              <div class="text-xs text-slate-400 font-mono">Sin parámetros de HPO optimizados registrados para este experimento.</div>
             `}
           </div>
         </div>
       `;
     } else if (this.activeTab === "resources") {
+      const totalTrainingSec = this.leaderboard.reduce((acc, m) => acc + (Number(m.training_time_seconds) || 0), 0);
+      const evaluatedModelsCount = this.leaderboard.length;
+
       return `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-          <div class="space-y-3">
-            <div class="font-semibold text-slate-200 uppercase tracking-wider">System Hardware Load</div>
-            <div class="space-y-2">
-              <div>
-                <div class="flex justify-between font-mono text-slate-300 mb-1">
-                  <span>CPU Allocation</span>
-                  <span class="text-indigo-400">Multi-core Workers Active</span>
-                </div>
-                <div class="w-full bg-slate-800 rounded-full h-2"><div class="bg-indigo-500 h-2 rounded-full" style="width: 60%"></div></div>
-              </div>
-              <div>
-                <div class="flex justify-between font-mono text-slate-300 mb-1">
-                  <span>RAM Cache</span>
-                  <span class="text-indigo-400">In-memory Out-of-fold Vectors</span>
-                </div>
-                <div class="w-full bg-slate-800 rounded-full h-2"><div class="bg-indigo-500 h-2 rounded-full" style="width: 45%"></div></div>
-              </div>
+        <div class="space-y-4 text-xs font-sans">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-3 rounded-xl bg-[#11151E] border border-[#242A36]">
+              <div class="text-[#8B95A7] text-[11px] uppercase font-semibold">Modelos Evaluados</div>
+              <div class="text-lg font-bold font-mono text-[#F7F8FA] mt-1">${evaluatedModelsCount}</div>
+              <div class="text-[10px] text-[#8B95A7]">${this.experiments.length} experimentos ejecutados</div>
+            </div>
+            <div class="p-3 rounded-xl bg-[#11151E] border border-[#242A36]">
+              <div class="text-[#8B95A7] text-[11px] uppercase font-semibold">Tiempo Total de Entrenamiento</div>
+              <div class="text-lg font-bold font-mono text-[#4F67FF] mt-1">${totalTrainingSec > 0 ? totalTrainingSec.toFixed(2) + 's' : '—'}</div>
+              <div class="text-[10px] text-[#8B95A7]">Calculado de ejecuciones reales</div>
+            </div>
+            <div class="p-3 rounded-xl bg-[#11151E] border border-[#242A36]">
+              <div class="text-[#8B95A7] text-[11px] uppercase font-semibold">Estado del Motor</div>
+              <div class="text-lg font-bold font-mono text-[#22C55E] mt-1">${activeRun ? activeRun.status : 'ONLINE'}</div>
+              <div class="text-[10px] text-[#8B95A7]">Validación: ${activeRun ? (activeRun.validation_strategy || '5-fold CV') : 'CV'}</div>
             </div>
           </div>
 
-          <div class="space-y-3">
-            <div class="font-semibold text-slate-200 uppercase tracking-wider">Parallel Cross-Validation Workers</div>
-            <div class="space-y-1.5 font-mono">
-              <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                <span>Worker Fold 1</span>
-                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
+          <div class="space-y-2">
+            <div class="font-semibold text-slate-200 uppercase tracking-wider text-[11px]">Tiempos de Entrenamiento por Modelo</div>
+            ${evaluatedModelsCount > 0 ? `
+              <div class="space-y-1.5 font-mono">
+                ${this.leaderboard.map(m => `
+                  <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between items-center text-xs">
+                    <span class="capitalize text-slate-200">${m.model_id}</span>
+                    <div class="flex items-center space-x-4">
+                      <span class="text-slate-400">${m.training_time_seconds ? Number(m.training_time_seconds).toFixed(2) + 's' : '—'}</span>
+                      <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completado</span></span>
+                    </div>
+                  </div>
+                `).join("")}
               </div>
-              <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                <span>Worker Fold 2</span>
-                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
+            ` : `
+              <div class="p-6 text-center text-xs text-[#8B95A7] bg-[#11151E] rounded-xl border border-[#242A36]">
+                No hay ejecuciones ni workers activos para este experimento.
               </div>
-              <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                <span>Worker Fold 3</span>
-                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
-              </div>
-              <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                <span>Worker Fold 4</span>
-                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
-              </div>
-              <div class="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                <span>Worker Fold 5</span>
-                <span class="text-[#22C55E] inline-flex items-center gap-1">${icon("check", "icon-sm")} <span>Completed</span></span>
-              </div>
-            </div>
+            `}
           </div>
         </div>
       `;
     } else {
       return `
         <div class="space-y-2 font-mono text-xs">
-          <div class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-400">
-            <span class="text-emerald-400">[INFO]</span> Run initialized with dataset: ${activeRun ? activeRun.dataset_name : 'N/A'}.
-          </div>
-          <div class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-400">
-            <span class="text-indigo-400">[PLANNER]</span> Rule-based roadmap generated based on dataset profile meta-features.
-          </div>
-          <div class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-400">
-            <span class="text-emerald-400">[VALIDATION]</span> Cross-validation metrics calculated with out-of-fold preservation.
-          </div>
+          ${this.experiments.length > 0 ? this.experiments.map(exp => `
+            <div class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-between">
+              <div>
+                <span class="text-emerald-400">[EXPERIMENTO]</span>
+                <span class="font-semibold text-slate-200">${exp.name || exp.id}</span>
+                <span class="text-slate-400 text-[11px]">(${exp.model_ids ? exp.model_ids.join(", ") : "modelos"})</span>
+              </div>
+              <span class="text-indigo-400 font-bold">${exp.best_score != null ? Number(exp.best_score).toFixed(5) : '—'}</span>
+            </div>
+          `).join("") : `
+            <div class="p-4 rounded-xl bg-[#090C12] border border-[#242A36] text-center text-xs text-[#8B95A7]">
+              No hay eventos de ejecución registrados. Inicie un experimento para ver los registros del motor AutoML.
+            </div>
+          `}
         </div>
       `;
     }
@@ -674,7 +681,26 @@ export class StudioView {
     });
 
     this.container.querySelector("#btnStopHPOAndPromote")?.addEventListener("click", () => {
-      alert("Best hyperparameters promoted to active Model Pipeline.");
+      const metricLower = (this.activeRun?.metric || "").toLowerCase();
+      const isMinimizing = ["mae", "rmse", "mse", "loss", "log_loss"].some(m => metricLower.includes(m));
+      let bestTrial = null;
+      for (const e of this.experiments) {
+        for (const t of (e.trials || [])) {
+          if (t.score != null) {
+            if (!bestTrial) {
+              bestTrial = t;
+            } else if (isMinimizing ? t.score < bestTrial.score : t.score > bestTrial.score) {
+              bestTrial = t;
+            }
+          }
+        }
+      }
+      if (bestTrial && bestTrial.params && Object.keys(bestTrial.params).length > 0) {
+        store.setState({ promotedParams: bestTrial.params, warmStartParams: bestTrial.params });
+        alert(`Parámetros óptimos del trial ${bestTrial.trial_id || '#1'} (score: ${Number(bestTrial.score).toFixed(5)}) promovidos con éxito al pipeline.`);
+      } else {
+        alert("No se han encontrado hiperparámetros optimizados en los experimentos actuales.");
+      }
     });
 
     // Dynamic "Why this?" buttons
