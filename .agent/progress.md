@@ -1,5 +1,26 @@
 # Progress
 
+### Track CATML Explore — Fase E2: Motor Estadístico Avanzado (Advanced Statistical Engine) (2026-10-09)
+
+- **Implementación del Motor Estadístico y Matemático Avanzado (Fase E2 - ADR-008):**
+  - **Diagnóstico Profundo de Distribuciones (`distribution_diagnostics.py`):**
+    - Pruebas inferenciales de normalidad univariante: D'Agostino-Pearson omnibus test (`scipy.stats.normaltest`) para $N \ge 20$ y Shapiro-Wilk (`scipy.stats.shapiro`) para $8 \le N < 20$.
+    - Asimetría (*skewness*) y curtosis (*excess kurtosis*) con orientación direccional y formulación de hipótesis de transformación (`power_transform`, Yeo-Johnson / Log1p).
+    - Detección cuantitativa de multimodality y bimodalidad mediante el coeficiente bimodal de Sarle ($BC > 0.555$) con recomendación para discretización o segmentación en subpoblaciones.
+    - Detección multivariante de anomalías mediante distancia de Mahalanobis ($D^2$) con matriz de covarianza regularizada e inversión mediante pseudoinversa (`pinv`), contrastada frente a umbral crítico de Chi-cuadrado ($\chi^2_{df=k}, p < 0.001$).
+  - **Métricas de Asociación Bivariadas y Categóricas (`association_metrics.py`):**
+    - Correlación de Pearson ($r$) combinada con intervalos de confianza del 95% calculados analíticamente mediante la transformación $z$ de Fisher.
+    - Correlación monótona de Spearman ($\rho$) con contraste frente a Pearson para capturar no-linealidades complejas ($|\rho| - |r| \ge 0.20$ o $|\rho| \ge 0.60$ con $|r| < 0.40$), generando hipótesis de modelos no lineales basados en árboles (GBDT) o splines.
+    - Matriz de asociación categórica mediante coeficiente $V$ de Cramér con corrección de sesgo muestral de Bergsma-Wicher, pruebas Chi-cuadrado de independencia e hipótesis de interacciones bivariadas.
+    - Generación declarativa de especificaciones `VisualizationSpec` para matrices de correlación (Pearson y Spearman) y matrices de asociación categórica.
+  - **Pruebas de Hipótesis Inferenciales y Corrección FDR (`hypothesis_testing.py`):**
+    - Comparación de grupos con variable objetivo binaria: t-test de Welch para varianzas desiguales, prueba no paramétrica de Mann-Whitney U, prueba de homogeneidad de varianzas de Levene y cálculo estricto del tamaño del efecto mediante $d$ de Cohen.
+    - Comparación multiclase ($>2$ grupos): ANOVA unidireccional de Fisher, prueba de Kruskal-Wallis y tamaño del efecto $\eta^2$ (Eta al cuadrado).
+    - Corrección por pruebas múltiples mediante procedimiento de Benjamini-Hochberg (FDR - False Discovery Rate): cálculo de p-valores ajustados en todos los hallazgos para evitar inflación de descubrimientos falsos y falsos positivos (*data dredging*).
+  - **Validación Automatizada:**
+    - Suite de pruebas dedicada en `tests/test_explore_phase_e2_advanced_engine.py` (11 pruebas pasando al 100%).
+    - Cobertura del paquete `src/automl/engine/analysis` elevada al 88%.
+
 ### Track CATML Explore — Fase E1: Núcleo de Estudios (Explore Core) (2026-10-09)
 
 - **Implementación Integral del Núcleo de Estudios Exploratorios (Fase E1 - ADR-008):**

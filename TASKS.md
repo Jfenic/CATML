@@ -178,13 +178,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Herramientas MCP en `src/automl/interfaces/mcp/analysis_tools.py` (`analysis_create_study`, `analysis_run_study`, `analysis_get_findings`, `analysis_list_studies`, `analysis_get_study`).
   - [x] Endpoints REST `/api/analysis/...` en `server.py` e interfaz visual verídica en Workbench (`datasets.js` y `api.js` con selector de estudios, matriz de correlación real calculada y tarjetas de hallazgos).
   - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e1_core.py` (10 pruebas pasando al 100%).
-- [ ] **Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)** [Prioridad P0]:
-  - [ ] Motor numérico en `src/automl/engine/analysis/` (encapsulando `scipy` y `statsmodels` bajo el extra `catml[explore]`).
-  - [ ] Diagnóstico de calidad: distribuciones, asimetría, curtosis y detección multivariante de anomalías (Isolation Forest/Mahalanobis).
-  - [ ] Matrices de correlación (Pearson, Spearman) con p-valores corregidos.
-  - [ ] Asociaciones categóricas e información mutua estandarizada continua/discreta.
-  - [ ] Pruebas de hipótesis automáticas (t-test, Mann-Whitney, ANOVA, Levene) con cálculo obligatorio de tamaños del efecto e intervalos de confianza.
-  - [ ] Corrección por comparaciones múltiples (FDR Benjamini-Hochberg).
+- [x] **Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)** [Prioridad P0]:
+  - [x] Motor numérico modular en `src/automl/engine/analysis/` (`distribution_diagnostics.py`, `association_metrics.py`, `hypothesis_testing.py`, `statistical_analyzer.py`).
+  - [x] Diagnóstico de distribuciones: pruebas de normalidad (D'Agostino-Pearson y Shapiro-Wilk), asimetría (skewness), curtosis, detección de multimodality (coeficiente bimodal de Sarle $BC > 0.555$) y outliers multivariantes (distancia de Mahalanobis regularizada con corte crítico $\chi^2_{p < 0.001}$).
+  - [x] Matrices de asociación bivariadas: correlación de Pearson con intervalos de confianza de Fisher al 95% ($z$-transform), correlación monótona de Spearman ($\rho$), contraste de relaciones no lineales e hipótesis de modelos basados en árboles/splines.
+  - [x] Asociaciones categóricas e inferencia no lineal: matriz de Cramér's V con corrección de sesgo de Bergsma-Wicher, pruebas Chi-cuadrado de independencia e hipótesis de interacciones categóricas.
+  - [x] Pruebas de hipótesis automáticas supervisadas: comparación de 2 grupos con t-test de Welch y Mann-Whitney U junto con tamaño del efecto Cohen's $d$; comparación multiclase ($>2$ grupos) con ANOVA unidireccional y Kruskal-Wallis junto con tamaño del efecto $\eta^2$ (Eta al cuadrado); prueba de homocedasticidad de Levene.
+  - [x] Corrección de comparaciones múltiples: ajuste por Benjamini-Hochberg (FDR - False Discovery Rate) sobre todos los tests inferenciales del estudio para mitigar falsos descubrimientos (*data dredging*).
+  - [x] Batería de pruebas dedicada en `tests/test_explore_phase_e2_advanced_engine.py` (11 pruebas pasando al 100%, 88% de cobertura en `engine/analysis`).
 - [ ] **Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)** [Prioridad P1]:
   - [ ] Generador backend de `VisualizationSpec` declarativo con agregaciones y decodificación sin saturar el cliente.
   - [ ] Vista Tech Minimalista en `src/automl/interfaces/web/static/js/views/explore.js` (tipografía Geist, 1px border, alta densidad informativa).
