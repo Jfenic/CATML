@@ -19,6 +19,7 @@ import { AgentDrawer } from "./views/agent.js";
 import { NewExperimentModal } from "./views/new_experiment.js";
 import { HomeView } from "./views/home.js";
 import { SwitchDatasetModal } from "./views/switch_dataset_modal.js";
+import { RegisterDatasetModal } from "./views/register_dataset_modal.js";
 
 class App {
   constructor() {
@@ -30,6 +31,7 @@ class App {
     this.agentDrawer = new AgentDrawer();
     this.newExperimentModal = new NewExperimentModal();
     this.switchDatasetModal = new SwitchDatasetModal();
+    this.registerDatasetModal = new RegisterDatasetModal();
   }
 
   async init() {
@@ -201,6 +203,10 @@ class App {
 
     bus.on("modal:switch-dataset", () => {
       this.switchDatasetModal.mount(this.modalContainer);
+    });
+
+    bus.on("modal:register-dataset", () => {
+      this.registerDatasetModal.mount(this.modalContainer);
     });
 
     bus.on("dataset:switched", (datasetId) => {

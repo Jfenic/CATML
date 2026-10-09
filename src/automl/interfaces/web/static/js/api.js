@@ -130,6 +130,28 @@ export class CATMLApiClient {
     return url;
   }
 
+  async browseFiles(dir = "", search = "") {
+    let q = [];
+    if (dir) q.push(`dir=${encodeURIComponent(dir)}`);
+    if (search) q.push(`search=${encodeURIComponent(search)}`);
+    const qs = q.length ? `?${q.join("&")}` : "";
+    return this._fetch(`/api/files/browse${qs}`);
+  }
+
+  async inspectFile(path) {
+    return this._fetch("/api/dataset/inspect-file", {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    });
+  }
+
+  async uploadDataset(filename, contentBase64) {
+    return this._fetch("/api/dataset/upload", {
+      method: "POST",
+      body: JSON.stringify({ filename, content_base64: contentBase64 }),
+    });
+  }
+
   // POST commands
   async registerDataset(payload) {
     return this._fetch("/api/dataset/register", {

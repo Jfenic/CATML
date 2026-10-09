@@ -513,6 +513,97 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json(result)
             return
 
+        elif path == "/api/files/browse":
+            query_params = parse_qs(parsed.query)
+            target_rel = query_params.get("dir", [""])[0].strip()
+            search_query = query_params.get("search", [""])[0].strip().lower()
+
+            base_dir = Path.cwd().resolve()
+            if target_rel == ".":
+                target_path = base_dir
+            elif not target_rel:
+                # If searching without specific dir, search base_dir
+                target_path = base_dir if search_query else ((base_dir / "data").resolve() if (base_dir / "data").exists() else base_dir)
+            elif Path(target_rel).is_absolute():
+                target_path = Path(target_rel).resolve()
+            else:
+                target_path = (base_dir / target_rel).resolve()
+
+            # Security boundary: must remain within base_dir or workspace_dir
+            ws_path = Path(self.workspace_dir).resolve()
+            is_in_base = target_path == base_dir or target_path.is_relative_to(base_dir)
+            is_in_ws = target_path == ws_path or target_path.is_relative_to(ws_path)
+
+            if not (is_in_base or is_in_ws):
+                target_path = (base_dir / "data").resolve() if (base_dir / "data").exists() else base_dir
+
+            if not target_path.exists() or not target_path.is_dir():
+                target_path = base_dir
+
+            allowed_exts = {".csv", ".parquet", ".pq", ".tsv", ".json", ".jsonl"}
+            folders = []
+            files = []
+            parent_dir = str(target_path.parent) if target_path != base_dir and (target_path.parent == base_dir or target_path.parent.is_relative_to(base_dir)) else None
+
+            try:
+                if search_query:
+                    # Recursive search from target_path, limiting to 60 matches
+                    for item in target_path.rglob("*"):
+                        if item.name.startswith(".") or "venv" in str(item) or "__pycache__" in str(item) or "node_modules" in str(item):
+                            continue
+                        if search_query in item.name.lower():
+                            if item.is_file() and item.suffix.lower() in allowed_exts:
+                                try:
+                                    size_bytes = item.stat().st_size
+                                    size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+                                    files.append({
+                                        "name": item.name,
+                                        "path": str(item),
+                                        "rel_path": str(item.relative_to(base_dir)) if item.is_relative_to(base_dir) else str(item),
+                                        "size_bytes": size_bytes,
+                                        "size_formatted": size_str,
+                                        "extension": item.suffix.lower(),
+                                    })
+                                except Exception:
+                                    pass
+                        if len(files) >= 60:
+                            break
+                else:
+                    for item in sorted(target_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+                        if item.name.startswith(".") or item.name in {"venv", ".venv", "__pycache__", "node_modules", "dist", "build", ".git"}:
+                            continue
+                        if item.is_dir():
+                            folders.append({
+                                "name": item.name,
+                                "path": str(item),
+                                "rel_path": str(item.relative_to(base_dir)) if item.is_relative_to(base_dir) else str(item),
+                            })
+                        elif item.is_file() and item.suffix.lower() in allowed_exts:
+                            try:
+                                size_bytes = item.stat().st_size
+                                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+                                files.append({
+                                    "name": item.name,
+                                    "path": str(item),
+                                    "rel_path": str(item.relative_to(base_dir)) if item.is_relative_to(base_dir) else str(item),
+                                    "size_bytes": size_bytes,
+                                    "size_formatted": size_str,
+                                    "extension": item.suffix.lower(),
+                                })
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+            self._send_json({
+                "current_dir": str(target_path),
+                "rel_dir": str(target_path.relative_to(base_dir)) if target_path.is_relative_to(base_dir) else str(target_path),
+                "parent_dir": parent_dir,
+                "folders": folders,
+                "files": files,
+            })
+            return
+
         elif path == "/api/runs":
             runs = ws.list_runs()
             result = []
@@ -1161,9 +1252,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 target = payload.get("target") or payload.get("target_column")
                 task_type = payload.get("task_type")
 
-                if not data_path or not target:
-                    self._send_json({"error": "path and target are required"}, HTTPStatus.BAD_REQUEST)
+                if not data_path:
+                    self._send_json({"error": "path is required"}, HTTPStatus.BAD_REQUEST)
                     return
+
+                if target and not str(target).strip():
+                    target = None
 
                 dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
                 run = ws.create_run(dataset)
@@ -1179,6 +1273,102 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "feature_count": len(profile.columns) if profile else None,
                 })
                 return
+
+            elif path == "/api/dataset/upload":
+                filename = payload.get("filename", "uploaded_dataset.csv")
+                safe_filename = Path(filename).name
+                if not safe_filename or safe_filename.startswith("."):
+                    safe_filename = f"dataset_{uuid.uuid4().hex[:6]}.csv"
+
+                content_b64 = payload.get("content_base64")
+                if not content_b64:
+                    self._send_json({"error": "content_base64 is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                try:
+                    import base64
+                    data_bytes = base64.b64decode(content_b64)
+                except Exception as b64_err:
+                    self._send_json({"error": f"Invalid base64 payload: {b64_err}"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                upload_dir = Path(self.workspace_dir) / "uploads"
+                upload_dir.mkdir(parents=True, exist_ok=True)
+                dest_path = upload_dir / safe_filename
+                dest_path.write_bytes(data_bytes)
+
+                size_bytes = len(data_bytes)
+                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+
+                detected_cols = []
+                suggested_target = None
+                try:
+                    from automl.engine.profiling.dataset_profiler import load_dataframe
+                    sample_df = load_dataframe(dest_path)
+                    detected_cols = list(sample_df.columns)
+                    candidates = ["target", "label", "class", "churn", "survived", "price", "is_fraud", "Will_Buy_EV"]
+                    for c in detected_cols:
+                        if c.lower() in [cand.lower() for cand in candidates]:
+                            suggested_target = c
+                            break
+                    if not suggested_target and len(detected_cols) > 1:
+                        suggested_target = detected_cols[-1]
+                except Exception:
+                    pass
+
+                self._send_json({
+                    "status": "success",
+                    "path": str(dest_path.resolve()),
+                    "filename": safe_filename,
+                    "size_bytes": size_bytes,
+                    "size_formatted": size_str,
+                    "columns": detected_cols,
+                    "suggested_target": suggested_target,
+                    "suggested_name": Path(safe_filename).stem,
+                })
+                return
+
+            elif path == "/api/dataset/inspect-file":
+                file_path_str = payload.get("path")
+                if not file_path_str:
+                    self._send_json({"error": "path is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                target_file = Path(file_path_str).resolve()
+                if not target_file.exists() or not target_file.is_file():
+                    self._send_json({"error": f"File not found: {file_path_str}"}, HTTPStatus.NOT_FOUND)
+                    return
+
+                try:
+                    from automl.engine.profiling.dataset_profiler import load_dataframe
+                    df = load_dataframe(target_file)
+                    cols = list(df.columns)
+                    suggested_target = None
+                    candidates = ["target", "label", "class", "churn", "survived", "price", "is_fraud", "Will_Buy_EV"]
+                    for c in cols:
+                        if c.lower() in [cand.lower() for cand in candidates]:
+                            suggested_target = c
+                            break
+                    if not suggested_target and len(cols) > 1:
+                        suggested_target = cols[-1]
+
+                    size_bytes = target_file.stat().st_size
+                    size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+
+                    self._send_json({
+                        "status": "success",
+                        "path": str(target_file),
+                        "suggested_name": target_file.stem,
+                        "columns": cols,
+                        "suggested_target": suggested_target,
+                        "total_rows": len(df),
+                        "total_columns": len(cols),
+                        "size_formatted": size_str,
+                    })
+                    return
+                except Exception as load_err:
+                    self._send_json({"error": f"Could not inspect file: {load_err}"}, HTTPStatus.BAD_REQUEST)
+                    return
 
             elif path == "/api/run/pause":
                 run_id = payload.get("run_id")

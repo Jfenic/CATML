@@ -137,8 +137,7 @@ export class SwitchDatasetModal {
 
     this.container.querySelector("#btnSwitchModalAdd")?.addEventListener("click", () => {
       this.close();
-      store.setNav("dataset");
-      bus.emit("dataset:show-register");
+      bus.emit("modal:register-dataset");
     });
   }
 

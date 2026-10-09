@@ -333,13 +333,11 @@ export class HomeView {
     });
 
     this.container.querySelector("#btnHomeAddDataset")?.addEventListener("click", () => {
-      store.setNav("dataset");
-      bus.emit("dataset:show-register");
+      bus.emit("modal:register-dataset");
     });
 
     this.container.querySelector("#btnHomeAddDatasetEmpty")?.addEventListener("click", () => {
-      store.setNav("dataset");
-      bus.emit("dataset:show-register");
+      bus.emit("modal:register-dataset");
     });
 
     this.container.querySelector("#btnHomeOpenDataset")?.addEventListener("click", () => {

@@ -129,6 +129,7 @@ const views = [
   { name: 'KnowledgeView', path: './src/automl/interfaces/web/static/js/views/knowledge.js' },
   { name: 'KaggleView', path: './src/automl/interfaces/web/static/js/views/kaggle.js' },
   { name: 'DatasetsView', path: './src/automl/interfaces/web/static/js/views/datasets.js' },
+  { name: 'RegisterDatasetModal', path: './src/automl/interfaces/web/static/js/views/register_dataset_modal.js' },
 ];
 
 async function run() {
@@ -146,5 +147,58 @@ run();
 """
     result = subprocess.run([node_bin, "-e", script], capture_output=True, text=True)
     assert result.returncode == 0, f"View render runtime error:\n{result.stderr}"
+
+
+def test_file_browse_and_inspect_api_endpoints(tmp_path):
+    import json
+    import base64
+    from unittest.mock import MagicMock
+    from automl.interfaces.web.server import AutoMLWebHandler
+
+    # Mock handler
+    handler = AutoMLWebHandler.__new__(AutoMLWebHandler)
+    handler.workspace_dir = str(tmp_path)
+    handler.require_auth = False
+    handler.auth_token = None
+    handler.headers = {}
+
+    sent_data = {}
+    sent_status = []
+
+    def mock_send_json(data, status=200):
+        sent_data.clear()
+        sent_data.update(data if isinstance(data, dict) else {"items": data})
+        sent_status.append(status)
+
+    handler._send_json = mock_send_json
+
+    # Create dummy data file in tmp_path
+    sample_file = tmp_path / "sample.csv"
+    sample_file.write_text("a,b,target\n1,2,0\n3,4,1\n")
+
+    # 1. Inspect file
+    handler.path = "/api/dataset/inspect-file"
+    handler.rfile = MagicMock()
+    body = json.dumps({"path": str(sample_file)}).encode("utf-8")
+    handler.rfile.read.return_value = body
+    handler.headers = {"Content-Length": str(len(body))}
+    handler.do_POST()
+
+    assert sent_data.get("status") == "success"
+    assert sent_data.get("columns") == ["a", "b", "target"]
+    assert sent_data.get("suggested_target") == "target"
+
+    # 2. Upload file via base64
+    handler.path = "/api/dataset/upload"
+    b64_content = base64.b64encode(b"feature1,feature2,churn\n10,20,yes\n").decode("utf-8")
+    body = json.dumps({"filename": "customer_churn.csv", "content_base64": b64_content}).encode("utf-8")
+    handler.rfile.read.return_value = body
+    handler.headers = {"Content-Length": str(len(body))}
+    handler.do_POST()
+
+    assert sent_data.get("status") == "success"
+    assert sent_data.get("columns") == ["feature1", "feature2", "churn"]
+    assert sent_data.get("suggested_target") == "churn"
+
 
 

@@ -36,8 +36,7 @@ export class DatasetsView {
     this.container = container;
     this._unregisterBus = [
       bus.on("dataset:show-register", () => {
-        this.showRegisterForm = true;
-        if (this.container) this.render();
+        bus.emit("modal:register-dataset");
       }),
       bus.on("dataset:switched", async (id) => {
         this.activeDatasetId = id;
@@ -1868,8 +1867,7 @@ export class DatasetsView {
     });
 
     this.container.querySelector("#btnToggleRegisterForm")?.addEventListener("click", () => {
-      this.showRegisterForm = !this.showRegisterForm;
-      this.render();
+      bus.emit("modal:register-dataset");
     });
 
     this.container.querySelector("#datasetSelect")?.addEventListener("change", async e => {
