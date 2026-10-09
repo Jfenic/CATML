@@ -4,10 +4,17 @@
  */
 export class WorkbenchStore {
   constructor() {
+    let savedDatasetId = null;
+    try {
+      savedDatasetId = localStorage.getItem("catml_active_dataset_id");
+    } catch (_) {}
+
     this._state = {
-      currentNav: "overview",
+      currentNav: "home",
       activeRunId: null,
-      activeDatasetId: null,
+      activeDatasetId: savedDatasetId,
+      activeDataset: null,
+      datasets: [],
       overview: null,
       runs: [],
       experiments: [],
@@ -70,6 +77,31 @@ export class WorkbenchStore {
       current.push(expId);
     }
     this.setState({ selectedExperimentsForCompare: current });
+  }
+
+  setActiveDataset(datasetId) {
+    if (!datasetId) return;
+    const datasets = this._state.datasets || [];
+    const ds = datasets.find(d => d.id === datasetId) || null;
+    try {
+      localStorage.setItem("catml_active_dataset_id", datasetId);
+    } catch (_) {}
+
+    // Align activeRunId with matching run from this dataset if available
+    const runs = this._state.runs || [];
+    const matchingRun = runs.find(r => r.dataset_id === datasetId);
+
+    this.setState({
+      activeDatasetId: datasetId,
+      activeDataset: ds,
+      activeRunId: matchingRun ? matchingRun.id : this._state.activeRunId,
+    });
+  }
+
+  getActiveDataset() {
+    return this._state.activeDataset
+      || (this._state.datasets || []).find(d => d.id === this._state.activeDatasetId)
+      || null;
   }
 }
 

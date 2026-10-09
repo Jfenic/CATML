@@ -94,63 +94,73 @@
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Navigation Sidebar -->
     <aside class="w-64 bg-[#0D1017] border-r border-[#242A36] p-3 flex flex-col justify-between hidden md:flex">
-      <div class="space-y-1">
-        <div class="text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 py-2 mb-1 flex justify-between items-center">
-          <span>Navigation</span>
-          <span class="text-[#22C55E] font-mono text-[10px] flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-[#22C55E]"></span>ON</span>
+      <div class="space-y-2">
+        <!-- Laboratorio Local Context Header -->
+        <div class="px-2 pt-1 pb-2 border-b border-[#242A36]">
+          <div class="flex items-center justify-between text-[11px] font-sans font-semibold uppercase tracking-wider text-[#8B95A7] mb-2">
+            <span>Laboratorio local</span>
+            <span class="text-[#22C55E] font-mono text-[10px] flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>ONLINE
+            </span>
+          </div>
+
+          <!-- Active Dataset Card in Sidebar -->
+          <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-3 space-y-1.5">
+            <div class="text-[10px] font-mono text-[#8B95A7] uppercase tracking-wider flex items-center justify-between">
+              <span>Dataset activo</span>
+              <span id="sidebarDatasetBadge" class="w-1.5 h-1.5 rounded-full bg-[#4F67FF]"></span>
+            </div>
+            <div id="sidebarActiveDatasetName" class="font-sans font-bold text-sm text-[#F7F8FA] truncate" title="Cargando dataset...">
+              Cargando dataset...
+            </div>
+            <button id="btnSidebarSwitchDataset" class="w-full mt-1 bg-[#161B26] hover:bg-[#1E2536] text-[#4F67FF] hover:text-[#53C8FF] border border-[#242A36] hover:border-[#4F67FF]/40 rounded-lg py-1.5 px-2 text-[11px] font-sans font-medium transition-all flex items-center justify-center space-x-1.5">
+              <i data-lucide="layers" class="icon icon-sm"></i>
+              <span>Cambiar dataset</span>
+            </button>
+          </div>
         </div>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="overview">
+        <div class="text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 py-1">
+          Navegación
+        </div>
+
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="home">
           <span class="nav-num">01</span>
-          <span class="font-sans font-medium">Dashboard</span>
+          <span class="font-sans font-medium">Inicio</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="datasets">
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="dataset">
           <span class="nav-num">02</span>
-          <span class="font-sans font-medium">Datasets</span>
+          <span class="font-sans font-medium">Dataset</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="studio">
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="experiments">
           <span class="nav-num">03</span>
-          <span class="font-sans font-medium">Experiments</span>
+          <span class="font-sans font-medium">Experimentos</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="compare">
+        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="evidence">
           <span class="nav-num">04</span>
-          <span class="font-sans font-medium">Models</span>
+          <span class="font-sans font-medium">Evidencia</span>
         </a>
 
-        <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all" data-nav="pipelines">
-          <span class="nav-num">05</span>
-          <span class="font-sans font-medium">Pipelines</span>
-        </a>
-
-        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="kaggle">
-          <div class="flex items-center space-x-3">
-            <span class="nav-num">06</span>
-            <span class="font-sans font-medium" id="kaggleNavLabel">Deployments</span>
-          </div>
-          <span id="kaggleNavBadge" class="badge-gain text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">—</span>
-        </a>
-
-        <div class="pt-4 pb-1 text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 border-t border-[#242A36] mt-4">
-          Intelligence
+        <div class="pt-3 pb-1 text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 border-t border-[#242A36] mt-3">
+          Herramientas
         </div>
-
-        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="knowledge">
-          <div class="flex items-center space-x-3">
-            <i data-lucide="brain" class="icon text-[#8B95A7]"></i>
-            <span class="font-sans font-medium">Knowledge</span>
-          </div>
-          <span class="badge-intel text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V0.8</span>
-        </a>
 
         <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="agent">
           <div class="flex items-center space-x-3">
             <i data-lucide="bot" class="icon text-[#4F67FF]"></i>
-            <span class="font-sans font-medium">Agent Drawer</span>
+            <span class="font-sans font-medium">Asistente</span>
           </div>
           <span class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">V1.0</span>
+        </a>
+
+        <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="compare">
+          <div class="flex items-center space-x-3">
+            <i data-lucide="split" class="icon text-[#8B95A7]"></i>
+            <span class="font-sans font-medium text-xs">Comparar</span>
+          </div>
         </a>
       </div>
 
@@ -158,9 +168,9 @@
       <div class="pt-3 border-t border-[#242A36] text-[11px] text-[#8B95A7] space-y-1 font-mono">
         <div class="flex justify-between">
           <span class="font-sans text-[#8B95A7]">CATML Workbench</span>
-          <span class="text-[#F7F8FA] font-medium">v0.7.0</span>
+          <span class="text-[#F7F8FA] font-medium">v0.8.2</span>
         </div>
-        <div class="text-[10px] text-[#8B95A7]/60">HEXAGONAL • CQRS ENGINE</div>
+        <div class="text-[10px] text-[#8B95A7]/60">LABORATORIO • HEXAGONAL CQRS</div>
       </div>
     </aside>
 

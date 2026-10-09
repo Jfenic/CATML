@@ -16,6 +16,7 @@ export class DatasetsView {
     this.activeDatasetId = null;
     this.showRegisterForm = false;
     this.selectedFeatures = new Set();
+    this.activeMainTab = "resumen"; // 'resumen' | 'columnas' | 'exploracion'
     this.activeTab = "schema"; // 'schema' | 'stats' | 'preview' | 'categories' | 'correlation'
     this.filterType = "all"; // 'all' | 'numeric' | 'categorical' | 'selected' | 'excluded'
     this.searchQuery = "";
@@ -32,10 +33,30 @@ export class DatasetsView {
 
   async mount(container) {
     this.container = container;
+    this._unregisterBus = [
+      bus.on("dataset:show-register", () => {
+        this.showRegisterForm = true;
+        if (this.container) this.render();
+      }),
+      bus.on("dataset:switched", async (id) => {
+        this.activeDatasetId = id;
+        this.renderLoading();
+        await this.fetchData();
+        this._initSelectedFeatures();
+        this.render();
+      }),
+    ];
     this.renderLoading();
     await this.fetchData();
     this._initSelectedFeatures();
     this.render();
+  }
+
+  destroy() {
+    if (this._unregisterBus) {
+      this._unregisterBus.forEach(fn => fn && fn());
+      this._unregisterBus = [];
+    }
   }
 
   renderLoading() {
@@ -107,110 +128,199 @@ export class DatasetsView {
 
     this.container.innerHTML = `
       <div class="space-y-6">
-        <!-- Architecture Concept Banner & Dataset Switcher -->
-        <div class="workbench-card p-4">
+        <!-- Header del Dataset Activo con Selector y Pestañas Clave -->
+        <div class="workbench-card p-5 space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex flex-wrap items-center space-x-2 text-xs">
-              <span class="text-[#8B95A7] font-medium font-sans uppercase text-[11px] tracking-wide">Flow:</span>
-              <span class="px-2.5 py-1 rounded-md bg-[#161B26] border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">1. Raw Dataset</span>
-              <span class="text-[#4F67FF] font-bold">→</span>
-              <span class="px-2.5 py-1 rounded-md bg-[#4F67FF]/10 border border-[#4F67FF]/25 text-[#4F67FF] font-mono text-[11px] font-semibold">2. Understanding</span>
-              <span class="text-[#4F67FF] font-bold">→</span>
-              <span class="px-2.5 py-1 rounded-md bg-[#161B26] border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">3. Feature Plan</span>
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-2 py-0.5 rounded border border-[#4F67FF]/25 uppercase font-semibold">Dataset Activo</span>
+                <span class="text-xs font-mono text-[#8B95A7]">${escapeHtml(currentDs?.path || p.dataset_id)}</span>
+              </div>
+              <h2 class="text-xl font-bold font-sans text-[#F7F8FA]">${escapeHtml(datasetName)}</h2>
             </div>
 
             <div class="flex items-center space-x-3">
               ${this.datasets.length > 1 ? `
                 <select id="datasetSelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] font-mono outline-none">
                   ${this.datasets.map(d => `
-                    <option value="${d.id}" ${d.id === this.activeDatasetId ? "selected" : ""}>${d.name}</option>
+                    <option value="${d.id}" ${d.id === this.activeDatasetId ? "selected" : ""}>${escapeHtml(d.name)}</option>
                   `).join("")}
                 </select>
               ` : `
-                <span class="font-mono text-xs text-[#F7F8FA] font-medium bg-[#161B26] px-3 py-1 rounded-lg border border-[#242A36]">${datasetName}</span>
+                <button id="btnSwitchDatasetFromDS" class="bg-[#161B26] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] text-xs px-3 py-1.5 rounded-lg font-sans flex items-center space-x-1.5 transition-colors">
+                  ${icon("layers", "icon-sm")}
+                  <span>Cambiar</span>
+                </button>
               `}
 
               <button id="btnToggleRegisterForm" class="btn-technical text-xs">
-                + Register New
+                ${this.showRegisterForm ? "Cerrar Registro" : "+ Registrar nuevo"}
               </button>
 
-              <button id="btnNewExperimentFromDS" class="btn-signal text-xs">
-                <span>Create Experiment</span>
+              <button id="btnNewExperimentFromDS" class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20">
+                ${icon("play", "icon-sm")}
+                <span>Nuevo experimento</span>
               </button>
             </div>
+          </div>
+
+          <!-- Pestañas Principales: Resumen | Columnas | Exploración -->
+          <div class="border-t border-[#242A36] pt-3 flex items-center space-x-2 text-xs font-sans">
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'resumen' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="resumen">
+              ${icon("activity", "icon-sm")}
+              <span>Resumen</span>
+            </button>
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'columnas' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="columnas">
+              ${icon("table", "icon-sm")}
+              <span>Columnas</span>
+              <span class="text-[10px] font-mono text-[#8B95A7] bg-[#090C12] px-1.5 py-0.2 rounded">${columns.length}</span>
+            </button>
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'exploracion' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="exploracion">
+              ${icon("compass", "icon-sm")}
+              <span>Exploración</span>
+              <span class="text-[9px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-1.5 py-0.2 rounded border border-[#4F67FF]/20 font-semibold">Próximamente · E1</span>
+            </button>
           </div>
         </div>
 
         ${this.showRegisterForm ? this._getRegisterFormHtml() : ""}
 
+        <!-- Contenido según la pestaña activa -->
+        ${this.activeMainTab === "resumen" ? this._renderResumenTab(p, featureCols, numCols, catCols, excludedCount, recommendations) : ""}
+        ${this.activeMainTab === "columnas" ? this._renderColumnasTab(p, featureCols, numCols, catCols) : ""}
+        ${this.activeMainTab === "exploracion" ? this._renderExplorationTab() : ""}
+
+        <!-- Variable Visual Analytics Modal Container -->
+        <div id="variableModalContainer"></div>
+  _renderHealthCard(p) {
+    const hasLeakage = Boolean(p.has_leakage || (p.leakage_columns && p.leakage_columns.length > 0));
+    const hasGroupLeakage = Boolean(p.has_group_leakage || (p.group_leakage_reports && p.group_leakage_reports.length > 0));
+    const leakageCols = p.leakage_columns || [];
+    const idCols = (p.columns || []).filter(c => c.is_identifier).map(c => c.name);
+
+    return `
+      <div class="workbench-card p-5 space-y-3">
+        <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="${hasLeakage ? 'text-[#EF4444]' : 'text-[#22C55E]'}">${icon("shield-check", "icon-sm")}</span>
+            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Diagnóstico de Salud y Anti-Leakage Guardian</h4>
+          </div>
+          ${hasLeakage || hasGroupLeakage ? `
+            <span class="badge-err text-[11px] px-2.5 py-0.5 rounded font-mono font-medium">Fuga Detectada</span>
+          ` : `
+            <span class="badge-gain text-[11px] px-2.5 py-0.5 rounded font-mono font-medium flex items-center space-x-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+              <span>Limpio y Validado</span>
+            </span>
+          `}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans pt-1">
+          <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-[#F7F8FA]">Fuga de Datos (Data Leakage)</span>
+              <span class="font-mono ${hasLeakage ? 'text-[#EF4444]' : 'text-[#22C55E]'} font-semibold">
+                ${hasLeakage ? `${leakageCols.length} columna(s)` : '0 detectadas'}
+              </span>
+            </div>
+            <p class="text-[11px] text-[#8B95A7]">
+              ${hasLeakage
+                ? `Columnas con correlación perfecta o fuga identificadas: <code class="text-[#EF4444] font-mono">${leakageCols.map(c => escapeHtml(c)).join(", ")}</code>. Descartadas automáticamente en el entrenamiento.`
+                : 'Ninguna variable muestra correlación determinista ni contaminación con el target.'
+              }
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-[#F7F8FA]">Identificadores Descartados</span>
+              <span class="font-mono ${idCols.length > 0 ? 'text-[#F59E0B]' : 'text-[#8B95A7]'} font-semibold">
+                ${idCols.length} columna(s)
+              </span>
+            </div>
+            <p class="text-[11px] text-[#8B95A7]">
+              ${idCols.length > 0
+                ? `Identificadores únicos no predictivos detectados: <code class="text-[#F7F8FA] font-mono">${idCols.map(c => escapeHtml(c)).join(", ")}</code>.`
+                : 'No se detectaron columnas con IDs secuenciales o cardinalidad espuria.'
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderResumenTab(p, featureCols, numCols, catCols, excludedCount, recommendations) {
+    return `
+      <div class="space-y-6">
         <!-- Diagnostic Metrics Grid -->
         <div class="workbench-card p-6 space-y-5">
-          <div class="flex items-center justify-between border-b border-[#242A36] pb-4">
+          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
             <div>
-              <div class="flex items-center space-x-2.5">
-                <h3 class="text-base font-semibold text-[#F7F8FA] font-sans">Dataset understanding</h3>
-                <span class="font-mono text-xs text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md border border-[#252C38]">${datasetName}</span>
-              </div>
-              <p class="text-xs text-[#8B95A7] mt-0.5 font-sans">Statistical profile, feature roles, and evidence-based recommendations.</p>
+              <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">Métricas del Perfil</h3>
+              <p class="text-xs text-[#8B95A7] mt-0.5 font-sans">Dimensiones, tipo de tarea y roles de variables inferidos.</p>
             </div>
-            <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Profiled</span>
+            <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Perfilado</span>
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-left">
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Task</div>
-              <div class="text-sm font-semibold text-[#F7F8FA] mt-1 truncate capitalize">${(p.task_type || "Classification").replace("_", " ")}</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Tarea</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] mt-1 truncate capitalize">${(p.task_type || "No supervisado").replace("_", " ")}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Target</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Target</div>
               <div class="text-sm font-semibold text-[#4F67FF] font-mono mt-1 truncate">${p.target_column || "—"}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Metric</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Métrica</div>
               <div class="text-sm font-semibold text-[#22C55E] font-mono mt-1">${(p.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC"}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Rows</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Filas</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${p.row_count != null ? Number(p.row_count).toLocaleString() : "—"}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Features</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Predictoras</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${featureCols.length}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Numerical</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Numéricas</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${numCols}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Categorical</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Categóricas</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${catCols}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Excluded</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Excluidas</div>
               <div class="text-sm font-semibold text-[#EF4444] font-mono mt-1">${excludedCount}</div>
             </div>
           </div>
         </div>
 
-        <!-- 2. Smart Recommendations Panel -->
+        <!-- Tarjeta de Salud y Anti-Leakage Guardian -->
+        ${this._renderHealthCard(p)}
+
+        <!-- Smart Recommendations Panel -->
         ${recommendations.length > 0 ? `
           <div class="workbench-card p-5 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#242A36] pb-3">
               <div class="flex items-center space-x-2.5">
                 <span class="text-[#4F67FF]">${icon("lightbulb", "icon-sm")}</span>
-                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Statistical recommendations</span>
-                <span class="text-xs font-mono text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md">${recommendations.length} detected</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Recomendaciones del motor</span>
+                <span class="text-xs font-mono text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md">${recommendations.length} detectadas</span>
               </div>
               <button id="btnApplyRecommendations" class="btn-technical text-xs font-sans flex items-center space-x-1.5">
                 ${icon("check", "icon-sm")}
-                <span>Apply recommendations</span>
+                <span>Aplicar recomendaciones</span>
               </button>
             </div>
 
@@ -220,29 +330,10 @@ export class DatasetsView {
                 const isSuccess = r.severity === 'success' || r.type === 'recommend';
                 const isWarning = r.severity === 'warning' || r.type === 'warn';
                 const badgeClass = isDanger ? 'badge-err' : isSuccess ? 'badge-gain' : isWarning ? 'badge-warn' : 'badge-intel';
-                let badgeText = isDanger ? 'IDENTIFIER' : isSuccess ? 'HIGH RELEVANCE' : isWarning ? 'ATTENTION' : 'ENCODING';
-                if (r.badge) {
-                  const bLower = r.badge.toLowerCase();
-                  if (bLower.includes('strong signal') || bLower.includes('high relevance') || bLower.includes('señal')) {
-                    badgeText = 'HIGH RELEVANCE';
-                  } else if (bLower.includes('zero variance')) {
-                    badgeText = 'ZERO VARIANCE';
-                  } else if (bLower.includes('null')) {
-                    badgeText = 'HIGH NULLS';
-                  } else if (bLower.includes('collinear')) {
-                    badgeText = 'COLLINEARITY';
-                  } else if (bLower.includes('cardinal')) {
-                    badgeText = 'HIGH CARDINALITY';
-                  } else if (bLower.includes('identifier') || bLower.includes('identificador')) {
-                    badgeText = 'IDENTIFIER';
-                  } else {
-                    badgeText = r.badge.toUpperCase();
-                  }
-                }
                 return `
                   <div class="p-4 rounded-xl bg-[#151B26] hover:bg-[#1A2230] transition-colors space-y-2">
                     <div class="flex items-center justify-between">
-                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${badgeText}</span>
+                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${(r.badge || 'INFO').toUpperCase()}</span>
                       ${r.column ? `<code class="text-[11px] font-mono text-[#8B95A7]">${r.column}</code>` : ""}
                     </div>
                     <h4 class="font-sans font-semibold text-xs text-[#F7F8FA]">${r.title}</h4>
@@ -254,77 +345,85 @@ export class DatasetsView {
           </div>
         ` : ""}
 
-        <!-- 3. Interactive Selection & Exploration Toolbar -->
+        <!-- Muestra de Datos Crudos (Preview) -->
+        <div class="workbench-card p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-[#4F67FF]">${icon("scroll-text", "icon-sm")}</span>
+              <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Muestra previa de datos</h4>
+            </div>
+            <span class="text-xs text-[#8B95A7] font-mono">Primeras filas del dataset</span>
+          </div>
+          ${this._renderPreviewTab(p)}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderColumnasTab(p, featureCols, numCols, catCols) {
+    const imgCols = (p.columns || []).filter(c => c.is_image && c.name !== p.target_column).length;
+    return `
+      <div class="space-y-6">
+        <!-- Interactive Selection & Exploration Toolbar -->
         <div class="workbench-card p-4 space-y-3">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Search & Segmented Filter Pills -->
             <div class="flex flex-wrap items-center gap-3">
-              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filter features..." class="bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-48 font-mono outline-none">
+              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filtrar columnas..." class="bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-48 font-mono outline-none">
 
               <div class="segmented-track">
-                <button data-filter="all" class="segmented-pill ${this.filterType === 'all' ? 'active-signal' : ''}">All (${featureCols.length})</button>
-                <button data-filter="numeric" class="segmented-pill ${this.filterType === 'numeric' ? 'active-signal' : ''}">Numeric (${numCols})</button>
-                <button data-filter="categorical" class="segmented-pill ${this.filterType === 'categorical' ? 'active-signal' : ''}">Categorical (${catCols})</button>
-                ${imgCols > 0 ? `<button data-filter="image" class="segmented-pill ${this.filterType === 'image' ? 'active-signal' : ''}">Images (${imgCols})</button>` : ''}
-                <button data-filter="selected" class="segmented-pill ${this.filterType === 'selected' ? 'active-signal' : ''}">Selected (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
+                <button data-filter="all" class="segmented-pill ${this.filterType === 'all' ? 'active-signal' : ''}">Todas (${featureCols.length})</button>
+                <button data-filter="numeric" class="segmented-pill ${this.filterType === 'numeric' ? 'active-signal' : ''}">Numéricas (${numCols})</button>
+                <button data-filter="categorical" class="segmented-pill ${this.filterType === 'categorical' ? 'active-signal' : ''}">Categóricas (${catCols})</button>
+                ${imgCols > 0 ? `<button data-filter="image" class="segmented-pill ${this.filterType === 'image' ? 'active-signal' : ''}">Imágenes (${imgCols})</button>` : ''}
+                <button data-filter="selected" class="segmented-pill ${this.filterType === 'selected' ? 'active-signal' : ''}">Seleccionadas (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
               </div>
             </div>
 
             <!-- Batch Selection Controls -->
             <div class="flex items-center gap-1 text-xs">
-              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium mr-1.5">Select:</span>
-              <button id="btnSelectAll" class="btn-ghost text-xs py-1 px-2">All</button>
-              <button id="btnDeselectAll" class="btn-ghost text-xs py-1 px-2">None</button>
+              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium mr-1.5">Selección:</span>
+              <button id="btnSelectAll" class="btn-ghost text-xs py-1 px-2">Todas</button>
+              <button id="btnDeselectAll" class="btn-ghost text-xs py-1 px-2">Ninguna</button>
               <span class="text-[#252C38] px-1">·</span>
-              <button id="btnSelectTop5" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 5 Signal</button>
-              <button id="btnSelectTop10" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 10 Signal</button>
-              <span class="text-[#252C38] px-1">·</span>
-              <button id="btnOpenCalculator" class="btn-ghost text-xs py-1 px-2 text-[#6956E8] hover:text-white">Feature Calculator</button>
+              <button id="btnSelectTop5" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 5 Señal</button>
+              <button id="btnSelectTop10" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 10 Señal</button>
             </div>
           </div>
 
           <!-- Bottom Status Counter & Dominant Launch CTA -->
           <div class="pt-3 border-t border-[#252C38]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-center space-x-2 text-xs font-sans text-[#8B95A7]">
-              <span>Selection status:</span>
+              <span>Estado de selección:</span>
               <span id="selectionLiveCount" class="font-mono text-xs text-[#F7F8FA]">
-                <strong class="text-[#4F67FF]">${this.selectedFeatures.size}</strong> of ${featureCols.length} features selected (${featureCols.length - this.selectedFeatures.size} excluded)
+                <strong class="text-[#4F67FF]">${this.selectedFeatures.size}</strong> de ${featureCols.length} características seleccionadas
               </span>
             </div>
 
             <button id="btnLaunchWithSelection" class="btn-signal font-sans font-semibold text-xs px-5 py-2 shadow-md shadow-[#4F67FF]/20 flex items-center space-x-1.5">
               ${icon("rocket", "icon-sm")}
-              <span>Launch Experiment (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
+              <span>Crear experimento con selección (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
             </button>
           </div>
         </div>
 
-        <!-- 4. Multi-Tab Exploration Equipment Module -->
+        <!-- Multi-Tab Equipment Module -->
         <div class="workbench-card overflow-hidden">
           <div class="border-b border-[#242A36] px-4 flex items-center space-x-6 text-xs font-sans font-medium bg-[#0D1017] overflow-x-auto">
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="schema">
               ${icon("database", "icon-sm")}
-              <span>Schema & Selection</span>
+              <span>Esquema y Selección</span>
             </button>
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="stats">
               ${icon("bar-chart-3", "icon-sm")}
-              <span>Descriptive Statistics</span>
-            </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="preview">
-              ${icon("scroll-text", "icon-sm")}
-              <span>Raw Sample</span>
+              <span>Estadísticas Descriptivas</span>
             </button>
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="categories">
               ${icon("tags", "icon-sm")}
-              <span>Categorical Distributions</span>
+              <span>Distribución Categórica</span>
             </button>
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="correlation">
               ${icon("chart-line", "icon-sm")}
-              <span>Correlation Matrix</span>
-            </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="calculator">
-              ${icon("sparkles", "icon-sm")}
-              <span>Feature Calculator</span>
+              <span>Matriz de Correlación</span>
             </button>
           </div>
 
@@ -332,13 +431,62 @@ export class DatasetsView {
             ${this._renderActiveTabContent(p)}
           </div>
         </div>
-
-        <!-- Variable Visual Analytics Modal Container -->
-        <div id="variableModalContainer"></div>
       </div>
     `;
+  }
 
-    this._bindEvents();
+  _renderExplorationTab() {
+    return `
+      <div class="workbench-card p-6 space-y-6">
+        <div class="flex items-start justify-between border-b border-[#242A36] pb-4">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#4F67FF]/15 text-[#4F67FF] border border-[#4F67FF]/30">FASE E1 · EN ROADMAP</span>
+              <span class="text-xs font-mono text-[#8B95A7]">ADR-008</span>
+            </div>
+            <h3 class="text-lg font-bold font-sans text-[#F7F8FA]">CATML Explore — Motor Estadístico y Evidencia</h3>
+            <p class="text-xs text-[#8B95A7] font-sans">
+              Análisis exploratorio determinista de datos y formulación científica de hipótesis para agentes de ML.
+            </p>
+          </div>
+          <span class="badge-intel text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Explore Core</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 rounded-xl bg-[#11151E] border border-[#242A36] space-y-2">
+            <div class="text-[#4F67FF]">${icon("bar-chart-2", "icon-md")}</div>
+            <h4 class="text-sm font-semibold text-[#F7F8FA] font-sans">Diagnóstico Univariante</h4>
+            <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">
+              Detección de asimetría, curtosis, distribuciones empíricas y anomalías multivariantes (Isolation Forest / Mahalanobis).
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[#11151E] border border-[#242A36] space-y-2">
+            <div class="text-[#22C55E]">${icon("git-commit", "icon-md")}</div>
+            <h4 class="text-sm font-semibold text-[#F7F8FA] font-sans">Asociaciones y Correlación</h4>
+            <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">
+              Matrices Pearson y Spearman con p-valores corregidos mediante Benjamini-Hochberg (FDR) e información mutua.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[#11151E] border border-[#242A36] space-y-2">
+            <div class="text-[#6956E8]">${icon("check-circle-2", "icon-md")}</div>
+            <h4 class="text-sm font-semibold text-[#F7F8FA] font-sans">Pruebas de Hipótesis</h4>
+            <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">
+              t-test, Mann-Whitney y ANOVA con cálculo estricto de tamaños del efecto (Cohen's d, η²) e intervalos de confianza al 95%.
+            </p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-[#161B26] border border-[#242A36] flex items-center justify-between">
+          <div class="flex items-center space-x-3 text-xs font-sans text-[#8B95A7]">
+            <span class="text-[#4F67FF]">${icon("info", "icon-sm")}</span>
+            <span>Principio rector: <strong class="text-[#F7F8FA]">«La IA Interpreta, CATML Calcula»</strong> — Cero alucinaciones estadísticas.</span>
+          </div>
+          <span class="text-[11px] font-mono text-[#8B95A7]">catml[explore]</span>
+        </div>
+      </div>
+    `;
   }
 
   _renderActiveTabContent(p) {
@@ -1688,6 +1836,20 @@ export class DatasetsView {
   }
 
   _bindEvents() {
+    this.container.querySelectorAll(".main-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tab = btn.getAttribute("data-main-tab");
+        if (tab && tab !== this.activeMainTab) {
+          this.activeMainTab = tab;
+          this.render();
+        }
+      });
+    });
+
+    this.container.querySelector("#btnSwitchDatasetFromDS")?.addEventListener("click", () => {
+      bus.emit("modal:switch-dataset");
+    });
+
     this.container.querySelector("#btnNewExperimentFromDS")?.addEventListener("click", () => {
       store.setState({ customFeatures: Array.from(this.selectedFeatures) });
       bus.emit("modal:new-experiment");
@@ -1707,7 +1869,7 @@ export class DatasetsView {
       const newId = e.target.value;
       if (newId && newId !== this.activeDatasetId) {
         this.activeDatasetId = newId;
-        store.setState({ activeDatasetId: newId });
+        store.setActiveDataset(newId);
         this.renderLoading();
         this.profile = await api.getDatasetProfile(newId).catch(() => null);
         this._initSelectedFeatures();

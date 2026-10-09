@@ -24,16 +24,17 @@ export class NewExperimentModal {
   render() {
     const state = store.getState();
     const runs = state.runs || [];
-    const activeRun = runs.find(r => isRunActive(r)) || runs[0] || null;
-    const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
-    const customFeatures = state.customFeatures || null;
+    const activeDs = state.activeDataset
+      || (state.datasets || []).find(d => d.id === state.activeDatasetId)
+      || (activeRun ? { name: activeRun.dataset_name, target_column: activeRun.target, task_type: activeRun.task_type } : null)
+      || recentDs;
 
-    const datasetName = activeRun ? (activeRun.dataset_name || activeRun.id) : (recentDs ? recentDs.name : "No Dataset Registered");
-    const targetCol = activeRun ? (activeRun.target || "Target") : (recentDs ? (recentDs.target || recentDs.target_column || "Target") : "None");
-    const metricName = activeRun ? (activeRun.metric || "ROC-AUC") : "ROC-AUC";
-    const taskType = activeRun ? (activeRun.task_type || "binary_classification").replace("_", " ") : "Classification";
+    const datasetName = activeDs ? (activeDs.name || activeDs.id) : "No Dataset Registered";
+    const targetCol = activeDs ? (activeDs.target_column || activeDs.target || "Target") : "None";
+    const metricName = activeRun ? (activeRun.metric || "ROC-AUC") : (activeDs && (activeDs.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC");
+    const taskType = activeDs ? (activeDs.task_type || "binary_classification").replace("_", " ") : "Classification";
 
-    const hasTarget = Boolean(activeRun || recentDs);
+    const hasTarget = Boolean(activeDs || activeRun);
 
     this.container.innerHTML = `
       <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">

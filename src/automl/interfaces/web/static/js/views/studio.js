@@ -42,10 +42,13 @@ export class StudioView {
     try {
       const state = store.getState();
       const runs = state.runs || [];
-      this.activeRun = runs.find(r => r.id === state.activeRunId)
-        || runs.find(r => isRunActive(r))
-        || runs[0]
-        || null;
+      const dsRuns = state.activeDatasetId
+        ? runs.filter(r => r.dataset_id === state.activeDatasetId)
+        : runs;
+      this.activeRun = dsRuns.find(r => r.id === state.activeRunId)
+        || dsRuns.find(r => isRunActive(r))
+        || dsRuns[0]
+        || (runs.find(r => r.id === state.activeRunId) || runs[0] || null);
 
       if (this.activeRun) {
         const [plan, leaderboard, experiments] = await Promise.all([

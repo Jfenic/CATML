@@ -17,6 +17,8 @@ import { KnowledgeView } from "./views/knowledge.js";
 import { KaggleView } from "./views/kaggle.js";
 import { AgentDrawer } from "./views/agent.js";
 import { NewExperimentModal } from "./views/new_experiment.js";
+import { HomeView } from "./views/home.js";
+import { SwitchDatasetModal } from "./views/switch_dataset_modal.js";
 
 class App {
   constructor() {
@@ -27,6 +29,7 @@ class App {
 
     this.agentDrawer = new AgentDrawer();
     this.newExperimentModal = new NewExperimentModal();
+    this.switchDatasetModal = new SwitchDatasetModal();
   }
 
   async init() {
@@ -47,24 +50,61 @@ class App {
       if (state.agentDrawerOpen !== prevState.agentDrawerOpen) {
         this._updateAgentDrawer(state.agentDrawerOpen);
       }
+      if (state.activeDatasetId !== prevState.activeDatasetId || state.activeDataset !== prevState.activeDataset) {
+        this._updateSidebarActiveDataset(state.activeDataset);
+      }
     });
 
     // Initial render
     this._routeTo(store.getState().currentNav);
   }
 
+  _updateSidebarActiveDataset(activeDataset) {
+    const nameEl = document.getElementById("sidebarActiveDatasetName");
+    const badgeEl = document.getElementById("sidebarDatasetBadge");
+    if (nameEl) {
+      if (activeDataset) {
+        nameEl.textContent = activeDataset.name || activeDataset.id;
+        nameEl.title = `${activeDataset.name} (${activeDataset.id})`;
+        if (badgeEl) badgeEl.className = "w-1.5 h-1.5 rounded-full bg-[#22C55E]";
+      } else {
+        nameEl.textContent = "Sin dataset seleccionado";
+        nameEl.title = "Ninguno";
+        if (badgeEl) badgeEl.className = "w-1.5 h-1.5 rounded-full bg-[#8B95A7]";
+      }
+    }
+  }
+
   async _fetchInitialState() {
     try {
-      const [overview, runs] = await Promise.all([
+      const [overview, runs, datasets] = await Promise.all([
         api.getOverview().catch(() => null),
         api.getRuns().catch(() => []),
+        api.getDatasets().catch(() => []),
       ]);
+
+      let activeDatasetId = store.getState().activeDatasetId;
+      if (!activeDatasetId || !datasets.some(d => d.id === activeDatasetId)) {
+        if (datasets.length > 0) {
+          activeDatasetId = datasets[0].id;
+        } else if (runs.length > 0 && runs[0].dataset_id) {
+          activeDatasetId = runs[0].dataset_id;
+        }
+      }
+
+      const activeDataset = datasets.find(d => d.id === activeDatasetId) || null;
+      const matchingRun = runs.find(r => r.dataset_id === activeDatasetId);
 
       store.setState({
         overview,
         runs,
-        activeRunId: runs.length ? runs[0].id : null,
+        datasets,
+        activeDatasetId,
+        activeDataset,
+        activeRunId: matchingRun ? matchingRun.id : (runs.length ? runs[0].id : null),
       });
+
+      this._updateSidebarActiveDataset(activeDataset);
 
       if (overview && overview.workspace) {
         const wsEl = document.getElementById("workspaceLabel");
@@ -140,6 +180,10 @@ class App {
       });
     });
 
+    document.getElementById("btnSidebarSwitchDataset")?.addEventListener("click", () => {
+      this.switchDatasetModal.mount(this.modalContainer);
+    });
+
     document.getElementById("btnToggleAgent")?.addEventListener("click", () => {
       store.toggleAgentDrawer();
     });
@@ -155,9 +199,19 @@ class App {
       this.newExperimentModal.mount(this.modalContainer);
     });
 
+    bus.on("modal:switch-dataset", () => {
+      this.switchDatasetModal.mount(this.modalContainer);
+    });
+
+    bus.on("dataset:switched", (datasetId) => {
+      const activeDataset = (store.getState().datasets || []).find(d => d.id === datasetId);
+      this._updateSidebarActiveDataset(activeDataset);
+      this._routeTo(store.getState().currentNav);
+    });
+
     bus.on("run:select", runId => {
       store.setState({ activeRunId: runId });
-      store.setNav("studio");
+      store.setNav("experiments");
     });
   }
 
@@ -175,7 +229,7 @@ class App {
     // Update active class on sidebar items
     document.querySelectorAll(".nav-item").forEach(item => {
       const id = item.getAttribute("data-nav");
-      if (id === navId) {
+      if (id === navId || (navId === "home" && id === "home") || (navId === "dataset" && id === "dataset") || (navId === "experiments" && id === "experiments") || (navId === "evidence" && id === "evidence")) {
         item.classList.add("active");
       } else if (id !== "agent") {
         item.classList.remove("active");
@@ -187,15 +241,20 @@ class App {
     }
 
     switch (navId) {
-      case "overview":
-        this.currentViewInstance = new OverviewView();
+      case "home":
+        this.currentViewInstance = new HomeView();
         break;
+      case "dataset":
       case "datasets":
         this.currentViewInstance = new DatasetsView();
         break;
-      case "studio":
       case "experiments":
+      case "studio":
         this.currentViewInstance = new StudioView();
+        break;
+      case "evidence":
+      case "overview":
+        this.currentViewInstance = new OverviewView();
         break;
       case "compare":
         this.currentViewInstance = new CompareView();
@@ -210,7 +269,7 @@ class App {
         this.currentViewInstance = new KaggleView();
         break;
       default:
-        this.currentViewInstance = new OverviewView();
+        this.currentViewInstance = new HomeView();
         break;
     }
 

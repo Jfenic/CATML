@@ -34,7 +34,10 @@ export class OverviewView {
     };
 
     const runs = state.runs || [];
-    const activeRun = runs.find(r => isRunActive(r)) || runs[0] || null;
+    const dsRuns = state.activeDatasetId
+      ? runs.filter(r => r.dataset_id === state.activeDatasetId)
+      : runs;
+    const activeRun = dsRuns.find(r => isRunActive(r)) || dsRuns[0] || runs[0] || null;
     const isRunning = isRunActive(activeRun);
 
     const bestScoreText = overview.best_score != null

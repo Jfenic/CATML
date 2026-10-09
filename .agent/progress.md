@@ -133,6 +133,30 @@
     - 2 nuevos tests en `tests/test_anti_leakage_guardian.py` (`test_experiment_planner_proposes_candidates_on_mixed_clean_and_leakage_dataset`, `test_resolve_safe_feature_names_strict_vs_filtering_mode`).
     - 2 nuevos tests en `tests/test_workbench_activity_consistency.py` (`test_agent_hypotheses_preserves_exact_zero_metrics`, `test_overview_segregates_metrics_across_different_datasets`).
   - **Validación completa:** 664 tests pasando (100% verde), 87.32% de cobertura.
+- **PR: Rediseño UI Workbench — Modelo de Laboratorio y Dataset Activo (Fase 1) (`feat/ui-laboratory-redesign-phase1`):**
+  - **Contexto de Laboratorio y Dataset Activo en Barra Lateral (`index.html`, `app.js`, `store.js`):**
+    - Indicador de estado "Laboratorio local • ONLINE".
+    - Tarjeta de dataset activo con indicador reactivo (`#sidebarActiveDatasetName`) y botón de acción rápido `Cambiar dataset` (`#btnSidebarSwitchDataset`).
+    - Métodos reactivos en `WorkbenchStore`: `setActiveDataset(datasetId)`, `getActiveDataset()`, sincronización con `localStorage` y alineación automática de `activeRunId`.
+  - **Simplificación de la Navegación Principal (`index.html`, `app.js`):**
+    - Reducción de ~10 opciones dispersas a 4 ventanas de flujo canónico: **Inicio** (`home`), **Dataset** (`dataset`), **Experimentos** (`experiments`), **Evidencia** (`evidence`).
+    - Paridad y retrocompatibilidad en el router para rutas previas.
+  - **Nueva Vista de Inicio (`src/automl/interfaces/web/static/js/views/home.js`):**
+    - Hero Card principal: «Continuar con {dataset activo}» con dimensiones, variable objetivo, tarea y mejor modelo, junto a acciones secundarias «Añadir dataset» y «Abrir dataset guardado».
+    - Panel de «Ejecuciones en curso»: estado de entrenamiento, barra de progreso y métricas en vivo.
+    - Panel de «Trabajos recientes»: historial técnico de jobs en background consultados dinámicamente vía `api.getJobs()`.
+  - **Rediseño de la Vista de Dataset (`src/automl/interfaces/web/static/js/views/datasets.js`):**
+    - Pestaña «Resumen»: Diagnóstico de salud con Anti-Leakage Guardian (fugas y variables descartadas), métricas de perfilado, recomendaciones estadísticas y muestra previa de datos crudos.
+    - Pestaña «Columnas»: Tabla completa interactiva de columnas con filtrado, buscador, porcentajes de nulos, cardinalidad, acción inferida y selección de variables.
+    - Pestaña «Exploración»: Panel conceptual de arquitectura técnica para la Fase E1 de CATML Explore (ADR-008).
+    - Botón CTA destacado «Nuevo experimento» en cabecera.
+  - **Modal de Selección Rápida de Dataset (`src/automl/interfaces/web/static/js/views/switch_dataset_modal.js`):**
+    - Modal accesible desde cualquier vista para conmutar el dataset activo sin perder el historial ni el trabajo previo.
+  - **Contextualización en Vistas Existentes (`studio.js`, `overview.js`, `new_experiment.js`):**
+    - Filtrado y priorización automática de ejecuciones y sugerencias pertenecientes al dataset activo.
+  - **Suite de Pruebas Automatizadas:**
+    - `tests/test_workbench_laboratory_redesign.py` (3 tests verificando layout, componentes, enrutamiento y métodos de estado).
+  - **Validación completa:** 667 tests pasando (100% verde), 87.32% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 

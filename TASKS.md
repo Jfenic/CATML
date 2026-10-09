@@ -57,8 +57,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Segregación del feed de actividad en Workbench sin mezclar métricas incomparables.
   - [x] Función compartida `isRunActive()` en frontend (`utils.js`) y soporte de score 0.0 y $R^2 < 0$.
   - [x] Corrección de mensaje de error al programar plan en `agent.js`.
+- [x] **Rediseño UI Workbench — Modelo de Laboratorio y Dataset Activo (Fase 1)**:
+  - [x] Contexto de Laboratorio Local en barra lateral con widget de Dataset Activo (`#sidebarActiveDatasetName`) y selector rápido (`SwitchDatasetModal`).
+  - [x] Simplificación de navegación principal a 4 vistas canónicas: Inicio (`home`), Dataset (`dataset`), Experimentos (`experiments`), Evidencia (`evidence`).
+  - [x] Nueva vista de Inicio (`src/automl/interfaces/web/static/js/views/home.js`): Hero card «Continuar con {dataset activo}», acciones secundarias «Añadir dataset» y «Abrir dataset guardado», y paneles de ejecuciones activas y trabajos recientes.
+  - [x] Rediseño de la vista Dataset (`src/automl/interfaces/web/static/js/views/datasets.js`): Pestañas «Resumen» (métricas de perfil, salud de datos Anti-Leakage Guardian, recomendaciones y preview crudo), «Columnas» (tabla de variables, filtros, selección interactiva) y «Exploración» (panel conceptual de capacidades estadísticas para CATML Explore Fase E1).
+  - [x] Integración de contexto de dataset activo en `store.js` (`setActiveDataset`, `getActiveDataset`), `app.js`, `studio.js`, `overview.js` y `new_experiment.js`.
+  - [x] Suite de tests automatizada en `tests/test_workbench_laboratory_redesign.py` (3 tests). 667 tests pasando (100% verde).
 - [x] **Validación y Cobertura**:
-  - [x] 660 tests pasando (100% de la suite). Cobertura total del 87.31% (requisito >= 85%).
+  - [x] 667 tests pasando (100% de la suite). Cobertura total del 87.32% (requisito >= 85%).
 
 ## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 
