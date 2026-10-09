@@ -119,6 +119,11 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Confinamiento estricto de `/api/kaggle/download`: restricción exclusiva al subdirectorio `submissions/` o artefactos de exportación autorizados (`exports/`), bloqueando rutas relativas a la raíz del workspace o extensiones no pertinentes.
     - [x] Suite de tests dedicada en `tests/test_workbench_xss_protection.py` (5 tests) y ampliación de `tests/test_workbench_file_confinement.py` (4 tests).
     - [x] 656 tests pasando (100% verde), 87.33% de cobertura.
+  - [x] **PR G — Flexibilidad Anti-Leakage en Planificación e Integridad de Métricas en Workbench**:
+    - [x] Soporte para `strict=False` en `DatasetProfile.resolve_safe_feature_names()` y uso en `RuleBasedExperimentPlanner.propose()` para tolerar datasets con columnas mixtas de leakage y predictoras.
+    - [x] Segregación de métricas por dataset en `/api/overview` (`best_by_dataset`), soporte para scores `0.0` en hipótesis y valores iniciales limpios.
+    - [x] Suites de pruebas en `tests/test_anti_leakage_guardian.py` y `tests/test_workbench_activity_consistency.py`.
+    - [x] 664 tests pasando (100% verde), 87.32% de cobertura.
 - [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
   - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
   - [ ] Soporte de estudios sin columna objetivo (`target=None`).

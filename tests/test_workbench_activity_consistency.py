@@ -54,8 +54,8 @@ def test_empty_workspace_activity_feed_is_empty(tmp_path: Path):
     assert status == 200
     assert data["total_runs"] == 0
     assert data["total_trials"] == 0
-    assert data["best_score"] == 0.0
-    assert data["best_model"] == "-"
+    assert data["best_score"] is None
+    assert data["best_model"] is None
     assert data["activity_feed"] == []
 
 
@@ -365,4 +365,98 @@ def test_workbench_frontend_active_status_and_agent_error_alert():
     overview_content = overview_path.read_text(encoding="utf-8")
     assert "isRunActive" in overview_content
     assert "overview.best_score != null" in overview_content
+
+
+def test_agent_hypotheses_preserves_exact_zero_metrics(tmp_path: Path):
+    ws_dir = tmp_path / "zero_metric_ws"
+    ws, _, _ = build_application(root_dir=str(ws_dir))
+
+    # Create dataset and run
+    data_file = ws_dir / "data.csv"
+    data_file.write_text("x,y\n1,0\n2,1\n3,0\n4,1\n", encoding="utf-8")
+    ds = ws.register_dataset(name="ds_zero", path=str(data_file), target="y", task_type="binary_classification")
+    run = ws.create_run(ds, metric="log_loss")
+
+    # Save hypothesis with 0.0 metric score in ledger
+    from automl.domain.agents.entities import Hypothesis
+    from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+
+    ledger_path = ws_dir / "agent_ledger.db"
+    ledger = SqliteAgentLedger(ledger_path)
+    hyp = Hypothesis(
+        hypothesis_id="hyp_zero_001",
+        run_id=run.id,
+        reasoning="Test zero score preservation",
+        candidate_config={"action": "evaluate_perfect_predictions"},
+        target_metric="log_loss",
+        metric_direction="minimize",
+        baseline_metric=0.0,
+        verification_criteria={"verified_metric": 0.0, "cost": "1 CV run"},
+        status="accepted",
+    )
+    ledger.save_hypothesis(hyp)
+
+    handler, wfile = _create_handler(ws_dir, f"/api/agent/hypotheses?run_id={run.id}")
+    handler.do_GET()
+    status, data = _parse_response_json(wfile)
+
+    assert status == 200
+    assert len(data["hypotheses"]) == 1
+    h_data = data["hypotheses"][0]
+    assert h_data["id"] == "hyp_zero_001"
+    assert h_data["before_score"] == 0.0
+    assert h_data["after_score"] == 0.0
+    assert h_data["delta"] == "+0.00000"
+
+
+def test_overview_segregates_metrics_across_different_datasets(tmp_path: Path):
+    ws_dir = tmp_path / "multi_ds_ws"
+    ws, _, _ = build_application(root_dir=str(ws_dir))
+
+    data_file1 = ws_dir / "data1.csv"
+    data_file1.write_text("x,y\n1,10\n2,20\n", encoding="utf-8")
+    ds1 = ws.register_dataset(name="dataset_1", path=str(data_file1), target="y", task_type="regression")
+    run1 = ws.create_run(ds1, metric="rmse")
+    exp1 = ws.create_experiment(run1, name="exp1", model_ids=["ridge"])
+
+    from automl.domain.experiments.trial import TrialResult
+    tr1 = TrialResult(
+        trial_id="tr_ds1",
+        experiment_id=exp1.id,
+        model_id="ridge",
+        primary_metric="rmse",
+        primary_score=100.0,
+    )
+    ws.repository.save_trial_result(tr1)
+
+    data_file2 = ws_dir / "data2.csv"
+    data_file2.write_text("x,y\n1,1\n2,2\n", encoding="utf-8")
+    ds2 = ws.register_dataset(name="dataset_2", path=str(data_file2), target="y", task_type="regression")
+    run2 = ws.create_run(ds2, metric="rmse")
+    exp2 = ws.create_experiment(run2, name="exp2", model_ids=["ridge"])
+
+    tr2 = TrialResult(
+        trial_id="tr_ds2",
+        experiment_id=exp2.id,
+        model_id="ridge",
+        primary_metric="rmse",
+        primary_score=5.0,
+    )
+    ws.repository.save_trial_result(tr2)
+
+    handler, wfile = _create_handler(ws_dir, "/api/overview")
+    handler.do_GET()
+    status, data = _parse_response_json(wfile)
+
+    assert status == 200
+    # best_by_dataset separates ds1 and ds2
+    assert "best_by_dataset" in data
+    assert ds1.id in data["best_by_dataset"]
+    assert ds2.id in data["best_by_dataset"]
+    assert data["best_by_dataset"][ds1.id]["rmse"]["score"] == 100.0
+    assert data["best_by_dataset"][ds2.id]["rmse"]["score"] == 5.0
+
+    # best_by_metric includes dataset_id
+    assert "dataset_id" in data["best_by_metric"]["rmse"]
+
 

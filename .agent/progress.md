@@ -121,6 +121,18 @@
   - **Suite de Pruebas Automatizadas:**
     - Nuevos tests en `tests/test_workbench_activity_consistency.py` (`test_workbench_selects_active_experimenting_run_over_completed_run`, `test_activity_feed_multi_run_segregated_without_comparing_incompatible_metrics`, `test_domain_is_active_run_status_and_run_property`, `test_workbench_frontend_active_status_and_agent_error_alert`).
   - **Validación completa:** 660 tests pasando (100% verde), 87.31% de cobertura.
+- **PR G: Flexibilidad Anti-Leakage en Planificación e Integridad de Métricas en Workbench (`fix/planner-anti-leakage-and-metric-integrity`):**
+  - **Flexibilidad Anti-Leakage en Planificación (`profile.py`, `experiment_planner.py`):**
+    - Adición del parámetro `strict: bool = True` en `DatasetProfile.resolve_safe_feature_names()`. Si `strict=False`, las columnas con fuga de datos o identificadores se descartan de forma segura en vez de levantar `ValueError`, permitiendo continuar si restan características limpias.
+    - Uso de `strict=False` en `RuleBasedExperimentPlanner.propose()` para soportar datasets mixtos (con columnas de leakage e identificadores junto a predictoras válidas).
+  - **Segregación de Métricas por Dataset y Resiliencia en Workbench (`server.py`):**
+    - En `/api/overview`, segregación de mejores modelos por dataset (`best_by_dataset`) para evitar comparaciones escalares numéricas erróneas entre datasets dispares.
+    - Preservación de puntuaciones de métricas con valor exacto `0.0` y cálculo de deltas en `/api/agent/hypotheses`.
+    - Inicialización limpia de `best_score`, `best_model` y `best_metric` como `None` en workspaces vacíos sin ejecuciones.
+  - **Suite de Pruebas Automatizadas:**
+    - 2 nuevos tests en `tests/test_anti_leakage_guardian.py` (`test_experiment_planner_proposes_candidates_on_mixed_clean_and_leakage_dataset`, `test_resolve_safe_feature_names_strict_vs_filtering_mode`).
+    - 2 nuevos tests en `tests/test_workbench_activity_consistency.py` (`test_agent_hypotheses_preserves_exact_zero_metrics`, `test_overview_segregates_metrics_across_different_datasets`).
+  - **Validación completa:** 664 tests pasando (100% verde), 87.32% de cobertura.
 
 ### Track Architectural Planning — CATML Explore Evolution Plan (2026-10-08)
 

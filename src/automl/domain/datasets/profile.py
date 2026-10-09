@@ -157,6 +157,7 @@ class DatasetProfile:
         requested_features: list[str] | None = None,
         exclude_columns: list[str] | None = None,
         allow_leakage: bool = False,
+        strict: bool = True,
     ) -> list[str]:
         """
         Resolves safe predictive feature names by strictly filtering out:
@@ -165,8 +166,16 @@ class DatasetProfile:
         3. Confirmed leakage columns (target leakage, group leakage)
         4. Explicit exclusions (e.g., group entity column)
 
+        Args:
+            requested_features: Explicit list of feature names requested. If None, considers all columns.
+            exclude_columns: Additional columns to exclude (e.g. group entity).
+            allow_leakage: If True, bypasses leakage and identifier checks.
+            strict: If True (default) and requested_features is provided, raises ValueError if any requested
+                    feature contains data leakage. If False (e.g. for automated planning), silently discards
+                    leakage and identifier features, raising ValueError only if NO safe features remain.
+
         Raises:
-            ValueError: If requested_features contain leakage (when allow_leakage=False)
+            ValueError: If requested_features contain leakage (when allow_leakage=False and strict=True)
                         or if no safe predictive features remain.
         """
         if self.task_type == "clustering" or not self.target_column or self.row_count < 10:
@@ -182,12 +191,18 @@ class DatasetProfile:
         if requested_features is not None:
             if not allow_leakage:
                 found_leakages = sorted(set(requested_features) & leakage_set)
-                if found_leakages:
+                if found_leakages and strict:
                     raise ValueError(
                         f"Features contain confirmed data leakage columns: {', '.join(found_leakages)}. "
                         "Exclude them to prevent data contamination."
                     )
-            candidates = [f for f in requested_features if f not in excludes and (allow_leakage or f not in id_set)]
+            candidates = [
+                f
+                for f in requested_features
+                if f not in excludes
+                and (allow_leakage or f not in id_set)
+                and (allow_leakage or f not in leakage_set)
+            ]
         else:
             candidates = [
                 c.name

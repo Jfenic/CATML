@@ -329,6 +329,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         if path == "/api/overview":
             runs = ws.list_runs()
             all_trials = []
+            best_by_dataset: dict[str, dict[str, dict]] = {}
             best_by_metric: dict[str, dict] = {}
             active_run_top: dict | None = None
             recent_datasets = []
@@ -344,21 +345,60 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     model_id = str(top["model_id"])
                     metric_name = str(top.get("metric") or r.config.metric or "score").lower()
                     is_minimize = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
+                    ds_id = str(r.dataset_id)
 
+                    # Track per-dataset metrics segregation
+                    if ds_id not in best_by_dataset:
+                        best_by_dataset[ds_id] = {}
+                    if metric_name not in best_by_dataset[ds_id]:
+                        best_by_dataset[ds_id][metric_name] = {
+                            "score": score,
+                            "model_id": model_id,
+                            "run_id": r.id,
+                            "dataset_id": ds_id,
+                            "metric": metric_name,
+                        }
+                    else:
+                        cur_ds_score = best_by_dataset[ds_id][metric_name]["score"]
+                        if (is_minimize and score < cur_ds_score) or (not is_minimize and score > cur_ds_score):
+                            best_by_dataset[ds_id][metric_name] = {
+                                "score": score,
+                                "model_id": model_id,
+                                "run_id": r.id,
+                                "dataset_id": ds_id,
+                                "metric": metric_name,
+                            }
+
+                    # Maintain best_by_metric without incomparable cross-dataset numeric comparisons
                     if metric_name not in best_by_metric:
                         best_by_metric[metric_name] = {
                             "score": score,
                             "model_id": model_id,
                             "run_id": r.id,
+                            "dataset_id": ds_id,
                             "metric": metric_name,
                         }
                     else:
-                        cur_score = best_by_metric[metric_name]["score"]
-                        if (is_minimize and score < cur_score) or (not is_minimize and score > cur_score):
+                        cur_entry = best_by_metric[metric_name]
+                        cur_score = cur_entry["score"]
+                        cur_ds = cur_entry.get("dataset_id")
+                        is_active_run = is_active_run_status(r.status)
+                        # Only compare numerically if both runs belong to the exact same dataset
+                        if cur_ds == ds_id:
+                            if (is_minimize and score < cur_score) or (not is_minimize and score > cur_score):
+                                best_by_metric[metric_name] = {
+                                    "score": score,
+                                    "model_id": model_id,
+                                    "run_id": r.id,
+                                    "dataset_id": ds_id,
+                                    "metric": metric_name,
+                                }
+                        elif is_active_run:
                             best_by_metric[metric_name] = {
                                 "score": score,
                                 "model_id": model_id,
                                 "run_id": r.id,
+                                "dataset_id": ds_id,
                                 "metric": metric_name,
                             }
 
@@ -426,9 +466,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 best_model = first_metric["model_id"]
                 best_metric = first_metric["metric"]
             else:
-                best_score = 0.0
-                best_model = "-"
-                best_metric = "-"
+                best_score = None
+                best_model = None
+                best_metric = None
 
             activity_feed = _build_real_activity_feed(
                 ws=ws,
@@ -450,6 +490,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "best_model": best_model,
                 "best_metric": best_metric,
                 "best_by_metric": best_by_metric,
+                "best_by_dataset": best_by_dataset,
                 "recent_datasets": recent_datasets,
                 "activity_feed": activity_feed,
             })
@@ -918,12 +959,15 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             candidate_cfg = h.candidate_config if isinstance(h.candidate_config, dict) else {}
                             crit_cfg = h.verification_criteria if isinstance(h.verification_criteria, dict) else {}
 
-                            before_score = h.baseline_metric
-                            after_score = (
-                                getattr(h, "verified_metric", None)
-                                or crit_cfg.get("verified_metric")
-                                or crit_cfg.get("after_score")
-                            )
+                            before_score = getattr(h, "baseline_metric", None)
+                            if before_score is None:
+                                before_score = crit_cfg.get("baseline_metric", crit_cfg.get("before_score"))
+
+                            after_score = getattr(h, "verified_metric", None)
+                            if after_score is None:
+                                after_score = crit_cfg.get("verified_metric")
+                            if after_score is None:
+                                after_score = crit_cfg.get("after_score")
                             delta_str = None
                             if before_score is not None and after_score is not None:
                                 delta_val = float(after_score) - float(before_score)

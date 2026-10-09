@@ -211,3 +211,83 @@ def test_clustering_task_does_not_filter_target_leakage(tmp_path):
     assert "f1" in exp.feature_names
     assert "f2" in exp.feature_names
 
+
+def test_experiment_planner_proposes_candidates_on_mixed_clean_and_leakage_dataset(tmp_path):
+    """Verify RuleBasedExperimentPlanner filters out leakage and ID columns but continues with safe columns."""
+    workspace, command_bus, query_bus = build_application(tmp_path)
+
+    n_samples = 40
+    y = np.linspace(1, 10, n_samples)
+    df = pd.DataFrame({
+        "customer_id": np.arange(n_samples),  # identifier
+        "clean_f1": np.random.randn(n_samples),  # safe
+        "clean_f2": np.random.randn(n_samples),  # safe
+        "leakage_col": y,  # target leakage
+        "target": y,
+    })
+
+    dataset = workspace.register_dataset(
+        name="Mixed Dataset",
+        path=df,
+        target="target",
+    )
+    run = workspace.create_run(dataset, metric="r2")
+    profile = workspace.repository.get_dataset_profile(dataset.id)
+    feature_reg = workspace.get_feature_registry(dataset.id)
+    model_reg = workspace.model_registry
+
+    planner = RuleBasedExperimentPlanner()
+    candidates = planner.propose(
+        run=run,
+        profile=profile,
+        feature_registry=feature_reg,
+        model_registry=model_reg,
+    )
+
+    # Must propose candidates using ONLY the safe features
+    assert len(candidates) > 0
+    for cand in candidates:
+        assert set(cand.feature_names) == {"clean_f1", "clean_f2"}
+        assert "leakage_col" not in cand.feature_names
+        assert "customer_id" not in cand.feature_names
+        assert "target" not in cand.feature_names
+
+
+def test_resolve_safe_feature_names_strict_vs_filtering_mode(tmp_path):
+    """Verify resolve_safe_feature_names strict raises on leakage, while strict=False filters safely."""
+    workspace, _, _ = build_application(tmp_path)
+
+    n_samples = 40
+    y = np.linspace(1, 10, n_samples)
+    df = pd.DataFrame({
+        "clean_feature": np.random.randn(n_samples),
+        "leak_col": y,
+        "target": y,
+    })
+    dataset = workspace.register_dataset(name="Strict vs Filter Test", path=df, target="target")
+    profile = workspace.repository.get_dataset_profile(dataset.id)
+
+    # 1. Strict mode (default) raises ValueError when requested_features contains leakage
+    with pytest.raises(ValueError) as excinfo:
+        profile.resolve_safe_feature_names(
+            requested_features=["clean_feature", "leak_col"],
+            strict=True,
+        )
+    assert "Features contain confirmed data leakage columns" in str(excinfo.value)
+
+    # 2. Filtering mode (strict=False) safely excludes leak_col and returns clean_feature
+    safe = profile.resolve_safe_feature_names(
+        requested_features=["clean_feature", "leak_col"],
+        strict=False,
+    )
+    assert safe == ["clean_feature"]
+
+    # 3. Filtering mode when ALL features are leakage raises ValueError ("No safe feature candidates...")
+    with pytest.raises(ValueError) as excinfo2:
+        profile.resolve_safe_feature_names(
+            requested_features=["leak_col"],
+            strict=False,
+        )
+    assert "No safe feature candidates available for training" in str(excinfo2.value)
+
+
