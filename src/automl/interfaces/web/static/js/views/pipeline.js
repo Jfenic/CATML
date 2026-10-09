@@ -227,6 +227,7 @@ export class PipelineView {
     const columns = p ? (p.columns || []) : [];
     const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float"))).length;
     const catCols = columns.filter(c => c.dtype && (c.dtype === "object" || c.dtype === "category" || c.dtype === "string")).length;
+    const imgCols = (p && p.image_columns ? p.image_columns.length : 0) || columns.filter(c => c.is_image).length;
 
     const details = {
       Dataset: {

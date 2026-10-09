@@ -105,3 +105,46 @@ def test_javascript_syntax_validity():
         result = subprocess.run([node_bin, "--check", str(js_file)], capture_output=True, text=True)
         assert result.returncode == 0, f"Syntax error in {js_file}:\n{result.stderr}"
 
+
+def test_javascript_views_render_without_reference_errors():
+    import shutil
+    import subprocess
+
+    node_bin = shutil.which("node")
+    if not node_bin:
+        pytest.skip("Node.js not installed on system")
+
+    script = """
+globalThis.window = { addEventListener: () => {}, location: { search: '', hash: '', pathname: '' }, history: { replaceState: () => {} } };
+globalThis.document = { getElementById: () => null, querySelectorAll: () => [] };
+globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+globalThis.sessionStorage = { getItem: () => null, setItem: () => {} };
+
+const views = [
+  { name: 'HomeView', path: './src/automl/interfaces/web/static/js/views/home.js' },
+  { name: 'OverviewView', path: './src/automl/interfaces/web/static/js/views/overview.js' },
+  { name: 'StudioView', path: './src/automl/interfaces/web/static/js/views/studio.js' },
+  { name: 'CompareView', path: './src/automl/interfaces/web/static/js/views/compare.js' },
+  { name: 'PipelineView', path: './src/automl/interfaces/web/static/js/views/pipeline.js' },
+  { name: 'KnowledgeView', path: './src/automl/interfaces/web/static/js/views/knowledge.js' },
+  { name: 'KaggleView', path: './src/automl/interfaces/web/static/js/views/kaggle.js' },
+  { name: 'DatasetsView', path: './src/automl/interfaces/web/static/js/views/datasets.js' },
+];
+
+async function run() {
+  for (const v of views) {
+    const mod = await import(v.path);
+    const Cls = mod[v.name];
+    const inst = new Cls();
+    inst.container = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] };
+    if (typeof inst.render === 'function') {
+      inst.render();
+    }
+  }
+}
+run();
+"""
+    result = subprocess.run([node_bin, "-e", script], capture_output=True, text=True)
+    assert result.returncode == 0, f"View render runtime error:\n{result.stderr}"
+
+
