@@ -17,9 +17,6 @@ class RunStatus(str, Enum):
 
 
 ACTIVE_RUN_STATUSES: set[RunStatus] = {
-    RunStatus.CREATED,
-    RunStatus.PROFILING,
-    RunStatus.PLANNING,
     RunStatus.EXPERIMENTING,
     RunStatus.OPTIMIZING,
     RunStatus.FINALIZING,
@@ -27,14 +24,11 @@ ACTIVE_RUN_STATUSES: set[RunStatus] = {
 
 
 def is_active_run_status(status: RunStatus | str | None) -> bool:
-    """Returns True if the run status indicates active or queued execution."""
+    """Returns True if the run status indicates active execution."""
     if status is None:
         return False
     val = status.value if hasattr(status, "value") else str(status)
     return val in {
-        "CREATED",
-        "PROFILING",
-        "PLANNING",
         "EXPERIMENTING",
         "OPTIMIZING",
         "FINALIZING",

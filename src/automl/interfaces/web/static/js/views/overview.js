@@ -86,14 +86,24 @@ export class OverviewView {
             </div>
           </div>
 
-          <!-- Progress Bar -->
+          <!-- Progress Bar con datos reales -->
           <div class="space-y-1.5 pt-2 border-t border-[#242A36]">
             <div class="flex justify-between text-[11px] font-sans text-[#8B95A7]">
               <span>Exploration State</span>
-              <span class="font-mono">${isRunning ? 'Searching space (72%)' : 'Execution completed (100%)'}</span>
+              <span class="font-mono">
+                ${isRunning
+                  ? 'Searching model space (active)'
+                  : trialsCount > 0
+                  ? `Execution completed (${trialsCount} trials)`
+                  : 'Ready to train (0 trials)'}
+              </span>
             </div>
             <div class="w-full bg-[#080A0F] h-1.5 rounded-full overflow-hidden border border-[#242A36]">
-              <div class="${isRunning ? 'bg-[#4F67FF] progress-striped w-2/3' : 'bg-[#22C55E] w-full'} h-full rounded-full"></div>
+              ${isRunning
+                ? `<div class="bg-[#4F67FF] progress-striped w-1/2 h-full rounded-full"></div>`
+                : trialsCount > 0
+                ? `<div class="bg-[#22C55E] w-full h-full rounded-full"></div>`
+                : `<div class="bg-transparent w-0 h-full"></div>`}
             </div>
           </div>
 

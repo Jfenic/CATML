@@ -20,9 +20,6 @@ export function escapeHtml(val) {
 }
 
 export const ACTIVE_RUN_STATUSES = new Set([
-  "CREATED",
-  "PROFILING",
-  "PLANNING",
   "EXPERIMENTING",
   "OPTIMIZING",
   "FINALIZING",

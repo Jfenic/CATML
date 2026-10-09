@@ -375,7 +375,7 @@ class AutoMLWorkspace:
             workspace_id=self.id,
             dataset_id=dataset.id,
             config=config,
-            status=RunStatus.PROFILING,
+            status=RunStatus.CREATED,
             current_phase=RunPhase.DATASET_PROFILING,
         )
         self._runs[run.id] = run

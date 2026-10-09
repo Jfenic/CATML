@@ -327,9 +327,9 @@ def test_domain_is_active_run_status_and_run_property():
     from automl.domain.runs.states import RunStatus, is_active_run_status
     from automl.domain.runs.run import AutoMLRun, RunConfig
 
-    assert is_active_run_status(RunStatus.CREATED) is True
-    assert is_active_run_status(RunStatus.PROFILING) is True
-    assert is_active_run_status(RunStatus.PLANNING) is True
+    assert is_active_run_status(RunStatus.CREATED) is False
+    assert is_active_run_status(RunStatus.PROFILING) is False
+    assert is_active_run_status(RunStatus.PLANNING) is False
     assert is_active_run_status(RunStatus.EXPERIMENTING) is True
     assert is_active_run_status(RunStatus.OPTIMIZING) is True
     assert is_active_run_status(RunStatus.FINALIZING) is True

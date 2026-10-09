@@ -178,7 +178,7 @@ export class DatasetsView {
             <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'exploracion' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="exploracion">
               ${icon("compass", "icon-sm")}
               <span>Exploración</span>
-              <span class="text-[9px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-1.5 py-0.2 rounded border border-[#4F67FF]/20 font-semibold">Próximamente · E1</span>
+              <span class="text-[9px] font-mono text-[#EF4444] bg-[#EF4444]/15 px-1.5 py-0.5 rounded border border-[#EF4444]/40 font-bold uppercase">PENDIENTE DE IMPLEMENTACIÓN</span>
             </button>
           </div>
         </div>
@@ -447,7 +447,7 @@ export class DatasetsView {
         <div class="flex items-start justify-between border-b border-[#242A36] pb-4">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#4F67FF]/15 text-[#4F67FF] border border-[#4F67FF]/30">FASE E1 · EN ROADMAP</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/40 uppercase tracking-wider">PENDIENTE DE IMPLEMENTACIÓN · FASE E1 (ROADMAP)</span>
               <span class="text-xs font-mono text-[#8B95A7]">ADR-008</span>
             </div>
             <h3 class="text-lg font-bold font-sans text-[#F7F8FA]">CATML Explore — Motor Estadístico y Evidencia</h3>
@@ -455,7 +455,7 @@ export class DatasetsView {
               Análisis exploratorio determinista de datos y formulación científica de hipótesis para agentes de ML.
             </p>
           </div>
-          <span class="badge-intel text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Explore Core</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-md font-mono font-bold text-[#EF4444] bg-[#EF4444]/10 border border-[#EF4444]/30">EN FASE DE IMPLEMENTACIÓN</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -79,7 +79,12 @@ export class HomeView {
     const runs = this.runs || [];
     const dsRuns = ds ? runs.filter(r => r.dataset_id === ds.id) : runs;
     const activeRun = dsRuns.find(r => isRunActive(r)) || dsRuns[0] || null;
-    const isRunning = isRunActive(activeRun);
+
+    // Real background execution check
+    const activeJob = (this.jobs || []).find(j => j.status === "running");
+    const isTraining = Boolean(activeJob || (activeRun && isRunActive(activeRun)));
+    const trialsCount = activeRun && activeRun.trials_count != null ? activeRun.trials_count : 0;
+    const hasResults = trialsCount > 0;
 
     // Filter recent jobs for this dataset or run
     const recentJobs = (this.jobs || []).slice(0, 6);
@@ -109,7 +114,7 @@ export class HomeView {
 
         <!-- 3. Grid de dos columnas: Ejecuciones en curso + Trabajos recientes -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Columna Izquierda: Ejecuciones en curso -->
+          <!-- Columna Izquierda: Estado de Ejecución -->
           <div class="workbench-card p-5 space-y-4">
             <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
               <div class="flex items-center space-x-2">
@@ -117,10 +122,12 @@ export class HomeView {
                 <h3 class="text-sm font-semibold font-sans text-[#F7F8FA]">Ejecuciones en curso</h3>
               </div>
               ${activeRun ? `
-                <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-[11px] px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1">
-                  ${isRunning
+                <span class="${isTraining ? 'badge-warn' : hasResults ? 'badge-gain' : 'text-[#8B95A7] bg-[#161B26] border border-[#242A36]'} text-[11px] px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1.5">
+                  ${isTraining
                     ? '<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>ENTRENANDO</span>'
-                    : '<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>COMPLETADO</span>'
+                    : hasResults
+                    ? '<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>COMPLETADO</span>'
+                    : '<span class="w-1.5 h-1.5 rounded-full bg-[#8B95A7]"></span><span>LISTO PARA ENTRENAR</span>'
                   }
                 </span>
               ` : `
@@ -145,35 +152,55 @@ export class HomeView {
                   <div class="grid grid-cols-3 gap-2 text-center pt-1 border-t border-[#242A36]/60">
                     <div class="p-2 rounded-lg bg-[#161B26]">
                       <div class="text-[10px] text-[#8B95A7] font-sans">Mejor Modelo</div>
-                      <div class="text-xs font-semibold text-[#F7F8FA] font-sans truncate mt-0.5">${escapeHtml(activeRun.best_model || "Pendiente")}</div>
+                      <div class="text-xs font-semibold text-[#F7F8FA] font-sans truncate mt-0.5">${hasResults && activeRun.best_model ? escapeHtml(activeRun.best_model) : '<span class="text-[#8B95A7] font-normal font-sans">Sin entrenar</span>'}</div>
                     </div>
                     <div class="p-2 rounded-lg bg-[#161B26]">
                       <div class="text-[10px] text-[#8B95A7] font-sans">Puntaje CV</div>
-                      <div class="text-xs font-bold text-[#22C55E] font-mono mt-0.5">${activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—"}</div>
+                      <div class="text-xs font-bold text-[#22C55E] font-mono mt-0.5">${hasResults && activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : '<span class="text-[#8B95A7] font-mono font-normal">—</span>'}</div>
                     </div>
                     <div class="p-2 rounded-lg bg-[#161B26]">
                       <div class="text-[10px] text-[#8B95A7] font-sans">Ensayos</div>
-                      <div class="text-xs font-bold text-[#F7F8FA] font-mono mt-0.5">${activeRun.trials_count != null ? activeRun.trials_count : 0}</div>
+                      <div class="text-xs font-bold text-[#F7F8FA] font-mono mt-0.5">${trialsCount}</div>
                     </div>
                   </div>
 
-                  <!-- Barra de progreso -->
-                  <div class="space-y-1 pt-1">
+                  <!-- Barra de progreso con datos reales -->
+                  <div class="space-y-1.5 pt-1">
                     <div class="flex justify-between text-[10px] font-sans text-[#8B95A7]">
                       <span>Estado del entrenamiento</span>
-                      <span class="font-mono">${isRunning ? 'Optimizando modelos (en curso)' : 'Entrenamiento finalizado'}</span>
+                      <span class="font-mono">
+                        ${isTraining
+                          ? (activeJob && activeJob.total ? `Optimizando modelos (${activeJob.completed || 0}/${activeJob.total})` : 'Optimizando modelos (en curso)')
+                          : hasResults
+                          ? `${trialsCount} ${trialsCount === 1 ? 'ensayo completado' : 'ensayos completados'} (${escapeHtml(activeRun.metric || 'Métrica')})`
+                          : 'Listo para entrenar (0 ensayos ejecutados)'}
+                      </span>
                     </div>
                     <div class="w-full bg-[#080A0F] h-1.5 rounded-full overflow-hidden border border-[#242A36]">
-                      <div class="${isRunning ? 'bg-[#4F67FF] progress-striped w-3/4' : 'bg-[#22C55E] w-full'} h-full rounded-full"></div>
+                      ${isTraining
+                        ? `<div class="bg-[#4F67FF] progress-striped h-full rounded-full transition-all duration-300" style="width: ${activeJob && activeJob.total ? Math.max(10, Math.round((activeJob.completed || 0) * 100 / activeJob.total)) : 50}%"></div>`
+                        : hasResults
+                        ? `<div class="bg-[#22C55E] w-full h-full rounded-full"></div>`
+                        : `<div class="bg-transparent w-0 h-full"></div>`
+                      }
                     </div>
                   </div>
                 </div>
 
-                <div class="flex justify-end">
-                  <button id="btnHomeGoToExperiments" class="text-xs text-[#4F67FF] hover:text-[#53C8FF] font-sans font-medium flex items-center space-x-1.5 transition-colors">
-                    <span>Ver experimentos en detalle</span>
-                    ${icon("arrow-right", "icon-sm")}
-                  </button>
+                <div class="flex items-center justify-between pt-1">
+                  ${!hasResults && !isTraining ? `
+                    <span class="text-[11px] text-[#8B95A7] font-sans">Dataset preparado. Sin modelos entrenados todavía.</span>
+                    <button id="btnHomeStartFirstExpInner" class="btn-signal text-xs flex items-center space-x-1.5">
+                      ${icon("play", "icon-sm")}
+                      <span>Lanzar primer experimento</span>
+                    </button>
+                  ` : `
+                    <div></div>
+                    <button id="btnHomeGoToExperiments" class="text-xs text-[#4F67FF] hover:text-[#53C8FF] font-sans font-medium flex items-center space-x-1.5 transition-colors">
+                      <span>Ver experimentos en detalle</span>
+                      ${icon("arrow-right", "icon-sm")}
+                    </button>
+                  `}
                 </div>
               </div>
             ` : `
@@ -357,6 +384,10 @@ export class HomeView {
     });
 
     this.container.querySelector("#btnHomeStartFirstExp")?.addEventListener("click", () => {
+      bus.emit("modal:new-experiment");
+    });
+
+    this.container.querySelector("#btnHomeStartFirstExpInner")?.addEventListener("click", () => {
       bus.emit("modal:new-experiment");
     });
   }

@@ -93,6 +93,13 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] **F10 [Medio]**: Selección del trial óptimo en HPO guiado por dirección de métrica (minimización vs maximización).
   - [x] **F11 [Medio]**: Enlace de descarga de submissions sustituido por `api.downloadFile()` con autenticación Bearer via blob.
   - [x] **F12 & F15 [Medio]**: Accesibilidad mejorada: eliminado `select-none` del body; menú responsive con botón hamburguesa para pantallas `< md`.
+- [x] **Eliminación de Maquetas y Estados Simulados en Pantalla de Inicio (Truthful Workbench State)**:
+  - [x] Acotado de `ACTIVE_RUN_STATUSES` y `is_active_run_status` en dominio y frontend únicamente a estados de ejecución efectiva (`EXPERIMENTING`, `OPTIMIZING`, `FINALIZING`, `RUNNING`); estados `CREATED`, `PROFILING` y `PLANNING` no activan falsas alertas de entrenamiento.
+  - [x] Eliminado badge falso de `ENTRENANDO` con spinner y barra fija al 75% en `home.js`; reemplazado por estado verídico `LISTO PARA ENTRENAR` (barra al 0%, métricas neutrales, CTA para lanzar experimento).
+  - [x] Eliminada barra fija al 66% y texto arbitrario `Searching space (72%)` en `overview.js`.
+  - [x] Marcado en **ROJO** del componente Explore en `datasets.js` (`PENDIENTE DE IMPLEMENTACIÓN`, `EN FASE DE IMPLEMENTACIÓN`, `#EF4444`) para clarificar que pertenece al roadmap de ADR-008 sin maquetas decorativas.
+  - [x] Sincronización de la cabecera global (`app.js`): solo exhibe `ENTRENANDO` cuando existen trabajos de entrenamiento activos en ejecución.
+  - [x] Pruebas de integración automatizadas en `tests/test_workbench_laboratory_redesign.py`. 677 tests pasando (100% verde), 86.68% de cobertura.
   - [x] **F13 & F14 [Bajo]**: Terminología armonizada y versión alineada a `v0.8.2`.
 - [x] **Validación y Cobertura**:
   - [x] 676 tests pasando (100% de la suite). Cobertura total mantenida $\ge 85\%$.

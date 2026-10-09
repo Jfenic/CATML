@@ -296,5 +296,32 @@ def test_job_executor_budget_propagation(tmp_path):
     assert dispatched_cmd.run_id == "run-1"
 
 
+def test_workbench_truthful_state_and_explore_pending_indicators():
+    # 1. Verify home.js has truthful state rendering and no fake progress bars
+    home_js = Path("src/automl/interfaces/web/static/js/views/home.js").read_text(encoding="utf-8")
+    assert "LISTO PARA ENTRENAR" in home_js
+    assert "btnHomeStartFirstExpInner" in home_js
+    assert "progress-striped w-3/4" not in home_js
+
+    # 2. Verify overview.js has no fake progress percentages
+    overview_js = Path("src/automl/interfaces/web/static/js/views/overview.js").read_text(encoding="utf-8")
+    assert "Searching space (72%)" not in overview_js
+    assert "w-2/3" not in overview_js
+
+    # 3. Verify datasets.js marks Explore as pending in red
+    datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
+    assert "PENDIENTE DE IMPLEMENTACIÓN" in datasets_js
+    assert "EN FASE DE IMPLEMENTACIÓN" in datasets_js
+    assert "#EF4444" in datasets_js
+
+    # 4. Verify domain active status rules
+    from automl.domain.runs.states import RunStatus, is_active_run_status
+    assert is_active_run_status(RunStatus.CREATED) is False
+    assert is_active_run_status(RunStatus.PROFILING) is False
+    assert is_active_run_status(RunStatus.EXPERIMENTING) is True
+    assert is_active_run_status(RunStatus.OPTIMIZING) is True
+
+
+
 
 
