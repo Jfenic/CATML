@@ -913,6 +913,42 @@ def main(argv: list[str] | None = None) -> int:
     register_agent_subparser(agent_parser)
     register_agent_session_subparser(agent_parser)
 
+    explore_parser = sub.add_parser("explore", help="Statistical exploratory data analysis and studies")
+    explore_sub = explore_parser.add_subparsers(dest="explore_action", required=True)
+    from automl.interfaces.cli.explore_cli import run_explore_cli
+
+    exp_create = explore_sub.add_parser("create", help="Create an exploratory study on a dataset")
+    exp_create.add_argument("dataset_id", help="ID of dataset to study")
+    exp_create.add_argument("--name", "-n", default=None, help="Name of the study")
+    exp_create.add_argument("--target", "-t", default=None, help="Optional target column for supervised associations")
+    exp_create.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_create.add_argument("--json", action="store_true", help="Output results as JSON")
+    exp_create.set_defaults(func=run_explore_cli)
+
+    exp_run = explore_sub.add_parser("run", help="Execute statistical analysis on a study")
+    exp_run.add_argument("study_id", help="ID of study to run")
+    exp_run.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_run.add_argument("--json", action="store_true", help="Output results as JSON")
+    exp_run.set_defaults(func=run_explore_cli)
+
+    exp_list = explore_sub.add_parser("list", help="List registered exploratory studies")
+    exp_list.add_argument("--dataset", "-d", default=None, help="Filter by dataset ID")
+    exp_list.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_list.add_argument("--json", action="store_true", help="Output results as JSON")
+    exp_list.set_defaults(func=run_explore_cli)
+
+    exp_show = explore_sub.add_parser("show", help="Show details of a study")
+    exp_show.add_argument("study_id", help="ID of study to display")
+    exp_show.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_show.add_argument("--json", action="store_true", help="Output results as JSON")
+    exp_show.set_defaults(func=run_explore_cli)
+
+    exp_find = explore_sub.add_parser("findings", help="List statistical findings of a study")
+    exp_find.add_argument("study_id", help="ID of study to inspect")
+    exp_find.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_find.add_argument("--json", action="store_true", help="Output results as JSON")
+    exp_find.set_defaults(func=run_explore_cli)
+
     args = parser.parse_args(argv)
     return args.func(args)
 

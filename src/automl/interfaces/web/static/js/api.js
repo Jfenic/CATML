@@ -350,6 +350,41 @@ export class CATMLApiClient {
       body: JSON.stringify(payload),
     });
   }
+
+  // CATML Explore API methods (Phase E1)
+  async getAnalysisStudies(datasetId = null) {
+    let url = "/api/analysis/studies";
+    if (datasetId) url += `?dataset_id=${encodeURIComponent(datasetId)}`;
+    return this._fetch(url);
+  }
+
+  async getAnalysisStudy(studyId) {
+    return this._fetch(`/api/analysis/study?id=${encodeURIComponent(studyId)}`);
+  }
+
+  async createAnalysisStudy(payload) {
+    return this._fetch("/api/analysis/studies/create", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async runAnalysisStudy(studyId) {
+    return this._fetch("/api/analysis/studies/run", {
+      method: "POST",
+      body: JSON.stringify({ study_id: studyId }),
+    });
+  }
+
+  async getAnalysisFindings(studyId, type = null) {
+    let url = `/api/analysis/findings?study_id=${encodeURIComponent(studyId)}`;
+    if (type) url += `&type=${encodeURIComponent(type)}`;
+    return this._fetch(url);
+  }
+
+  async getAnalysisVisualizations(studyId) {
+    return this._fetch(`/api/analysis/visualizations?study_id=${encodeURIComponent(studyId)}`);
+  }
 }
 
 export const api = new CATMLApiClient();

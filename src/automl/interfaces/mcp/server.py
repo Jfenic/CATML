@@ -40,6 +40,7 @@ from automl.application.queries.workspace_queries import (
 from automl.application.services.workspace import AutoMLWorkspace
 from automl.domain.agents.entities import AgentPermission, OperationStatus, ToolErrorCode
 from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+from automl.interfaces.mcp.analysis_tools import register_analysis_mcp_tools
 
 logger = logging.getLogger("catml.mcp")
 
@@ -622,6 +623,9 @@ def create_mcp_server(
             return json.dumps(op.to_dict(), default=str, indent=2)
         except Exception as e:
             return json.dumps({"error": str(e), "code": ToolErrorCode.INTERNAL_ERROR.value})
+
+    # Register CATML Explore analysis tools and resources (Phase E1)
+    register_analysis_mcp_tools(server, query_bus=query_bus, command_bus=command_bus)
 
     return server
 

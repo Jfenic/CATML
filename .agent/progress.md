@@ -1,5 +1,32 @@
 # Progress
 
+### Track CATML Explore — Fase E1: Núcleo de Estudios (Explore Core) (2026-10-09)
+
+- **Implementación Integral del Núcleo de Estudios Exploratorios (Fase E1 - ADR-008):**
+  - **Capa de Dominio Pura (`src/automl/domain/analysis/`):**
+    - `models.py`: Entidades desacopladas (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `AnalysisHypothesis`, `EvidenceLink`, `DataSourceRef`, `StudyStatus`) con cero dependencias externas (sin pandas, scipy ni frameworks).
+    - Soporte completo para estudios no supervisados (`target_column=None`).
+    - Puertos formales en `ports.py`: `StudyRepositoryPort`, `StatisticalAnalyzerPort`, `VisualizationRendererPort`.
+  - **Infraestructura y Persistencia SQLite (`src/automl/infrastructure/database/sqlite_studies.py`):**
+    - `SQLiteStudyRepository`: Persistencia transaccional aditiva en `studies.db` con soporte para `:memory:`, WAL mode, claves foráneas, índices por workspace/estudio y serialización JSON de métricas y especificaciones visuales.
+  - **Motor de Análisis Determinista (`src/automl/engine/analysis/statistical_analyzer.py`):**
+    - `StatisticalAnalyzer`: Cálculo de colinealidad bivariada de Pearson ($r \ge 0.70$) con p-valores asociados, separación de clases mediante ANOVA F-test / t-test ($p < 0.05$), detección de outliers mediante IQR, detección de identificadores de alta cardinalidad e hipótesis empíricas de mitigación (`resolve_collinearity`, `power_transform`, `robust_scaler`, `exclude_identifier`).
+    - Generación declarativa de especificaciones `VisualizationSpec` para matrices de correlación y distribuciones.
+  - **Capa de Aplicación y CQRS Modular (`src/automl/application/`):**
+    - Comandos en `analysis/commands.py`: `CreateStudyCommand`, `RunAnalysisCommand`, `ArchiveStudyCommand`.
+    - Consultas en `analysis/queries.py`: `GetStudyQuery`, `ListStudiesQuery`, `GetAnalysisRunQuery`, `ListAnalysisRunsQuery`, `ListFindingsQuery`, `ListVisualizationsQuery`, `ListHypothesesQuery`.
+    - Servicio `AnalysisStudyService` orquestando repositorio, motor estadístico y dataset repository.
+    - Registro modular desacoplado en `registries/analysis_registry.py` e integrado en `bootstrap.py` y `AutoMLWorkspace`.
+  - **CLI `automl explore` (`src/automl/interfaces/cli/`):**
+    - Subcomandos `create`, `run`, `list`, `show`, `findings` con soporte JSON y formateo tabular en `explore_cli.py` y conectado en `main.py`.
+  - **Herramientas de Agente MCP (`src/automl/interfaces/mcp/`):**
+    - `analysis_tools.py`: Registro de herramientas `analysis_create_study`, `analysis_run_study`, `analysis_get_findings`, `analysis_list_studies`, `analysis_get_study` con esquemas tipados y registro en `create_mcp_server`.
+  - **API REST y Workbench UI Verídica:**
+    - Endpoints HTTP en `server.py`: `/api/analysis/studies`, `/api/analysis/study`, `/api/analysis/findings`, `/api/analysis/visualizations`, `/api/analysis/hypotheses`, `/api/analysis/studies/create`, `/api/analysis/studies/run`, `/api/analysis/studies/archive`.
+    - Cliente frontend en `api.js` y vista interactiva en `datasets.js`: Pestaña de Exploración con selector de estudios, botón para nuevo estudio y ejecución de análisis, tarjetas de hallazgos estadísticos categorizadas por severidad con badges de p-valor, y matriz de correlación visual interactiva en tiempo real (datos 100% verídicos calculados por el motor).
+  - **Validación:**
+    - Suite de pruebas de integración completa en `tests/test_explore_phase_e1_core.py` (10 pruebas pasando al 100%).
+
 ### Track Technical Audit Remediation & System Hardening (2026-10-09)
 
 - **Remediación Integral de Hallazgos de Auditoría Técnica (Commit `5caa1f5`):**

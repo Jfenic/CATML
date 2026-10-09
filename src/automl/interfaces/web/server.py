@@ -39,6 +39,19 @@ from automl.application.queries.workspace_queries import (
     GetOOFResultQuery,
     GetMetaKnowledgeQuery,
 )
+from automl.application.analysis.commands import (
+    ArchiveStudyCommand,
+    CreateStudyCommand,
+    RunAnalysisCommand,
+)
+from automl.application.analysis.queries import (
+    GetAnalysisRunQuery,
+    GetStudyQuery,
+    ListFindingsQuery,
+    ListHypothesesQuery,
+    ListStudiesQuery,
+    ListVisualizationsQuery,
+)
 
 
 def _build_real_activity_feed(
@@ -1164,6 +1177,83 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
 
+        elif path == "/api/analysis/studies":
+            dataset_id = query_params.get("dataset_id", [None])[0]
+            studies = qry.dispatch(ListStudiesQuery(dataset_id=dataset_id))
+            result = []
+            for s in (studies or []):
+                s_dict = dict(s) if isinstance(s, dict) else (s.to_dict() if hasattr(s, "to_dict") else vars(s))
+                s_id = s_dict.get("id", "")
+                try:
+                    findings = qry.dispatch(ListFindingsQuery(study_id=s_id))
+                    s_dict["findings_count"] = len(findings) if findings else 0
+                except Exception:
+                    s_dict["findings_count"] = 0
+                try:
+                    hypotheses = qry.dispatch(ListHypothesesQuery(study_id=s_id))
+                    s_dict["hypotheses_count"] = len(hypotheses) if hypotheses else 0
+                except Exception:
+                    s_dict["hypotheses_count"] = 0
+                result.append(s_dict)
+            self._send_json(result)
+            return
+
+        elif path == "/api/analysis/study":
+            study_id = query_params.get("id", [""])[0] or query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            study = qry.dispatch(GetStudyQuery(study_id=study_id))
+            if not study:
+                self._send_json({"error": f"Study '{study_id}' not found"}, HTTPStatus.NOT_FOUND)
+                return
+            data = dict(study) if isinstance(study, dict) else (study.to_dict() if hasattr(study, "to_dict") else vars(study))
+            try:
+                findings = qry.dispatch(ListFindingsQuery(study_id=study_id))
+                data["findings"] = [f if isinstance(f, dict) else f.to_dict() for f in (findings or [])]
+            except Exception:
+                data["findings"] = []
+            try:
+                visualizations = qry.dispatch(ListVisualizationsQuery(study_id=study_id))
+                data["visualizations"] = [v if isinstance(v, dict) else v.to_dict() for v in (visualizations or [])]
+            except Exception:
+                data["visualizations"] = []
+            try:
+                hypotheses = qry.dispatch(ListHypothesesQuery(study_id=study_id))
+                data["hypotheses"] = [h if isinstance(h, dict) else h.to_dict() for h in (hypotheses or [])]
+            except Exception:
+                data["hypotheses"] = []
+            self._send_json(data)
+            return
+
+        elif path == "/api/analysis/findings":
+            study_id = query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            finding_type = query_params.get("type", [None])[0]
+            findings = qry.dispatch(ListFindingsQuery(study_id=study_id, finding_type=finding_type))
+            self._send_json([f if isinstance(f, dict) else f.to_dict() for f in (findings or [])])
+            return
+
+        elif path == "/api/analysis/visualizations":
+            study_id = query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            visualizations = qry.dispatch(ListVisualizationsQuery(study_id=study_id))
+            self._send_json([v if isinstance(v, dict) else v.to_dict() for v in (visualizations or [])])
+            return
+
+        elif path == "/api/analysis/hypotheses":
+            study_id = query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            hypotheses = qry.dispatch(ListHypothesesQuery(study_id=study_id))
+            self._send_json([h if isinstance(h, dict) else h.to_dict() for h in (hypotheses or [])])
+            return
+
         elif path == "/api/plugins":
             plugins = qry.dispatch(ListPluginsQuery())
             self._send_json(plugins)
@@ -1903,6 +1993,55 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "status": "success",
                     "candidate_sets": [fs.to_dict() for fs in created_sets],
                 })
+                return
+
+            elif path in ("/api/analysis/studies/create", "/api/analysis/study/create"):
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                name = payload.get("name", "")
+                target_col = payload.get("target_column")
+                cmd_obj = CreateStudyCommand(
+                    dataset_id=dataset_id,
+                    name=name,
+                    target_column=target_col if target_col else None,
+                )
+                study_res = cmd.dispatch(cmd_obj)
+                study_id = study_res if isinstance(study_res, str) else getattr(study_res, "id", str(study_res))
+                study = qry.dispatch(GetStudyQuery(study_id=study_id))
+                self._send_json({
+                    "status": "success",
+                    "study_id": study_id,
+                    "study": study,
+                })
+                return
+
+            elif path in ("/api/analysis/studies/run", "/api/analysis/study/run"):
+                study_id = payload.get("study_id")
+                if not study_id:
+                    self._send_json({"error": "study_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                run_res = cmd.dispatch(RunAnalysisCommand(study_id=study_id))
+                run_id = run_res if isinstance(run_res, str) else getattr(run_res, "id", str(run_res))
+                run_data = qry.dispatch(GetAnalysisRunQuery(run_id=run_id))
+                findings = qry.dispatch(ListFindingsQuery(study_id=study_id, run_id=run_id))
+                self._send_json({
+                    "status": "success",
+                    "study_id": study_id,
+                    "run_id": run_id,
+                    "run": run_data,
+                    "findings_count": len(findings) if findings else 0,
+                })
+                return
+
+            elif path in ("/api/analysis/studies/archive", "/api/analysis/study/archive"):
+                study_id = payload.get("study_id")
+                if not study_id:
+                    self._send_json({"error": "study_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                cmd.dispatch(ArchiveStudyCommand(study_id=study_id))
+                self._send_json({"status": "success", "study_id": study_id, "archived": True})
                 return
 
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)

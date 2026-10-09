@@ -168,13 +168,16 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Segregación de métricas por dataset en `/api/overview` (`best_by_dataset`), soporte para scores `0.0` en hipótesis y valores iniciales limpios.
     - [x] Suites de pruebas en `tests/test_anti_leakage_guardian.py` y `tests/test_workbench_activity_consistency.py`.
     - [x] 664 tests pasando (100% verde), 87.32% de cobertura.
-- [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
-  - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
-  - [ ] Soporte de estudios sin columna objetivo (`target=None`).
-  - [ ] Esquema de persistencia SQLite aditivo en `src/automl/infrastructure/database/sqlite_studies.py`.
-  - [ ] Servicio de aplicación `AnalysisStudyService` y operaciones CQRS (`CreateStudyCommand`, `GetStudyQuery`, etc.).
-  - [ ] Integración de análisis en segundo plano con `JobService`.
-  - [ ] CLI inicial `catml explore create/show` y herramienta MCP básica `analysis_create_study`.
+- [x] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
+  - [x] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`, `AnalysisHypothesis`).
+  - [x] Soporte de estudios sin columna objetivo (`target_column=None`, modo no supervisado).
+  - [x] Esquema de persistencia SQLite aditivo en `src/automl/infrastructure/database/sqlite_studies.py` con WAL mode, claves foráneas e índices.
+  - [x] Servicio de aplicación `AnalysisStudyService` y operaciones CQRS (`CreateStudyCommand`, `RunAnalysisCommand`, `ArchiveStudyCommand`, `GetStudyQuery`, `ListStudiesQuery`, etc.) modularizados en `src/automl/application/registries/analysis_registry.py`.
+  - [x] Motor de análisis estadístico determinista en `src/automl/engine/analysis/statistical_analyzer.py` (colinealidad de Pearson $r \ge 0.70$, separación ANOVA $p < 0.05$, outliers IQR, cardinalidad e hipótesis de mitigación).
+  - [x] CLI `automl explore create/run/list/show/findings` registrado en `src/automl/interfaces/cli/explore_cli.py` y `main.py`.
+  - [x] Herramientas MCP en `src/automl/interfaces/mcp/analysis_tools.py` (`analysis_create_study`, `analysis_run_study`, `analysis_get_findings`, `analysis_list_studies`, `analysis_get_study`).
+  - [x] Endpoints REST `/api/analysis/...` en `server.py` e interfaz visual verídica en Workbench (`datasets.js` y `api.js` con selector de estudios, matriz de correlación real calculada y tarjetas de hallazgos).
+  - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e1_core.py` (10 pruebas pasando al 100%).
 - [ ] **Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)** [Prioridad P0]:
   - [ ] Motor numérico en `src/automl/engine/analysis/` (encapsulando `scipy` y `statsmodels` bajo el extra `catml[explore]`).
   - [ ] Diagnóstico de calidad: distribuciones, asimetría, curtosis y detección multivariante de anomalías (Isolation Forest/Mahalanobis).

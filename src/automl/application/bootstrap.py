@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from automl.application.bus.command_bus import CommandBus
 from automl.application.bus.query_bus import QueryBus
 from automl.application.registries import (
+    register_analysis_handlers,
     register_core_handlers,
     register_experiment_handlers,
     register_feature_handlers,
@@ -32,12 +33,14 @@ def register_handlers(
       - Experiment registry: candidate models, trials, training executions, priority queues
       - Feature registry: feature discovery, selection, ablation, metadata lineages
       - Inference registry: predictions, submissions, ensembles, OOF, and pipelines
+      - Analysis registry: exploratory statistical studies, runs, findings, visualizations
     """
     register_job_handlers(workspace, command_bus, query_bus, job_service=job_service)
     register_core_handlers(workspace, command_bus, query_bus)
     register_experiment_handlers(workspace, command_bus, query_bus)
     register_feature_handlers(workspace, command_bus, query_bus)
     register_inference_handlers(workspace, command_bus, query_bus)
+    register_analysis_handlers(workspace, command_bus, query_bus)
 
 
 def build_application(

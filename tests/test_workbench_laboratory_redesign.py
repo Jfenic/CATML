@@ -308,11 +308,11 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert "Searching space (72%)" not in overview_js
     assert "w-2/3" not in overview_js
 
-    # 3. Verify datasets.js marks Explore as pending in red
+    # 3. Verify datasets.js implements real Explore module (Phase E1)
     datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
-    assert "PENDIENTE DE IMPLEMENTACIÓN" in datasets_js
-    assert "EN FASE DE IMPLEMENTACIÓN" in datasets_js
-    assert "#EF4444" in datasets_js
+    assert "_renderExplorationTab" in datasets_js
+    assert "btnOpenCreateStudyModal" in datasets_js
+    assert "Matriz de Correlación" in datasets_js
 
     # 4. Verify domain active status rules
     from automl.domain.runs.states import RunStatus, is_active_run_status

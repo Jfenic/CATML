@@ -389,6 +389,21 @@ class AutoMLWorkspace:
             return [r for r in runs if r.dataset_id == dataset_id]
         return runs
 
+    def get_study_repository(self):
+        """Retrieve SQLiteStudyRepository for this workspace."""
+        from automl.infrastructure.database.sqlite_studies import SQLiteStudyRepository
+        return SQLiteStudyRepository(self.root_dir / "automl.db")
+
+    def get_analysis_service(self):
+        """Retrieve AnalysisStudyService for this workspace."""
+        from automl.application.analysis.study_service import AnalysisStudyService
+        from automl.engine.analysis.statistical_analyzer import StatisticalAnalyzer
+        return AnalysisStudyService(
+            repository=self.get_study_repository(),
+            dataset_resolver=self.get_dataset,
+            statistical_engine=StatisticalAnalyzer(),
+        )
+
     def get_feature_registry(self, dataset_id: str) -> FeatureRegistry:
         if dataset_id not in self._feature_registries:
             self._hydrate_feature_registry(dataset_id)
