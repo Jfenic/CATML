@@ -186,10 +186,13 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Pruebas de hipótesis automáticas supervisadas: comparación de 2 grupos con t-test de Welch y Mann-Whitney U junto con tamaño del efecto Cohen's $d$; comparación multiclase ($>2$ grupos) con ANOVA unidireccional y Kruskal-Wallis junto con tamaño del efecto $\eta^2$ (Eta al cuadrado); prueba de homocedasticidad de Levene.
   - [x] Corrección de comparaciones múltiples: ajuste por Benjamini-Hochberg (FDR - False Discovery Rate) sobre todos los tests inferenciales del estudio para mitigar falsos descubrimientos (*data dredging*).
   - [x] Batería de pruebas dedicada en `tests/test_explore_phase_e2_advanced_engine.py` (11 pruebas pasando al 100%, 88% de cobertura en `engine/analysis`).
-- [ ] **Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)** [Prioridad P1]:
-  - [ ] Generador backend de `VisualizationSpec` declarativo con agregaciones y decodificación sin saturar el cliente.
-  - [ ] Vista Tech Minimalista en `src/automl/interfaces/web/static/js/views/explore.js` (tipografía Geist, 1px border, alta densidad informativa).
-  - [ ] Galería de hallazgos estadísticos con filtros dinámicos y matrices interactivas de calor.
+- [x] **Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)** [Prioridad P1]:
+  - [x] Generador backend de `VisualizationSpec` declarativo en `src/automl/engine/analysis/visualizations/builder.py` con agregación de histogramas, resumen de cinco números para boxplots con muestreo acotado de outliers, y submuestreo de dispersión bivariada con regresión lineal de tendencia.
+  - [x] Vista profesional en `src/automl/interfaces/web/static/js/views/explore.js` conforme al sistema de diseño Tech Minimalista Premium (ADR-006): selector de estudios, botones para nuevo estudio y ejecución de análisis, e integración en el router global (`app.js`).
+  - [x] Galería de hallazgos estadísticos con filtros dinámicos por categoría, severidad y significancia Benjamini-Hochberg FDR ($p < 0.05$).
+  - [x] Visualizador interactivo de especificaciones: matrices de correlación (Pearson y Spearman con conmutador dinámico), matriz de Cramér's V, histogramas SVG vectoriales, diagramas de caja (boxplots) y nubes de dispersión bivariada.
+  - [x] Exportador de informes técnicos descargables en formato Markdown (`informe_explore_{study_id}.md`).
+  - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e3_ui.py` (6 pruebas pasando al 100%).
 - [ ] **Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)** [Prioridad P0]:
   - [ ] Tools MCP: `analysis_create_study`, `analysis_get_findings`, `analysis_get_visualizations`, `analysis_propose_experiment`.
   - [ ] Paginación y control de presupuesto de tokens en llamadas MCP para agentes (Codex, Claude Code).

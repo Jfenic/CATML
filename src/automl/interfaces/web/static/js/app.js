@@ -20,6 +20,7 @@ import { NewExperimentModal } from "./views/new_experiment.js";
 import { HomeView } from "./views/home.js";
 import { SwitchDatasetModal } from "./views/switch_dataset_modal.js";
 import { RegisterDatasetModal } from "./views/register_dataset_modal.js";
+import { ExploreView } from "./views/explore.js";
 
 class App {
   constructor() {
@@ -271,6 +272,9 @@ class App {
       case "dataset":
       case "datasets":
         this.currentViewInstance = new DatasetsView();
+        break;
+      case "explore":
+        this.currentViewInstance = new ExploreView();
         break;
       case "experiments":
       case "studio":

@@ -1,5 +1,25 @@
 # Progress
 
+### Track CATML Explore — Fase E3: Laboratorio Visual Interactivo (Workbench Exploration UI) (2026-10-10)
+
+- **Implementación del Laboratorio Visual Interactivo Explore (Fase E3 - ADR-008 & ADR-006):**
+  - **Generador de Especificaciones Visuales Declarativas (`VisualizationBuilder`):**
+    - `src/automl/engine/analysis/visualizations/builder.py`: Generación agregada y protegida de especificaciones `VisualizationSpec` sin saturar el cliente web.
+    - Histogramas con cortes equiespaciados, conteos, media, desviación estándar y mediana.
+    - Boxplots con resumen de 5 números ($Q_1, \text{mediana}, Q_3$), límites de bigotes y muestreo acotado de outliers (máx. 25 puntos).
+    - Scatter plots bivariados con submuestreo determinista (máx. 200 puntos) y cálculo de línea de regresión lineal ($y = mx + b$).
+  - **Componente Visual Tech Minimalista (`src/automl/interfaces/web/static/js/views/explore.js`):**
+    - Cumplimiento riguroso de ADR-006: Geist / Geist Mono, bordes nítidos de 1px (`#242A36`), paleta estructurada `#0B0D12` / `#161B26` y acentos azul eléctrico (`#4F67FF`) y cian (`#53C8FF`).
+    - Selector interactivo de estudios y ejecuciones con modal de creación y ejecución instantánea.
+    - Galería de hallazgos estadísticos con filtros dinámicos por categoría, severidad y toggle de significancia Benjamini-Hochberg FDR ($p < 0.05$).
+    - Renderizadores vectoriales SVG para histogramas, diagramas de caja y nubes de dispersión bivariada.
+    - Matriz de calor bivariada interactiva con conmutador en tiempo real entre coeficientes de Pearson y Spearman.
+    - Exportador de informes técnicos en formato Markdown descargable (`informe_explore_{id}.md`).
+    - Integración en el router global de la aplicación (`src/automl/interfaces/web/static/js/app.js`).
+  - **Validación Automatizada:**
+    - Suite de pruebas completa en `tests/test_explore_phase_e3_ui.py` (6 pruebas pasando al 100%).
+    - Cobertura sostenida del paquete `src/automl/engine/analysis` al 88%.
+
 ### Track CATML Explore — Fase E2: Motor Estadístico Avanzado (Advanced Statistical Engine) (2026-10-09)
 
 - **Implementación del Motor Estadístico y Matemático Avanzado (Fase E2 - ADR-008):**

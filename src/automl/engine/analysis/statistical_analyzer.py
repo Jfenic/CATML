@@ -24,6 +24,7 @@ from automl.engine.analysis.hypothesis_testing import (
     analyze_target_hypotheses,
     apply_benjamini_hochberg_correction,
 )
+from automl.engine.analysis.visualizations.builder import VisualizationBuilder
 from automl.engine.profiling.dataset_profiler import load_dataframe
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,17 @@ class StatisticalAnalyzer(StatisticalEnginePort):
             findings.extend(uni_findings)
             hypotheses.extend(uni_hyps)
 
+            # Generate histogram and boxplot specs for distribution findings
+            for f in uni_findings:
+                if f.finding_type in ("skewness", "multimodal_distribution") and f.column_name:
+                    h_spec = VisualizationBuilder.build_histogram_spec(df, f.column_name, study_id, run_id)
+                    if h_spec:
+                        visualizations.append(h_spec)
+                elif f.finding_type == "outlier_density" and f.column_name:
+                    b_spec = VisualizationBuilder.build_boxplot_spec(df, f.column_name, study_id, run_id)
+                    if b_spec:
+                        visualizations.append(b_spec)
+
             # C) Multivariate anomalies (Mahalanobis Distance with Chi-square test)
             multi_findings, multi_hyps = diagnose_multivariate_outliers(
                 df=df,
@@ -156,6 +168,15 @@ class StatisticalAnalyzer(StatisticalEnginePort):
             findings.extend(num_findings)
             visualizations.extend(num_viz)
             hypotheses.extend(num_hyps)
+
+            # Generate bivariate scatter specs for top collinear/monotonic relationships
+            for f in num_findings[:3]:
+                if f.finding_type in ("high_collinearity", "monotonic_nonlinear_relationship") and f.column_name and f.secondary_column:
+                    sc_spec = VisualizationBuilder.build_bivariate_scatter_spec(
+                        df, f.column_name, f.secondary_column, study_id, run_id
+                    )
+                    if sc_spec:
+                        visualizations.append(sc_spec)
 
             # Categorical associations (Cramér's V bias-corrected, Chi-square, Viz)
             cat_findings, cat_viz, cat_hyps = analyze_categorical_associations(
