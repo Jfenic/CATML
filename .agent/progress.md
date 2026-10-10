@@ -1,5 +1,11 @@
 # Progress
 
+### Track Governance — Apache-2.0 license consistency (2026-10-11)
+
+- Confirmed canonical licensing already Apache-2.0: root `LICENSE`, `NOTICE`, `pyproject.toml`, README badge/section, and GitHub `spdx_id=Apache-2.0`.
+- Removed stale MIT claims that could confuse readers: `website/README.md` (incorrectly said root LICENSE was MIT), `TASKS.md` landing note, and added `license: Apache-2.0` to `website/package.json` plus PyPI classifiers in `pyproject.toml`.
+- Branch: `fix/license-apache-consistency`.
+
 ### Track Modular Simplification — Pre-Explore Phase E0.5 (2026-10-08)
 
 - **PR 1: Descomposición de Registros CQRS y Modularización de Bootstrap (`hardening/v0.8.2-e0.5-pr1-bootstrap-modularization`):**

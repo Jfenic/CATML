@@ -34,7 +34,7 @@ The project is ready for deployment; creating a production deployment or connect
 ## Content and evidence
 
 - `src/App.tsx` owns copy, links, Python examples and dated foundation statistics.
-- MIT reflects the actual root LICENSE. The supplied Apache 2.0 copy was corrected.
+- Project license is Apache-2.0 (see root `LICENSE` and `NOTICE`). Versions ≤ 0.7.0 remain available under MIT.
 - Installation is from the GitHub source checkout, without assuming a `catml` PyPI release.
 - The sample leaderboard is labeled **Example output**, not presented as benchmark evidence.
 - 461 tests / 87.53% coverage are a historical snapshot from the October 2, 2026 Workbench refinement, linked to commit `e4a2286`. They are not live CI status; update copy only with attributable validation evidence.
