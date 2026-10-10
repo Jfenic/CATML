@@ -206,8 +206,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Protocolo "Propose ≠ Accept": validación empírica en el mismo split antes de promover transformaciones o feature sets, preservando aprendizaje negativo.
   - [x] Paridad total de superficies: CQRS (`VerifyHypothesisCommand`, `GetEvidenceLinkQuery`, `ListEvidenceLinksQuery`), CLI (`automl explore verify`), MCP tool (`analysis_verify_hypothesis`) y recurso (`catml://studies/{study_id}/evidence`), y API REST (`/api/analysis/hypotheses/verify` y `/api/analysis/evidence`).
   - [x] Batería de pruebas automatizadas completa en `tests/test_explore_phase_e5_hypothesis_engine.py` (6 pruebas pasando al 100%, suite global en 717 pruebas y cobertura 86.60%).
-- [ ] **Fase E6 — Benchmarks Integrales y Preparación de Producto** [Prioridad P1]:
-  - [ ] Batería de 4 ejes: exactitud estadística (NIST/sintéticos), calidad AutoML, seguridad/MCP y suites de regresión.
+- [x] **Fase E6 — Benchmarks Integrales y Preparación de Producto** [Prioridad P1]:
+  - [x] Batería de 4 ejes implementada en `ExploreBenchmarkRunner` (`src/automl/benchmarks/explore_benchmarks.py`):
+    - [x] **Eje 1: Exactitud Estadística Numérica:** Calibración tipo NIST ante grandes desplazamientos numéricos ($10^9 + x$), Anscombe Quartet (I-IV con contrastes de no linealidad y outliers), intervalos Fisher $z$ al 95%, ajuste FDR Benjamini-Hochberg, Welch t-test / Cohen's $d$, y cotas de Cramér's V.
+    - [x] **Eje 2: Calidad AutoML y Verificación de Hipótesis:** Comparativa determinista baseline vs hipótesis guiadas por Explore con persistencia de `EvidenceLink` en el mismo split y cumplimiento estricto de "Propose ≠ Accept".
+    - [x] **Eje 3: Seguridad, Privacidad y Confinamiento de Tokens MCP:** Límites acotados de salida (`limit`, `offset`, `envelope`), stripping de matrices densas en `compact=True`, cero filtración de PII/datos crudos en recursos `summary`, y resistencia fail-closed ante inyecciones y path traversal.
+    - [x] **Eje 4: Regresión de Esquemas y Workspaces:** Compatibilidad retroactiva de SQLite (`studies.db` en modo WAL), coexistencia de estudios no supervisados y supervisados, e integridad transaccional.
+  - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e6_benchmarks.py` (6 pruebas pasando al 100%).
+  - [x] Actualización de `DEVELOPER_GUIDE.md` con arquitectura, comandos de CLI y módulos de Explore.
+  - [x] Suite global verde: **723 pruebas pasando (0 fallos)**, cobertura global sostenida en **86.76%** (umbral CI $\ge 85\%$).
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 

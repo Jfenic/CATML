@@ -1,6 +1,39 @@
 # Progress
 
-### Track CATML Explore — Fase E5: Agente Científico y Conexión con AutoML (Hypothesis Engine) (2026-10-10)
+### Track CATML Explore — Fase E6: Benchmarks Integrales y Preparación de Producto (Release Readiness) (2026-10-11)
+
+- **Implementación de la Batería de Benchmarks en 4 Ejes (Fase E6 - ADR-008):**
+  - **Runner de Benchmarks Dedicado (`ExploreBenchmarkRunner`):**
+    - `src/automl/benchmarks/explore_benchmarks.py`: Implementada la suite integral automatizada para validación rigurosa de CATML Explore.
+    - **Eje 1: Exactitud Estadística Numérica:**
+      - Calibración tipo NIST para precisión univariante ante grandes desplazamientos numéricos ($10^9 + x$), garantizando ausencia de cancelación catastrófica (error de media $< 10^{-6}$, error de varianza $< 10^{-4}$).
+      - Calibración con el Cuarteto de Anscombe (Datasets I a IV): verificación de correlación de Pearson exacta ($r \in [0.80, 0.83]$), detección de no-linealidad en Dataset II ($|\rho| - |r| > 0.05$) y detección de outliers en Dataset III mediante IQR.
+      - Calibración analítica de intervalos de confianza al 95% con transformación $z$ de Fisher.
+      - Verificación de la corrección FDR de Benjamini-Hochberg (monotonía no decreciente, acotación en $[0, 1]$ y protección contra inflación de falsos descubrimientos).
+      - Tamaño del efecto de Cohen's $d$ y t-test de Welch en muestras gaussianas calibradas.
+      - Cotas asintóticas del coeficiente $V$ de Cramér ($V \ge 0.98$ en tablas perfectas, $V \le 0.02$ en tablas independientes).
+    - **Eje 2: Rendimiento AutoML con Hipótesis de Explore:**
+      - Validación de integración end-to-end con datasets tabulares reales (`customers_churn.csv`).
+      - Cumplimiento estricto del principio rector *"Propose ≠ Accept"*: evaluación del candidato contra el baseline sobre la **misma partición exacta de validación**.
+      - Persistencia transaccional de `EvidenceLink` y actualización de estado de hipótesis (`accepted` si $\Delta > 0$, `rejected` si no supera el umbral), preservando el aprendizaje negativo.
+    - **Eje 3: Seguridad, Privacidad y Confinamiento de Tokens MCP:**
+      - Boundedness de tokens para LLMs: comprobación de límite estricto de hallazgos (`limit=2`), metadatos envoltorio (`envelope=True`) y poda de matrices/vectores densos (`compact=True`).
+      - Cero filtración de datos crudos o PII en recursos de agente (`catml://studies/{study_id}/summary`).
+      - Resistencia fail-closed ante intentos de path traversal (`../../../../etc/passwd`) e inyecciones SQL (`' OR 1=1 --`), retornando respuestas estructuradas de error sin caídas ni exposición de stack traces.
+    - **Eje 4: Regresión de Esquemas y Compatibilidad de Workspaces:**
+      - Arranque transparente sobre workspaces heredados con preservación de `experiments.db` y creación atómica de `automl.db` / `studies.db`.
+      - Coexistencia libre de conflictos entre estudios no supervisados (`target_column=None`) y estudios supervisados (`target_column='churn'`).
+      - Verificación de concurrencia y modo WAL activo (`PRAGMA journal_mode=WAL`).
+    - **Método Unificado `run_all()`:** Ensamblado de reporte técnico estructurado de los 4 ejes para auditorías de release.
+  - **Actualización de Documentación:**
+    - `DEVELOPER_GUIDE.md`: Ampliación de la tabla de arquitectura con los componentes de CATML Explore (`domain/analysis/`, `engine/analysis/`, `application/analysis/`, `interfaces/mcp/analysis_tools.py`, `interfaces/cli/explore_cli.py`, `benchmarks/explore_benchmarks.py`) y comandos rápidos de estudio y verificación.
+  - **Validación Automatizada y Calidad:**
+    - Suite dedicada en `tests/test_explore_phase_e6_benchmarks.py` (6 pruebas pasando al 100%).
+    - Batería completa de CATML Explore (Fases E1 a E6) con 46 pruebas pasando al 100% en 27s.
+    - Suite global verde: **723 pruebas pasando (0 fallos)**, cobertura global sostenida en **86.76%** (umbral CI $\ge 85\%$).
+    - Verificación exitosa de CLI: `automl --help`, `automl task list` y `automl explore --help`.
+
+
 
 - **Implementación del Agente Científico y Motor de Hipótesis (Fase E5 - ADR-008):**
   - **Traductor Determinista de Hipótesis (`HypothesisExperimentTranslator`):**
