@@ -385,6 +385,28 @@ export class CATMLApiClient {
   async getAnalysisVisualizations(studyId) {
     return this._fetch(`/api/analysis/visualizations?study_id=${encodeURIComponent(studyId)}`);
   }
+
+  async getAnalysisHypotheses(studyId) {
+    return this._fetch(`/api/analysis/hypotheses?study_id=${encodeURIComponent(studyId)}`);
+  }
+
+  async verifyHypothesis(hypothesisId, runId = null, minImprovement = 0.0) {
+    return this._fetch("/api/analysis/hypotheses/verify", {
+      method: "POST",
+      body: JSON.stringify({
+        hypothesis_id: hypothesisId,
+        run_id: runId,
+        min_improvement: minImprovement,
+      }),
+    });
+  }
+
+  async getAnalysisEvidence(studyId = null, hypothesisId = null) {
+    let url = "/api/analysis/evidence?";
+    if (studyId) url += `study_id=${encodeURIComponent(studyId)}&`;
+    if (hypothesisId) url += `hypothesis_id=${encodeURIComponent(hypothesisId)}&`;
+    return this._fetch(url.replace(/[?&]$/, ""));
+  }
 }
 
 export const api = new CATMLApiClient();

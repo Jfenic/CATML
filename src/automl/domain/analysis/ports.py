@@ -65,6 +65,10 @@ class StudyRepositoryPort(Protocol):
         """Persist an inferred hypothesis."""
         ...
 
+    def get_hypothesis(self, hypothesis_id: str) -> AnalysisHypothesis | None:
+        """Fetch an inferred hypothesis by ID."""
+        ...
+
     def list_hypotheses(self, study_id: str) -> list[AnalysisHypothesis]:
         """List hypotheses inferred from study findings."""
         ...
@@ -75,6 +79,10 @@ class StudyRepositoryPort(Protocol):
 
     def get_evidence_link(self, link_id: str) -> EvidenceLink | None:
         """Retrieve an evidence link by identifier."""
+        ...
+
+    def list_evidence_links(self, hypothesis_id: str | None = None) -> list[EvidenceLink]:
+        """List evidence verification links, optionally filtered by hypothesis."""
         ...
 
 

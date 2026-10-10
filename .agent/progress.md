@@ -1,5 +1,49 @@
 # Progress
 
+### Track CATML Explore — Fase E5: Agente Científico y Conexión con AutoML (Hypothesis Engine) (2026-10-10)
+
+- **Implementación del Agente Científico y Motor de Hipótesis (Fase E5 - ADR-008):**
+  - **Traductor Determinista de Hipótesis (`HypothesisExperimentTranslator`):**
+    - `src/automl/engine/analysis/hypothesis_translator.py`: Mapeo riguroso y determinista desde acciones estadísticas propuestas (`resolve_collinearity`, `prioritize_feature`, `nonlinear_transform_or_trees`, `power_transform`, `robust_scaler`, `discretize_or_cluster`, `categorical_interaction`) a candidatos de experimento ejecutables (`ExperimentCandidateSpec`).
+    - Configuración automática de modelos óptimos por familia (árboles GBDT para relaciones no lineales o asimetrías, lineales para features estandarizadas) y depuración controlada de columnas colineales.
+  - **Protocolo Empírico de Verificación "Propose ≠ Accept":**
+    - `src/automl/application/analysis/study_service.py`: Implementado `verify_hypothesis` ejecutando el experimento candidato contra el baseline de AutoML sobre la **misma partición exacta de validación**.
+    - Cálculo de delta de mejora direccional ($\Delta = \text{candidato} - \text{baseline} > \epsilon$ para métricas de ganancia; $\Delta = \text{baseline} - \text{candidato} > \epsilon$ para métricas de error).
+    - Creación y persistencia transaccional de la entidad de dominio `EvidenceLink` vinculando la hipótesis al experimento AutoML.
+    - Transición de estado de la hipótesis: `proposed` -> `accepted` si se supera el umbral empírico, o `rejected` en caso contrario, registrando y preservando el **aprendizaje negativo** con notas auditables.
+  - **Persistencia en Dominio e Infraestructura SQLite:**
+    - `src/automl/domain/analysis/ports.py` y `src/automl/infrastructure/database/sqlite_studies.py`: Métodos `get_hypothesis` y `list_evidence_links` con transacciones seguras en modo WAL e índices relacionales.
+  - **Capa de Aplicación y CQRS:**
+    - `VerifyHypothesisCommand`, `GetHypothesisQuery`, `GetEvidenceLinkQuery`, `ListEvidenceLinksQuery` registrados en el CommandBus y QueryBus modular (`src/automl/application/registries/analysis_registry.py`).
+  - **Paridad Total de Superficies:**
+    - **MCP Tool y Recurso:** `analysis_verify_hypothesis` y recurso `catml://studies/{study_id}/evidence` en `src/automl/interfaces/mcp/analysis_tools.py`.
+    - **CLI:** `catml explore verify <hypothesis_id> [--run-id <id>] [--min-improvement <val>] [--json]` en `src/automl/interfaces/cli/explore_cli.py`.
+    - **Reporte Técnico:** Sección 5 "Empirical Verification & Evidence Links" añadida a `generate_study_markdown_report` y consumible vía `catml explore export`.
+    - **REST API y Workbench:** Endpoints `POST /api/analysis/hypotheses/verify` y `GET /api/analysis/evidence` en `server.py` con métodos cliente en `api.js`.
+  - **Validación Automatizada y Calidad:**
+    - Suite de pruebas dedicada en `tests/test_explore_phase_e5_hypothesis_engine.py` (6 pruebas pasando al 100%).
+    - Batería completa de CATML Explore (Fases E1 a E5) con 40 pruebas pasando al 100%.
+    - Suite global verde: **717 pruebas pasando (0 fallos)**, cobertura global sostenida en **86.60%** (umbral CI $\ge 85\%$).
+
+### Track CATML Explore — Fase E4: Interoperabilidad MCP y CLI Completa (Agent Surface) (2026-10-10)
+
+- **Implementación de la Superficie de Agentes e Interoperabilidad (Fase E4 - ADR-008):**
+  - **Ampliación de Herramientas MCP (`src/automl/interfaces/mcp/analysis_tools.py`):**
+    - `analysis_get_findings`: Controles de eficiencia de tokens para LLMs con filtrado por tipo, significancia estadística (`min_significance` / FDR $p \le 0.05$), paginación determinista (`limit`, `offset`), modo compacto (`compact=True`) podando matrices/vectores masivos y modo envoltorio (`envelope=True`).
+    - `analysis_get_visualizations`: Recuperación estructurada de especificaciones visuales (`VisualizationSpec`) declarativas por estudio o por gráfico puntual (`chart_id`).
+    - `analysis_propose_experiment`: Formulación formal de hipótesis de ML a partir de hallazgos estadísticos con estado inmutable inicial `proposed` bajo el principio rector *"Propose ≠ Accept"*.
+    - Recursos de solo lectura ampliados: `catml://studies/{study_id}/summary` (resumen ejecutivo de alta densidad y bajo consumo de tokens con señales clave) y `catml://studies/{study_id}/visualizations`.
+  - **Generador de Reportes Técnicos (`src/automl/application/analysis/reporting.py`):**
+    - Función pura `generate_study_markdown_report` que ensambla metadatos del estudio, desglose porcentual de categorías de hallazgos, catálogo detallado de inferencias, inventario de gráficos e hipótesis propuestas.
+  - **CLI `catml explore` Completa (`src/automl/interfaces/cli/explore_cli.py` & `main.py`):**
+    - Subcomando `export`: exportación de estudios a Markdown reproducible (`-f markdown -o <path>`) o JSON (`-f json`).
+    - Subcomando `findings`: enriquecido con filtrado `--type`, umbral de significancia `--min-sig` y límite de filas `--limit`.
+  - **Capa de Aplicación y CQRS:**
+    - `ListFindingsQuery` y `ListVisualizationsQuery` en `queries.py` y `study_service.py` enriquecidos con filtrado y paginación 100% retrocompatibles.
+  - **Validación Automatizada:**
+    - Suite de pruebas dedicada en `tests/test_explore_phase_e4_agent_surface.py` (7 pruebas pasando al 100%).
+    - Suite global verde: **711 pruebas pasando (0 fallos)**, cobertura global sostenida en **86.64%** (umbral CI $\ge 85\%$).
+
 ### Track CATML Explore — Fase E3: Laboratorio Visual Interactivo (Workbench Exploration UI) (2026-10-10)
 
 - **Implementación del Laboratorio Visual Interactivo Explore (Fase E3 - ADR-008 & ADR-006):**

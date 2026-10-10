@@ -29,6 +29,8 @@ export class ExploreView {
     this.findings = [];
     this.visualizations = [];
     this.hypotheses = [];
+    this.evidence = [];
+    this.verifyingHypothesisId = null;
     this.loading = true;
     this.runningStudy = false;
     this.showCreateModal = false;
@@ -87,12 +89,15 @@ export class ExploreView {
           this.visualizations = detail.visualizations || [];
           this.hypotheses = detail.hypotheses || [];
         }
+        const evList = await api.getAnalysisEvidence(this.selectedStudyId).catch(() => []);
+        this.evidence = evList || [];
       } else {
         this.selectedStudyId = null;
         this.studyDetail = null;
         this.findings = [];
         this.visualizations = [];
         this.hypotheses = [];
+        this.evidence = [];
       }
     } catch (err) {
       console.error("ExploreView fetch error:", err);
@@ -282,6 +287,9 @@ export class ExploreView {
               </div>
             `}
           </div>
+
+          <!-- Section 3: Hipótesis de ML y Evidencia Empírica (Hypothesis Engine) -->
+          ${this._renderHypothesesAndEvidenceHtml()}
         ` : ""}
 
         <!-- Create Study Modal -->
@@ -605,6 +613,126 @@ export class ExploreView {
     `;
   }
 
+  _renderHypothesesAndEvidenceHtml() {
+    return `
+      <div class="workbench-card p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-[#22C55E]">${icon("zap", "icon-sm")}</span>
+            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hipótesis de ML y Evidencia Empírica</h4>
+            <span class="badge-sys text-[10px] font-mono">${this.hypotheses.length} formuladas • ${this.evidence.length} verificadas</span>
+          </div>
+          <span class="text-[11px] font-mono text-[#8B95A7]">Protocolo Propose ≠ Accept</span>
+        </div>
+
+        <p class="text-xs text-[#8B95A7] font-sans">
+          Las hipótesis estadísticas son candidatas a experimentos de AutoML. Bajo el principio <em>"Propose ≠ Accept"</em>, una hipótesis solo se acepta si supera empíricamente al baseline en la misma partición exacta de datos.
+        </p>
+
+        <!-- Hypotheses Catalog -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h5 class="text-xs font-mono font-semibold text-[#8B95A7] uppercase tracking-wider">Catálogo de Hipótesis</h5>
+            <span class="text-[11px] font-mono text-[#8B95A7]">Total: ${this.hypotheses.length}</span>
+          </div>
+          ${this.hypotheses.length === 0 ? `
+            <div class="p-4 text-center text-[#8B95A7] font-sans text-xs bg-[#090C12] rounded-lg border border-[#242A36]">
+              No hay hipótesis formuladas para este estudio.
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              ${this.hypotheses.map(h => this._renderHypothesisCardHtml(h)).join("")}
+            </div>
+          `}
+        </div>
+
+        <!-- Evidence Links Table -->
+        ${this.evidence.length > 0 ? `
+          <div class="space-y-3 pt-3 border-t border-[#242A36]">
+            <div class="flex items-center justify-between">
+              <h5 class="text-xs font-mono font-semibold text-[#8B95A7] uppercase tracking-wider">Enlaces de Evidencia Empírica (EvidenceLink)</h5>
+              <span class="text-[11px] font-mono text-[#22C55E] font-medium">${this.evidence.filter(e => e.accepted).length} aceptadas • ${this.evidence.filter(e => !e.accepted).length} rechazadas</span>
+            </div>
+            <div class="overflow-x-auto border border-[#242A36] rounded-lg">
+              <table class="w-full text-xs font-mono border-collapse">
+                <thead>
+                  <tr class="bg-[#090C12] text-[#8B95A7] border-b border-[#242A36]">
+                    <th class="p-2.5 text-left">Link ID</th>
+                    <th class="p-2.5 text-left">Hipótesis</th>
+                    <th class="p-2.5 text-left">Experimento</th>
+                    <th class="p-2.5 text-right">Baseline</th>
+                    <th class="p-2.5 text-right">Candidato</th>
+                    <th class="p-2.5 text-center">Métrica</th>
+                    <th class="p-2.5 text-center">Veredicto</th>
+                    <th class="p-2.5 text-left">Detalle / Notas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.evidence.map(ev => `
+                    <tr class="border-b border-[#1C2230] hover:bg-[#11151E]">
+                      <td class="p-2.5 text-[#53C8FF]">${escapeHtml(ev.id)}</td>
+                      <td class="p-2.5 text-[#F7F8FA]">${escapeHtml(ev.hypothesis_id)}</td>
+                      <td class="p-2.5 text-[#8B95A7]">${escapeHtml(ev.experiment_id || "-")}</td>
+                      <td class="p-2.5 text-right text-[#F7F8FA]">${ev.baseline_score != null ? Number(ev.baseline_score).toFixed(4) : "-"}</td>
+                      <td class="p-2.5 text-right text-[#F7F8FA]">${ev.candidate_score != null ? Number(ev.candidate_score).toFixed(4) : "-"}</td>
+                      <td class="p-2.5 text-center text-[#8B95A7]">${escapeHtml(ev.metric || "-")}</td>
+                      <td class="p-2.5 text-center">
+                        <span class="${ev.accepted ? 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30' : 'text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/30'} border text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${ev.accepted ? "Aceptada" : "Rechazada"}
+                        </span>
+                      </td>
+                      <td class="p-2.5 text-left text-[11px] font-sans text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(ev.notes || "")}">
+                        ${escapeHtml(ev.notes || "-")}
+                      </td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  _renderHypothesisCardHtml(h) {
+    const isVerifying = this.verifyingHypothesisId === h.id;
+    const statusBadge = h.status === "accepted"
+      ? `<span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">ACEPTADA</span>`
+      : h.status === "rejected"
+      ? `<span class="badge-err text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">RECHAZADA</span>`
+      : `<span class="badge-warn text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">PROPUESTA</span>`;
+
+    return `
+      <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] space-y-2.5 flex flex-col justify-between">
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-mono font-bold text-[#53C8FF]">${escapeHtml(h.proposed_action || "acción")}</span>
+            ${statusBadge}
+          </div>
+          <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
+            ${escapeHtml(h.description)}
+          </p>
+        </div>
+
+        <div class="pt-2 border-t border-[#1C2230] flex items-center justify-between gap-2">
+          <span class="text-[10px] font-mono text-[#8B95A7]">${escapeHtml(h.id)}</span>
+          ${h.status === "proposed" ? `
+            <button class="btn-verify-hyp btn-signal text-[11px] py-1 px-2.5 font-mono inline-flex items-center space-x-1" data-hyp-id="${escapeHtml(h.id)}" ${isVerifying ? "disabled" : ""}>
+              ${isVerifying ? `<span class="animate-spin mr-1">${icon("refresh-cw", "icon-xs")}</span>` : `${icon("play", "icon-xs")}`}
+              <span>${isVerifying ? "Verificando..." : "Verificar"}</span>
+            </button>
+          ` : `
+            <span class="text-[11px] font-mono text-[#8B95A7] flex items-center space-x-1">
+              ${icon("check-circle-2", "icon-xs")}
+              <span>Evaluada</span>
+            </span>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
   _renderCreateStudyModalHtml() {
     return `
       <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -739,6 +867,26 @@ export class ExploreView {
     // Export report
     document.getElementById("btnExportStudyReport")?.addEventListener("click", () => {
       this._downloadMarkdownReport();
+    });
+
+    // Verify hypothesis action
+    document.querySelectorAll(".btn-verify-hyp").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const hypId = e.currentTarget.getAttribute("data-hyp-id");
+        if (!hypId || this.verifyingHypothesisId) return;
+        this.verifyingHypothesisId = hypId;
+        this.render();
+        try {
+          await api.verifyHypothesis(hypId, null, 0.0);
+          await this.fetchData();
+        } catch (err) {
+          console.error("Error verifying hypothesis:", err);
+          alert("Error verificando hipótesis: " + (err.message || err));
+        } finally {
+          this.verifyingHypothesisId = null;
+          this.render();
+        }
+      });
     });
   }
 

@@ -945,9 +945,27 @@ def main(argv: list[str] | None = None) -> int:
 
     exp_find = explore_sub.add_parser("findings", help="List statistical findings of a study")
     exp_find.add_argument("study_id", help="ID of study to inspect")
+    exp_find.add_argument("--type", "-t", default=None, help="Filter findings by type (e.g. correlation, skewness)")
+    exp_find.add_argument("--min-sig", type=float, default=None, help="Filter findings by significance threshold (e.g. 0.05)")
+    exp_find.add_argument("--limit", "-l", type=int, default=None, help="Maximum number of findings to display")
     exp_find.add_argument("--workspace", default=None, help="Path to workspace root")
     exp_find.add_argument("--json", action="store_true", help="Output results as JSON")
     exp_find.set_defaults(func=run_explore_cli)
+
+    exp_export = explore_sub.add_parser("export", help="Export study technical report (markdown or json)")
+    exp_export.add_argument("study_id", help="ID of study to export")
+    exp_export.add_argument("--output", "-o", default=None, help="Output file path (prints to stdout if omitted)")
+    exp_export.add_argument("--format", "-f", choices=["markdown", "md", "json"], default="markdown", help="Report format")
+    exp_export.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_export.set_defaults(func=run_explore_cli)
+
+    exp_verify = explore_sub.add_parser("verify", help="Empirically verify a hypothesis against AutoML baseline (Propose ≠ Accept)")
+    exp_verify.add_argument("hypothesis_id", help="ID of hypothesis to verify")
+    exp_verify.add_argument("--run-id", "-r", default=None, help="Optional existing AutoML run ID")
+    exp_verify.add_argument("--min-improvement", "-m", type=float, default=0.0, help="Minimum delta required for acceptance")
+    exp_verify.add_argument("--workspace", default=None, help="Path to workspace root")
+    exp_verify.add_argument("--json", action="store_true", help="Output result as JSON")
+    exp_verify.set_defaults(func=run_explore_cli)
 
     args = parser.parse_args(argv)
     return args.func(args)

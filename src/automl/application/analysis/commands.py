@@ -38,3 +38,12 @@ class CreateHypothesisCommand:
     description: str
     proposed_action: str
     experiment_delta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class VerifyHypothesisCommand:
+    """Command to empirically test a hypothesis against AutoML baseline (Propose ≠ Accept)."""
+    hypothesis_id: str
+    run_id: str | None = None
+    min_improvement: float = 0.0
+    models: tuple[str, ...] | None = None

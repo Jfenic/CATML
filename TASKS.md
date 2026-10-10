@@ -193,14 +193,19 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Visualizador interactivo de especificaciones: matrices de correlación (Pearson y Spearman con conmutador dinámico), matriz de Cramér's V, histogramas SVG vectoriales, diagramas de caja (boxplots) y nubes de dispersión bivariada.
   - [x] Exportador de informes técnicos descargables en formato Markdown (`informe_explore_{study_id}.md`).
   - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e3_ui.py` (6 pruebas pasando al 100%).
-- [ ] **Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)** [Prioridad P0]:
-  - [ ] Tools MCP: `analysis_create_study`, `analysis_get_findings`, `analysis_get_visualizations`, `analysis_propose_experiment`.
-  - [ ] Paginación y control de presupuesto de tokens en llamadas MCP para agentes (Codex, Claude Code).
-  - [ ] CLI completa `catml explore list/run/findings/export`.
-- [ ] **Fase E5 — Agente Científico y Conexión con AutoML (Hypothesis Engine)** [Prioridad P1]:
-  - [ ] Mapeo determinista de hallazgos estadísticos a hipótesis de transformación ML.
-  - [ ] Entidad `EvidenceLink` vinculando hipótesis con experimentos AutoML.
-  - [ ] Protocolo "Propose ≠ Accept": validación empírica en el mismo split antes de promover transformaciones o feature sets.
+- [x] **Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)** [Prioridad P0]:
+  - [x] Tools MCP: `analysis_create_study`, `analysis_get_findings`, `analysis_get_visualizations`, `analysis_propose_experiment`.
+  - [x] Paginación y control de presupuesto de tokens en llamadas MCP para agentes (`limit`, `offset`, `compact`, `envelope`).
+  - [x] Recursos MCP de solo lectura: `catml://studies/{study_id}/summary` y `catml://studies/{study_id}/visualizations`.
+  - [x] CLI completa `catml explore list/run/findings/export` (soporte de reporte técnico Markdown y JSON exportable).
+  - [x] Generador desacoplado de informes técnicos en `src/automl/application/analysis/reporting.py`.
+  - [x] Batería de pruebas automatizadas completa en `tests/test_explore_phase_e4_agent_surface.py` (7 pruebas pasando al 100%, suite global en 711 pruebas y cobertura 86.64%).
+- [x] **Fase E5 — Agente Científico y Conexión con AutoML (Hypothesis Engine)** [Prioridad P1]:
+  - [x] Mapeo determinista de hallazgos estadísticos a hipótesis de transformación ML (`HypothesisExperimentTranslator`).
+  - [x] Entidad `EvidenceLink` y persistencia SQLite transaccional vinculando hipótesis con experimentos AutoML.
+  - [x] Protocolo "Propose ≠ Accept": validación empírica en el mismo split antes de promover transformaciones o feature sets, preservando aprendizaje negativo.
+  - [x] Paridad total de superficies: CQRS (`VerifyHypothesisCommand`, `GetEvidenceLinkQuery`, `ListEvidenceLinksQuery`), CLI (`automl explore verify`), MCP tool (`analysis_verify_hypothesis`) y recurso (`catml://studies/{study_id}/evidence`), y API REST (`/api/analysis/hypotheses/verify` y `/api/analysis/evidence`).
+  - [x] Batería de pruebas automatizadas completa en `tests/test_explore_phase_e5_hypothesis_engine.py` (6 pruebas pasando al 100%, suite global en 717 pruebas y cobertura 86.60%).
 - [ ] **Fase E6 — Benchmarks Integrales y Preparación de Producto** [Prioridad P1]:
   - [ ] Batería de 4 ejes: exactitud estadística (NIST/sintéticos), calidad AutoML, seguridad/MCP y suites de regresión.
 

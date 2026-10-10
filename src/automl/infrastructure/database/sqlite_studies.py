@@ -322,6 +322,16 @@ class SQLiteStudyRepository(StudyRepositoryPort):
                 },
             )
 
+    def get_hypothesis(self, hypothesis_id: str) -> AnalysisHypothesis | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT data FROM analysis_hypotheses WHERE id = ?",
+                (hypothesis_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return AnalysisHypothesis.from_dict(json.loads(row["data"]))
+
     def list_hypotheses(self, study_id: str) -> list[AnalysisHypothesis]:
         with self._connect() as conn:
             cursor = conn.execute(
@@ -356,3 +366,16 @@ class SQLiteStudyRepository(StudyRepositoryPort):
             if not row:
                 return None
             return EvidenceLink.from_dict(json.loads(row["data"]))
+
+    def list_evidence_links(self, hypothesis_id: str | None = None) -> list[EvidenceLink]:
+        with self._connect() as conn:
+            if hypothesis_id:
+                cursor = conn.execute(
+                    "SELECT data FROM evidence_links WHERE hypothesis_id = ? ORDER BY created_at ASC",
+                    (hypothesis_id,),
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT data FROM evidence_links ORDER BY created_at ASC"
+                )
+            return [EvidenceLink.from_dict(json.loads(r["data"])) for r in cursor.fetchall()]

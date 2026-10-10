@@ -35,6 +35,11 @@ class ListFindingsQuery:
     study_id: str
     run_id: str | None = None
     finding_type: str | None = None
+    min_significance: float | None = None
+    category: str | None = None
+    severity: str | None = None
+    limit: int | None = None
+    offset: int = 0
 
 
 @dataclass(frozen=True)
@@ -42,9 +47,32 @@ class ListVisualizationsQuery:
     """Query to retrieve visualization specs for a study or run."""
     study_id: str
     run_id: str | None = None
+    visualization_type: str | None = None
+    chart_id: str | None = None
+    limit: int | None = None
+    offset: int = 0
 
 
 @dataclass(frozen=True)
 class ListHypothesesQuery:
     """Query to retrieve inferred hypotheses for a study."""
     study_id: str
+
+
+@dataclass(frozen=True)
+class GetHypothesisQuery:
+    """Query to fetch an inferred hypothesis by ID."""
+    hypothesis_id: str
+
+
+@dataclass(frozen=True)
+class GetEvidenceLinkQuery:
+    """Query to fetch an evidence link by ID."""
+    link_id: str
+
+
+@dataclass(frozen=True)
+class ListEvidenceLinksQuery:
+    """Query to list evidence links, optionally filtered by hypothesis or study."""
+    hypothesis_id: str | None = None
+    study_id: str | None = None

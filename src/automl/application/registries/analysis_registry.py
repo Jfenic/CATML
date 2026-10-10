@@ -8,11 +8,15 @@ from automl.application.analysis.commands import (
     CreateHypothesisCommand,
     CreateStudyCommand,
     RunAnalysisCommand,
+    VerifyHypothesisCommand,
 )
 from automl.application.analysis.queries import (
     GetAnalysisRunQuery,
+    GetEvidenceLinkQuery,
+    GetHypothesisQuery,
     GetStudyQuery,
     ListAnalysisRunsQuery,
+    ListEvidenceLinksQuery,
     ListFindingsQuery,
     ListHypothesesQuery,
     ListStudiesQuery,
@@ -40,6 +44,7 @@ def register_analysis_handlers(
     command_bus.register(RunAnalysisCommand, lambda cmd: service.run_study(cmd))
     command_bus.register(ArchiveStudyCommand, lambda cmd: service.archive_study(cmd))
     command_bus.register(CreateHypothesisCommand, lambda cmd: service.create_hypothesis(cmd))
+    command_bus.register(VerifyHypothesisCommand, lambda cmd: service.verify_hypothesis(cmd, workspace=workspace))
 
     # Queries
     query_bus.register(GetStudyQuery, lambda q: service.get_study(q))
@@ -49,3 +54,6 @@ def register_analysis_handlers(
     query_bus.register(ListFindingsQuery, lambda q: service.list_findings(q))
     query_bus.register(ListVisualizationsQuery, lambda q: service.list_visualizations(q))
     query_bus.register(ListHypothesesQuery, lambda q: service.list_hypotheses(q))
+    query_bus.register(GetHypothesisQuery, lambda q: service.get_hypothesis(q))
+    query_bus.register(GetEvidenceLinkQuery, lambda q: service.get_evidence_link(q))
+    query_bus.register(ListEvidenceLinksQuery, lambda q: service.list_evidence_links(q))

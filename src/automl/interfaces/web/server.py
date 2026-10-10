@@ -43,10 +43,12 @@ from automl.application.analysis.commands import (
     ArchiveStudyCommand,
     CreateStudyCommand,
     RunAnalysisCommand,
+    VerifyHypothesisCommand,
 )
 from automl.application.analysis.queries import (
     GetAnalysisRunQuery,
     GetStudyQuery,
+    ListEvidenceLinksQuery,
     ListFindingsQuery,
     ListHypothesesQuery,
     ListStudiesQuery,
@@ -458,7 +460,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "is_active": True,
                         }
 
-                ds = ws.get_dataset(r.dataset_id)
+                try:
+                    ds = ws.get_dataset(r.dataset_id)
+                except KeyError:
+                    ds = None
                 if ds and ds.name not in [d["name"] for d in recent_datasets]:
                     profile = ws.get_dataset_profile(ds.id)
                     recent_datasets.append({
@@ -635,7 +640,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             runs = ws.list_runs()
             result = []
             for r in runs:
-                dataset = ws.get_dataset(r.dataset_id)
+                try:
+                    dataset = ws.get_dataset(r.dataset_id)
+                except KeyError:
+                    dataset = None
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
                 exps = ws.list_experiments(r.id)
                 trials_cnt = sum(len(ws.list_trial_results(e.id)) for e in exps)
@@ -1130,9 +1138,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             run = ws.get_run(run_id) if run_id else None
             if not run:
                 runs = ws.list_runs()
-                run = runs[0] if runs else None
-
-            dataset = ws.get_dataset(run.dataset_id) if run else None
+            dataset = None
+            if run:
+                try:
+                    dataset = ws.get_dataset(run.dataset_id)
+                except KeyError:
+                    dataset = None
             profile = ws.get_dataset_profile(run.dataset_id) if run else None
             lb = qry.dispatch(GetLeaderboardQuery(run.id)) if run else []
             best_cv = lb[0]["score"] if lb else None
@@ -1252,6 +1263,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
             hypotheses = qry.dispatch(ListHypothesesQuery(study_id=study_id))
             self._send_json([h if isinstance(h, dict) else h.to_dict() for h in (hypotheses or [])])
+            return
+
+        elif path == "/api/analysis/evidence":
+            study_id = query_params.get("study_id", [""])[0]
+            hypothesis_id = query_params.get("hypothesis_id", [""])[0]
+            links = qry.dispatch(
+                ListEvidenceLinksQuery(
+                    study_id=study_id if study_id else None,
+                    hypothesis_id=hypothesis_id if hypothesis_id else None,
+                )
+            )
+            self._send_json([l if isinstance(l, dict) else l.to_dict() for l in (links or [])])
             return
 
         elif path == "/api/plugins":
@@ -2042,6 +2065,23 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     return
                 cmd.dispatch(ArchiveStudyCommand(study_id=study_id))
                 self._send_json({"status": "success", "study_id": study_id, "archived": True})
+                return
+
+            elif path in ("/api/analysis/hypotheses/verify", "/api/analysis/hypothesis/verify"):
+                hypothesis_id = payload.get("hypothesis_id")
+                if not hypothesis_id:
+                    self._send_json({"error": "hypothesis_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                run_id = payload.get("run_id")
+                min_imp = float(payload.get("min_improvement", 0.0))
+                link_data = cmd.dispatch(
+                    VerifyHypothesisCommand(
+                        hypothesis_id=hypothesis_id,
+                        run_id=run_id,
+                        min_improvement=min_imp,
+                    )
+                )
+                self._send_json(link_data)
                 return
 
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
