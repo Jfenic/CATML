@@ -4,8 +4,10 @@ import json
 import logging
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +33,19 @@ class SQLiteExperimentRepository:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Generator[sqlite3.Connection, None, None]:
+        """Open a short-lived connection that always closes (sqlite3's context manager does not)."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def _init_schema(self) -> None:
         with self._connect() as conn:
@@ -786,7 +797,7 @@ class SQLiteExperimentRepository:
         platform_version: str,
         scenario_id: str,
         metric: str,
-        best_score: float,
+        best_score: float | None,
         best_model: str | None,
         total_time_s: float,
         details: dict,

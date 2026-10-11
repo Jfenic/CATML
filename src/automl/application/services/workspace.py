@@ -413,6 +413,7 @@ class AutoMLWorkspace:
             repository=self.get_study_repository(),
             dataset_resolver=self.get_dataset,
             statistical_engine=StatisticalAnalyzer(),
+            profile_resolver=self.get_dataset_profile,
         )
 
     def get_recipe_repository(self):
@@ -1357,6 +1358,8 @@ class AutoMLWorkspace:
                 cv_folds=run.config.cv_folds,
                 random_seed=run.config.random_seed + trial_idx,
                 group_column=experiment.group_column,
+                column_transforms=list(getattr(experiment, "column_transforms", []) or []),
+                derived_features=list(getattr(experiment, "derived_features", []) or []),
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)
@@ -1375,20 +1378,37 @@ class AutoMLWorkspace:
                 run_id=run.id,
             )
 
+        succeeded = [r for r in results if getattr(r, "succeeded", False)]
         if not is_cancelled and not is_paused:
-            experiment.status = ExperimentStatus.COMPLETED
-            self.repository.save_experiment(experiment)
-            run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
-            self.repository.save_run(run)
+            if not results or not succeeded:
+                experiment.status = ExperimentStatus.FAILED
+                self.repository.save_experiment(experiment)
+                run.transition_to(RunStatus.FAILED, RunPhase.OPTIMIZATION)
+                self.repository.save_run(run)
+                self._emit(
+                    "ExperimentFailed",
+                    {
+                        "experiment_id": experiment.id,
+                        "completed_trials": len(results),
+                        "successful_trials": 0,
+                        "phase": "optimization",
+                    },
+                    run_id=run.id,
+                )
+            else:
+                experiment.status = ExperimentStatus.COMPLETED
+                self.repository.save_experiment(experiment)
+                run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
+                self.repository.save_run(run)
 
-        best_score = opt.best_score()
-        best_params = opt.best_parameters()
+        best_score = opt.best_score() if succeeded else None
+        best_params = opt.best_parameters() if succeeded else {}
         best_trial_id = ""
-        if results:
+        if succeeded:
             best_res = (
-                max(results, key=lambda r: r.primary_score)
+                max(succeeded, key=lambda r: r.primary_score)
                 if direction == "maximize"
-                else min(results, key=lambda r: r.primary_score)
+                else min(succeeded, key=lambda r: r.primary_score)
             )
             best_trial_id = best_res.trial_id
 
@@ -1398,7 +1418,8 @@ class AutoMLWorkspace:
                 "experiment_id": experiment.id,
                 "model_id": target_model,
                 "trials_executed": len(results),
-                "best_score": round(best_score, 4),
+                "successful_trials": len(succeeded),
+                "best_score": None if best_score is None else round(best_score, 4),
                 "best_params": best_params,
                 "best_trial_id": best_trial_id,
                 "optimizer": optimizer,
@@ -1411,7 +1432,8 @@ class AutoMLWorkspace:
             "model_id": target_model,
             "optimizer": optimizer,
             "trials_executed": len(results),
-            "best_score": round(best_score, 4),
+            "successful_trials": len(succeeded),
+            "best_score": None if best_score is None else round(best_score, 4),
             "best_params": best_params,
             "best_trial_id": best_trial_id,
             "trials": [

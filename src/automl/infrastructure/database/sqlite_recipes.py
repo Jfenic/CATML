@@ -52,6 +52,15 @@ class SQLiteRecipeRepository(ExperimentRecipeRepositoryPort):
         finally:
             conn.close()
 
+    def close(self) -> None:
+        """Release the long-lived in-memory connection, if any."""
+        if self._mem_conn is not None:
+            try:
+                self._mem_conn.close()
+            except Exception:
+                pass
+            self._mem_conn = None
+
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.executescript(

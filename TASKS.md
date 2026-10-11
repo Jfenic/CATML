@@ -70,6 +70,18 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
+### Track Workbench UX — Demo confidence (Sprint 1 → 3)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | In progress (`fix/workbench-sprint1-state-coherence`) |
+| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | In progress (same branch) |
+| P0 | Filter Explore transform hypotheses on identifier/discarded columns | In progress (same branch) |
+| P1 | Guided vs Advanced Explore (top findings first) | Open (Sprint 2) |
+| P1 | Correlation matrix UX + p-value/severity formatting | Open (Sprint 2) |
+| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Open (Sprint 2) |
+| P2 | Demo project + executive results export | Open (Sprint 3) |
+
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)
 
 | Priority | Item | Status |
@@ -80,7 +92,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | PyPI-safe README quickstart (sklearn dataset) + CDN honesty | Done |
 | P1 | SECURITY/`pip-audit` honesty + CI audit job | Done (audit job non-blocking) |
 | P1 | CI matrix Python 3.11 + 3.13 | Done |
-| P2 | Vendor Workbench CDN assets for fully offline UI | Open |
+| P2 | Vendor Workbench CDN assets for fully offline UI | Done (`fix/workbench-offline-vendor-assets`) |
 | P0 | Reserve/publish `catml` on TestPyPI then PyPI as **0.9.0rc1** | Not started (needs human Trusted Publisher setup) |
 
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`)
@@ -93,7 +105,20 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | Soften group-candidate heuristic (e.g. `Customer Type` not an entity) | Done |
 | P1 | `time_series` requires `run.config.extra['time_column']` + sort | Done |
 | P1 | `run_experiment` → `FAILED` when zero successful trials | Done |
-| P2 | Broader offline/distribution UI matrix | Open (packaging track) |
+| P2 | Broader offline/distribution UI matrix | Partially Done (Workbench chrome offline; vision weights / LLM still optional network) |
+
+### Track RC1 Gate — HPO fidelity + release publish gates (`fix/hpo-recipe-fidelity-and-release-gates`)
+
+> Mantenedores: [@Jfenic](https://github.com/Jfenic) (Jose Fenic Peiteado Padilla) y [@tvarmar](https://github.com/tvarmar) (Tania Évora Vargas Martínez). PR #95: revisión cruzada recomendada antes de merge; PyPI Trusted Publisher / environments requieren acuerdo de ambos.
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | HPO passes `column_transforms` + `derived_features` (recipe fidelity) | Done |
+| P0 | HPO all-fail → `FAILED`; best only from succeeded trials | Done |
+| P0 | `release.yml` build → verify → publish; tag↔version; env approval | Done |
+| P1 | SQLite connections close-on-exit + bounded FD stress test | Done (soak: [#94](https://github.com/Jfenic/CATML/issues/94)) |
+| P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Not started (ambos mantenedores) |
+| P1 | CATML Benchmark v1 (external/AMLB campaigns) | Next — scaffold under `benchmarks/` |
 
 ### Track Export / path integrity (`fix/export-parquet-path-confinement`)
 
@@ -552,6 +577,7 @@ Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF ho
 
 ## Next (Roadmap Phases)
 
+- [ ] **CATML Benchmark v1** (post-`0.9.0rc1`): freeze [`benchmarks/protocol-v1.yaml`](benchmarks/protocol-v1.yaml); Study C adversarial suite; AMLB/OpenML pilot; then Studies A/B with public reproducible report (no superiority claims until measured). See [`benchmarks/README.md`](benchmarks/README.md).
 - [x] Sincronizar el índice y los planes con las capacidades actuales (revisión 2026-10-11): H0–H5, Explore E0–E6, Experiment Recipes R0–R4, stacking/OOF multi-modelo y release `0.9.0-rc1` alineados en `AGENTS.md`, `docs/README.md`, feature plans/specs, ADR-009 y `MASTER_PLAN.md`.
 - [ ] Auditar `feat/workbench-live-experiments` (WIP sin PR, 60 commits detrás de main) y los commits documentales posteriores a PR #40 en `feat/agentic-a4-specialists` antes de limpiar ramas históricas.
 

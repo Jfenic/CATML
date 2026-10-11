@@ -6,7 +6,35 @@
 - `export_model_artifact` materializes derived features + passes `column_transforms` into `fit_pipeline` (export matches validated recipe).
 - Workbench `/api/models/export` returns zip with `.pkl` + `.sha256` for fail-closed `ModelArtifact.load`.
 - `inspect-file` rejects paths outside cwd/workspace; `AutoML` temp workspaces cleaned on `close()`/GC.
-- Tests: `tests/test_export_parquet_path_confinement.py`. Dual-maintainer review: @tvarmar.
+- Tests: `tests/test_export_parquet_path_confinement.py` + web dashboard expects `application/zip`. Dual-maintainer review: @tvarmar.
+
+### Track Workbench UX Sprint 1 — State coherence (`fix/workbench-sprint1-state-coherence`, 2026-10-11)
+
+- P0 demo confidence from external UI review:
+  - Header badge = workspace readiness (`LISTO`/`ENTRENANDO`), not raw `runs[0].status` (avoids COMPLETED vs experiment CREATED confusion).
+  - `/api/experiments` + `/api/plan` use `_effective_experiment_status` (derive COMPLETED/FAILED when trials exist but status lagged as CREATED).
+  - Studio `resolveTrialsCount` prefers live experiments/leaderboard over stale `activeRun.trials_count`; refreshes runs in `fetchData`.
+  - Compare labels «Estado del experimento» + Spanish status helpers.
+  - Explore: profile `identifier_column_names` + conservative ID heuristic block transform hyps (no discretize on `id`); still emit `exclude_identifier`.
+- Tests: `tests/test_workbench_sprint1_state_coherence.py`.
+
+### Track Workbench Offline Vendor Assets (`fix/workbench-offline-vendor-assets`, 2026-10-11)
+
+- P2 packaging: pin Chart.js 4.4.7, Lucide 0.469.0, Geist/IBM Plex Mono woff2, and built Tailwind 3.4.17 under `static/vendor/` + `css/tailwind.built.css`.
+- `index.html` loads only local `/static/...` (no cdn.tailwindcss / jsDelivr / unpkg / Google Fonts).
+- Rebuild helper: `scripts/vendor_workbench_assets.sh` (scratch in `.vendor-build/`, gitignored).
+- Tests: `tests/test_workbench_offline_vendor_assets.py` + smoke `REQUIRED_STATIC` / HTTP paths for vendor CSS/JS/fonts.
+- README network note updated for offline UI chrome.
+
+### Track RC1 Gate — HPO fidelity + release gates (`fix/hpo-recipe-fidelity-and-release-gates`, 2026-10-11)
+
+- **Maintainers:** Jose Fenic Peiteado Padilla (@Jfenic) and Tania Évora Vargas Martínez (@tvarmar). Dual ownership documented in CONTRIBUTING, NOTICE, CODEOWNERS, and two-person-plan; cross-review on PR #95.
+- **P0 HPO recipe fidelity:** `optimize_experiment()` now passes `column_transforms` + `derived_features` into every `TrialExecution` (parity with `run_experiment`).
+- **P0 HPO all-fail:** zero successful trials → experiment/run `FAILED`; `best_score`/`best_trial_id` absent (not invented from failed scores).
+- Tests: `tests/test_hpo_recipe_fidelity.py`.
+- **P0 release.yml:** jobs `build` → `verify` (wheel smoke + full pytest) → `publish-testpypi` / `publish-pypi`; tag must match `__version__`; publish only downloads artifact; environments `testpypi`/`pypi`.
+- **P1 SQLite:** `SQLiteExperimentRepository._connect` closes connections (sqlite3 context manager does not); bounded FD stress test; soak debt → blackboard [#94](https://github.com/Jfenic/CATML/issues/94).
+- **Benchmark v1 scaffold:** `benchmarks/` protocol + Study C harness; `_best_result()` returns `None` when all trials fail (not `0.0`).
 
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`, 2026-10-11)
 
