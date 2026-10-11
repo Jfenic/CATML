@@ -17,7 +17,13 @@ class ExperimentCandidateSpec:
     action_type: str
     column_transforms: tuple[dict[str, Any], ...] = ()
     derived_features: tuple[dict[str, Any], ...] = ()
+    drop_features: tuple[str, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def model_id(self) -> str:
+        """Primary model id (first in model_ids) for single-model recipe fallbacks."""
+        return self.model_ids[0] if self.model_ids else "random_forest"
 
 
 class HypothesisExperimentTranslator:
@@ -41,6 +47,8 @@ class HypothesisExperimentTranslator:
         metadata: dict[str, Any] = {"hypothesis_id": hypothesis.id, "action": action}
         column_transforms: list[dict[str, Any]] = []
         derived_features: list[dict[str, Any]] = []
+        dropped: list[str] = []
+        original_features = list(available_features)
 
         if "derived_features" in delta and isinstance(delta["derived_features"], list):
             derived_features.extend(delta["derived_features"])
@@ -52,6 +60,7 @@ class HypothesisExperimentTranslator:
             features = [f for f in delta["features"] if f in available_features or f in delta["features"]]
         if "drop_features" in delta and isinstance(delta["drop_features"], list):
             drop_set = set(delta["drop_features"])
+            dropped.extend(f for f in delta["drop_features"] if f)
             features = [f for f in features if f not in drop_set]
         if "models" in delta and isinstance(delta["models"], list) and delta["models"]:
             models = list(delta["models"])
@@ -64,11 +73,15 @@ class HypothesisExperimentTranslator:
                 drop_col = collinear_pair[1]
                 if drop_col in features and len(features) > 1:
                     features = [f for f in features if f != drop_col]
+                    dropped.append(drop_col)
                     candidate_name = f"drop_collinear_{drop_col}"
                     metadata["dropped_feature"] = drop_col
             elif "column" in delta and delta["column"] in features and len(features) > 1:
-                features = [f for f in features if f != delta["column"]]
-                candidate_name = f"drop_collinear_{delta['column']}"
+                drop_col = delta["column"]
+                features = [f for f in features if f != drop_col]
+                dropped.append(drop_col)
+                candidate_name = f"drop_collinear_{drop_col}"
+                metadata["dropped_feature"] = drop_col
 
         elif action == "prioritize_feature":
             feature = delta.get("feature") or delta.get("column")
@@ -152,6 +165,17 @@ class HypothesisExperimentTranslator:
         if not models:
             models = cls._default_models_for_task(task_type)
 
+        # Features removed relative to the original available set (stable, de-duplicated).
+        if not dropped:
+            feature_set = set(features)
+            dropped = [f for f in original_features if f not in feature_set]
+        seen_drop: set[str] = set()
+        drop_unique: list[str] = []
+        for name in dropped:
+            if name and name not in seen_drop:
+                seen_drop.add(name)
+                drop_unique.append(name)
+
         return ExperimentCandidateSpec(
             name=candidate_name,
             feature_names=features,
@@ -160,6 +184,7 @@ class HypothesisExperimentTranslator:
             action_type=action,
             column_transforms=tuple(column_transforms),
             derived_features=tuple(derived_features),
+            drop_features=tuple(drop_unique),
             metadata=metadata,
         )
 

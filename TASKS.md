@@ -70,16 +70,29 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
+### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Recipe translator contract (`default_models` / `drop_features` / `model_id`) | Done |
+| P0 | Recipe replay restores `metric`, `cv_folds`, `random_seed`, CV strategy | Done |
+| P0 | Shared CV aliases (`k_fold`→`kfold`); reject unknown strategies | Done |
+| P0 | HPO uses fixed CV fold seed; metric min/max consistent in schedule + `get_best_trial` | Done |
+| P0 | FDR preserves `p=0.0`; recipe `dataset_content_hash` via SHA-256 | Done |
+| P1 | Workbench XSS escapes for column/feature/model interpolations | Done |
+| P1 | Recipe status guards (no submit/promote from archived; promote needs experiments) | Done |
+| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Deferred (out of this PR) |
+
 ### Track Workbench UX — Demo confidence (Sprint 1 → 3)
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | In progress (`fix/workbench-sprint1-state-coherence`) |
-| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | In progress (same branch) |
-| P0 | Filter Explore transform hypotheses on identifier/discarded columns | In progress (same branch) |
-| P1 | Guided vs Advanced Explore (top findings first) | Open (Sprint 2) |
-| P1 | Correlation matrix UX + p-value/severity formatting | Open (Sprint 2) |
-| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Open (Sprint 2) |
+| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | Done (`#98`) |
+| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | Done (`#98`) |
+| P0 | Filter Explore transform hypotheses on identifier/discarded columns | Done (`#98`) |
+| P1 | Guided vs Advanced Explore (top findings first) | Done / open PR `#99` |
+| P1 | Correlation matrix UX + p-value/severity formatting | Done / open PR `#99` |
+| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done / open PR `#99` |
 | P2 | Demo project + executive results export | Open (Sprint 3) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)

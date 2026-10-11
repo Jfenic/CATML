@@ -6,6 +6,8 @@ from enum import Enum
 from typing import Any
 import uuid
 
+from automl.domain.experiments.validation import normalize_validation_strategy
+
 
 class RecipeStatus(str, Enum):
     DRAFT = "draft"
@@ -13,6 +15,16 @@ class RecipeStatus(str, Enum):
     SUBMITTED = "submitted"
     PROMOTED = "promoted"
     ARCHIVED = "archived"
+
+
+_SELECTABLE = frozenset({RecipeStatus.DRAFT, RecipeStatus.SUBMITTED})
+_PROMOTABLE = frozenset({RecipeStatus.SUBMITTED, RecipeStatus.SELECTED})
+_ARCHIVABLE = frozenset({
+    RecipeStatus.DRAFT,
+    RecipeStatus.SELECTED,
+    RecipeStatus.SUBMITTED,
+    RecipeStatus.PROMOTED,
+})
 
 
 @dataclass
@@ -32,7 +44,7 @@ class ExperimentRecipe:
     drop_features: list[str] = field(default_factory=list)
     model_ids: list[str] = field(default_factory=list)
     model_params: dict[str, Any] = field(default_factory=dict)
-    validation_strategy: str = "k_fold"
+    validation_strategy: str = "kfold"
     cv_folds: int = 5
     metric: str = "accuracy"
     random_seed: int = 42
@@ -56,7 +68,7 @@ class ExperimentRecipe:
         model_ids: list[str] | None = None,
         model_params: dict[str, Any] | None = None,
         dataset_content_hash: str | None = None,
-        validation_strategy: str = "k_fold",
+        validation_strategy: str = "kfold",
         cv_folds: int = 5,
         metric: str = "accuracy",
         random_seed: int = 42,
@@ -80,7 +92,7 @@ class ExperimentRecipe:
             drop_features=list(drop_features or []),
             model_ids=list(model_ids or []),
             model_params=dict(model_params or {}),
-            validation_strategy=validation_strategy,
+            validation_strategy=normalize_validation_strategy(validation_strategy, default="kfold"),
             cv_folds=cv_folds,
             metric=metric,
             random_seed=random_seed,
@@ -95,6 +107,13 @@ class ExperimentRecipe:
 
     def select(self, notes: str | None = None) -> None:
         """Mark recipe as explicitly selected for future runs."""
+        if self.status == RecipeStatus.ARCHIVED:
+            raise ValueError(f"Cannot select archived recipe {self.id}")
+        if self.status not in _SELECTABLE and self.status != RecipeStatus.SELECTED:
+            raise ValueError(
+                f"Invalid recipe transition: {self.status.value} → selected "
+                f"(allowed from: draft, submitted)"
+            )
         self.status = RecipeStatus.SELECTED
         self.updated_at = datetime.now(timezone.utc).isoformat()
         if notes:
@@ -106,6 +125,8 @@ class ExperimentRecipe:
 
     def submit(self, experiment_id: str) -> None:
         """Associate an executed experiment and transition status."""
+        if self.status == RecipeStatus.ARCHIVED:
+            raise ValueError(f"Cannot submit archived recipe {self.id}")
         if experiment_id not in self.experiment_ids:
             self.experiment_ids.append(experiment_id)
         if self.status in (RecipeStatus.DRAFT, RecipeStatus.SELECTED):
@@ -114,6 +135,19 @@ class ExperimentRecipe:
 
     def promote(self, reason: str | None = None, notes: str | None = None) -> None:
         """Explicit, auditable promotion of recipe as a reusable high-performing candidate."""
+        if self.status == RecipeStatus.ARCHIVED:
+            raise ValueError(f"Cannot promote archived recipe {self.id}")
+        if self.status == RecipeStatus.PROMOTED:
+            return
+        if self.status not in _PROMOTABLE and self.status != RecipeStatus.DRAFT:
+            raise ValueError(
+                f"Invalid recipe transition: {self.status.value} → promoted "
+                f"(requires submitted/selected evidence or draft with experiments)"
+            )
+        if not self.experiment_ids:
+            raise ValueError(
+                f"Cannot promote recipe {self.id} without executed experiments"
+            )
         self.status = RecipeStatus.PROMOTED
         self.updated_at = datetime.now(timezone.utc).isoformat()
         promotion_entry = {
@@ -129,6 +163,10 @@ class ExperimentRecipe:
 
     def archive(self) -> None:
         """Archive recipe."""
+        if self.status == RecipeStatus.ARCHIVED:
+            return
+        if self.status not in _ARCHIVABLE:
+            raise ValueError(f"Cannot archive recipe {self.id} from status {self.status.value}")
         self.status = RecipeStatus.ARCHIVED
         self.updated_at = datetime.now(timezone.utc).isoformat()
 
@@ -143,4 +181,9 @@ class ExperimentRecipe:
         if "status" in d:
             if isinstance(d["status"], str):
                 d["status"] = RecipeStatus(d["status"].lower())
+        if "validation_strategy" in d:
+            d["validation_strategy"] = normalize_validation_strategy(
+                d.get("validation_strategy"),
+                default="kfold",
+            )
         return cls(**d)

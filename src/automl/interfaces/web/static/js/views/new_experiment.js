@@ -6,7 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
-import { isRunActive } from "../utils.js";
+import { escapeHtml, isRunActive } from "../utils.js";
 
 export class NewExperimentModal {
   constructor() {
@@ -188,7 +188,7 @@ export class NewExperimentModal {
             </div>
             ${customFeatures && customFeatures.length > 0 ? `
               <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1.5 bg-[#090C12] rounded-lg border border-[#252C38]">
-                ${customFeatures.map(f => `<span class="bg-[#151B26] text-[#4F67FF] border border-[#252C38] px-1.5 py-0.5 rounded text-[10px] font-mono">${f}</span>`).join("")}
+                ${customFeatures.map(f => `<span class="bg-[#151B26] text-[#4F67FF] border border-[#252C38] px-1.5 py-0.5 rounded text-[10px] font-mono">${escapeHtml(f)}</span>`).join("")}
               </div>
             ` : `
               <div class="text-[11px] text-[#8B95A7]">Utilizando todas las características seleccionadas y recomendadas por el perfilado estadístico.</div>
