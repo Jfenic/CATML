@@ -11,6 +11,7 @@ import {
   isMinimizingMetric,
   getMetricDirectionInfo,
   formatMetricComparison,
+  formatExperimentStatus,
   escapeHtml,
 } from "../utils.js";
 
@@ -271,9 +272,9 @@ export class CompareView {
                   `).join("")}
                 </tr>
                 <tr>
-                  <td class="font-medium text-[#8B95A7]">Estado de ejecución</td>
+                  <td class="font-medium text-[#8B95A7]">Estado del experimento</td>
                   ${selectedExps.map(e => `
-                    <td><span class="${e.status === 'COMPLETED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${e.status === 'COMPLETED' ? 'Completado' : escapeHtml(e.status)}</span></td>
+                    <td><span class="${e.status === 'COMPLETED' ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono font-medium" title="Estado del experimento (distinto del run/workspace)">${escapeHtml(formatExperimentStatus(e.status))}</span></td>
                   `).join("")}
                 </tr>
                 <tr>

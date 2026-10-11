@@ -55,20 +55,41 @@ class StatisticalAnalyzer(StatisticalEnginePort):
 
         study_id = params.get("study_id", "study_default")
         run_id = params.get("run_id", "run_default")
+        excluded_from_profile = {
+            str(c) for c in (params.get("exclude_columns") or []) if c is not None
+        }
 
         n_rows, n_cols = df.shape
         if n_rows == 0:
             return findings, visualizations, hypotheses
 
-        # Identify column types
-        num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c != target_column]
-        cat_cols = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c]) and c != target_column]
+        # Identifier / discarded columns must not generate transform hypotheses
+        # (e.g. discretize `id` after it was already flagged for exclusion).
+        # Do NOT treat continuous unique floats (price, scores) as identifiers.
+        blocked_columns = set(excluded_from_profile)
+        for col in df.columns:
+            if col == target_column or col in blocked_columns:
+                continue
+            if _is_identifier_like_column(col, df[col], n_rows):
+                blocked_columns.add(col)
+
+        # Identify column types (exclude blocked identifiers before diagnostics)
+        num_cols = [
+            c
+            for c in df.columns
+            if pd.api.types.is_numeric_dtype(df[c]) and c != target_column and c not in blocked_columns
+        ]
+        cat_cols = [
+            c
+            for c in df.columns
+            if not pd.api.types.is_numeric_dtype(df[c]) and c != target_column and c not in blocked_columns
+        ]
 
         # ---------------------------------------------------------
         # 1. Descriptive & Distribution Quality Diagnostics
         # ---------------------------------------------------------
         if "descriptive" in types:
-            # A) Missingness
+            # A) Missingness (findings for all columns; impute hyps only for non-blocked)
             for col in df.columns:
                 if col == target_column:
                     continue
@@ -86,7 +107,7 @@ class StatisticalAnalyzer(StatisticalEnginePort):
                             metrics={"missing_count": missing_cnt, "missing_rate": round(rate, 4)},
                         )
                         findings.append(f)
-                        if rate >= 0.05:
+                        if rate >= 0.05 and col not in blocked_columns:
                             hyp = AnalysisHypothesis.create(
                                 study_id=study_id,
                                 finding_id=f.id,
@@ -127,32 +148,37 @@ class StatisticalAnalyzer(StatisticalEnginePort):
             findings.extend(multi_findings)
             hypotheses.extend(multi_hyps)
 
-            # D) High Cardinality Identifier Candidates
-            for col in df.columns:
-                if col == target_column:
+            # D) High Cardinality Identifier Candidates (exclude-only; no transform hyps)
+            for col in sorted(blocked_columns):
+                if col == target_column or col not in df.columns:
                     continue
                 nunique = int(df[col].nunique(dropna=True))
-                card_ratio = float(nunique / n_rows)
-                # Primary key candidate or high cardinality ID
-                if nunique >= 50 and card_ratio >= 0.95 and ("id" in col.lower() or "uuid" in col.lower() or card_ratio >= 0.99):
-                    f = StatisticalFinding.create(
-                        study_id=study_id,
-                        analysis_run_id=run_id,
-                        finding_type="high_cardinality_identifier",
-                        summary=f"Columna '{col}' presenta cardinalidad casi única ({nunique}/{n_rows}, {card_ratio * 100:.1f}%), probable clave primaria o ID.",
-                        column_name=col,
-                        method_name="cardinality_ratio",
-                        metrics={"unique_count": nunique, "cardinality_ratio": round(card_ratio, 4)},
-                    )
-                    findings.append(f)
-                    hyp = AnalysisHypothesis.create(
-                        study_id=study_id,
-                        finding_id=f.id,
-                        description=f"Excluir identificador de alta cardinalidad '{col}' de las variables predictivas para evitar sobreajuste.",
-                        proposed_action="exclude_identifier",
-                        experiment_delta={"exclude_columns": [col]},
-                    )
-                    hypotheses.append(hyp)
+                card_ratio = float(nunique / n_rows) if n_rows else 0.0
+                f = StatisticalFinding.create(
+                    study_id=study_id,
+                    analysis_run_id=run_id,
+                    finding_type="high_cardinality_identifier",
+                    summary=(
+                        f"Columna '{col}' está marcada como identificador/no predictiva "
+                        f"(cardinalidad {nunique}/{n_rows}, {card_ratio * 100:.1f}%); "
+                        "se excluye de transformaciones propuestas."
+                    ),
+                    column_name=col,
+                    method_name="cardinality_ratio",
+                    metrics={"unique_count": nunique, "cardinality_ratio": round(card_ratio, 4)},
+                )
+                findings.append(f)
+                hyp = AnalysisHypothesis.create(
+                    study_id=study_id,
+                    finding_id=f.id,
+                    description=(
+                        f"Excluir identificador '{col}' de las variables predictivas "
+                        "para evitar sobreajuste."
+                    ),
+                    proposed_action="exclude_identifier",
+                    experiment_delta={"exclude_columns": [col]},
+                )
+                hypotheses.append(hyp)
 
         # ---------------------------------------------------------
         # 2. Association Diagnostics (Linear, Monotonic, Categorical)
@@ -209,4 +235,63 @@ class StatisticalAnalyzer(StatisticalEnginePort):
         # ---------------------------------------------------------
         apply_benjamini_hochberg_correction(findings)
 
+        # Drop transform proposals that still target blocked identifier columns.
+        hypotheses = [
+            h for h in hypotheses
+            if h.proposed_action == "exclude_identifier"
+            or not _hypothesis_targets_blocked(h, blocked_columns)
+        ]
+
         return findings, visualizations, hypotheses
+
+
+def _is_identifier_like_column(col: Any, series: pd.Series, n_rows: int) -> bool:
+    """Conservative identifier detection — avoids blocking unique continuous features."""
+    nunique = int(series.nunique(dropna=True))
+    if n_rows <= 0 or nunique < 50:
+        return False
+    card_ratio = float(nunique / n_rows)
+    name_l = str(col).lower()
+    name_hint = (
+        name_l == "id"
+        or name_l.endswith("_id")
+        or name_l.startswith("id_")
+        or "uuid" in name_l
+        or name_l.endswith("_key")
+        or name_l.endswith("key")
+    )
+    if name_hint and card_ratio >= 0.95:
+        return True
+    if card_ratio < 0.99:
+        return False
+    if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+        return True
+    if pd.api.types.is_integer_dtype(series):
+        return True
+    if pd.api.types.is_float_dtype(series):
+        vals = series.dropna()
+        if len(vals) == 0:
+            return False
+        # Float-encoded integer ids (0.0, 1.0, …) — not continuous measurements
+        return bool(np.allclose(vals.to_numpy(), np.round(vals.to_numpy())))
+    return False
+
+
+def _hypothesis_targets_blocked(hyp: AnalysisHypothesis, blocked: set[str]) -> bool:
+    """True if hypothesis experiment_delta references a blocked column."""
+    if not blocked:
+        return False
+    delta = getattr(hyp, "experiment_delta", None) or {}
+    if not isinstance(delta, dict):
+        return False
+    col = delta.get("column")
+    if col is not None and str(col) in blocked:
+        return True
+    for key in ("exclude_columns", "columns", "feature_names"):
+        vals = delta.get(key)
+        if isinstance(vals, (list, tuple, set)) and any(str(v) in blocked for v in vals):
+            # exclude_columns listing a blocked id is OK for exclude_identifier only
+            if key == "exclude_columns":
+                continue
+            return True
+    return False

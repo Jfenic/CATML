@@ -1,5 +1,15 @@
 # Progress
 
+### Track Workbench UX Sprint 1 — State coherence (`fix/workbench-sprint1-state-coherence`, 2026-10-11)
+
+- P0 demo confidence from external UI review:
+  - Header badge = workspace readiness (`LISTO`/`ENTRENANDO`), not raw `runs[0].status` (avoids COMPLETED vs experiment CREATED confusion).
+  - `/api/experiments` + `/api/plan` use `_effective_experiment_status` (derive COMPLETED/FAILED when trials exist but status lagged as CREATED).
+  - Studio `resolveTrialsCount` prefers live experiments/leaderboard over stale `activeRun.trials_count`; refreshes runs in `fetchData`.
+  - Compare labels «Estado del experimento» + Spanish status helpers.
+  - Explore: profile `identifier_column_names` + conservative ID heuristic block transform hyps (no discretize on `id`); still emit `exclude_identifier`.
+- Tests: `tests/test_workbench_sprint1_state_coherence.py`.
+
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`, 2026-10-11)
 
 - Reinforced audit blockers before announcing 0.9.0rc1 (post wheel-static PR #92):

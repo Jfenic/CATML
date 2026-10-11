@@ -16,6 +16,7 @@ import { api } from "../api.js";
 import { icon } from "../icons.js";
 import {
   isRunActive,
+  resolveTrialsCount,
   escapeHtml,
   isMinimizingMetric,
   getMetricDirectionInfo,
@@ -66,16 +67,29 @@ export class StudioView {
       const targetDatasetId = activeDataset ? activeDataset.id : (this.activeRun ? this.activeRun.dataset_id : null);
 
       if (this.activeRun) {
-        const [plan, leaderboard, experiments, recipes] = await Promise.all([
-          api.getPlan(this.activeRun.id).catch(() => null),
-          api.getLeaderboard(this.activeRun.id).catch(() => []),
-          api.getExperiments(this.activeRun.id).catch(() => []),
+        const runId = this.activeRun.id;
+        const [plan, leaderboard, experiments, recipes, runs] = await Promise.all([
+          api.getPlan(runId).catch(() => null),
+          api.getLeaderboard(runId).catch(() => []),
+          api.getExperiments(runId).catch(() => []),
           api.getRecipes(targetDatasetId).catch(() => []),
+          api.getRuns().catch(() => []),
         ]);
         this.plan = plan;
         this.leaderboard = leaderboard || [];
         this.experiments = experiments || [];
         this.recipes = recipes || [];
+        if (Array.isArray(runs) && runs.length) {
+          const fresh = runs.find(r => r.id === runId);
+          if (fresh) {
+            this.activeRun = fresh;
+            store.resolveContext({
+              datasets: store.getState().datasets || [],
+              runs,
+              overview: store.getState().overview,
+            });
+          }
+        }
       } else if (targetDatasetId) {
         this.plan = null;
         this.leaderboard = [];
@@ -135,7 +149,7 @@ export class StudioView {
     const bestModelText = activeRun.best_model
       || (this.leaderboard.length > 0 ? this.leaderboard[0].model_id : "Sin entrenar");
 
-    const trialsCount = activeRun.trials_count != null ? activeRun.trials_count : this.leaderboard.length;
+    const trialsCount = resolveTrialsCount(activeRun, this.experiments, this.leaderboard);
 
     // Collect all trial scores from experiments or leaderboard
     const trialsList = [];

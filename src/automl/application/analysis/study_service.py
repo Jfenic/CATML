@@ -46,10 +46,12 @@ class AnalysisStudyService:
         repository: StudyRepositoryPort,
         dataset_resolver: Callable[[str], Any | None],
         statistical_engine: StatisticalEnginePort | None = None,
+        profile_resolver: Callable[[str], Any | None] | None = None,
     ):
         self.repository = repository
         self.dataset_resolver = dataset_resolver
         self.statistical_engine = statistical_engine or StatisticalAnalyzer()
+        self.profile_resolver = profile_resolver
 
     # -------------------------------------------------------------
     # Command Handlers
@@ -95,11 +97,28 @@ class AnalysisStudyService:
         self.repository.save_analysis_run(run)
 
         try:
+            study_params = dict(study.parameters or {})
+            exclude_columns: list[str] = list(study_params.get("exclude_columns") or [])
+            if self.profile_resolver is not None:
+                try:
+                    profile = self.profile_resolver(study.data_source.dataset_id)
+                except Exception:
+                    profile = None
+                if profile is not None:
+                    for name in getattr(profile, "identifier_column_names", None) or []:
+                        if name and name not in exclude_columns:
+                            exclude_columns.append(name)
+
             findings, viz_specs, hypotheses = self.statistical_engine.analyze(
                 data_source_path=study.data_source.path,
                 target_column=study.target_column,
                 analysis_types=list(cmd.analysis_types or study.analysis_types),
-                parameters={"study_id": study.id, "run_id": run.id, **study.parameters},
+                parameters={
+                    "study_id": study.id,
+                    "run_id": run.id,
+                    **study_params,
+                    "exclude_columns": exclude_columns,
+                },
             )
 
             for finding in findings:
