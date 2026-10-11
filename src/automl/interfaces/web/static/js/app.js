@@ -86,27 +86,7 @@ class App {
         api.getDatasets().catch(() => []),
       ]);
 
-      let activeDatasetId = store.getState().activeDatasetId;
-      if (!activeDatasetId || !datasets.some(d => d.id === activeDatasetId)) {
-        if (datasets.length > 0) {
-          activeDatasetId = datasets[0].id;
-        } else if (runs.length > 0 && runs[0].dataset_id) {
-          activeDatasetId = runs[0].dataset_id;
-        }
-      }
-
-      const activeDataset = datasets.find(d => d.id === activeDatasetId) || null;
-      const matchingRun = runs.find(r => r.dataset_id === activeDatasetId);
-
-      store.setState({
-        overview,
-        runs,
-        datasets,
-        activeDatasetId,
-        activeDataset,
-        activeRunId: matchingRun ? matchingRun.id : (runs.length ? runs[0].id : null),
-      });
-
+      const { activeDataset, activeRun } = store.resolveContext({ datasets, runs, overview });
       this._updateSidebarActiveDataset(activeDataset);
 
       if (overview) {
@@ -125,10 +105,8 @@ class App {
       // Dynamic Project Name Label
       const projectEl = document.getElementById("projectNameLabel");
       if (projectEl) {
-        if (runs && runs.length && runs[0].dataset_name && runs[0].dataset_name !== "-") {
-          projectEl.textContent = `${runs[0].dataset_name} (${runs[0].id})`;
-        } else if (overview && overview.recent_datasets && overview.recent_datasets.length) {
-          projectEl.textContent = overview.recent_datasets[0].name;
+        if (activeDataset) {
+          projectEl.textContent = activeRun ? `${activeDataset.name} (${activeRun.id})` : activeDataset.name;
         } else {
           projectEl.textContent = "AutoML Workspace";
         }
@@ -138,19 +116,11 @@ class App {
       const kaggleLabel = document.getElementById("kaggleNavLabel");
       const kaggleBadge = document.getElementById("kaggleNavBadge");
       if (kaggleLabel) {
-        if (runs && runs.length && runs[0].dataset_name && runs[0].dataset_name !== "-") {
-          kaggleLabel.textContent = runs[0].dataset_name;
-        } else if (overview && overview.recent_datasets && overview.recent_datasets.length) {
-          kaggleLabel.textContent = overview.recent_datasets[0].name;
-        } else {
-          kaggleLabel.textContent = "Kaggle & Submissions";
-        }
+        kaggleLabel.textContent = activeDataset ? activeDataset.name : "Kaggle & Submissions";
       }
       if (kaggleBadge) {
-        if (runs && runs.length && runs[0].best_score != null) {
-          kaggleBadge.textContent = Number(runs[0].best_score).toFixed(4);
-        } else if (overview && overview.best_score) {
-          kaggleBadge.textContent = Number(overview.best_score).toFixed(4);
+        if (activeRun && activeRun.best_score != null) {
+          kaggleBadge.textContent = Number(activeRun.best_score).toFixed(4);
         } else {
           kaggleBadge.textContent = "—";
         }
@@ -237,13 +207,18 @@ class App {
     });
 
     bus.on("dataset:switched", (datasetId) => {
-      const activeDataset = (store.getState().datasets || []).find(d => d.id === datasetId);
+      store.setActiveDataset(datasetId);
+      const activeDataset = store.getActiveDataset();
       this._updateSidebarActiveDataset(activeDataset);
+      if (this.agentDrawer) this.agentDrawer.refresh();
       this._routeTo(store.getState().currentNav);
     });
 
     bus.on("run:select", runId => {
-      store.setState({ activeRunId: runId });
+      store.setActiveRun(runId);
+      const activeDataset = store.getActiveDataset();
+      this._updateSidebarActiveDataset(activeDataset);
+      if (this.agentDrawer) this.agentDrawer.refresh();
       store.setNav("experiments");
     });
   }

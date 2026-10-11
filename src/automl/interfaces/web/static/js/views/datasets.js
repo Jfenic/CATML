@@ -78,10 +78,11 @@ export class DatasetsView {
       const state = store.getState();
       this.datasets = await api.getDatasets().catch(() => []);
 
-      this.activeDatasetId = state.activeDatasetId
-        || (this.datasets.length ? this.datasets[0].id : null)
-        || (state.runs && state.runs[0] ? state.runs[0].dataset_id : null)
-        || (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0] ? state.overview.recent_datasets[0].id : null);
+      this.activeDatasetId = store.getActiveDatasetId()
+        || (this.datasets.length ? this.datasets[0].id : null);
+      if (this.activeDatasetId && !store.getActiveDatasetId()) {
+        store.setActiveDataset(this.activeDatasetId);
+      }
 
       if (this.activeDatasetId) {
         this.profile = await api.getDatasetProfile(this.activeDatasetId).catch(() => null);

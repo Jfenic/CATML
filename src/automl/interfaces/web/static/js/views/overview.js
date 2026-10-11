@@ -33,22 +33,21 @@ export class OverviewView {
       activity_feed: [],
     };
 
-    const runs = state.runs || [];
-    const dsRuns = state.activeDatasetId
-      ? runs.filter(r => r.dataset_id === state.activeDatasetId)
-      : runs;
-    const activeRun = dsRuns.find(r => isRunActive(r)) || dsRuns[0] || runs[0] || null;
+    const activeDataset = store.getActiveDataset();
+    const dsRuns = store.getRunsForActiveDataset();
+    const runs = dsRuns;
+    const activeRun = store.getActiveRun() || dsRuns.find(r => isRunActive(r)) || dsRuns[0] || null;
     const isRunning = isRunActive(activeRun);
 
-    const bestScoreText = overview.best_score != null
-      ? Number(overview.best_score).toFixed(4)
-      : (activeRun && activeRun.best_score != null ? Number(activeRun.best_score).toFixed(4) : "—");
+    const bestScoreText = (activeRun && activeRun.best_score != null)
+      ? Number(activeRun.best_score).toFixed(4)
+      : (overview.best_score != null && !activeDataset ? Number(overview.best_score).toFixed(4) : "—");
 
-    const bestModelText = (overview.best_model && overview.best_model !== "-")
-      ? overview.best_model
-      : (activeRun && activeRun.best_model ? activeRun.best_model : "None");
+    const bestModelText = (activeRun && activeRun.best_model)
+      ? activeRun.best_model
+      : (activeRun ? "Sin entrenar" : "Ninguno");
 
-    const trialsCount = overview.total_trials || (activeRun && activeRun.trials_count != null ? activeRun.trials_count : 0);
+    const trialsCount = activeRun && activeRun.trials_count != null ? activeRun.trials_count : 0;
 
     // Zone 1 markup (Active Experiment)
     let zone1Html = "";

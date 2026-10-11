@@ -41,17 +41,14 @@ export class StudioView {
 
   async fetchData() {
     try {
-      const state = store.getState();
-      const runs = state.runs || [];
-      const dsRuns = state.activeDatasetId
-        ? runs.filter(r => r.dataset_id === state.activeDatasetId)
-        : runs;
-      this.activeRun = dsRuns.find(r => r.id === state.activeRunId)
+      const activeDataset = store.getActiveDataset();
+      const dsRuns = store.getRunsForActiveDataset();
+      this.activeRun = store.getActiveRun()
         || dsRuns.find(r => isRunActive(r))
         || dsRuns[0]
-        || (runs.find(r => r.id === state.activeRunId) || runs[0] || null);
+        || null;
 
-      const targetDatasetId = this.activeRun ? this.activeRun.dataset_id : state.activeDatasetId;
+      const targetDatasetId = activeDataset ? activeDataset.id : (this.activeRun ? this.activeRun.dataset_id : null);
 
       if (this.activeRun) {
         const [plan, leaderboard, experiments, recipes] = await Promise.all([
@@ -65,6 +62,9 @@ export class StudioView {
         this.experiments = experiments || [];
         this.recipes = recipes || [];
       } else if (targetDatasetId) {
+        this.plan = null;
+        this.leaderboard = [];
+        this.experiments = [];
         this.recipes = await api.getRecipes(targetDatasetId).catch(() => []);
       }
     } catch (e) {
@@ -74,22 +74,35 @@ export class StudioView {
 
   render() {
     const state = store.getState();
-    const overview = state.overview || {};
+    const activeDataset = store.getActiveDataset();
     const activeRun = this.activeRun;
 
     if (!activeRun) {
       this.container.innerHTML = `
         <div class="workbench-card p-12 text-center space-y-4">
           <div class="text-[#8B95A7]/40 flex justify-center">${icon("flask-conical", "icon-xl", 36)}</div>
-          <h3 class="text-base font-bold text-slate-200">No Experiment Runs Found</h3>
-          <p class="text-xs text-slate-400 max-w-sm mx-auto">Create a new experiment run to inspect the AutoML planner, HPO search progress, and model leaderboard.</p>
+          <h3 class="text-base font-bold text-slate-200">
+            ${activeDataset ? `Dataset ${escapeHtml(activeDataset.name)} sin ejecuciones` : "Sin dataset seleccionado"}
+          </h3>
+          <p class="text-xs text-slate-400 max-w-sm mx-auto">
+            ${activeDataset
+              ? `Configura y ejecuta el primer experimento en ${escapeHtml(activeDataset.name)} para inspeccionar el planificador, HPO y el leaderboard de modelos.`
+              : "Selecciona un dataset del laboratorio para comenzar a crear y comparar experimentos."}
+          </p>
           <button id="btnNewExpFromStudioEmpty" class="btn-signal">
-            <span class="inline-flex items-center gap-1.5">${icon("plus", "icon-sm")} <span>New Experiment</span></span>
+            <span class="inline-flex items-center gap-1.5">
+              ${icon(activeDataset ? "plus" : "database", "icon-sm")}
+              <span>${activeDataset ? "Nuevo experimento" : "Seleccionar dataset"}</span>
+            </span>
           </button>
         </div>
       `;
       this.container.querySelector("#btnNewExpFromStudioEmpty")?.addEventListener("click", () => {
-        bus.emit("modal:new-experiment");
+        if (activeDataset) {
+          bus.emit("modal:new-experiment");
+        } else {
+          bus.emit("modal:switch-dataset");
+        }
       });
       return;
     }
@@ -100,12 +113,12 @@ export class StudioView {
       ? Number(activeRun.best_score).toFixed(5)
       : (this.leaderboard.length > 0 && this.leaderboard[0].score != null
           ? Number(this.leaderboard[0].score).toFixed(5)
-          : (overview.best_score != null ? Number(overview.best_score).toFixed(5) : "—"));
+          : "Sin resultados");
 
     const bestModelText = activeRun.best_model
-      || (this.leaderboard.length > 0 ? this.leaderboard[0].model_id : (overview.best_model || "None"));
+      || (this.leaderboard.length > 0 ? this.leaderboard[0].model_id : "Sin entrenar");
 
-    const trialsCount = activeRun.trials_count != null ? activeRun.trials_count : (overview.total_trials || 0);
+    const trialsCount = activeRun.trials_count != null ? activeRun.trials_count : this.leaderboard.length;
     const steps = (this.plan && this.plan.steps) ? this.plan.steps : [];
 
     // Collect all trial scores from experiments or leaderboard

@@ -2,17 +2,20 @@
  * AgentDrawer — Autonomous Agent Lateral Co-pilot
  * Embodies the core CATML principle: "Proponer ≠ Aceptar"
  * Proposes explicit hypothesis objects requiring empirical critic verification before promotion.
+ * Adheres strictly to centralized context: activeDataset and activeRun.
  */
 import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../utils.js";
+import { isRunActive } from "../utils.js";
 
 export class AgentDrawer {
   constructor() {
     this.container = null;
     this.hypotheses = [];
+    this.currentContextKey = null;
   }
 
   async mount(container) {
@@ -22,12 +25,28 @@ export class AgentDrawer {
 
   async refresh() {
     if (!this.container) return;
-    const state = store.getState();
-    const runs = state.runs || [];
-    const activeRun = runs.find(r => r.id === state.activeRunId) || runs[0] || null;
+    const activeDataset = store.getActiveDataset();
+    const activeRun = store.getActiveRun();
+    const contextKey = `${activeDataset ? activeDataset.id : 'none'}_${activeRun ? activeRun.id : 'none'}`;
+
+    // If context changed, immediately clear stale hypotheses from memory before fetching
+    if (this.currentContextKey !== contextKey) {
+      this.hypotheses = [];
+      this.currentContextKey = contextKey;
+    }
+
+    if (!activeRun) {
+      this.hypotheses = [];
+      this.render();
+      return;
+    }
+
     try {
-      const resp = await api.getAgentHypotheses(activeRun ? activeRun.id : "");
-      this.hypotheses = resp.hypotheses || [];
+      const resp = await api.getAgentHypotheses(activeRun.id);
+      // Verify context has not changed while awaiting response
+      if (this.currentContextKey === contextKey) {
+        this.hypotheses = resp.hypotheses || [];
+      }
     } catch {
       this.hypotheses = [];
     }
@@ -36,24 +55,125 @@ export class AgentDrawer {
 
   render() {
     if (!this.container) return;
-    const state = store.getState();
-    const runs = state.runs || [];
-    const activeRun = runs.find(r => r.id === state.activeRunId) || runs[0] || null;
-    const dsName = (activeRun && activeRun.dataset_name) || (state.datasets && state.datasets[0] ? state.datasets[0].name : "No active dataset");
-    const taskType = (activeRun && activeRun.task_type) || "Not configured";
-    const statusText = activeRun ? "Ready" : "Idle";
-    const statusColor = activeRun ? "#22C55E" : "#8B95A7";
+    const activeDataset = store.getActiveDataset();
+    const activeRun = store.getActiveRun();
+    const dsName = activeDataset ? (activeDataset.name || activeDataset.id) : "No active dataset";
 
-    const nextActionDesc = activeRun
-      ? `Evaluate candidate models and cross-validation performance on dataset <code class="font-mono text-[#4F67FF] bg-[#11151E] px-1 py-0.5 rounded">${escapeHtml(dsName)}</code>.`
-      : `Register a dataset in the workspace to initiate autonomous exploration and model training.`;
+    // 1. Build Context Header & Action Cards
+    let contextCardHtml = "";
+    let nextActionCardHtml = "";
 
+    if (!activeDataset) {
+      contextCardHtml = `
+        <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-4 space-y-2.5">
+          <div class="text-[10px] uppercase font-mono tracking-wider text-[#8B95A7] font-semibold">Contexto del Laboratorio</div>
+          <div class="p-3 bg-[#161B26] border border-[#242A36] rounded-lg text-center space-y-2">
+            <div class="text-xs font-semibold text-[#F7F8FA]">Sin dataset seleccionado</div>
+            <p class="text-[11px] text-[#8B95A7]">Selecciona un dataset para comenzar.</p>
+            <button id="btnAgentSelectDsPrompt" class="btn-signal text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 mt-1">
+              ${icon("database", "icon-sm")}
+              <span>Seleccionar dataset</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      nextActionCardHtml = `
+        <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase font-mono tracking-wider text-[#4F67FF] font-semibold">Siguiente Acción</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20 font-medium">Requerido</span>
+          </div>
+          <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">
+            Registra un dataset en el workspace para iniciar la exploración autónoma, formulación de hipótesis y entrenamiento de modelos.
+          </p>
+        </div>
+      `;
+    } else if (!activeRun) {
+      const taskType = activeDataset.task_type ? activeDataset.task_type.replace("_", " ") : "No configurada";
+      contextCardHtml = `
+        <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-4 space-y-2.5">
+          <div class="text-[10px] uppercase font-mono tracking-wider text-[#8B95A7] font-semibold">Contexto Activo</div>
+          <div class="space-y-1.5 font-mono text-xs">
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Dataset:</span> <span class="text-[#F7F8FA] font-semibold">${escapeHtml(dsName)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Ejecución:</span> <span class="text-[#8B95A7]">Sin ejecución activa</span></div>
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Tarea:</span> <span class="text-[#F7F8FA] capitalize">${escapeHtml(taskType)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Estado:</span> <span class="text-[#F59E0B] font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>Listo para entrenar</span></div>
+          </div>
+        </div>
+      `;
+
+      nextActionCardHtml = `
+        <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase font-mono tracking-wider text-[#4F67FF] font-semibold">Siguiente Paso</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20 font-medium">Entrenamiento</span>
+          </div>
+          <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
+            Dataset preparado. Configura y lanza una primera ejecución de experimentos sobre <code class="font-mono text-[#4F67FF] bg-[#11151E] px-1 py-0.5 rounded">${escapeHtml(activeDataset.name)}</code> para obtener hipótesis y comparativas.
+          </p>
+          <div class="pt-2 border-t border-[#242A36]">
+            <button id="btnAgentLaunchFirstExp" class="w-full btn-signal text-xs py-2 flex items-center justify-center gap-1.5">
+              ${icon("play", "icon-sm")}
+              <span>Lanzar primer experimento</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      const isRunning = isRunActive(activeRun);
+      const statusText = isRunning ? "Entrenando" : "Listo";
+      const statusColor = isRunning ? "#F59E0B" : "#22C55E";
+      const taskType = activeRun.task_type || activeDataset.task_type || "Auto";
+
+      contextCardHtml = `
+        <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-4 space-y-2.5">
+          <div class="text-[10px] uppercase font-mono tracking-wider text-[#8B95A7] font-semibold">Contexto Activo</div>
+          <div class="space-y-1.5 font-mono text-xs">
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Dataset:</span> <span class="text-[#F7F8FA] font-semibold">${escapeHtml(dsName)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Ejecución:</span> <span class="text-[#4F67FF] font-semibold">${escapeHtml(activeRun.id)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Tarea:</span> <span class="text-[#F7F8FA] capitalize">${escapeHtml(taskType)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8B95A7]">Estado:</span> <span class="font-semibold flex items-center gap-1.5" style="color: ${statusColor}"><span class="w-1.5 h-1.5 rounded-full" style="background-color: ${statusColor}"></span>${escapeHtml(statusText)}</span></div>
+          </div>
+        </div>
+      `;
+
+      nextActionCardHtml = `
+        <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase font-mono tracking-wider text-[#4F67FF] font-semibold">Siguiente Acción Recomendada</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20 font-medium">Plan Empírico</span>
+          </div>
+          <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
+            Evaluar modelos candidatos y validación cruzada en el dataset <code class="font-mono text-[#4F67FF] bg-[#11151E] px-1 py-0.5 rounded">${escapeHtml(activeDataset.name)}</code> (Run: ${escapeHtml(activeRun.id)}).
+          </p>
+          <div class="flex items-center space-x-2 pt-2 border-t border-[#242A36]">
+            <button id="btnAgentReviewPlan" class="flex-1 bg-[#11151E] hover:bg-[#1A202C] text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg text-xs font-medium transition-colors">
+              Revisar plan
+            </button>
+            <button id="btnAgentRunPlan" class="flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1">
+              ${icon("play", "icon-sm")}
+              <span>Ejecutar</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Build Hypotheses HTML
     let hypothesesHtml = "";
-    if (!this.hypotheses || this.hypotheses.length === 0) {
+    if (!activeDataset || !activeRun) {
       hypothesesHtml = `
         <div class="p-6 text-center text-[#8B95A7]/70 text-xs font-sans rounded-xl bg-[#11151E] border border-[#242A36]">
-          No agent hypotheses recorded yet.
-          <div class="text-[10px] text-[#8B95A7]/50 mt-1">Autonomous proposals will appear here following the Propose ≠ Accept principle.</div>
+          Sin hipótesis de ejecución activa.
+          <div class="text-[10px] text-[#8B95A7]/50 mt-1">Las propuestas autónomas se generan y verifican dentro de cada ejecución.</div>
+        </div>
+      `;
+    } else if (!this.hypotheses || this.hypotheses.length === 0) {
+      hypothesesHtml = `
+        <div class="p-6 text-center text-[#8B95A7]/70 text-xs font-sans rounded-xl bg-[#11151E] border border-[#242A36]">
+          No hay hipótesis registradas para la ejecución <span class="font-mono text-[#F7F8FA]">${escapeHtml(activeRun.id)}</span>.
+          <div class="text-[10px] text-[#8B95A7]/50 mt-1">Las propuestas del agente siguen el principio: Proponer ≠ Aceptar.</div>
         </div>
       `;
     } else {
@@ -62,14 +182,14 @@ export class AgentDrawer {
         const isRejected = hyp.critic_decision === "REJECT" || hyp.status === "REJECTED";
         const badgeClass = isPromoted ? "badge-gain" : isRejected ? "badge-err" : "badge-warn";
         const badgeIcon = isPromoted ? icon("check", "icon-sm") : isRejected ? icon("x", "icon-sm") : `<span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>`;
-        const badgeText = isPromoted ? "Promoted" : isRejected ? "Rejected" : "Proposed";
+        const badgeText = isPromoted ? "Promovida" : isRejected ? "Rechazada" : "Propuesta (Pendiente)";
 
         const empiricalResults = (hyp.before_score !== null && hyp.before_score !== undefined)
           ? `
             <div class="bg-[#0D1017] p-2.5 rounded-lg border border-[#242A36] font-mono text-[11px] space-y-1">
               <div class="flex justify-between"><span class="text-[#8B95A7]">Benchmark:</span> <span class="text-[#F7F8FA]">${escapeHtml(hyp.before_score)}</span></div>
-              ${hyp.after_score !== null && hyp.after_score !== undefined ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Experiment:</span> <span class="${isPromoted ? 'text-[#22C55E]' : isRejected ? 'text-[#EF4444]' : 'text-[#F7F8FA]'} font-semibold">${escapeHtml(hyp.after_score)}</span></div>` : ''}
-              ${hyp.delta ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Delta:</span> <span class="${isPromoted ? 'text-[#22C55E]' : 'text-[#EF4444]'} font-bold">${escapeHtml(hyp.delta)}</span></div>` : ''}
+              ${hyp.after_score !== null && hyp.after_score !== undefined ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Experimento:</span> <span class="${isPromoted ? 'text-[#22C55E]' : isRejected ? 'text-[#EF4444]' : 'text-[#F7F8FA]'} font-semibold">${escapeHtml(hyp.after_score)}</span></div>` : ''}
+              ${hyp.delta ? `<div class="flex justify-between"><span class="text-[#8B95A7]">Diferencia observada:</span> <span class="${isPromoted ? 'text-[#22C55E]' : 'text-[#EF4444]'} font-bold">${escapeHtml(hyp.delta)}</span></div>` : ''}
             </div>
           `
           : '';
@@ -79,11 +199,11 @@ export class AgentDrawer {
             <div class="flex items-center space-x-2 pt-2 border-t border-[#242A36]">
               <button class="btn-hyp-action flex-1 bg-[#11151E] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg font-medium text-xs transition-colors flex items-center justify-center gap-1" data-hyp="${escapeHtml(hyp.id)}" data-action="reject">
                 ${icon("x", "icon-sm")}
-                <span>Reject</span>
+                <span>Rechazar</span>
               </button>
               <button class="btn-hyp-action flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors shadow-sm flex items-center justify-center gap-1" data-hyp="${escapeHtml(hyp.id)}" data-action="approve">
                 ${icon("check", "icon-sm")}
-                <span>Approve Run</span>
+                <span>Aprobar prueba</span>
               </button>
             </div>
           `
@@ -92,25 +212,28 @@ export class AgentDrawer {
         return `
           <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="font-mono font-semibold text-[#F7F8FA]">Hypothesis #${hyp.id ? escapeHtml(String(hyp.id).slice(0, 8)) : ''}</span>
+              <div>
+                <span class="font-mono font-semibold text-[#F7F8FA]">Hipótesis #${hyp.id ? escapeHtml(String(hyp.id).slice(0, 8)) : ''}</span>
+                <div class="text-[10px] font-mono text-[#8B95A7]">Run: ${escapeHtml(activeRun.id)} • Dataset: ${escapeHtml(activeDataset.name)}</div>
+              </div>
               <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium flex items-center gap-1">
                 ${badgeIcon} <span>${badgeText}</span>
               </span>
             </div>
             <div class="space-y-1">
-              <div class="text-[#8B95A7] text-[10px] uppercase font-mono">Statement</div>
+              <div class="text-[#8B95A7] text-[10px] uppercase font-mono">Enunciado</div>
               <p class="text-[#F7F8FA] font-sans leading-relaxed">${escapeHtml(hyp.statement || '')}</p>
             </div>
             ${hyp.action ? `
               <div class="space-y-1">
-                <div class="text-[#8B95A7] text-[10px] uppercase font-mono">Proposed Action</div>
+                <div class="text-[#8B95A7] text-[10px] uppercase font-mono">Acción Propuesta</div>
                 <p class="font-mono text-[#4F67FF] text-xs">${escapeHtml(hyp.action)}</p>
               </div>
             ` : ''}
             ${empiricalResults}
             ${hyp.critic_reason ? `
               <div class="p-2.5 rounded-lg bg-[#11151E] border border-[#242A36] space-y-1 text-[11px]">
-                <div class="font-medium text-[#F7F8FA]">Critic: ${escapeHtml(hyp.critic_decision || 'Evaluated')}</div>
+                <div class="font-medium text-[#F7F8FA]">Crítico Evaluador: ${escapeHtml(hyp.critic_decision || 'Evaluado')}</div>
                 <div class="text-[#8B95A7] text-[10px] leading-relaxed">${escapeHtml(hyp.critic_reason)}</div>
               </div>
             ` : ''}
@@ -127,49 +250,25 @@ export class AgentDrawer {
           <div class="flex items-center space-x-2.5">
             <span class="text-[#6956E8]">${icon("bot", "icon-md", 18)}</span>
             <div>
-              <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">CATML Agent</h3>
-              <p class="text-[11px] text-[#8B95A7] font-sans">Autonomous AutoML Co-pilot</p>
+              <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">CATML Copiloto Autónomo</h3>
+              <p class="text-[11px] text-[#8B95A7] font-sans">Asistente de experimentación</p>
             </div>
           </div>
-          <button id="btnCloseAgentDrawer" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded-lg hover:bg-[#161B26] transition-colors" title="Close Drawer">${icon("x", "icon-sm")}</button>
+          <button id="btnCloseAgentDrawer" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded-lg hover:bg-[#161B26] transition-colors" title="Cerrar panel">${icon("x", "icon-sm")}</button>
         </div>
 
         <!-- Hypotheses & Interactive Stream Container -->
         <div class="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
           <!-- Active Context Card -->
-          <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-4 space-y-2.5">
-            <div class="text-[10px] uppercase font-mono tracking-wider text-[#8B95A7] font-semibold">Active Context</div>
-            <div class="space-y-1.5 font-mono text-xs">
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Dataset:</span> <span class="text-[#F7F8FA] font-semibold">${escapeHtml(dsName)}</span></div>
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Task:</span> <span class="text-[#F7F8FA]">${escapeHtml(taskType)}</span></div>
-              <div class="flex justify-between"><span class="text-[#8B95A7]">Status:</span> <span class="font-semibold flex items-center gap-1.5" style="color: ${statusColor}"><span class="w-1.5 h-1.5 rounded-full" style="background-color: ${statusColor}"></span>${escapeHtml(statusText)}</span></div>
-            </div>
-          </div>
+          ${contextCardHtml}
 
           <!-- Suggested Next Action Card -->
-          <div class="bg-[#161B26] border border-[#242A36] rounded-xl p-4 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] uppercase font-mono tracking-wider text-[#4F67FF] font-semibold">Suggested Next Action</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#4F67FF]/10 text-[#4F67FF] border border-[#4F67FF]/20 font-medium">Empirical Plan</span>
-            </div>
-            <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
-              ${nextActionDesc}
-            </p>
-            <div class="flex items-center space-x-2 pt-2 border-t border-[#242A36]">
-              <button id="btnAgentReviewPlan" class="flex-1 bg-[#11151E] hover:bg-[#1A202C] text-[#F7F8FA] border border-[#242A36] py-1.5 rounded-lg text-xs font-medium transition-colors">
-                Review plan
-              </button>
-              <button id="btnAgentRunPlan" class="flex-1 bg-[#4F67FF] hover:bg-[#3D56FF] text-white py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1">
-                ${icon("play", "icon-sm")}
-                <span>Run</span>
-              </button>
-            </div>
-          </div>
+          ${nextActionCardHtml}
 
           <!-- Section Label -->
           <div class="flex items-center justify-between pt-1">
-            <span class="text-[11px] font-mono uppercase tracking-wider text-[#8B95A7]">Hypothesis Ledger</span>
-            <span class="text-[10px] font-mono text-[#8B95A7]/70">Propose ≠ Accept</span>
+            <span class="text-[11px] font-mono uppercase tracking-wider text-[#8B95A7]">Registro de Hipótesis</span>
+            <span class="text-[10px] font-mono text-[#8B95A7]/70">Proponer ≠ Aceptar</span>
           </div>
 
           ${hypothesesHtml}
@@ -185,6 +284,16 @@ export class AgentDrawer {
       store.toggleAgentDrawer(false);
     });
 
+    this.container.querySelector("#btnAgentSelectDsPrompt")?.addEventListener("click", () => {
+      store.toggleAgentDrawer(false);
+      bus.emit("modal:switch-dataset");
+    });
+
+    this.container.querySelector("#btnAgentLaunchFirstExp")?.addEventListener("click", () => {
+      store.toggleAgentDrawer(false);
+      bus.emit("modal:new-experiment");
+    });
+
     this.container.querySelector("#btnAgentReviewPlan")?.addEventListener("click", () => {
       store.toggleAgentDrawer(false);
       store.setNav("studio");
@@ -193,7 +302,7 @@ export class AgentDrawer {
     this.container.querySelector("#btnAgentRunPlan")?.addEventListener("click", async () => {
       try {
         await api.sendAgentAction("plan_execute", "approve");
-        alert("Automated agent plan scheduled for execution.");
+        alert("Plan de experimentación programado para ejecución.");
         store.toggleAgentDrawer(false);
         store.setNav("studio");
       } catch (err) {
@@ -208,7 +317,7 @@ export class AgentDrawer {
         const action = btn.getAttribute("data-action");
         try {
           await api.sendAgentAction(hypId, action);
-          alert(`Hypothesis ${hypId} ${action === "approve" ? "approved for execution!" : "rejected."}`);
+          alert(`Hipótesis ${hypId} ${action === "approve" ? "aprobada para ejecución!" : "rechazada."}`);
           await this.refresh();
         } catch (err) {
           alert("Error: " + err.message);

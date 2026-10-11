@@ -650,7 +650,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/runs":
-            runs = ws.list_runs()
+            ds_filter = query_params.get("dataset_id", [None])[0]
+            runs = ws.list_runs(dataset_id=ds_filter) if ds_filter else ws.list_runs()
             result = []
             for r in runs:
                 try:

@@ -37,11 +37,10 @@ export class KaggleView {
 
   async fetchData() {
     try {
-      const state = store.getState();
-      const runs = state.runs || [];
-      this.activeRun = runs.find(r => r.id === state.activeRunId)
-        || runs.find(r => isRunActive(r))
-        || runs[0]
+      const dsRuns = store.getRunsForActiveDataset();
+      this.activeRun = store.getActiveRun()
+        || dsRuns.find(r => isRunActive(r))
+        || dsRuns[0]
         || null;
 
       this.status = await api.getKaggleStatus(this.activeRun ? this.activeRun.id : "").catch(() => null);
@@ -324,8 +323,7 @@ export class KaggleView {
       const originalText = btn.innerHTML;
 
       try {
-        const state = store.getState();
-        const activeRun = this.activeRun || state.runs[0];
+        const activeRun = this.activeRun || store.getActiveRun();
         if (!activeRun) {
           alert("No active run found.");
           return;

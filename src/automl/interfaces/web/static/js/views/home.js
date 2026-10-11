@@ -49,24 +49,8 @@ export class HomeView {
       this.runs = runs;
       this.jobs = jobs;
 
-      store.setState({ datasets, runs });
-
-      // Determine active dataset
-      const state = store.getState();
-      let activeId = state.activeDatasetId;
-
-      if (!activeId || !datasets.some(d => d.id === activeId)) {
-        if (datasets.length > 0) {
-          activeId = datasets[0].id;
-        } else if (runs.length > 0 && runs[0].dataset_id) {
-          activeId = runs[0].dataset_id;
-        }
-      }
-
-      if (activeId) {
-        store.setActiveDataset(activeId);
-        this.activeDataset = datasets.find(d => d.id === activeId) || null;
-      }
+      const { activeDataset } = store.resolveContext({ datasets, runs });
+      this.activeDataset = activeDataset;
     } catch (e) {
       console.warn("[HomeView] Error fetching laboratory data:", e);
     } finally {
@@ -77,8 +61,8 @@ export class HomeView {
   render() {
     const ds = this.activeDataset || store.getActiveDataset();
     const runs = this.runs || [];
-    const dsRuns = ds ? runs.filter(r => r.dataset_id === ds.id) : runs;
-    const activeRun = dsRuns.find(r => isRunActive(r)) || dsRuns[0] || null;
+    const dsRuns = ds ? runs.filter(r => r.dataset_id === ds.id) : [];
+    const activeRun = store.getActiveRun() || dsRuns.find(r => isRunActive(r)) || dsRuns[0] || null;
 
     // Real background execution check
     const activeJob = (this.jobs || []).find(j => j.status === "running");
@@ -178,7 +162,9 @@ export class HomeView {
                     </div>
                     <div class="w-full bg-[#080A0F] h-1.5 rounded-full overflow-hidden border border-[#242A36]">
                       ${isTraining
-                        ? `<div class="bg-[#4F67FF] progress-striped h-full rounded-full transition-all duration-300" style="width: ${activeJob && activeJob.total ? Math.max(10, Math.round((activeJob.completed || 0) * 100 / activeJob.total)) : 50}%"></div>`
+                        ? (activeJob && activeJob.total
+                            ? `<div class="bg-[#4F67FF] progress-striped h-full rounded-full transition-all duration-300" style="width: ${Math.max(10, Math.round((activeJob.completed || 0) * 100 / activeJob.total))}%"></div>`
+                            : `<div class="bg-[#4F67FF] h-full w-full rounded-full animate-pulse"></div>`)
                         : hasResults
                         ? `<div class="bg-[#22C55E] w-full h-full rounded-full"></div>`
                         : `<div class="bg-transparent w-0 h-full"></div>`

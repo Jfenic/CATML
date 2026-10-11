@@ -33,11 +33,10 @@ export class KnowledgeView {
 
   async fetchData() {
     try {
-      const state = store.getState();
-      const runs = state.runs || [];
-      this.activeRun = runs.find(r => r.id === state.activeRunId)
-        || runs.find(r => isRunActive(r))
-        || runs[0]
+      const dsRuns = store.getRunsForActiveDataset();
+      this.activeRun = store.getActiveRun()
+        || dsRuns.find(r => isRunActive(r))
+        || dsRuns[0]
         || null;
 
       const datasetId = this.activeRun ? this.activeRun.dataset_id : (state.activeDatasetId || "");

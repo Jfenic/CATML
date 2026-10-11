@@ -73,16 +73,12 @@ export class NewExperimentModal {
       || state.selectedFeatures
       || [];
     const customFeatures = this.customFeatures;
-    const runs = state.runs || [];
-    const activeRun = (runs || []).find(r => r.dataset_id === state.activeDatasetId)
-      || runs.find(r => isRunActive(r))
-      || runs[0]
+    const activeDs = store.getActiveDataset();
+    const dsRuns = store.getRunsForActiveDataset();
+    const activeRun = store.getActiveRun()
+      || dsRuns.find(r => isRunActive(r))
+      || dsRuns[0]
       || null;
-    const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
-    const activeDs = state.activeDataset
-      || (state.datasets || []).find(d => d.id === state.activeDatasetId)
-      || (activeRun ? { name: activeRun.dataset_name, target_column: activeRun.target, task_type: activeRun.task_type } : null)
-      || recentDs;
 
     const taskTypeRaw = (this.datasetProfile?.task_type || activeDs?.task_type || "binary_classification").toLowerCase();
     const isRegression = taskTypeRaw.includes("regression");
