@@ -1,5 +1,23 @@
 # Progress
 
+### Track Workbench — Auditoría UX/UI, Coherencia de Contexto y Refactorización (2026-10-11)
+
+- **PR 0: Restauración de CI y Empaquetado (`pyproject.toml`):**
+  - Eliminado clasificador redundante de licencia en `pyproject.toml` (`License :: OSI Approved :: Apache Software License`) que provocaba `setuptools.errors.InvalidConfigError` con setuptools modernos.
+  - Verificado empaquetado completo `.venv/bin/python -m build` (generación limpia de sdist `catml-0.9.0rc1.tar.gz` y wheel `catml-0.9.0rc1-py3-none-any.whl`).
+- **Trazabilidad de Recetas, Validación Inteligente y Límite de Tiempo:**
+  - Añadido `recipe_id` a `Experiment` (`src/automl/domain/experiments/trial.py`), `CreateExperimentCommand`, `workspace.py` y persistencia SQLite.
+  - Soporte de `time_budget_seconds` en `/api/experiment/create_and_run` en `server.py`.
+  - Columna e insignias de Receta en Leaderboard de Studio (`studio.js`).
+  - Suite de verificación `tests/test_workbench_questionnaire_and_traceability.py` (6 pruebas pasando al 100%).
+- **PR 1: Fase P0 — Contexto único de dataset y ejecución (`activeDatasetId`, `activeRunId`):**
+  - **`store.js`:** Centralizada la resolución de contexto (`resolveContext`, `setActiveDataset`, `setActiveRun`, `getActiveDataset`, `getActiveRun`, `getRunsForActiveDataset`, `contextVersion`). Si un dataset no tiene ejecuciones, `activeRunId` es estrictamente `null` (sin caídas arbitrarias a runs de otros datasets). Al cambiar de run, se sincroniza automáticamente el dataset padre.
+  - **Limpieza de Vistas:** Erradicados todos los fallbacks cruzados `|| runs[0]` y `|| datasets[0]` en `app.js`, `agent.js`, `studio.js`, `compare.js`, `home.js`, `overview.js`, `new_experiment.js`, `kaggle.js`, `knowledge.js`, `pipeline.js` y `datasets.js`.
+  - **`agent.js`:** Manejo explícito de 3 estados de contexto: (1) Sin dataset seleccionado («Selecciona un dataset para comenzar»), (2) Dataset seleccionado sin ejecución («Sin ejecución activa»), (3) Dataset con ejecución activa (indicando dataset y run a las que pertenecen las hipótesis).
+  - **Métricas:** Eliminadas puntuaciones engañosas globales en tarjetas locales de Studio y Overview cuando la ejecución no tiene resultados.
+  - **API Backend:** Filtro `dataset_id` soportado en `/api/runs` en `server.py` (`ws.list_runs(dataset_id=...)`).
+  - **Validación Automatizada:** Suite `tests/test_workbench_context_consistency.py` (7 tests pasando) y validación de suite completa (764 tests pasando, 86.80% de cobertura).
+
 ### Track Experiment Recipes — Fase R4: Workbench UI y Paridad E2E (2026-10-11)
 
 - **Integración de Experiment Recipes en Workbench y Paridad E2E (Fase R4):**

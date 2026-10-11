@@ -23,6 +23,33 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
 - [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
+### Track Workbench — Auditoría UX/UI, Coherencia de Contexto y Refactorización
+
+- [x] **PR 0: Restaurar CI y empaquetado (`pyproject.toml`)**:
+  - Eliminado clasificador redundante de licencia en `pyproject.toml` que provocaba `setuptools.errors.InvalidConfigError`.
+  - Verificado empaquetado completo `python -m build` (generación exitosa de sdist `.tar.gz` y wheel `.whl`).
+- [x] **PR 1: Fase P0 — Contexto único de dataset y ejecución (`activeDatasetId`, `activeRunId`)**:
+  - Centralizada resolución de contexto reactivo en `store.js` (`resolveContext`, `setActiveDataset`, `setActiveRun`, `getActiveDataset`, `getActiveRun`, `getRunsForActiveDataset`, `contextVersion`).
+  - Erradicados todos los fallbacks cruzados a `runs[0]` o `datasets[0]` en `app.js`, `agent.js`, `studio.js`, `compare.js`, `home.js`, `overview.js`, `new_experiment.js`, `kaggle.js`, `knowledge.js`, `pipeline.js` y `datasets.js`.
+  - Reestructurado `AgentDrawer` con tres estados explícitos: (1) Sin dataset seleccionado («Selecciona un dataset para comenzar»), (2) Dataset seleccionado sin ejecución («Sin ejecución activa»), (3) Dataset con ejecución activa (indicando dataset y run a las que pertenecen las hipótesis).
+  - Eliminadas puntuaciones engañosas globales de `overview.best_score` o `overview.total_trials` en tarjetas locales de Studio y Overview cuando la ejecución no tiene resultados.
+  - Soportado filtro `dataset_id` en endpoint REST `/api/runs`.
+  - Nueva suite automatizada `tests/test_workbench_context_consistency.py` con 7 pruebas pasando (100% verde).
+- [ ] **PR 2: Fase P0 — Métricas, puntuaciones y comparabilidad**:
+  - Dirección de optimización correcta en `best_trial` (minimizar vs maximizar según métrica: RMSE/MAE menor es mejor).
+  - Bloqueo de comparaciones incompatibles (distinta métrica o tarea).
+  - Etiquetas honestas («Mejor de esta ejecución», «Evaluado», «Diferencia observada»).
+- [ ] **PR 3: Fase P1 — Simplificación del flujo, navegación y estados de trabajos**:
+  - Centro de control orientado a Datos → Exploración → Experimentos → Resultados.
+  - Diferenciación rigurosa de estados de trabajos (pendiente, en ejecución, completado, fallido, cancelado).
+  - Barra flotante discreta que no oculte contenido cuando no haya trabajos activos.
+- [ ] **PR 4: Fase P1 — Leaderboard centrado en resultados, recomendaciones y recetas**:
+  - Presentación limpia del modelo ganador y condiciones de evaluación.
+  - Distinción visual: Propuesta vs Verificada vs Seleccionada vs Aplicada vs Promovida.
+- [ ] **PR 5: Fase P2 — Idioma, legibilidad y accesibilidad**:
+  - Unificación de textos en español conservando terminología técnica universal (ROC-AUC, RMSE, SHAP, K-Fold).
+  - Accesibilidad, contraste y diseño responsive en pantallas estrechas.
+
 ## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
 
 - [x] **Estudio Experimental y Validación Empírica en Kaggle Airline Satisfaction (`docs/experiments/`)**:
