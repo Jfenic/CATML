@@ -39,7 +39,8 @@ jobs:
           python -m pip install -e ".[dev]"
           python -m pip install pip-audit
       - name: Audit installed dependencies
-        run: python -m pip-audit
+        # Package name is pip-audit; Python module is pip_audit.
+        run: python -m pip_audit
 
   package-smoke:
     runs-on: ubuntu-latest
