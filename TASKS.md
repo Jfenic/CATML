@@ -103,9 +103,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | Done (`#98`) |
 | P0 | Single source for trial counters (leaderboard vs «ensayos completados») | Done (`#98`) |
 | P0 | Filter Explore transform hypotheses on identifier/discarded columns | Done (`#98`) |
-| P1 | Guided vs Advanced Explore (top findings first) | Done / open PR `#99` |
-| P1 | Correlation matrix UX + p-value/severity formatting | Done / open PR `#99` |
-| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done / open PR `#99` |
+| P1 | Guided vs Advanced Explore (top findings first) | Done (`#99`) |
+| P1 | Correlation matrix UX + p-value/severity formatting | Done (`#99`) |
+| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done (`#99`) |
 | P2 | Demo project + executive results export | Open (Sprint 3) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)
