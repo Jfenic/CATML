@@ -42,11 +42,44 @@ def test_resolve_allowed_path_rejects_outside_workspace(tmp_path: Path):
         resolve_allowed_path(outside, workspace_dir=ws, cwd=ws)
 
 
-def test_web_register_rejects_path_outside_workspace(tmp_path: Path):
-    outside = tmp_path / "escape.csv"
+def test_web_register_rejects_path_outside_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """HTTP register must 403 when the CSV is outside cwd ∪ workspace."""
+    import json
+    import threading
+    from http.server import ThreadingHTTPServer
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    from automl.interfaces.web.server import AutoMLWebHandler
+
+    monkeypatch.chdir(tmp_path)
+    ws_dir = tmp_path / "ws"
+    ws_dir.mkdir()
+    AutoMLWebHandler.workspace_dir = str(ws_dir)
+
+    outside = tmp_path.parent / "escape_outside.csv"
     outside.write_text("a,target\n1,0\n2,1\n")
-    with pytest.raises(PathOutsideWorkspaceError):
-        resolve_allowed_path(outside, workspace_dir=tmp_path / "ws", cwd=tmp_path / "ws")
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), AutoMLWebHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        payload = json.dumps(
+            {"name": "escape", "path": str(outside), "target": "target"}
+        ).encode()
+        req = Request(
+            f"http://{host}:{port}/api/dataset/register",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with pytest.raises(HTTPError) as exc:
+            urlopen(req)
+        assert exc.value.code == 403
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2.0)
 
 
 def test_upload_same_filename_does_not_overwrite(tmp_path: Path):
