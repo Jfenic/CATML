@@ -80,7 +80,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | PyPI-safe README quickstart (sklearn dataset) + CDN honesty | Done |
 | P1 | SECURITY/`pip-audit` honesty + CI audit job | Done (audit job non-blocking) |
 | P1 | CI matrix Python 3.11 + 3.13 | Done |
-| P2 | Vendor Workbench CDN assets for fully offline UI | Open |
+| P2 | Vendor Workbench CDN assets for fully offline UI | Done (`fix/workbench-offline-vendor-assets`) |
 | P0 | Reserve/publish `catml` on TestPyPI then PyPI as **0.9.0rc1** | Not started (needs human Trusted Publisher setup) |
 
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`)
@@ -93,7 +93,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | Soften group-candidate heuristic (e.g. `Customer Type` not an entity) | Done |
 | P1 | `time_series` requires `run.config.extra['time_column']` + sort | Done |
 | P1 | `run_experiment` → `FAILED` when zero successful trials | Done |
-| P2 | Broader offline/distribution UI matrix | Open (packaging track) |
+| P2 | Broader offline/distribution UI matrix | Partially Done (Workbench chrome offline; vision weights / LLM still optional network) |
 
 ### Track RC1 Gate — HPO fidelity + release publish gates (`fix/hpo-recipe-fidelity-and-release-gates`)
 

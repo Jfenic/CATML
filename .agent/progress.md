@@ -1,5 +1,13 @@
 # Progress
 
+### Track Workbench Offline Vendor Assets (`fix/workbench-offline-vendor-assets`, 2026-10-11)
+
+- P2 packaging: pin Chart.js 4.4.7, Lucide 0.469.0, Geist/IBM Plex Mono woff2, and built Tailwind 3.4.17 under `static/vendor/` + `css/tailwind.built.css`.
+- `index.html` loads only local `/static/...` (no cdn.tailwindcss / jsDelivr / unpkg / Google Fonts).
+- Rebuild helper: `scripts/vendor_workbench_assets.sh` (scratch in `.vendor-build/`, gitignored).
+- Tests: `tests/test_workbench_offline_vendor_assets.py` + smoke `REQUIRED_STATIC` / HTTP paths for vendor CSS/JS/fonts.
+- README network note updated for offline UI chrome.
+
 ### Track RC1 Gate — HPO fidelity + release gates (`fix/hpo-recipe-fidelity-and-release-gates`, 2026-10-11)
 
 - **Maintainers:** Jose Fenic Peiteado Padilla (@Jfenic) and Tania Évora Vargas Martínez (@tvarmar). Dual ownership documented in CONTRIBUTING, NOTICE, CODEOWNERS, and two-person-plan; cross-review on PR #95.
