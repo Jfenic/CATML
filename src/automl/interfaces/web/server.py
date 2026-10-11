@@ -69,6 +69,23 @@ from automl.application.recipes.queries import (
 from dataclasses import asdict
 
 
+def _status_value(status: Any) -> str:
+    """Normalize Enum / str status to a plain uppercase string."""
+    if status is None:
+        return "CREATED"
+    return str(getattr(status, "value", status)).upper()
+
+
+def _effective_experiment_status(experiment: Any, trials: list[Any]) -> str:
+    """Surface honest experiment status for Workbench (derive when persisted status lags)."""
+    status = _status_value(getattr(experiment, "status", None))
+    if status != "CREATED" or not trials:
+        return status
+    if any(getattr(t, "succeeded", getattr(t, "failure_reason", None) is None) for t in trials):
+        return "COMPLETED"
+    return "FAILED"
+
+
 def _is_metric_minimizing(metric_name: str | None, ws: Any = None) -> bool:
     """Returns True if the metric is minimizing (lower is better, e.g. loss/error metrics)."""
     if not metric_name:
@@ -781,7 +798,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "id": e.id,
                     "name": e.name,
                     "hypothesis": e.hypothesis,
-                    "status": e.status,
+                    "status": _effective_experiment_status(e, trials),
                     "priority": e.priority,
                     "model_ids": e.model_ids,
                     "features_count": len(e.feature_names),
@@ -1088,7 +1105,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     plan_steps.append({
                         "step": step_idx,
                         "name": e.name,
-                        "status": "COMPLETED" if trials else "RUNNING",
+                        "status": _effective_experiment_status(e, trials),
                         "score": round(best_t.primary_score, 5) if best_t else None,
                         "metric": e.metric,
                         "metric_direction": "minimize" if is_p_min else "maximize",

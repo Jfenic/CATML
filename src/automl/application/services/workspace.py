@@ -413,6 +413,7 @@ class AutoMLWorkspace:
             repository=self.get_study_repository(),
             dataset_resolver=self.get_dataset,
             statistical_engine=StatisticalAnalyzer(),
+            profile_resolver=self.get_dataset_profile,
         )
 
     def get_recipe_repository(self):

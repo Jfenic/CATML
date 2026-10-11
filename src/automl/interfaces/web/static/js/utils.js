@@ -28,6 +28,46 @@ export const ACTIVE_RUN_STATUSES = new Set([
   "QUEUED",
 ]);
 
+/** Spanish labels for experiment entity status (not run/job). */
+export const EXPERIMENT_STATUS_LABELS = {
+  CREATED: "Creado",
+  QUEUED: "En cola",
+  RUNNING: "En ejecución",
+  EVALUATING: "Evaluando",
+  COMPLETED: "Completado",
+  FAILED: "Fallido",
+  CANCELLED: "Cancelado",
+  PAUSED: "Pausado",
+};
+
+/**
+ * Format experiment status for display. Distinguishes from run-level badges.
+ * @param {string|undefined} status
+ * @returns {string}
+ */
+export function formatExperimentStatus(status) {
+  if (!status) return "Creado";
+  const key = String(status).toUpperCase();
+  return EXPERIMENT_STATUS_LABELS[key] || key;
+}
+
+/**
+ * Resolve completed-trial count from live experiments/leaderboard before stale run.trials_count.
+ * @param {{trials_count?: number}|null} activeRun
+ * @param {Array<{trials_count?: number, trials?: Array}>} experiments
+ * @param {Array} leaderboard
+ * @returns {number}
+ */
+export function resolveTrialsCount(activeRun, experiments = [], leaderboard = []) {
+  const fromExperiments = (experiments || []).reduce((sum, e) => {
+    const n = e.trials_count != null ? Number(e.trials_count) : (e.trials ? e.trials.length : 0);
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
+  const fromLeaderboard = Array.isArray(leaderboard) ? leaderboard.length : 0;
+  const fromRun = activeRun && activeRun.trials_count != null ? Number(activeRun.trials_count) : 0;
+  return Math.max(fromExperiments, fromLeaderboard, Number.isFinite(fromRun) ? fromRun : 0);
+}
+
 /**
  * Checks if a run is actively running or queued.
  * @param {object|string} run - The run object or status string.

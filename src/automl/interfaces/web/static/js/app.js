@@ -138,12 +138,29 @@ class App {
       if (statusBadge) {
         if (isAnyRunning) {
           statusBadge.className = "badge-warn px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
+          statusBadge.title = "Hay un entrenamiento o trabajo activo";
           statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>ENTRENANDO</span>`;
         } else {
-          const rawStatus = runs && runs[0] && runs[0].status ? runs[0].status : "LISTO";
-          const lastStatus = rawStatus === "READY" ? "LISTO" : rawStatus;
+          // Global badge = workspace readiness, not experiment entity status.
+          // Avoid showing run COMPLETED next to experiment CREATED (different entities).
+          const runStatus = activeRun && activeRun.status ? String(activeRun.status).toUpperCase() : "";
+          let label = "LISTO";
+          let tip = "Motor AutoML listo";
+          if (runStatus === "FAILED") {
+            label = "ERROR";
+            tip = `Ejecución ${activeRun.id}: fallida (estado de run, no de experimento)`;
+          } else if (runStatus === "COMPLETED" || runStatus === "READY") {
+            label = "LISTO";
+            tip = activeRun
+              ? `Ejecución ${activeRun.id}: completada · los experimentos tienen su propio estado`
+              : tip;
+          } else if (runStatus) {
+            label = runStatus;
+            tip = `Ejecución ${activeRun.id}: ${runStatus}`;
+          }
+          statusBadge.title = tip;
           statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
-          statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>${lastStatus}</span>`;
+          statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>${label}</span>`;
         }
       }
     } catch (e) {
