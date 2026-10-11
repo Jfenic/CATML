@@ -414,7 +414,14 @@ class SklearnTrainer(TrainerPort):
     ) -> tuple[Pipeline, Any]:
         model_params = {
             k: v for k, v in (parameters or {}).items()
-            if k not in ("text_columns", "image_columns", "image_model", "time_budget")
+            if k not in (
+                "text_columns",
+                "image_columns",
+                "image_model",
+                "time_budget",
+                "column_transforms",
+                "derived_features",
+            )
         }
 
         if self.plugin_registry and self.plugin_registry.has(model_id):

@@ -1,5 +1,13 @@
 # Progress
 
+### Track Export / path integrity (`fix/export-parquet-path-confinement`, 2026-10-11)
+
+- `save_dataframe()` writes by suffix (parquet/json/tsv/csv) with optional `.bak`; derived-feature apply uses it (fixes Parquet corruption via `to_csv`).
+- `export_model_artifact` materializes derived features + passes `column_transforms` into `fit_pipeline` (export matches validated recipe).
+- Workbench `/api/models/export` returns zip with `.pkl` + `.sha256` for fail-closed `ModelArtifact.load`.
+- `inspect-file` rejects paths outside cwd/workspace; `AutoML` temp workspaces cleaned on `close()`/GC.
+- Tests: `tests/test_export_parquet_path_confinement.py` + web dashboard expects `application/zip`. Dual-maintainer review: @tvarmar.
+
 ### Track Workbench UX Sprint 1 — State coherence (`fix/workbench-sprint1-state-coherence`, 2026-10-11)
 
 - P0 demo confidence from external UI review:

@@ -120,6 +120,17 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Not started (ambos mantenedores) |
 | P1 | CATML Benchmark v1 (external/AMLB campaigns) | Next — scaffold under `benchmarks/` |
 
+### Track Export / path integrity (`fix/export-parquet-path-confinement`)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Derived apply preserves Parquet/JSON (no CSV overwrite) + `.bak` | Done |
+| P0 | `export_model_artifact` replays derived + column_transforms | Done |
+| P0 | Workbench `/api/models/export` ships `.pkl` + `.sha256` zip | Done |
+| P0 | `/api/dataset/inspect-file` confined to cwd/workspace | Done |
+| P1 | `AutoML.fit` temp workspace cleaned via `TemporaryDirectory`/`close()` | Done |
+| P2 | Vendor Workbench CDN assets offline | Open (packaging) |
+
 ### Track Public Surface Audit — Coherence & Security Claims (`fix/audit-public-surface-coherence`)
 
 > External audit mixed outdated README/ARCHITECTURE claims with real gaps. Triage vs `main` (2026-10-11):
