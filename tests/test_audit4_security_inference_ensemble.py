@@ -45,41 +45,44 @@ def test_resolve_allowed_path_rejects_outside_workspace(tmp_path: Path):
 def test_web_register_rejects_path_outside_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """HTTP register must 403 when the CSV is outside cwd ∪ workspace."""
     import json
-    import threading
-    from http.server import ThreadingHTTPServer
-    from urllib.error import HTTPError
-    from urllib.request import Request, urlopen
+    from http import HTTPStatus
+    from unittest.mock import MagicMock
 
+    from automl.interfaces.web import server as web_server
     from automl.interfaces.web.server import AutoMLWebHandler
 
     monkeypatch.chdir(tmp_path)
     ws_dir = tmp_path / "ws"
     ws_dir.mkdir()
-    AutoMLWebHandler.workspace_dir = str(ws_dir)
+    # Avoid opening a real SQLite workspace (keeps 3.13 ResourceWarning stress clean).
+    monkeypatch.setattr(
+        web_server,
+        "build_application",
+        lambda root_dir: (MagicMock(), MagicMock(), MagicMock()),
+    )
 
-    outside = tmp_path.parent / "escape_outside.csv"
-    outside.write_text("a,target\n1,0\n2,1\n")
+    handler = AutoMLWebHandler.__new__(AutoMLWebHandler)
+    handler.workspace_dir = str(ws_dir)
+    handler.require_auth = False
+    handler.auth_token = None
+    handler.path = "/api/dataset/register"
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), AutoMLWebHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        host, port = server.server_address
-        payload = json.dumps(
-            {"name": "escape", "path": str(outside), "target": "target"}
-        ).encode()
-        req = Request(
-            f"http://{host}:{port}/api/dataset/register",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        with pytest.raises(HTTPError) as exc:
-            urlopen(req)
-        assert exc.value.code == 403
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=2.0)
+    outside = Path("/etc/passwd").resolve()
+    body = json.dumps({"name": "escape", "path": str(outside), "target": "target"}).encode()
+    handler.rfile = MagicMock()
+    handler.rfile.read.return_value = body
+    handler.headers = {"Content-Length": str(len(body))}
+
+    sent: dict = {}
+
+    def mock_send_json(data, status=200):
+        sent["data"] = data
+        sent["status"] = status
+
+    handler._send_json = mock_send_json
+    handler.do_POST()
+    assert sent.get("status") == HTTPStatus.FORBIDDEN
+    assert "Access denied" in sent["data"].get("error", "")
 
 
 def test_upload_same_filename_does_not_overwrite(tmp_path: Path):
