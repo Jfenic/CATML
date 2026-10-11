@@ -2,18 +2,34 @@
 
 ### Track Clean Architecture Refactor (PR1 contracts, 2026-10-11)
 
-- Documented progressive plan: `docs/features/clean-architecture-refactor/` + ADR-010 (docs PR / brief).
-- **PR1 done** on `refactor/clean-arch-pr1-metric-execution-contracts` (from audit-3 / #100):
+- Docs ADR-010 / plan: PR #101. **PR1 code merged via #102**:
   - `domain/metrics/spec.py`: `MetricSpec` + builtin registry + `resolve_metric_spec` / `InvalidMetric`.
   - `domain/experiments/execution_spec.py`: frozen `ExecutionSpec` + `build_execution_spec` / `trial_execution_from_spec`.
   - Wired Workspace `run_experiment` / `optimize_experiment` / schedule / `get_best_trial`, benchmarks `is_minimizing_metric`, web `_is_metric_minimizing`, trainer helper — no hardcoded minimize sets / blind `max()`.
   - HPO keeps fixed CV fold seed (`ExecutionSpec.random_seed` = run seed).
-  - Tests: `tests/test_clean_arch_pr1_contracts.py` (+ audit-3 suite green).
-- Gate: merge #99 + #100 before PR2+ (Workspace service extraction).
+  - Tests: `tests/test_clean_arch_pr1_contracts.py`.
+- Next: PR2 Workspace facade extraction.
+
+### Track Workbench UX Sprint 2 — Explore guided (`fix/workbench-sprint2-explore-guided`, 2026-10-11)
+
+- Merged in PR #99.
+- Guiado/Avanzado toggle: top 5 findings + hypotheses first; matrices/full filters in Advanced.
+- Severity: CRITICAL only for IDs / |r|≥0.9 / strong multivariate outliers (not every collinear pair).
+- `formatPValue` replaces `p=0.000e+00`; guided association list (|r|≥0.70) before full heatmap.
+- Advanced correlation matrix: column search filter + max-height scroll.
+- Comparator chart: floor Y-pad on [0,1] metrics so Δ~3e-5 is not visually exaggerated; neutral band 0.001.
+- Tests: `tests/test_workbench_sprint2_explore_guided.py`.
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`, 2026-10-11)
 
-- Open PR #100 — contracts for recipes/CV/metrics/FDR/XSS (implementation branch; not yet on main).
+- Merged in PR #100 — recipe/CV/metric/FDR/XSS contracts.
+- Third external audit (post-`beb93a0` / PR #95): secondary paths lacked primary-flow guarantees.
+- **Contracts:** `domain/experiments/validation.py` normalizes CV aliases (`k_fold`→`kfold`) and rejects unknown strategies (trainer + `create_experiment` fail closed).
+- **Recipes:** translator call uses `default_models`; `ExperimentCandidateSpec.drop_features` + `model_id`; submit restores metric/cv/seed/strategy on run; SHA-256 `dataset_content_hash`; block archived submit; promote requires experiments.
+- **Metrics/HPO:** `run_scheduled_experiments` uses minimize/maximize; `get_best_trial` consults metric plugins; HPO `TrialExecution.random_seed` fixed for CV folds (trial bookkeeping seed still varies).
+- **FDR:** Benjamini–Hochberg no longer maps `p=0.0` via `or 1.0`.
+- **XSS:** `escapeHtml` on feature/column/model interpolations in `new_experiment.js`, `datasets.js`, `compare.js`.
+- Tests: `tests/test_audit3_recipe_metric_cv_contracts.py`. Deferred: stacking OOF metamodel, shap naming, pip-audit hard-fail.
 
 ### Track Export / path integrity (`fix/export-parquet-path-confinement`, 2026-10-11)
 

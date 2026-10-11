@@ -603,7 +603,13 @@ export class CompareView {
     const minScore = validData.length > 0 ? Math.min(...validData) : 0.0;
     const maxScore = validData.length > 0 ? Math.max(...validData) : 1.0;
     const range = maxScore - minScore;
-    const pad = range > 0 ? range * 0.1 : (Math.abs(maxScore) * 0.1 || 0.01);
+    // Floor padding so tiny Δ (e.g. 3e-5) does not look like a large swing.
+    const looksBounded01 = minScore >= 0 && maxScore <= 1.05;
+    const pad = looksBounded01
+      ? Math.max(range * 0.5, 0.05)
+      : Math.max(range * 0.15, Math.abs(maxScore) * 0.05 || 0.01);
+    const yMin = looksBounded01 ? Math.max(0, Math.min(minScore - pad, 0.85)) : (minScore - pad);
+    const yMax = looksBounded01 ? Math.min(1, Math.max(maxScore + pad, 0.95)) : (maxScore + pad);
 
     this.chart = new window.Chart(canvas, {
       type: "line",
@@ -640,8 +646,8 @@ export class CompareView {
             ticks: { color: "#8B95A7", font: { size: 10 } },
           },
           y: {
-            min: Math.max(0, minScore - pad),
-            max: maxScore + pad,
+            min: yMin,
+            max: yMax,
             grid: { color: "rgba(36, 42, 54, 0.4)" },
             ticks: { color: "#8B95A7", font: { size: 10 } },
           },
