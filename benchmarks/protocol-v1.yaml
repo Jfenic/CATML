@@ -1,0 +1,64 @@
+# CATML Benchmark Protocol v1 — freeze before campaign measurement.
+name: catml-benchmark-v1
+version: "1.0.0-draft"
+status: draft  # set to frozen after pilot sign-off
+
+hardware_policy:
+  identical_limits: true
+  note: "Same CPU/RAM caps for every framework in a campaign."
+
+budgets:
+  pilot_minutes: [5]
+  campaign_minutes: [5, 20]
+
+metrics:
+  binary_classification:
+    primary: roc_auc
+    secondary: [average_precision, log_loss, balanced_accuracy]
+  multiclass:
+    primary: log_loss
+    secondary: [accuracy, balanced_accuracy]
+  regression:
+    primary: rmse
+    secondary: [mae, r2]
+
+studies:
+  C:
+    name: robustness_and_trust
+    description: Adversarial fixtures with predetermined success criteria.
+    entrypoint: tests/test_benchmark_study_c.py
+  A:
+    name: predictive_performance
+    description: External comparison via OpenML/AMLB adapters.
+    frameworks: [dummy, sklearn_baseline, catml, flaml, autogluon]
+    seeds: 3
+    datasets_from: datasets-manifest.csv
+  B:
+    name: explore_and_agents
+    description: Incremental value of Explore/recipes/agents under hidden holdout.
+    configurations: [sklearn_baseline, catml_base, catml_explore, catml_agent]
+    holdout_policy: never_seen_during_search
+
+failure_reporting:
+  score_when_all_failed: null
+  track_failure_rate: true
+  never_treat_zero_as_success: true
+
+reproducibility:
+  record:
+    - catml_git_commit
+    - python_version
+    - dependency_versions
+    - os
+    - cpu_model
+    - ram_gb
+    - seed
+    - wall_time_s
+    - peak_rss_mb
+  outputs:
+    - results/v1/raw-results.csv
+    - results/v1/summary.csv
+    - results/v1/failures.csv
+    - results/v1/environment.json
+    - results/v1/checksums.sha256
+    - results/v1/report.md

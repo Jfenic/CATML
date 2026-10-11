@@ -29,3 +29,7 @@ secrets.json
 
 # Workbench vendor rebuild scratch (npm + Tailwind); committed outputs live under static/
 .vendor-build/
+
+# Benchmark campaign outputs (keep .gitkeep)
+benchmarks/results/v1/*
+!benchmarks/results/v1/.gitkeep

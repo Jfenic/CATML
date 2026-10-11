@@ -2,6 +2,17 @@
 
 By participating, you agree to uphold the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+## Mantenedores
+
+CATML se desarrolla en equipo de dos personas. Coordinar PRs y revisiones cruzadas con ambos:
+
+| Persona | GitHub | Nombre |
+| --- | --- | --- |
+| Mantenedor | [@Jfenic](https://github.com/Jfenic) | Jose Fenic Peiteado Padilla |
+| Mantenedora | [@tvarmar](https://github.com/tvarmar) | Tania Évora Vargas Martínez |
+
+Para trabajo paralelo (p. ej. tracks Persona A / Persona B del sistema agéntico), asignar roles **por tarea** — no son identidades fijas — y seguir [`docs/features/agentic-system/two-person-plan.md`](docs/features/agentic-system/two-person-plan.md): ownership por subdirectorio, contratos compartidos antes de editar archivos monolíticos, `git merge` (nunca rebase), y revisión de la otra persona antes de fusionar.
+
 El estado de tareas y el backlog se mantienen en [TASKS.md](TASKS.md). Para elegir trabajo, consultar también los avisos abiertos:
 
 ```bash

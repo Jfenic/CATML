@@ -19,7 +19,7 @@ We take the security and integrity of CATML and its users seriously.
 If you discover a security vulnerability or sensitive defect, **please do not disclose it publicly** via GitHub Issues or discussions. Instead, follow responsible disclosure:
 
 1. **GitHub Security Advisory:** Submit a private vulnerability report via [GitHub Security Advisories](https://github.com/Jfenic/CATML/security/advisories/new).
-2. **Direct Contact:** If GitHub Advisories is unavailable, contact the project maintainers directly via repository owner contact channels.
+2. **Direct Contact:** If GitHub Advisories is unavailable, contact the project maintainers ([@Jfenic](https://github.com/Jfenic), [@tvarmar](https://github.com/tvarmar)) via repository owner contact channels.
 
 Please provide:
 - A clear description of the vulnerability.
@@ -72,3 +72,9 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - Core and optional extras primarily declare lower bounds; pin or constrain versions in deployment environments as needed.
 - Release artifacts should be built with `python -m build` and validated with `twine check` plus the Workbench-static wheel assertion in CI / `release.yml`.
 - Optional vision backbones may download pretrained weights on first use; that is not dataset egress.
+
+### 6. Release / PyPI publishing gates
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) separates **build → verify → publish**. Publish jobs only download the verified `dist/` artifact (no rebuild in the privileged job).
+- Tag pushes (`v*`) must match `automl.__version__` (normalized) or the build job fails.
+- Production publish uses the GitHub Environment `pypi`; TestPyPI uses `testpypi`. Configure **required reviewers** on those environments before enabling Trusted Publishing.
+- Manual dispatch defaults to TestPyPI; choose `none` to build/verify without uploading. Do not tag/publish without a green verify job and an installed-wheel smoke test.

@@ -1,0 +1,6 @@
+dataset_id,task,source,split_policy,notes,status
+openml_pilot_binary_1,binary_classification,openml,official_openml,"Replace with concrete OpenML tid after pilot selection",planned
+openml_pilot_binary_2,binary_classification,openml,official_openml,"Replace with concrete OpenML tid after pilot selection",planned
+openml_pilot_regression_1,regression,openml,official_openml,"Replace with concrete OpenML tid after pilot selection",planned
+sklearn_breast_cancer,binary_classification,sklearn,holdout_0.2,"Local pilot / CI-friendly smoke dataset",active
+adversarial_study_c,*,synthetic,fixture,"Study C adversarial suite (see tests/test_benchmark_study_c.py)",active
