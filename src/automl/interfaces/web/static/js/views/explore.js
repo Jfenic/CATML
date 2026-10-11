@@ -107,7 +107,13 @@ export class ExploreView {
   }
 
   _getFilteredFindings() {
-    return this.findings.filter(f => {
+    const severityWeight = {
+      CRITICAL: 3,
+      WARNING: 2,
+      INFO: 1,
+    };
+
+    const list = this.findings.filter(f => {
       // Category filter
       if (this.filterCategory === "COLLINEARITY" && f.finding_type !== "high_collinearity") return false;
       if (this.filterCategory === "DISTRIBUTION" && !["skewness", "normality_violation", "multimodal_distribution", "outlier_density", "multivariate_outliers"].includes(f.finding_type)) return false;
@@ -125,6 +131,21 @@ export class ExploreView {
       }
 
       return true;
+    });
+
+    // Ordenar por importancia: Severidad (CRITICAL > WARNING > INFO), significancia FDR y magnitud del efecto
+    return list.sort((a, b) => {
+      const sevA = severityWeight[this._classifySeverity(a)] || 0;
+      const sevB = severityWeight[this._classifySeverity(b)] || 0;
+      if (sevA !== sevB) return sevB - sevA;
+
+      const fdrA = a.metrics?.fdr_significant ? 1 : 0;
+      const fdrB = b.metrics?.fdr_significant ? 1 : 0;
+      if (fdrA !== fdrB) return fdrB - fdrA;
+
+      const effA = Math.abs(Number(a.effect_size != null ? a.effect_size : (a.metrics?.pearson_r ?? a.metrics?.cramers_v ?? a.metrics?.cohens_d ?? 0)));
+      const effB = Math.abs(Number(b.effect_size != null ? b.effect_size : (b.metrics?.pearson_r ?? b.metrics?.cramers_v ?? b.metrics?.cohens_d ?? 0)));
+      return effB - effA;
     });
   }
 

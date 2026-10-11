@@ -491,7 +491,15 @@ export class DatasetsView {
     const study = this.activeStudy;
     const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
     const datasetName = currentDs ? currentDs.name : (this.profile?.name || this.activeDatasetId);
-    const findings = study?.findings || [];
+    const severityWeight = { CRITICAL: 3, WARNING: 2, INFO: 1 };
+    const findings = [...(study?.findings || [])].sort((a, b) => {
+      const sevA = severityWeight[this._classifyFindingSeverity(a)] || 0;
+      const sevB = severityWeight[this._classifyFindingSeverity(b)] || 0;
+      if (sevA !== sevB) return sevB - sevA;
+      const effA = Math.abs(Number(a.effect_size != null ? a.effect_size : (a.metrics?.pearson_r ?? a.metrics?.cramers_v ?? a.metrics?.cohens_d ?? 0)));
+      const effB = Math.abs(Number(b.effect_size != null ? b.effect_size : (b.metrics?.pearson_r ?? b.metrics?.cramers_v ?? b.metrics?.cohens_d ?? 0)));
+      return effB - effA;
+    });
     const visualizations = study?.visualizations || [];
     const hypotheses = study?.hypotheses || [];
 

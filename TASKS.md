@@ -30,6 +30,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Clases oscuras explícitas en `explore.js` para el selector de estudio activo (`#selectActiveStudy`), filtros de categoría/severidad y campos modales.
   - [x] Soporte dual `viz.data_series || viz.data` en renderizado declarativo de visualizaciones (matriz de correlación Pearson/Spearman 19x19, Cramér's V, histogramas, diagramas de caja y dispersión).
   - [x] Homogeneización de clasificación de severidad de hallazgos estadísticos y cálculo robusto de tamaño del efecto y p-valores en tarjetas de la galería.
+  - [x] Ordenación por importancia en la galería de hallazgos estadísticos (`_getFilteredFindings` y `datasets.js`): severidad descendente (`CRITICAL` > `WARNING` > `INFO`), significancia FDR y magnitud del tamaño del efecto.
+  - [x] Auto-backfill en `AutoMLWorkspace._hydrate_feature_registry()` registrando características a partir del perfil del dataset cuando la tabla de features no las contiene, previniendo el error `Unknown features for dataset` en verificación de hipótesis.
   - [x] Test automatizado `test_workbench_explore_form_inputs_and_select_styles` en `tests/test_workbench_navigation_and_explore_ui.py`.
 
 - [x] **Corrección de Perfilado de Columnas Booleanas y Registro de Datasets en Workbench**:

@@ -19,11 +19,19 @@
     - En `src/automl/interfaces/web/static/js/views/explore.js`: clases Tailwind oscuras explícitas (`bg-[#161B26] border-[#242A36] text-[#F7F8FA]`) en selector `#selectActiveStudy`, filtros `#filterCategorySelect`, `#filterSeveritySelect` y campos modales de nuevo estudio.
   - **Alineación de Visualizaciones Declarativas (`data_series` vs `data`):**
     - En `src/automl/interfaces/web/static/js/views/explore.js`: adaptadas las funciones de renderizado de visualizaciones (`_renderCorrelationMatrixHtml`, `_renderCategoricalMatrixHtml`, `_renderHistogramSvgHtml`, `_renderBoxplotSvgHtml`, `_renderScatterSvgHtml`) para leer `viz.data_series || viz.data || {}`, renderizando correctamente matrices de correlación (19x19), Cramér's V, histogramas con conteos reales y diagramas de dispersión y caja.
-  - **Galería de Hallazgos Estadísticos:**
+  - **Galería de Hallazgos Estadísticos y Ordenación por Importancia:**
+    - En `src/automl/interfaces/web/static/js/views/explore.js` (`_getFilteredFindings`) y `datasets.js`: implementada ordenación jerárquica por importancia real de los hallazgos:
+      1. Severidad clínica descendente: `CRITICAL` (3) > `WARNING` (2) > `INFO` (1).
+      2. Significancia estadística ajustada por False Discovery Rate (Benjamini-Hochberg `fdr_significant`).
+      3. Magnitud absoluta del tamaño del efecto (`Math.abs(effect_size || pearson_r || cramers_v || cohens_d)`).
     - Homogeneizada la clasificación de severidad `_classifySeverity` con `datasets.js` (incluyendo `multivariate_outliers` y `high_cardinality_identifier` como `CRITICAL`, `multimodal_distribution` y `target_class_separation` como `WARNING`).
     - Añadido soporte para métricas alternativas en `effect` (`cramers_v`, `cohens_d`, etc.) y badges formateados para p-valor (`p < 0.0001` o `p = 0.0000`).
+  - **Auto-Backfill de Features en Registro y Resolución de Error al Verificar Hipótesis:**
+    - Causa raíz identificada: Al registrar el dataset de Kaggle con target booleano antes de la corrección de booleanos, solo se persistió la columna target `Class` en la tabla `features`. Al pulsar «Verificar hipótesis», el motor de verificación validaba las columnas contra el repositorio devolviendo `Unknown features for dataset ds_819ec589: Age, Flight Distance, ...`.
+    - En `src/automl/application/services/workspace.py` (`_hydrate_feature_registry`): añadido auto-backfill a partir de las columnas detectadas en `DatasetProfile.columns`. Si faltan columnas en el repositorio de características, se auto-registran y persisten con tipo inferido (`identifier` si corresponde o `unknown`). Verificado en `ds_819ec589`: el conteo de features pasó de 1 a 22 características operativas, permitiendo la verificación de hipótesis sin errores.
   - **Pruebas de Regresión:**
-    - Test `test_workbench_explore_form_inputs_and_select_styles` en `tests/test_workbench_navigation_and_explore_ui.py`. 46 tests de workbench pasando al 100%.
+    - Test `test_workbench_explore_form_inputs_and_select_styles` en `tests/test_workbench_navigation_and_explore_ui.py`.
+    - Suite completa de Explore (`tests/test_explore_*.py`, 46 tests) y Workbench (`tests/test_workbench_*.py`, 46 tests) aprobada al 100%.
 - **Soporte de Columnas Booleanas en Perfilado Estadístico y Registro de Datasets:**
   - `src/automl/engine/profiling/dataset_profiler.py`:
     - En `profile_dataset()`, conversión de series booleanas a `float64` (`0.0`/`1.0`) para cálculos estadísticos univariantes (media, std, mediana, `q25`, `q75`, curtosis, asimetría, histogramas). Evita el error `TypeError: numpy boolean subtract, the '-' operator, is not supported` provocado por la interpolación lineal de cuartiles en NumPy 1.25+/2.x sobre tipos booleanos estándar y nulos (`pd.BooleanDtype`).

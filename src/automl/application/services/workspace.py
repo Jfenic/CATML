@@ -185,33 +185,44 @@ class AutoMLWorkspace:
         return cls.create(name, root_dir=base)
 
     def _hydrate_feature_registry(self, dataset_id: str) -> None:
-        features = self.repository.list_features(dataset_id)
+        features = list(self.repository.list_features(dataset_id))
         profile = self.repository.get_dataset_profile(dataset_id)
-        if features:
-            if profile:
-                id_names = set(profile.identifier_column_names)
-                for f in features:
-                    if f.semantic_type == "unknown" and f.name in id_names:
-                        f.semantic_type = "identifier"
-                        self.repository.save_feature(f)
-            registry = FeatureRegistry(features)
-        else:
-            profile = self.repository.get_dataset_profile(dataset_id)
-            if profile is None:
-                return
-            registry = FeatureRegistry()
+        if profile is None:
+            try:
+                dataset = self._get_dataset(dataset_id)
+                if dataset and Path(dataset.path).exists():
+                    from automl.engine.profiling.dataset_profiler import profile_dataset
+                    profile = profile_dataset(dataset)
+                    self.repository.save_dataset_profile(profile)
+            except Exception:
+                pass
+
+        registry = FeatureRegistry(features)
+        known_names = {f.name for f in registry.list()}
+
+        if profile:
+            id_names = set(profile.identifier_column_names)
+            for f in registry.list():
+                if f.semantic_type == "unknown" and f.name in id_names:
+                    f.semantic_type = "identifier"
+                    self.repository.save_feature(f)
+
+            target = profile.target_column
             for column in profile.columns:
-                if column.name == profile.target_column:
+                if target is not None and column.name == target:
                     continue
-                registry.register(
-                    Feature(
+                if column.name not in known_names:
+                    feature = Feature(
                         id=f"feat_{column.name}",
                         dataset_id=dataset_id,
                         name=column.name,
                         physical_dtype=column.dtype,
                         semantic_type="identifier" if column.is_identifier else "unknown",
                     )
-                )
+                    registry.register(feature)
+                    self.repository.save_feature(feature)
+                    known_names.add(column.name)
+
         self._feature_registries[dataset_id] = registry
 
     def _emit(self, event_type: str, payload: dict, run_id: str | None = None) -> None:
