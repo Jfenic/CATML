@@ -59,7 +59,8 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - **Fragment-Only URLs:** Access tokens are provided using client-side fragments (`/#token=...`), ensuring tokens are never transmitted across HTTP requests or leaked in server access logs.
 - **CORS:** Workbench reflects `Access-Control-Allow-Origin` only for `http://localhost:*` / `http://127.0.0.1:*` origins; it is not a wildcard public API.
 - **CSRF posture:** The Workbench is a same-origin static SPA talking to its own loopback HTTP handler with Bearer tokens for remote binds. It is not a cookie-session multi-site app; deploy behind TLS + reverse-proxy auth for any non-loopback exposure.
-- **Path confinement:** Dataset browse/upload/download and media preview endpoints reject path traversal and stay within workspace / registered dataset roots (see Workbench file-confinement tests).
+- **Path confinement:** Dataset browse/upload/download, **inspect-file**, and media preview endpoints reject path traversal and stay within cwd and/or workspace roots (see Workbench file-confinement tests). Authentication for remote binds does not replace filesystem confinement.
+- **Model export:** Workbench `/api/models/export` returns a zip containing the `.pkl` and its `.sha256` sidecar so `ModelArtifact.load(verify_checksum=True)` succeeds after download.
 - **Production Deployments:** When deployed on LAN or cloud VPS, CATML services must be placed behind an authenticated TLS reverse proxy (Nginx, Caddy, Envoy). See [`docs/trusted-deployment.md`](docs/trusted-deployment.md) for reference configurations.
 
 ### 4. Agentic & MCP Governance ("Propose ≠ Accept")

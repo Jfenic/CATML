@@ -222,11 +222,50 @@ class InferenceService:
             raise ValueError(f"No trial found for experiment '{target_exp_id}'.")
 
         train_df = load_dataframe(dataset.path)
+
+        # Replay experiment recipe so export matches the validated trial pipeline.
+        derived_features = list(getattr(experiment, "derived_features", []) or [])
+        column_transforms = list(getattr(experiment, "column_transforms", []) or [])
+        if derived_features:
+            from automl.domain.features.derived_feature import DerivedFeatureDefinition
+            from automl.engine.features.generation.derived_feature_engine import (
+                DerivedFeatureEngine,
+                assert_derived_specs_safe_for_cross_validation,
+            )
+
+            assert_derived_specs_safe_for_cross_validation(derived_features)
+            derived_engine = DerivedFeatureEngine()
+            for df_spec in derived_features:
+                defn = (
+                    DerivedFeatureDefinition.from_dict(df_spec)
+                    if isinstance(df_spec, dict)
+                    else df_spec
+                )
+                if defn.name not in train_df.columns:
+                    train_df, eval_res = derived_engine.apply(
+                        train_df,
+                        defn,
+                        allow_python_code=False,
+                        allow_stateful_aggregates=False,
+                    )
+                    if not eval_res.is_valid:
+                        raise ValueError(
+                            f"Failed to materialize derived feature '{defn.name}' for export: "
+                            f"{eval_res.error_message}"
+                        )
+
         feature_names = experiment.feature_names
+        missing = [c for c in feature_names if c not in train_df.columns]
+        if missing:
+            raise ValueError(
+                f"Cannot export model: experiment features missing from dataset after recipe replay: {missing}"
+            )
         X_train = train_df[feature_names]
         y_train = train_df[dataset.target_column]
 
         params = dict(target_trial.parameters or {})
+        if column_transforms and "column_transforms" not in params:
+            params["column_transforms"] = column_transforms
         if run.config and run.config.extra:
             if "text_columns" in run.config.extra and "text_columns" not in params:
                 params["text_columns"] = run.config.extra["text_columns"]
@@ -313,6 +352,8 @@ class InferenceService:
                 "run_id": run_id,
                 "experiment_id": target_exp_id,
                 "trial_id": target_trial.id,
+                "column_transforms": column_transforms,
+                "derived_features": derived_features,
             },
             provenance=provenance,
         )

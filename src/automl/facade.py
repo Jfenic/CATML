@@ -127,6 +127,9 @@ class AutoML:
             Seed for reproducible dataset splits and model initialization.
         workspace_dir: str | Path | None
             Custom directory path for workspace artifacts and experiment tracking.
+            If omitted, a temporary directory is created and cleaned up when this
+            ``AutoML`` instance is garbage-collected (or when ``close()`` is called).
+            Pass an explicit path to retain datasets/SQLite across process lifetime.
         group_column: str | None
             Column name representing entity or cluster groups to enforce non-overlapping splits.
         image_columns: list[str] | None
@@ -145,6 +148,7 @@ class AutoML:
         self.image_columns = list(image_columns) if image_columns is not None else None
         self.image_model = image_model
         self._result: AutoMLResult | None = None
+        self._temp_workspace: tempfile.TemporaryDirectory[str] | None = None
 
     def fit(
         self,
@@ -180,12 +184,14 @@ class AutoML:
 
         resolved_task_type = self._resolve_task_type(df[target_col])
 
-        # Provision workspace
+        # Provision workspace (temp dirs are owned by this instance and cleaned on close/GC)
         if self.workspace_dir:
             self.workspace_dir.mkdir(parents=True, exist_ok=True)
             ws_root = self.workspace_dir
         else:
-            ws_root = Path(tempfile.mkdtemp(prefix="catml_fit_"))
+            if self._temp_workspace is None:
+                self._temp_workspace = tempfile.TemporaryDirectory(prefix="catml_fit_")
+            ws_root = Path(self._temp_workspace.name)
 
         ws, cmd, qry = build_application(root_dir=str(ws_root))
 
@@ -410,3 +416,21 @@ class AutoML:
                 return TaskType.REGRESSION
             return TaskType.parse(t)
         return infer_task_type(target_series)
+
+    def close(self) -> None:
+        """Remove a temporary fit workspace created when ``workspace_dir`` was omitted."""
+        if self._temp_workspace is not None:
+            self._temp_workspace.cleanup()
+            self._temp_workspace = None
+
+    def __enter__(self) -> AutoML:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass

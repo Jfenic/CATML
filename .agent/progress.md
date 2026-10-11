@@ -1,5 +1,13 @@
 # Progress
 
+### Track Export / path integrity (`fix/export-parquet-path-confinement`, 2026-10-11)
+
+- `save_dataframe()` writes by suffix (parquet/json/tsv/csv) with optional `.bak`; derived-feature apply uses it (fixes Parquet corruption via `to_csv`).
+- `export_model_artifact` materializes derived features + passes `column_transforms` into `fit_pipeline` (export matches validated recipe).
+- Workbench `/api/models/export` returns zip with `.pkl` + `.sha256` for fail-closed `ModelArtifact.load`.
+- `inspect-file` rejects paths outside cwd/workspace; `AutoML` temp workspaces cleaned on `close()`/GC.
+- Tests: `tests/test_export_parquet_path_confinement.py`. Dual-maintainer review: @tvarmar.
+
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`, 2026-10-11)
 
 - Reinforced audit blockers before announcing 0.9.0rc1 (post wheel-static PR #92):

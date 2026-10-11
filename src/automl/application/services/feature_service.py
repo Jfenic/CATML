@@ -102,8 +102,10 @@ class FeatureEngineeringService:
             allow_stateful_aggregates=True,
         )
 
-        # Save updated dataframe to dataset path
-        updated_df.to_csv(dataset.path, index=False)
+        # Preserve original on-disk format (Parquet must not be overwritten with CSV bytes).
+        from automl.engine.profiling.dataset_profiler import save_dataframe
+
+        save_dataframe(updated_df, dataset.path, backup=True)
 
         # Re-profile dataset so new feature is part of the profile schema and available for experiments
         profile = profile_dataset(dataset, updated_df)

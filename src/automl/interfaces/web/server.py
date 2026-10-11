@@ -859,16 +859,27 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
             try:
                 import io
-                import joblib
+                import tempfile
+                import zipfile
 
                 artifact = ws.export_model_artifact(run_id=run_id, experiment_id=exp_id, trial_id=trial_id)
-                buf = io.BytesIO()
-                joblib.dump(artifact, buf)
-                data = buf.getvalue()
+                # Persist via ModelArtifact.save so the .sha256 sidecar is produced; ship both in a zip
+                # so ModelArtifact.load(verify_checksum=True) works after download.
+                with tempfile.TemporaryDirectory(prefix="catml_export_") as tmp:
+                    pkl_name = f"catml_{artifact.model_id}.pkl"
+                    pkl_path = Path(tmp) / pkl_name
+                    artifact.save(pkl_path, generate_checksum=True)
+                    sha_path = pkl_path.with_suffix(pkl_path.suffix + ".sha256")
+                    buf = io.BytesIO()
+                    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+                        zf.write(pkl_path, arcname=pkl_name)
+                        if sha_path.is_file():
+                            zf.write(sha_path, arcname=sha_path.name)
+                    data = buf.getvalue()
 
-                filename = f"catml_{artifact.model_id}.pkl"
+                filename = f"catml_{artifact.model_id}.zip"
                 self.send_response(HTTPStatus.OK)
-                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Type", "application/zip")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
                 self.send_header("Content-Length", str(len(data)))
                 self._send_cors_headers()
@@ -901,6 +912,9 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "target_name": artifact.target_name,
                     "parameters": artifact.parameters,
                     "download_url": f"/api/models/export?run_id={run_id}" + (f"&experiment_id={exp_id}" if exp_id else "") + (f"&trial_id={trial_id}" if trial_id else ""),
+                    "download_format": "zip",
+                    "contains": ["*.pkl", "*.pkl.sha256"],
+                    "load_hint": "Unzip, then ModelArtifact.load('catml_<model>.pkl') with the sidecar present.",
                 })
                 return
             except Exception as e:
@@ -1653,6 +1667,21 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     return
 
                 target_file = Path(file_path_str).resolve()
+                # Same confinement as /api/files/browse: cwd or workspace only.
+                base_dir = Path.cwd().resolve()
+                ws_path = Path(self.workspace_dir).resolve()
+                allowed = (
+                    target_file == base_dir
+                    or target_file.is_relative_to(base_dir)
+                    or target_file == ws_path
+                    or target_file.is_relative_to(ws_path)
+                )
+                if not allowed:
+                    self._send_json(
+                        {"error": f"Access denied: path outside workspace/cwd: {file_path_str}"},
+                        HTTPStatus.FORBIDDEN,
+                    )
+                    return
                 if not target_file.exists() or not target_file.is_file():
                     self._send_json({"error": f"File not found: {file_path_str}"}, HTTPStatus.NOT_FOUND)
                     return

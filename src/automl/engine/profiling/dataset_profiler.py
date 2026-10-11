@@ -779,3 +779,38 @@ def load_dataframe(path: str | Path) -> pd.DataFrame:
     elif suffix in {".tsv", ".tab"}:
         return pd.read_csv(p, sep="\t")
     return pd.read_csv(p)
+
+
+def save_dataframe(df: pd.DataFrame, path: str | Path, *, backup: bool = True) -> Path:
+    """Persist a DataFrame using the format implied by ``path`` suffix.
+
+    Prevents corrupting Parquet/JSON datasets by always writing CSV (a past bug in
+    derived-feature apply). Optionally writes a ``.bak`` of the previous file first.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if backup and target.is_file():
+        bak = target.with_suffix(target.suffix + ".bak")
+        try:
+            bak.write_bytes(target.read_bytes())
+        except OSError:
+            pass
+
+    suffix = target.suffix.lower()
+    if suffix in {".parquet", ".pq"}:
+        try:
+            df.to_parquet(target, index=False)
+        except ImportError as exc:
+            raise ImportError(
+                f"Writing parquet file '{target.name}' requires 'pyarrow' or 'fastparquet'. "
+                "Install with `pip install pyarrow` or `pip install catml[parquet]`."
+            ) from exc
+    elif suffix in {".json"}:
+        df.to_json(target, orient="records", indent=2)
+    elif suffix in {".jsonl"}:
+        df.to_json(target, orient="records", lines=True)
+    elif suffix in {".tsv", ".tab"}:
+        df.to_csv(target, sep="\t", index=False)
+    else:
+        df.to_csv(target, index=False)
+    return target
