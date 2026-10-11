@@ -59,9 +59,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Ciclo de vida estandarizado de transformaciones en `utils.js` (`TRANSFORMATION_LIFECYCLE_STAGES`, `getTransformationStageInfo`) con badges de estado formalizados: Propuesta (`PROPOSED`), Verificada (`VERIFIED`), Seleccionada (`SELECTED`), Aplicada (`APPLIED`), Promovida (`PROMOTED`). Integrado en `explore.js`.
   - Sincronización robusta de selección de características en `datasets.js` (`_updateSelectionUi`), actualizando concurrentemente `selectedFeatures`, `customFeatures` y `selectedFeaturesByDataset` en el store.
   - Nueva suite automatizada `tests/test_workbench_leaderboard_and_recipes.py` (5 pruebas pasando al 100%, total de 80 tests de workbench en verde).
-- [ ] **PR 5: Fase P2 — Idioma, legibilidad y accesibilidad**:
-  - Unificación de textos en español conservando terminología técnica universal (ROC-AUC, RMSE, SHAP, K-Fold).
-  - Accesibilidad, contraste y diseño responsive en pantallas estrechas.
+- [x] **PR 5: Fase P2 — Idioma, legibilidad y accesibilidad**:
+  - Unificación integral de textos en español en todas las pantallas del Workbench (`index.html`, `app.js`, `workbench.css`, `datasets.js`, `overview.js`, `studio.js`, `new_experiment.js`, `compare.js`, `kaggle.js`, `pipeline.js`, `knowledge.js`).
+  - Preservación rigurosa de acrónimos y términos universales de machine learning (ROC-AUC, RMSE, MAE, MSE, K-Fold, Stratified K-Fold, LightGBM, XGBoost, CatBoost, Random Forest, SHAP, Out-of-fold, etc.).
+  - Accesibilidad WCAG AA: atributo `lang="es"`, selectores `:focus-visible` con anillo de contraste `--catml-blue`, soporte para `prefers-reduced-motion`, `aria-label` en navegación principal, controles interactivos, botones de acción y tablas.
+  - Diseño responsive para pantallas estrechas: media queries para $\le 768\text{px}$ y $\le 1024\text{px}$, contención de modales `.modal-responsive` (`max-height: calc(100vh - 2.5rem); overflow-y: auto`), desplazamiento táctil suave (`-webkit-overflow-scrolling: touch`) en contenedores tabulares.
+  - Nueva suite automatizada `tests/test_workbench_i18n_and_a11y.py` (6 pruebas pasando al 100%, total de 86 tests de workbench en verde).
 
 ## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
 

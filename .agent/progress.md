@@ -66,6 +66,22 @@
   - **Pruebas Automatizadas:**
     - Creada suite `tests/test_workbench_leaderboard_and_recipes.py` (5 pruebas pasando al 100%).
     - Total de 80 pruebas de Workbench pasando al 100%.
+- **PR 5: Fase P2 — Idioma español unificado, accesibilidad WCAG AA y diseño responsive:**
+  - **Idioma Español Unificado:**
+    - Textos, etiquetas, modales, tablas, botones e indicadores de estado traducidos al español en `index.html`, `app.js`, `workbench.css`, `datasets.js`, `overview.js`, `studio.js`, `new_experiment.js`, `compare.js`, `kaggle.js`, `pipeline.js` y `knowledge.js`.
+    - Preservados rigurosamente los acrónimos y vocablos universales de Machine Learning (`LightGBM`, `XGBoost`, `CatBoost`, `Random Forest`, `Ridge`, `Logistic Regression`, `ROC-AUC`, `RMSE`, `MAE`, `MSE`, `K-Fold`, `Stratified K-Fold`, `Holdout`, `SHAP`, `OOF`, `Optuna`).
+  - **Accesibilidad (WCAG AA):**
+    - Especificado `lang="es"` en el elemento raíz `<html>`.
+    - Estilo de navegación por teclado accesible `:focus-visible` con anillo de contraste `--catml-blue` y desplazamiento suave en `workbench.css`.
+    - Soporte nativo para usuarios con sensibilidad al movimiento mediante `@media (prefers-reduced-motion: reduce)`.
+    - Incorporados atributos `aria-label` y `role` en navegación principal, paneles auxiliares, botones interactivos y tablas de datos.
+  - **Diseño Responsive (<768px y <1024px):**
+    - Reglas de contención modal `.modal-responsive` (`max-height: calc(100vh - 2.5rem); overflow-y: auto`) para evitar desbordamientos en dispositivos móviles o ventanas compactas.
+    - Soporte táctil optimizado `-webkit-overflow-scrolling: touch` para tablas anchas.
+    - Adaptación visual fluida de tipografías y rellenos para breakpoints pequeños.
+  - **Pruebas Automatizadas:**
+    - Creada suite `tests/test_workbench_i18n_and_a11y.py` (6 pruebas pasando al 100%).
+    - Total acumulado de 86 pruebas del Workbench pasando al 100% verde sin regresiones.
 
 
 ### Track Experiment Recipes — Fase R4: Workbench UI y Paridad E2E (2026-10-11)

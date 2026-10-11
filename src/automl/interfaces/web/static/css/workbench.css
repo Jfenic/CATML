@@ -507,3 +507,71 @@ select.input-base option {
   background-color: #151B26 !important;
   color: #F7F8FA !important;
 }
+
+/* ==========================================================================
+   Accessibility, High-Contrast & Keyboard Focus (WCAG AA)
+   ========================================================================== */
+:focus-visible {
+  outline: 2px solid var(--catml-blue) !important;
+  outline-offset: 2px !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--catml-blue) !important;
+  outline-offset: 2px !important;
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Responsive Design & Viewport Containment (< 768px and < 1024px)
+   ========================================================================== */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive Modal Container Containment */
+.modal-responsive {
+  max-width: min(96vw, 680px) !important;
+  max-height: calc(100vh - 2.5rem) !important;
+  overflow-y: auto !important;
+}
+
+@media (max-width: 1024px) {
+  .metric-block {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .metric-block .metric-val {
+    font-size: 1.5rem;
+  }
+
+  .wb-table th,
+  .wb-table td {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .segmented-pill {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+  }
+}

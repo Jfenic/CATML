@@ -97,46 +97,46 @@ export class NewExperimentModal {
 
     this.container.innerHTML = `
       <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="workbench-card max-w-xl w-full p-6 space-y-5 border-slate-700 shadow-2xl">
+        <div class="workbench-card modal-responsive max-w-xl w-full p-6 space-y-5 border-slate-700 shadow-2xl">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
-              <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Create New Experiment</h3>
-              <p class="text-xs text-[#8B95A7] font-sans">Evidence-guided rapid AutoML experiment configuration</p>
+              <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Crear Nuevo Experimento</h3>
+              <p class="text-xs text-[#8B95A7] font-sans">Configuración rápida de experimento AutoML guiada por evidencia</p>
             </div>
-            <button id="btnCloseModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors">${icon("x", "icon-sm")}</button>
+            <button id="btnCloseModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors" aria-label="Cerrar modal">${icon("x", "icon-sm")}</button>
           </div>
 
           <!-- Dataset Card -->
           <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-1">
-            <div class="text-[10px] uppercase font-semibold text-[#8B95A7] tracking-wider font-sans">Target Dataset</div>
+            <div class="text-[10px] uppercase font-semibold text-[#8B95A7] tracking-wider font-sans">Dataset Objetivo</div>
             <div class="text-sm font-bold text-[#F7F8FA] font-mono">${datasetName}</div>
-            <div class="text-xs text-[#8B95A7] font-sans">Task: <span class="capitalize text-[#F7F8FA]">${taskType}</span> • Target: <span class="text-[#4F67FF] font-mono font-bold">${targetCol}</span> • Metric: <span class="text-[#22C55E] font-mono font-bold">${metricName}</span></div>
+            <div class="text-xs text-[#8B95A7] font-sans">Tarea: <span class="capitalize text-[#F7F8FA]">${taskType}</span> • Variable Objetivo: <span class="text-[#4F67FF] font-mono font-bold">${targetCol}</span> • Métrica: <span class="text-[#22C55E] font-mono font-bold">${metricName}</span></div>
           </div>
 
           ${!hasTarget ? `
             <div class="p-3 rounded-lg bg-amber-950/30 border border-amber-800/60 text-xs text-amber-300 flex items-center justify-between font-sans">
-              <span>No dataset is currently registered in this workspace.</span>
-              <button id="btnGoToDatasets" class="font-bold underline text-amber-200 hover:text-white">Register Dataset →</button>
+              <span>No hay ningún dataset registrado en este espacio de trabajo.</span>
+              <button id="btnGoToDatasets" class="font-bold underline text-amber-200 hover:text-white">Registrar Dataset →</button>
             </div>
           ` : ""}
 
           <!-- How should CATML operate? -->
           <div class="space-y-2">
-            <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">How should CATML operate?</label>
+            <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">¿Cómo debe operar CATML?</label>
             <div class="grid grid-cols-3 gap-3">
               <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'auto' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="auto">
-                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("zap", "icon-sm text-[#4F67FF]")} <span>Auto</span></div>
-                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Autonomous model selection, feature engineering, and Bayesian HPO.</div>
+                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("zap", "icon-sm text-[#4F67FF]")} <span>Automático</span></div>
+                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Selección autónoma de modelos, ingeniería de variables y HPO bayesiano.</div>
               </div>
 
               <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'guided' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="guided">
-                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("compass", "icon-sm text-[#6956E8]")} <span>Guided</span></div>
-                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">CATML proposes candidates; you configure constraints and models.</div>
+                <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("compass", "icon-sm text-[#6956E8]")} <span>Guiado</span></div>
+                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">CATML propone candidatos; tú configuras restricciones y modelos.</div>
               </div>
 
               <div class="mode-card p-3 rounded-xl border cursor-pointer text-xs ${this.mode === 'manual' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-mode="manual">
                 <div class="flex items-center gap-1.5 font-bold text-[#F7F8FA] font-sans">${icon("sliders-horizontal", "icon-sm text-[#8B95A7]")} <span>Manual</span></div>
-                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Full step-by-step pipeline control and manual selection.</div>
+                <div class="text-[11px] text-[#8B95A7] mt-1 font-sans">Control manual paso a paso del pipeline y selección directa.</div>
               </div>
             </div>
           </div>
@@ -146,7 +146,7 @@ export class NewExperimentModal {
             this.mode === "guided"
               ? `
             <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-3 text-xs font-sans">
-              <div class="font-semibold text-[#F7F8FA]">Algorithmic Model Families:</div>
+              <div class="font-semibold text-[#F7F8FA]">Familias de Modelos Algorítmicos:</div>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[#8B95A7]">
                 <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'lightgbm') ? 'checked' : ''} value="lightgbm" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">LightGBM</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'xgboost') ? 'checked' : ''} value="xgboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">XGBoost</span></label>
@@ -159,18 +159,18 @@ export class NewExperimentModal {
                 ` : `
                   <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'logistic_regression' ? 'checked' : ''} value="logistic_regression" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Logistic Regression</span></label>
                 `}
-                <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'voting_ensemble' ? 'checked' : ''} value="voting_ensemble" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ensemble Blender</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'voting_ensemble' ? 'checked' : ''} value="voting_ensemble" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ensamble / Mezclador</span></label>
                 ${hasImages ? `
-                  <label class="flex items-center space-x-1.5" title="Vision Feature Extraction + MLP Head"><input type="checkbox" ${this.preselectedModel === 'vision' ? 'checked' : ''} value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#53C8FF]">Vision Feature MLP</span></label>
+                  <label class="flex items-center space-x-1.5" title="Extracción de Embeddings de Visión + Red MLP"><input type="checkbox" ${this.preselectedModel === 'vision' ? 'checked' : ''} value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#53C8FF]">Visión MLP</span></label>
                 ` : `
-                  <label class="flex items-center space-x-1.5 opacity-40 cursor-not-allowed" title="Requiere columnas de tipo imagen en el dataset"><input type="checkbox" disabled value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#8B95A7]">Vision MLP (Sin imágenes)</span></label>
+                  <label class="flex items-center space-x-1.5 opacity-40 cursor-not-allowed" title="Requiere columnas de tipo imagen en el dataset"><input type="checkbox" disabled value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#8B95A7]">Visión MLP (Sin imágenes)</span></label>
                 `}
               </div>
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#252C38] text-[11px] text-[#8B95A7]">
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Feature engineering</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Ingeniería de variables</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Optuna Bayesian HPO</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Cross-Validation</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Empirical Propose ≠ Accept</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Principio Proponer ≠ Aceptar</span></label>
               </div>
             </div>
           `
@@ -182,16 +182,16 @@ export class NewExperimentModal {
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
                 <span class="text-[#4F67FF]">${icon("sparkles", "icon-sm")}</span>
-                <span class="font-semibold text-[#F7F8FA]">Feature Set Selection:</span>
+                <span class="font-semibold text-[#F7F8FA]">Selección de Características:</span>
               </div>
-              <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-bold">${customFeatures && customFeatures.length > 0 ? `${customFeatures.length} Custom Features` : 'All Recommended'}</span>
+              <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-bold">${customFeatures && customFeatures.length > 0 ? `${customFeatures.length} Características seleccionadas` : 'Todas las recomendadas'}</span>
             </div>
             ${customFeatures && customFeatures.length > 0 ? `
               <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1.5 bg-[#090C12] rounded-lg border border-[#252C38]">
                 ${customFeatures.map(f => `<span class="bg-[#151B26] text-[#4F67FF] border border-[#252C38] px-1.5 py-0.5 rounded text-[10px] font-mono">${f}</span>`).join("")}
               </div>
             ` : `
-              <div class="text-[11px] text-[#8B95A7]">Using all features selected and recommended by statistical profiling.</div>
+              <div class="text-[11px] text-[#8B95A7]">Utilizando todas las características seleccionadas y recomendadas por el perfilado estadístico.</div>
             `}
           </div>
 
@@ -216,21 +216,21 @@ export class NewExperimentModal {
 
           <!-- Compute Budget -->
           <div class="space-y-2">
-            <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Compute Budget</label>
+            <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Presupuesto de Cómputo</label>
             <div class="grid grid-cols-3 gap-3">
               <div class="budget-card p-2.5 rounded-lg border text-center cursor-pointer text-xs ${this.budget === 'quick' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-budget="quick">
-                <div class="font-bold text-slate-200">Quick</div>
+                <div class="font-bold text-slate-200">Rápido</div>
                 <div class="text-[10px] text-slate-400">~10s • Baselines</div>
               </div>
 
               <div class="budget-card p-2.5 rounded-lg border text-center cursor-pointer text-xs ${this.budget === 'balanced' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-budget="balanced">
-                <div class="font-bold text-slate-200">Balanced</div>
+                <div class="font-bold text-slate-200">Equilibrado</div>
                 <div class="text-[10px] text-slate-400">~1m • LightGBM + HPO</div>
               </div>
 
               <div class="budget-card p-2.5 rounded-lg border text-center cursor-pointer text-xs ${this.budget === 'thorough' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-budget="thorough">
-                <div class="font-bold text-slate-200">Thorough</div>
-                <div class="text-[10px] text-slate-400">~5m • Full Ensemble</div>
+                <div class="font-bold text-slate-200">Exhaustivo</div>
+                <div class="text-[10px] text-slate-400">~5m • Ensamble Completo</div>
               </div>
             </div>
           </div>
@@ -238,14 +238,14 @@ export class NewExperimentModal {
           <!-- Validation Strategy -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Validation Strategy</label>
+              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Estrategia de Validación</label>
               <span class="text-[10px] text-[#4F67FF] font-mono">CV Splitting</span>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
               ${!isRegression ? `
                 <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'stratified_kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="stratified_kfold">
                   <div class="font-bold text-[#F7F8FA] font-sans">Stratified K-Fold</div>
-                  <div class="text-[10px] text-[#8B95A7] font-sans">Balanced classes</div>
+                  <div class="text-[10px] text-[#8B95A7] font-sans">Clases equilibradas</div>
                 </div>
               ` : `
                 <div class="val-strategy-card p-2.5 rounded-xl border text-center text-xs opacity-40 cursor-not-allowed border-[#252C38] bg-[#090C12]" data-strategy="stratified_kfold" data-disabled="true" title="No aplicable a regresión">
@@ -255,14 +255,14 @@ export class NewExperimentModal {
               `}
 
               <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="kfold">
-                <div class="font-bold text-[#F7F8FA] font-sans">Standard K-Fold</div>
-                <div class="text-[10px] text-[#8B95A7] font-sans">Shuffled 5 folds</div>
+                <div class="font-bold text-[#F7F8FA] font-sans">K-Fold Estándar</div>
+                <div class="text-[10px] text-[#8B95A7] font-sans">5 pliegues aleatorios</div>
               </div>
 
               ${hasTemporal ? `
                 <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'time_series' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="time_series">
                   <div class="font-bold text-[#F7F8FA] font-sans">Time-Series</div>
-                  <div class="text-[10px] text-[#22C55E] font-sans">Temporal splits ✓</div>
+                  <div class="text-[10px] text-[#22C55E] font-sans">Particiones temporales ✓</div>
                 </div>
               ` : `
                 <div class="val-strategy-card p-2.5 rounded-xl border text-center text-xs opacity-50 cursor-not-allowed border-[#252C38] bg-[#090C12]" data-strategy="time_series" data-disabled="true" title="Requiere columnas de fecha o estructura temporal en el encuadre">
@@ -273,7 +273,7 @@ export class NewExperimentModal {
 
               <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'holdout' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="holdout">
                 <div class="font-bold text-[#F7F8FA] font-sans">Holdout (80/20)</div>
-                <div class="text-[10px] text-[#8B95A7] font-sans">Fast single split</div>
+                <div class="text-[10px] text-[#8B95A7] font-sans">División simple rápida</div>
               </div>
             </div>
           </div>
@@ -281,10 +281,10 @@ export class NewExperimentModal {
           <!-- Footer Actions -->
           <div class="pt-4 border-t border-[#27272e] flex items-center justify-end space-x-3">
             <button id="btnCancelModal" class="btn-ghost">
-              CANCEL
+              Cancelar
             </button>
             <button id="btnStartAutoML" ${!hasTarget ? "disabled" : ""} class="btn-signal ${!hasTarget ? 'opacity-50 cursor-not-allowed' : ''}">
-              <span class="inline-flex items-center gap-1.5">${icon("play", "icon-sm")} <span>START TRAINING</span></span>
+              <span class="inline-flex items-center gap-1.5">${icon("play", "icon-sm")} <span>Iniciar Entrenamiento</span></span>
             </button>
           </div>
         </div>

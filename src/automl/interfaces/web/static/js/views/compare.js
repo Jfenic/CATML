@@ -402,18 +402,18 @@ export class CompareView {
     const renderModal = () => {
       modalEl.innerHTML = `
         <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="workbench-card max-w-xl w-full p-6 space-y-5 border-slate-700 shadow-2xl">
+          <div class="workbench-card modal-responsive max-w-xl w-full p-6 space-y-5 border-slate-700 shadow-2xl">
             <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
               <div>
-                <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Visual Ensemble Builder</h3>
-                <p class="text-xs text-[#8B95A7] font-sans">Multi-model blending and Level-2 meta-learning</p>
+                <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Constructor Visual de Ensambles</h3>
+                <p class="text-xs text-[#8B95A7] font-sans">Combinación multimodelo y meta-aprendizaje de Nivel 2</p>
               </div>
-              <button id="btnCloseEnsembleModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors">${icon("x", "icon-sm")}</button>
+              <button id="btnCloseEnsembleModal" class="text-[#8B95A7] hover:text-[#F7F8FA] p-1 rounded hover:bg-[#161B26] transition-colors" aria-label="Cerrar modal">${icon("x", "icon-sm")}</button>
             </div>
 
             <!-- Base Models Selection -->
             <div class="space-y-2">
-              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Include Base Models</label>
+              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Modelos Base a Incluir</label>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono">
                 ${candidateModels.map(m => `
                   <label class="flex items-center space-x-2 p-2 rounded-lg border cursor-pointer ${selectedModels.includes(m) ? 'border-[#4F67FF] bg-[#161B26] text-[#F7F8FA]' : 'border-[#242A36] bg-[#0F131C] text-[#8B95A7]'}">
@@ -426,26 +426,26 @@ export class CompareView {
 
             <!-- Ensemble Method Selection -->
             <div class="space-y-2">
-              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Ensemble Strategy</label>
+              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Estrategia de Ensamble</label>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div class="ens-strat-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${selectedMethod === 'average' ? 'border-[#4F67FF] bg-[#161B26]' : 'border-[#242A36] bg-[#090C12]'}" data-method="average">
                   <div class="font-bold text-[#F7F8FA]">Average</div>
-                  <div class="text-[10px] text-[#8B95A7]">Soft voting</div>
+                  <div class="text-[10px] text-[#8B95A7]">Promedio suave</div>
                 </div>
 
                 <div class="ens-strat-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${selectedMethod === 'rank' ? 'border-[#4F67FF] bg-[#161B26]' : 'border-[#242A36] bg-[#090C12]'}" data-method="rank">
                   <div class="font-bold text-[#F7F8FA]">Rank Avg</div>
-                  <div class="text-[10px] text-[#8B95A7]">ROC-AUC boost</div>
+                  <div class="text-[10px] text-[#8B95A7]">Impulso ROC-AUC</div>
                 </div>
 
                 <div class="ens-strat-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${selectedMethod === 'simplex' ? 'border-[#4F67FF] bg-[#161B26]' : 'border-[#242A36] bg-[#090C12]'}" data-method="simplex">
                   <div class="font-bold text-[#F7F8FA]">Simplex</div>
-                  <div class="text-[10px] text-[#8B95A7]">Nelder-Mead HPO</div>
+                  <div class="text-[10px] text-[#8B95A7]">HPO Nelder-Mead</div>
                 </div>
 
                 <div class="ens-strat-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${selectedMethod === 'stacked' ? 'border-[#4F67FF] bg-[#161B26]' : 'border-[#242A36] bg-[#090C12]'}" data-method="stacked">
                   <div class="font-bold text-[#F7F8FA]">Stacked L2</div>
-                  <div class="text-[10px] text-[#8B95A7]">Meta-learner</div>
+                  <div class="text-[10px] text-[#8B95A7]">Meta-aprendiz</div>
                 </div>
               </div>
             </div>
@@ -453,22 +453,22 @@ export class CompareView {
             <!-- Meta-Learner (only visible if stacked) -->
             ${selectedMethod === "stacked" ? `
               <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-2 text-xs font-sans">
-                <div class="font-semibold text-[#F7F8FA]">Level-2 Meta-Learner Architecture:</div>
+                <div class="font-semibold text-[#F7F8FA]">Arquitectura del Meta-Aprendiz de Nivel 2:</div>
                 <div class="grid grid-cols-3 gap-2">
                   <label class="p-2 rounded-lg border cursor-pointer text-center ${selectedMeta === 'ridge' ? 'border-[#4F67FF] bg-[#1D2433] text-[#F7F8FA]' : 'border-[#252C38] text-[#8B95A7]'}">
                     <input type="radio" name="metaModel" value="ridge" ${selectedMeta === 'ridge' ? 'checked' : ''} class="hidden">
                     <div class="font-bold">Ridge</div>
-                    <div class="text-[10px] text-[#8B95A7]">L2 Regularized</div>
+                    <div class="text-[10px] text-[#8B95A7]">Regularización L2</div>
                   </label>
                   <label class="p-2 rounded-lg border cursor-pointer text-center ${selectedMeta === 'logistic_regression' ? 'border-[#4F67FF] bg-[#1D2433] text-[#F7F8FA]' : 'border-[#252C38] text-[#8B95A7]'}">
                     <input type="radio" name="metaModel" value="logistic_regression" ${selectedMeta === 'logistic_regression' ? 'checked' : ''} class="hidden">
                     <div class="font-bold">Logistic Reg</div>
-                    <div class="text-[10px] text-[#8B95A7]">Sigmoid Calibrated</div>
+                    <div class="text-[10px] text-[#8B95A7]">Calibración Sigmoide</div>
                   </label>
                   <label class="p-2 rounded-lg border cursor-pointer text-center ${selectedMeta === 'lasso' ? 'border-[#4F67FF] bg-[#1D2433] text-[#F7F8FA]' : 'border-[#252C38] text-[#8B95A7]'}">
                     <input type="radio" name="metaModel" value="lasso" ${selectedMeta === 'lasso' ? 'checked' : ''} class="hidden">
                     <div class="font-bold">Lasso</div>
-                    <div class="text-[10px] text-[#8B95A7]">Sparse Selector</div>
+                    <div class="text-[10px] text-[#8B95A7]">Selector Disperso</div>
                   </label>
                 </div>
               </div>
@@ -476,7 +476,7 @@ export class CompareView {
 
             <!-- Validation Folds -->
             <div class="space-y-2">
-              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Validation Folds</label>
+              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Pliegues de Validación (Folds)</label>
               <div class="grid grid-cols-3 gap-2">
                 ${[3, 5, 10].map(k => `
                   <div class="ens-fold-card p-2 rounded-lg border text-center cursor-pointer text-xs ${selectedFolds === k ? 'border-[#4F67FF] bg-[#151B26] text-[#F7F8FA]' : 'border-[#252C38] bg-[#090C12] text-[#8B95A7]'}" data-folds="${k}">
@@ -488,15 +488,15 @@ export class CompareView {
 
             <!-- Custom Name -->
             <div class="space-y-1">
-              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Ensemble Experiment Name</label>
+              <label class="text-xs font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Nombre del Experimento de Ensamble</label>
               <input type="text" id="ensCustomName" value="Ensemble (${selectedMethod.toUpperCase()} - ${selectedModels.length} models)" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF]">
             </div>
 
             <!-- Footer Actions -->
             <div class="pt-4 border-t border-[#242A36] flex items-center justify-end space-x-3">
-              <button id="btnCancelEnsemble" class="btn-ghost">CANCEL</button>
+              <button id="btnCancelEnsemble" class="btn-ghost">Cancelar</button>
               <button id="btnSubmitEnsemble" ${selectedModels.length < 2 ? 'disabled' : ''} class="btn-signal ${selectedModels.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}">
-                <span class="inline-flex items-center gap-1.5">${icon("sparkles", "icon-sm")} <span>BUILD & EVALUATE ENSEMBLE</span></span>
+                <span class="inline-flex items-center gap-1.5">${icon("sparkles", "icon-sm")} <span>Construir y Evaluar Ensamble</span></span>
               </button>
             </div>
           </div>

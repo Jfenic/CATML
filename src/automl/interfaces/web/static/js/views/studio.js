@@ -585,8 +585,8 @@ export class StudioView {
                   <td class="font-mono text-xs text-slate-400">${row.training_time_seconds ? Number(row.training_time_seconds).toFixed(2) + 's' : (row.training_time_s ? Number(row.training_time_s).toFixed(2) + 's' : '—')}</td>
                   <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Mejor de esta ejecución' : 'Evaluado'}</span></td>
                   <td class="text-right">
-                    <button data-inspect-model="${row.model_id}" data-inspect-trial="${escapeHtml(row.trial_id || '')}" class="btn-inspect-model-params text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 px-2.5 py-0.5 rounded font-mono transition-colors">
-                      <span class="inline-flex items-center gap-1">${icon("search", "icon-sm")} <span>Params</span></span>
+                    <button data-inspect-model="${row.model_id}" data-inspect-trial="${escapeHtml(row.trial_id || '')}" class="btn-inspect-model-params text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 px-2.5 py-0.5 rounded font-mono transition-colors" aria-label="Inspeccionar hiperparámetros">
+                      <span class="inline-flex items-center gap-1">${icon("search", "icon-sm")} <span>Parámetros</span></span>
                     </button>
                   </td>
                 </tr>

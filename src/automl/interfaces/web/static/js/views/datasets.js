@@ -880,14 +880,14 @@ export class DatasetsView {
               <th class="w-10 text-center">
                 <input type="checkbox" id="checkSelectAllRows" class="rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36]" ${this.selectedFeatures.size > 0 ? "checked" : ""}>
               </th>
-              <th>Feature</th>
-              <th>Type</th>
-              <th>Missing %</th>
-              <th>Unique Values</th>
-              <th>Target Correlation (r)</th>
-              <th>Engine Action</th>
-              <th>Rationale</th>
-              <th class="text-center">Visuals</th>
+              <th>Característica</th>
+              <th>Tipo</th>
+              <th>Nulos %</th>
+              <th>Valores Únicos</th>
+              <th>Correlación con Target (r)</th>
+              <th>Acción del Motor</th>
+              <th>Justificación</th>
+              <th class="text-center">Visualización</th>
             </tr>
           </thead>
           <tbody>
@@ -899,7 +899,7 @@ export class DatasetsView {
               return `
                 <tr class="${isChecked ? 'bg-[#161B26]/40' : 'opacity-70'}">
                   <td class="text-center">
-                    ${isTarget ? `<span class="text-[#4F67FF] flex justify-center" title="Target Column">${icon("target", "icon-sm")}</span>` : `
+                    ${isTarget ? `<span class="text-[#4F67FF] flex justify-center" title="Variable Objetivo (Target)">${icon("target", "icon-sm")}</span>` : `
                       <input type="checkbox" data-col="${c.name}" class="col-toggle-checkbox rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36] cursor-pointer" ${isChecked ? "checked" : ""}>
                     `}
                   </td>
@@ -909,7 +909,7 @@ export class DatasetsView {
                   </td>
                   <td>
                     <span class="text-xs ${c.is_image ? 'text-[#53C8FF] inline-flex items-center gap-1' : c.is_text ? 'text-[#6956E8] inline-flex items-center gap-1' : c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'text-[#4F67FF]' : 'text-[#6956E8]'} font-mono">
-                      ${c.is_image ? `${icon("image", "icon-sm")} Image` : c.is_text ? `${icon("message-square-text", "icon-sm")} Text` : c.is_identifier ? 'Identifier' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numerical' : 'Categorical')}
+                      ${c.is_image ? `${icon("image", "icon-sm")} Imagen` : c.is_text ? `${icon("message-square-text", "icon-sm")} Texto` : c.is_identifier ? 'Identificador' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numérica' : 'Categórica')}
                     </span>
                   </td>
                   <td class="font-mono text-xs ${c.null_count > 0 ? 'text-[#F59E0B] font-semibold' : 'text-[#8B95A7]'}">
@@ -930,18 +930,18 @@ export class DatasetsView {
                       isTarget
                         ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium">Target</span>`
                         : c.catml_action === "Exclude" || c.is_identifier
-                        ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-medium">Exclude</span>`
+                        ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-medium">Excluir</span>`
                         : c.is_image || c.catml_action === "Vision Embedding"
-                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium border border-[#53C8FF]/30 text-[#53C8FF]">Vision</span>`
+                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium border border-[#53C8FF]/30 text-[#53C8FF]">Visión</span>`
                         : c.catml_action === "Encode"
-                        ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-medium">Encode</span>`
-                        : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-medium">Keep</span>`
+                        ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-medium">Codificar</span>`
+                        : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-medium">Conservar</span>`
                     }
                   </td>
-                  <td class="text-xs text-[#8B95A7] font-sans">${c.action_reason || (isTarget ? "Target prediction objective" : "Predictive feature")}</td>
+                  <td class="text-xs text-[#8B95A7] font-sans">${c.action_reason || (isTarget ? "Objetivo de predicción" : "Variable predictora")}</td>
                   <td class="text-center">
                     <button class="btn-visualize-var btn-technical text-[11px] py-0.5 px-2 ${c.is_image ? 'border-[#53C8FF]/40 text-[#53C8FF] hover:bg-[#53C8FF]/10' : ''}" data-var="${c.name}">
-                      ${c.is_image ? `${icon("image", "icon-sm mr-1")} Gallery` : 'View'}
+                      ${c.is_image ? `${icon("image", "icon-sm mr-1")} Galería` : 'Ver'}
                     </button>
                   </td>
                 </tr>
@@ -961,20 +961,20 @@ export class DatasetsView {
         <table class="w-full wb-table text-left">
           <thead>
             <tr>
-              <th>Feature</th>
-              <th>Type</th>
-              <th>Count</th>
-              <th>Missing %</th>
-              <th>Mean</th>
+              <th>Característica</th>
+              <th>Tipo</th>
+              <th>Recuento</th>
+              <th>Nulos %</th>
+              <th>Media</th>
               <th>Std</th>
-              <th>Min</th>
+              <th>Mín</th>
               <th>25%</th>
-              <th>Median (50%)</th>
+              <th>Mediana (50%)</th>
               <th>75%</th>
-              <th>Max</th>
-              <th>Skewness</th>
-              <th>Target r</th>
-              <th class="text-center">Visuals</th>
+              <th>Máx</th>
+              <th>Asimetría (Skew)</th>
+              <th>Correlación r</th>
+              <th class="text-center">Visualización</th>
             </tr>
           </thead>
           <tbody>
@@ -1729,7 +1729,7 @@ export class DatasetsView {
             </button>
             <button id="btnCalcSuggest" class="btn-technical text-xs text-[#6956E8] border-[#6956E8]/30 hover:border-[#6956E8] flex items-center space-x-1.5">
               <span>${icon("sparkles", "icon-sm")}</span>
-              <span>Suggest with AI</span>
+              <span>Sugerir con IA</span>
             </button>
           </div>
         </div>
@@ -1739,26 +1739,26 @@ export class DatasetsView {
           <!-- Left Column: Name & Expression Editor -->
           <div class="lg:col-span-2 space-y-4">
             <div class="space-y-1.5">
-              <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">Derived Feature Name:</label>
-              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="e.g. debt_to_income_ratio" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono px-3 py-2 rounded-lg focus:border-[#4F67FF] outline-none">
+              <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">Nombre de Característica Derivada:</label>
+              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="ej: debt_to_income_ratio" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono px-3 py-2 rounded-lg focus:border-[#4F67FF] outline-none">
             </div>
 
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
                 <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">
-                  ${this.calcMode === 'formula' ? 'Mathematical Formula:' : 'Sandboxed Python Function (df):'}
+                  ${this.calcMode === 'formula' ? 'Fórmula Matemática:' : 'Función Python Aislada (df):'}
                 </label>
                 <span class="text-[10px] text-[#8B95A7] font-mono">
-                  ${this.calcMode === 'formula' ? 'Zero-division guard active' : 'Restricted to numpy & pandas'}
+                  ${this.calcMode === 'formula' ? 'Protección contra división por cero activa' : 'Restringido a numpy y pandas'}
                 </span>
               </div>
-              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'e.g. debt / (income + 1e-5)'}" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono p-3 rounded-lg focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
+              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'ej: debt / (income + 1e-5)'}" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono p-3 rounded-lg focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
             </div>
 
             <!-- Quick Operators Toolbar (Formula Mode) -->
             ${this.calcMode === 'formula' ? `
               <div class="space-y-2">
-                <span class="text-[11px] font-sans text-[#8B95A7] font-semibold uppercase">Quick Operators & Transforms:</span>
+                <span class="text-[11px] font-sans text-[#8B95A7] font-semibold uppercase">Operadores Rápidos y Transformaciones:</span>
                 <div class="flex flex-wrap gap-1.5 text-xs font-mono">
                   <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" + ">+</button>
                   <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" - ">-</button>
@@ -1778,10 +1778,10 @@ export class DatasetsView {
             <!-- Action CTAs -->
             <div class="flex items-center space-x-3 pt-2">
               <button id="btnCalcValidate" class="btn-technical text-xs font-semibold">
-                <span>Test & Preview</span>
+                <span>Probar y Previsualizar</span>
               </button>
               <button id="btnCalcApply" class="btn-signal text-xs ${evalRes && evalRes.is_valid ? '' : 'opacity-50 cursor-not-allowed'}" ${evalRes && evalRes.is_valid ? '' : 'disabled'}>
-                <span>Apply to Dataset & Save</span>
+                <span>Aplicar al Dataset y Guardar</span>
               </button>
             </div>
           </div>
@@ -1789,11 +1789,11 @@ export class DatasetsView {
           <!-- Right Column: Available Column Chips -->
           <div class="space-y-3 p-4 rounded-xl border border-[#252C38] bg-[#090C12]">
             <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
-              <span class="text-xs font-sans text-[#F7F8FA] font-semibold uppercase tracking-wider">Available Features</span>
-              <span class="text-[10px] font-mono text-[#8B95A7]">Click to insert</span>
+              <span class="text-xs font-sans text-[#F7F8FA] font-semibold uppercase tracking-wider">Características Disponibles</span>
+              <span class="text-[10px] font-mono text-[#8B95A7]">Clic para insertar</span>
             </div>
             <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
-              <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase">Numeric:</div>
+              <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase">Numéricas:</div>
               <div class="flex flex-wrap gap-1.5">
                 ${numCols.map(c => `
                   <button class="calc-col-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#4F67FF] font-mono text-xs hover:border-[#4F67FF] hover:text-white transition-colors" data-col="${c.name}">
@@ -1803,7 +1803,7 @@ export class DatasetsView {
               </div>
 
               ${catCols.length > 0 ? `
-                <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase pt-2">Categorical / Other:</div>
+                <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase pt-2">Categóricas / Otras:</div>
                 <div class="flex flex-wrap gap-1.5">
                   ${catCols.map(c => `
                     <button class="calc-col-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#6956E8] font-mono text-xs hover:border-[#4F67FF] hover:text-white transition-colors" data-col="${c.name}">
@@ -1822,7 +1822,7 @@ export class DatasetsView {
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
               <div class="flex items-center space-x-3">
                 <span class="text-xs px-2.5 py-1 rounded-md font-mono font-bold uppercase inline-flex items-center space-x-1.5 ${evalRes.is_valid ? 'badge-gain' : 'badge-err'}">
-                  ${evalRes.is_valid ? `${icon("check", "icon-sm")}<span>VALID FORMULA</span>` : `${icon("x", "icon-sm")}<span>VALIDATION ERROR</span>`}
+                  ${evalRes.is_valid ? `${icon("check", "icon-sm")}<span>FÓRMULA VÁLIDA</span>` : `${icon("x", "icon-sm")}<span>ERROR DE VALIDACIÓN</span>`}
                 </span>
                 <span class="text-sm font-bold font-mono text-[#F7F8FA]">${evalRes.feature_name}</span>
                 <span class="text-xs font-mono text-[#8B95A7]">(${evalRes.dtype || 'unknown'})</span>
@@ -1830,20 +1830,20 @@ export class DatasetsView {
 
               <div class="flex items-center space-x-2 text-xs font-mono">
                 <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] text-[#8B95A7]">
-                  Rows: <strong class="text-[#F7F8FA]">${evalRes.row_count}</strong>
+                  Filas: <strong class="text-[#F7F8FA]">${evalRes.row_count}</strong>
                 </span>
                 <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] ${evalRes.null_percentage > 0.2 ? 'text-amber-400' : 'text-[#8B95A7]'}">
-                  Nulls: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
+                  Nulos: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
                 </span>
                 <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] ${evalRes.zero_division_occurred ? 'text-[#22C55E] font-bold' : 'text-[#8B95A7]'}">
-                  Zero-div: ${evalRes.zero_division_occurred ? 'Guarded (0.0/eps)' : 'None'}
+                  División por cero: ${evalRes.zero_division_occurred ? 'Protegida (0.0/eps)' : 'Ninguna'}
                 </span>
               </div>
             </div>
 
             ${evalRes.error_message ? `
               <div class="p-3 rounded-lg bg-rose-950/30 border border-rose-800/60 text-rose-300 font-mono text-xs space-y-1">
-                <div class="font-bold">Validation Failure Details:</div>
+                <div class="font-bold">Detalles del Fallo de Validación:</div>
                 <div>${evalRes.error_message}</div>
               </div>
             ` : ""}
@@ -1863,14 +1863,14 @@ export class DatasetsView {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono pt-1">
                 <!-- Summary Stats -->
                 <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
-                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Descriptive Statistics:</div>
+                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Estadísticas Descriptivas:</div>
                   <div class="grid grid-cols-4 gap-2 text-center">
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
-                      <div class="text-[10px] text-[#8B95A7]">Min</div>
+                      <div class="text-[10px] text-[#8B95A7]">Mín</div>
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.min != null ? evalRes.summary_stats.min.toFixed(3) : '-'}</div>
                     </div>
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
-                      <div class="text-[10px] text-[#8B95A7]">Mean</div>
+                      <div class="text-[10px] text-[#8B95A7]">Media</div>
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.mean != null ? evalRes.summary_stats.mean.toFixed(3) : '-'}</div>
                     </div>
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
@@ -1878,7 +1878,7 @@ export class DatasetsView {
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.std != null ? evalRes.summary_stats.std.toFixed(3) : '-'}</div>
                     </div>
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
-                      <div class="text-[10px] text-[#8B95A7]">Max</div>
+                      <div class="text-[10px] text-[#8B95A7]">Máx</div>
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.max != null ? evalRes.summary_stats.max.toFixed(3) : '-'}</div>
                     </div>
                   </div>
@@ -1886,7 +1886,7 @@ export class DatasetsView {
 
                 <!-- Sample Preview -->
                 <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
-                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Sample Computed Values (First 5 Rows):</div>
+                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Valores Calculados de Muestra (Primeras 5 Filas):</div>
                   <div class="flex items-center space-x-2">
                     ${(evalRes.sample_values || []).map((val, idx) => `
                       <span class="px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#F7F8FA] font-bold">
@@ -1904,8 +1904,8 @@ export class DatasetsView {
         ${this.calcSuggestions && this.calcSuggestions.length > 0 ? `
           <div class="p-4 rounded-xl border border-indigo-900/40 bg-indigo-950/15 space-y-3">
             <div class="flex items-center justify-between border-b border-indigo-900/30 pb-2">
-              <span class="text-xs font-sans font-semibold text-indigo-300 uppercase tracking-wider">Feature Hypotheses Proposed by AI</span>
-              <span class="text-[10px] font-mono text-[#8B95A7]">${this.calcSuggestions.length} validated proposals</span>
+              <span class="text-xs font-sans font-semibold text-indigo-300 uppercase tracking-wider">Hipótesis de Características Propuestas por IA</span>
+              <span class="text-[10px] font-mono text-[#8B95A7]">${this.calcSuggestions.length} propuestas validadas</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               ${this.calcSuggestions.map(sugg => `
@@ -1913,7 +1913,7 @@ export class DatasetsView {
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-mono font-bold text-indigo-300">${sugg.definition.name}</span>
                     <button class="btn-load-suggestion px-2.5 py-0.5 rounded-md bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 text-[11px] font-sans font-medium inline-flex items-center space-x-1" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
-                      <span>Load in Calculator</span>
+                      <span>Cargar en Calculadora</span>
                       <span>${icon("arrow-right", "icon-sm")}</span>
                     </button>
                   </div>

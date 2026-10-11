@@ -108,7 +108,7 @@ class App {
         if (activeDataset) {
           projectEl.textContent = activeRun ? `${activeDataset.name} (${activeRun.id})` : activeDataset.name;
         } else {
-          projectEl.textContent = "AutoML Workspace";
+          projectEl.textContent = "Espacio AutoML";
         }
       }
 
@@ -116,7 +116,7 @@ class App {
       const kaggleLabel = document.getElementById("kaggleNavLabel");
       const kaggleBadge = document.getElementById("kaggleNavBadge");
       if (kaggleLabel) {
-        kaggleLabel.textContent = activeDataset ? activeDataset.name : "Kaggle & Submissions";
+        kaggleLabel.textContent = activeDataset ? activeDataset.name : "Kaggle & Envíos";
       }
       if (kaggleBadge) {
         if (activeRun && activeRun.best_score != null) {
@@ -132,7 +132,7 @@ class App {
       const statusBadge = document.getElementById("globalStatusBadge");
       const sysHw = document.getElementById("sysHardwareHeader");
       if (sysHw) {
-        sysHw.textContent = isAnyRunning ? "AutoML Training Folds Active" : "AutoML Engine Ready";
+        sysHw.textContent = isAnyRunning ? "Entrenamiento AutoML en curso" : "Motor AutoML listo";
       }
 
       if (statusBadge) {
@@ -140,7 +140,8 @@ class App {
           statusBadge.className = "badge-warn px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
           statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>ENTRENANDO</span>`;
         } else {
-          const lastStatus = runs && runs[0] && runs[0].status ? runs[0].status : "READY";
+          const rawStatus = runs && runs[0] && runs[0].status ? runs[0].status : "LISTO";
+          const lastStatus = rawStatus === "READY" ? "LISTO" : rawStatus;
           statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
           statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>${lastStatus}</span>`;
         }
