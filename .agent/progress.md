@@ -2,7 +2,7 @@
 
 ### Track Audit-4 — Security / inference / ensemble (`fix/audit4-security-inference-ensemble`, 2026-10-12)
 
-- High findings from post-`2604151` audit (PR A+B + stacking + #15):
+- **Merged via #104** (`67a60e4`):
   - `infrastructure/security/workspace_paths.py`: shared path confinement; web `/api/dataset/register` uses it (parity with inspect).
   - Upload writes `stem_{uuid10}.ext` so same client filename cannot overwrite prior uploads.
   - `InferenceService.predict`: materializes derived features + passes `column_transforms` into `fit_and_predict`.
@@ -10,7 +10,7 @@
   - `stack_predictions`: nested `cross_val_predict` OOF for metamodel (not in-sample fit).
   - Unknown optimizer → `ValueError` (no silent Random Search).
 - Tests: `tests/test_audit4_security_inference_ensemble.py`.
-- Deferred: #6–#14, #16 (selection leakage, PCA pipeline, hypothesis baseline/stats, image cache, budget PARTIAL, SHAP label, …). License compliance remains PR #103.
+- Next: findings #6–#14, #16. License compliance remains PR #103.
 
 ### Track Clean Architecture Refactor (PR1 contracts, 2026-10-11)
 
