@@ -1,7 +1,14 @@
 # Progress
 
+### Track Clean Architecture Refactor (docs + PR1, 2026-10-11)
+
+- Documented progressive Clean Architecture plan: `docs/features/clean-architecture-refactor/` + ADR-010 (PR #101).
+- Strategy: contracts first (PR1 / #102) → Workspace facade (PR2) → API/`datasets.js` (PR3) → UoW/states (PR4) → tooling (PR5).
+- Gate: #100 merged; merge #99 then #102 before PR2+.
+
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`, 2026-10-11)
 
+- Merged in PR #100 — recipe/CV/metric/FDR/XSS contracts.
 - Third external audit (post-`beb93a0` / PR #95): secondary paths lacked primary-flow guarantees.
 - **Contracts:** `domain/experiments/validation.py` normalizes CV aliases (`k_fold`→`kfold`) and rejects unknown strategies (trainer + `create_experiment` fail closed).
 - **Recipes:** translator call uses `default_models`; `ExperimentCandidateSpec.drop_features` + `model_id`; submit restores metric/cv/seed/strategy on run; SHA-256 `dataset_content_hash`; block archived submit; promote requires experiments.
