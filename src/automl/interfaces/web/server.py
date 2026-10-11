@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -1590,6 +1591,19 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     target = None
 
                 try:
+                    from automl.infrastructure.security.workspace_paths import (
+                        PathOutsideWorkspaceError,
+                        resolve_allowed_path,
+                    )
+
+                    try:
+                        data_path = str(
+                            resolve_allowed_path(data_path, workspace_dir=self.workspace_dir)
+                        )
+                    except PathOutsideWorkspaceError as pe:
+                        self._send_json({"error": str(pe)}, HTTPStatus.FORBIDDEN)
+                        return
+
                     dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
                     run = ws.create_run(dataset)
                     profile = ws.get_dataset_profile(dataset.id)
@@ -1636,7 +1650,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
                 upload_dir = Path(self.workspace_dir) / "uploads"
                 upload_dir.mkdir(parents=True, exist_ok=True)
-                dest_path = upload_dir / safe_filename
+                # Never overwrite a previous upload that may still be registered.
+                stem = Path(safe_filename).stem or "dataset"
+                suffix = Path(safe_filename).suffix or ".csv"
+                dest_path = upload_dir / f"{stem}_{uuid.uuid4().hex[:10]}{suffix}"
                 dest_path.write_bytes(data_bytes)
 
                 size_bytes = len(data_bytes)
@@ -1676,21 +1693,17 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     self._send_json({"error": "path is required"}, HTTPStatus.BAD_REQUEST)
                     return
 
-                target_file = Path(file_path_str).resolve()
-                # Same confinement as /api/files/browse: cwd or workspace only.
-                base_dir = Path.cwd().resolve()
-                ws_path = Path(self.workspace_dir).resolve()
-                allowed = (
-                    target_file == base_dir
-                    or target_file.is_relative_to(base_dir)
-                    or target_file == ws_path
-                    or target_file.is_relative_to(ws_path)
+                from automl.infrastructure.security.workspace_paths import (
+                    PathOutsideWorkspaceError,
+                    resolve_allowed_path,
                 )
-                if not allowed:
-                    self._send_json(
-                        {"error": f"Access denied: path outside workspace/cwd: {file_path_str}"},
-                        HTTPStatus.FORBIDDEN,
+
+                try:
+                    target_file = resolve_allowed_path(
+                        file_path_str, workspace_dir=self.workspace_dir
                     )
+                except PathOutsideWorkspaceError as pe:
+                    self._send_json({"error": str(pe)}, HTTPStatus.FORBIDDEN)
                     return
                 if not target_file.exists() or not target_file.is_file():
                     self._send_json({"error": f"File not found: {file_path_str}"}, HTTPStatus.NOT_FOUND)

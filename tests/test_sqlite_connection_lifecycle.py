@@ -23,6 +23,8 @@ def _open_fd_count() -> int:
 
 def test_repository_context_closes_connection(tmp_path: Path):
     repo = SQLiteExperimentRepository(tmp_path / "repo.db")
+    # Flush finalizers from prior tests so their ResourceWarnings are not attributed here.
+    gc.collect()
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", ResourceWarning)
         for _ in range(50):

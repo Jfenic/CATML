@@ -15,7 +15,10 @@ from automl.interfaces.web.server import AutoMLWebHandler
 
 
 @pytest.fixture
-def running_web_server(tmp_path: Path):
+def running_web_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    # Align with Workbench path policy: register/inspect allow cwd ∪ workspace.
+    monkeypatch.chdir(tmp_path)
+
     # Prepare dummy dataset
     csv_path = tmp_path / "test_data.csv"
     np.random.seed(42)

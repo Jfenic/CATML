@@ -16,7 +16,10 @@ from automl.interfaces.web.server import AutoMLWebHandler
 
 
 @pytest.fixture
-def vision_web_server(tmp_path: Path):
+def vision_web_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    # Align with Workbench path policy: register/inspect allow cwd ∪ workspace.
+    monkeypatch.chdir(tmp_path)
+
     # Create sample image files
     img_dir = tmp_path / "images"
     img_dir.mkdir(parents=True, exist_ok=True)
