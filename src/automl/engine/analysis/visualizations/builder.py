@@ -71,6 +71,8 @@ class VisualizationBuilder:
         if column not in df.columns:
             return None
         series = df[column].dropna().values
+        if series.dtype == bool:
+            series = series.astype(float)
         if len(series) < 5:
             return None
 

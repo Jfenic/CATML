@@ -476,6 +476,17 @@ export class DatasetsView {
     `;
   }
 
+  _classifyFindingSeverity(f) {
+    const type = f?.finding_type || "";
+    if (["high_collinearity", "multivariate_outliers", "high_cardinality_identifier"].includes(type)) {
+      return "CRITICAL";
+    }
+    if (["skewness", "outlier_density", "categorical_association", "multimodal_distribution", "target_class_separation"].includes(type)) {
+      return "WARNING";
+    }
+    return "INFO";
+  }
+
   _renderExplorationTab() {
     const study = this.activeStudy;
     const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
@@ -484,7 +495,9 @@ export class DatasetsView {
     const visualizations = study?.visualizations || [];
     const hypotheses = study?.hypotheses || [];
 
-    const corrViz = visualizations.find(v => v.viz_type === "correlation_matrix");
+    const corrViz = visualizations.find(v =>
+      v.chart_type === "correlation_matrix" || v.viz_type === "correlation_matrix"
+    );
 
     return `
       <div class="space-y-6">
@@ -617,9 +630,12 @@ export class DatasetsView {
             ` : `
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 ${findings.map(f => {
-                  const isCrit = f.severity === "CRITICAL";
-                  const isWarn = f.severity === "WARNING";
-                  const sevBadge = isCrit ? "badge-err" : isWarn ? "badge-warn" : "badge-sys";
+                  const sev = this._classifyFindingSeverity(f);
+                  const sevBadge = sev === "CRITICAL" ? "badge-err" : sev === "WARNING" ? "badge-warn" : "badge-sys";
+                  const columns = [f.column_name, f.secondary_column].filter(Boolean);
+                  const effect = f.effect_size != null
+                    ? f.effect_size
+                    : (f.metrics && (f.metrics.pearson_r ?? f.metrics.cramers_v ?? f.metrics.cohens_d ?? f.metrics.bimodality_coefficient));
 
                   return `
                     <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] space-y-2.5 hover:border-[#384355] transition-colors">
@@ -628,7 +644,7 @@ export class DatasetsView {
                           <span class="text-xs font-mono font-bold text-[#F7F8FA]">${escapeHtml(f.finding_type || "FINDING")}</span>
                         </div>
                         <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                          ${f.severity}
+                          ${escapeHtml(sev)}
                         </span>
                       </div>
 
@@ -637,20 +653,20 @@ export class DatasetsView {
                       </p>
 
                       <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                        ${(f.columns || []).map(col => `
+                        ${columns.map(col => `
                           <span class="text-[11px] font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded border border-[#242A36]">
                             ${escapeHtml(col)}
                           </span>
                         `).join("")}
 
-                        ${f.metric_value != null ? `
+                        ${effect != null && Number.isFinite(Number(effect)) ? `
                           <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20 ml-auto">
-                            stat = ${Number(f.metric_value).toFixed(3)}
+                            effect = ${Number(effect).toFixed(3)}
                           </span>
                         ` : ""}
                         ${f.p_value != null ? `
                           <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
-                            p = ${f.p_value < 0.0001 ? f.p_value.toExponential(2) : f.p_value.toFixed(4)}
+                            p = ${f.p_value < 0.0001 ? f.p_value.toExponential(2) : Number(f.p_value).toFixed(4)}
                           </span>
                         ` : ""}
                       </div>

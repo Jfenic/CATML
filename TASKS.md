@@ -25,6 +25,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
 ## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
 
+- [x] **Corrección de Perfilado de Columnas Booleanas y Registro de Datasets en Workbench**:
+  - [x] Conversión de series booleanas (estándar y nullable `pd.BooleanDtype`) a `float64` antes del cálculo de cuartiles, medianas, histogramas y correlaciones en `dataset_profiler.py`, `distribution_diagnostics.py` y `builder.py`. Resuelve la incompatibilidad de resta booleana en NumPy (`TypeError: numpy boolean subtract, the '-' operator, is not supported`).
+  - [x] Hardening de captura de excepciones y logging de traceback en `/api/dataset/register` (`server.py`).
+  - [x] Resiliencia en vista frontend de hallazgos estadísticos (`datasets.js`) infiriendo severidad y métricas sin depender de campos indefinidos.
+  - [x] Pruebas de regresión automatizadas en `tests/test_profiler_cardinality.py` y validación en dataset real (`data/kagle/train.csv`, ~700k filas). 732 tests pasando, 87% cobertura.
+
 - [x] **Refinamiento UI Workbench — Eliminación de Datasets Demo y Garantía de Workspace Vacío**:
   - [x] Eliminada resolución predeterminada a `.automl/s6e9_automl` o `.automl/demo` en `launch_ui_cli` (`main.py`) y en `server.py`; resolución canónica limpia a `.automl/default`.
   - [x] Limpieza de base de datos residual `workspace/automl.db` y `.automl/default/` (eliminando dataset «E-Commerce Multimodal Catalog» y ejecuciones demo huérfanas).

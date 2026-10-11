@@ -314,6 +314,11 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert "_renderExplorationTab" in datasets_js
     assert "btnOpenCreateStudyModal" in datasets_js
     assert "Matriz de Correlación" in datasets_js
+    # Finding cards must derive severity/columns from StatisticalFinding fields (no f.severity / f.columns)
+    assert "_classifyFindingSeverity" in datasets_js
+    assert "${f.severity}" not in datasets_js
+    assert "f.column_name" in datasets_js
+    assert 'chart_type === "correlation_matrix"' in datasets_js
 
     # 4. Verify domain active status rules
     from automl.domain.runs.states import RunStatus, is_active_run_status

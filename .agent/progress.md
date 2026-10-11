@@ -2,6 +2,22 @@
 
 ### Track Workbench UI Refinements & Testing — (2026-10-11)
 
+- **Soporte de Columnas Booleanas en Perfilado Estadístico y Registro de Datasets:**
+  - `src/automl/engine/profiling/dataset_profiler.py`:
+    - En `profile_dataset()`, conversión de series booleanas a `float64` (`0.0`/`1.0`) para cálculos estadísticos univariantes (media, std, mediana, `q25`, `q75`, curtosis, asimetría, histogramas). Evita el error `TypeError: numpy boolean subtract, the '-' operator, is not supported` provocado por la interpolación lineal de cuartiles en NumPy 1.25+/2.x sobre tipos booleanos estándar y nulos (`pd.BooleanDtype`).
+    - En agregaciones estratificadas por clase (`by_target`), conversión de `sub_s` a `float64` para series booleanas antes de calcular cuartiles y medianas.
+    - En cálculo de correlación con target continuo, conversión de series booleanas a `float`.
+  - `src/automl/engine/analysis/distribution_diagnostics.py`: Cast a `float` si `is_bool_dtype(series)` antes de calcular momentos y límites de outliers por rango intercuartílico (IQR).
+  - `src/automl/engine/analysis/visualizations/builder.py`: Cast a `float` si `series.dtype == bool` en `build_boxplot_spec()` antes de calcular percentiles de NumPy.
+  - `src/automl/interfaces/web/server.py`:
+    - Captura con `traceback.print_exc()` en endpoint `/api/dataset/register` y emisión de mensaje de error descriptivo («No se ha podido analizar o registrar el dataset: {exc}») evitando fallos opacos en el navegador.
+    - Captura con impresión de traza en manejadores generales de `do_POST`.
+  - `src/automl/interfaces/web/static/js/views/datasets.js`:
+    - Adaptación robusta en la tarjeta de hallazgos estadísticos para deducir severidad (`_classifyFindingSeverity`), extraer columnas (`column_name`, `secondary_column`) y formatear métricas (`effect_size` / `metrics`), previniendo `undefined` en campos de dominio.
+    - Detección precisa de visualizaciones de matriz de correlación (`chart_type === "correlation_matrix"`).
+  - **Pruebas de Regresión y Verificación:**
+    - Test `test_profile_dataset_supports_boolean_columns` en `tests/test_profiler_cardinality.py` verificando soporte de `bool` nativo y `boolean` nullable de Pandas con `pd.NA`.
+    - Verificación exitosa en dataset real con ~700,000 filas (`data/kagle/train.csv`, columna booleana `satisfaction`).
 - **Eliminación de Datasets Demo y Garantía de Workspace Vacío por Defecto:**
   - En `src/automl/interfaces/cli/main.py` (`launch_ui_cli`): eliminada la resolución predeterminada a `.automl/s6e9_automl` o `.automl/demo`; ahora resuelve a un workspace limpio por defecto (`.automl/default`).
   - En `src/automl/interfaces/web/server.py` (`AutoMLWebHandler`, `run_web_dashboard`): actualizado `workspace_dir` por defecto a `.automl/default`.

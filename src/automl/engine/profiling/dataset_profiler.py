@@ -413,6 +413,10 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
 
         if is_numeric and unique_count > 0:
             clean_s = series.dropna()
+            # Represent boolean series as float64 (0.0 / 1.0) strictly for statistical operations
+            # avoiding "TypeError: numpy boolean subtract, the '-' operator, is not supported"
+            if pd.api.types.is_bool_dtype(clean_s):
+                clean_s = clean_s.astype("float64")
             if len(clean_s) > 0:
                 mean_val = round(float(clean_s.mean()), 4)
                 std_val = round(float(clean_s.std()), 4) if len(clean_s) > 1 else 0.0
@@ -461,6 +465,8 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
                             for tc in sorted(target_classes, key=lambda x: str(x)):
                                 mask = (tgt_series == tc)
                                 sub_s = series[mask].dropna()
+                                if pd.api.types.is_bool_dtype(sub_s):
+                                    sub_s = sub_s.astype("float64")
                                 if len(sub_s) > 0:
                                     tc_min = round(float(sub_s.min()), 4)
                                     tc_q25 = round(float(sub_s.quantile(0.25)), 4)
@@ -485,7 +491,8 @@ def profile_dataset(dataset: Dataset, df: pd.DataFrame | None = None) -> Dataset
 
             if target_numeric is not None and (not has_target or name != dataset.target_column) and len(clean_s) > 1:
                 try:
-                    c = float(series.corr(target_numeric))
+                    s_corr = series.astype(float) if pd.api.types.is_bool_dtype(series) else series
+                    c = float(s_corr.corr(target_numeric))
                     if not pd.isna(c):
                         target_corr = round(c, 4)
                 except Exception:

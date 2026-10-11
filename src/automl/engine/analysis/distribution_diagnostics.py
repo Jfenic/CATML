@@ -24,6 +24,8 @@ def diagnose_univariate_distributions(
 
     for col in num_cols:
         series = df[col].dropna()
+        if pd.api.types.is_bool_dtype(series):
+            series = series.astype(float)
         n = len(series)
         if n < 5:
             continue

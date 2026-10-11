@@ -1404,20 +1404,32 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if target and not str(target).strip():
                     target = None
 
-                dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
-                run = ws.create_run(dataset)
-                profile = ws.get_dataset_profile(dataset.id)
+                try:
+                    dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
+                    run = ws.create_run(dataset)
+                    profile = ws.get_dataset_profile(dataset.id)
 
-                self._send_json({
-                    "status": "success",
-                    "dataset_id": dataset.id,
-                    "run_id": run.id,
-                    "target": dataset.target_column,
-                    "task_type": dataset.task_type,
-                    "row_count": profile.row_count if profile else None,
-                    "feature_count": len(profile.columns) if profile else None,
-                })
-                return
+                    self._send_json({
+                        "status": "success",
+                        "dataset_id": dataset.id,
+                        "run_id": run.id,
+                        "target": dataset.target_column,
+                        "task_type": dataset.task_type,
+                        "row_count": profile.row_count if profile else None,
+                        "feature_count": len(profile.columns) if profile else None,
+                    })
+                    return
+                except Exception as exc:
+                    import traceback
+                    traceback.print_exc()
+                    self._send_json(
+                        {
+                            "error": f"No se ha podido analizar o registrar el dataset: {exc}",
+                            "message": str(exc),
+                        },
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
 
             elif path == "/api/dataset/upload":
                 filename = payload.get("filename", "uploaded_dataset.csv")
@@ -2087,10 +2099,16 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
         except (ValueError, TypeError) as exc:
+            import traceback
+            traceback.print_exc()
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except KeyError as exc:
+            import traceback
+            traceback.print_exc()
             self._send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             self._send_json({"status": "error", "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 

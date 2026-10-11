@@ -400,3 +400,34 @@ def test_legacy_workspace_upgrade_backfills_and_merges_profile_identifiers(tmp_p
     assert score_feat.semantic_type == "unknown"
 
 
+def test_profile_dataset_supports_boolean_columns():
+    df = pd.DataFrame({
+        "flag": [True, False] * 15,
+        "nullable_flag": pd.Series(
+            [True, False, pd.NA] * 10,
+            dtype="boolean",
+        ),
+        "numeric": list(range(30)),
+        "Class": [0, 1] * 15,
+    })
+    dataset = Dataset(
+        id="ds_boolean_test",
+        workspace_id="ws_test",
+        name="boolean_test",
+        path="unused.csv",
+        target_column="Class",
+        task_type="binary_classification",
+    )
+    profile = profile_dataset(dataset, df=df)
+    assert profile.row_count == 30
+    flag = next(col for col in profile.columns if col.name == "flag")
+    assert flag.q25 is not None
+    assert flag.q75 is not None
+    assert flag.median is not None
+    assert flag.min == 0.0
+    assert flag.max == 1.0
+
+    nullable_flag = next(col for col in profile.columns if col.name == "nullable_flag")
+    assert nullable_flag.median is not None
+    assert nullable_flag.q25 is not None
+    assert nullable_flag.q75 is not None
