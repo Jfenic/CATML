@@ -72,12 +72,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
-> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #100 merged; merge #99 then #102 before PR2+.
+> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 in this PR (`#102`).
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done (this PR / `#101`) |
-| P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Open PR `#102` |
+| P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done (`#101`) |
+| P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
 | P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Open (after PR1) |
 | P1 | PR3: Web controllers + split `datasets.js` components | Open |
 | P2 | PR4: SQLite repos + state machine + Unit of Work | Open |

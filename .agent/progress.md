@@ -1,5 +1,15 @@
 # Progress
 
+### Track Clean Architecture Refactor (PR1 contracts, 2026-10-11)
+
+- Docs ADR-010 / plan: PR #101. **PR1 code merged via #102**:
+  - `domain/metrics/spec.py`: `MetricSpec` + builtin registry + `resolve_metric_spec` / `InvalidMetric`.
+  - `domain/experiments/execution_spec.py`: frozen `ExecutionSpec` + `build_execution_spec` / `trial_execution_from_spec`.
+  - Wired Workspace `run_experiment` / `optimize_experiment` / schedule / `get_best_trial`, benchmarks `is_minimizing_metric`, web `_is_metric_minimizing`, trainer helper — no hardcoded minimize sets / blind `max()`.
+  - HPO keeps fixed CV fold seed (`ExecutionSpec.random_seed` = run seed).
+  - Tests: `tests/test_clean_arch_pr1_contracts.py`.
+- Next: PR2 Workspace facade extraction.
+
 ### Track Workbench UX Sprint 2 — Explore guided (`fix/workbench-sprint2-explore-guided`, 2026-10-11)
 
 - Merged in PR #99.
@@ -9,12 +19,6 @@
 - Advanced correlation matrix: column search filter + max-height scroll.
 - Comparator chart: floor Y-pad on [0,1] metrics so Δ~3e-5 is not visually exaggerated; neutral band 0.001.
 - Tests: `tests/test_workbench_sprint2_explore_guided.py`.
-
-### Track Clean Architecture Refactor (docs + PR1, 2026-10-11)
-
-- Documented progressive Clean Architecture plan: `docs/features/clean-architecture-refactor/` + ADR-010 (PR #101).
-- Strategy: contracts first (PR1 / #102) → Workspace facade (PR2) → API/`datasets.js` (PR3) → UoW/states (PR4) → tooling (PR5).
-- Gate: #100/#101/#99 merged; merge #102 before PR2+.
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`, 2026-10-11)
 

@@ -1,6 +1,8 @@
 """Shared validation-strategy contracts (single source of truth for CV aliases)."""
 from __future__ import annotations
 
+from automl.domain.experiments.exceptions import InvalidValidationStrategy
+
 VALIDATION_ALIASES: dict[str, str] = {
     "k_fold": "kfold",
     "k-fold": "kfold",
@@ -43,7 +45,7 @@ def require_known_validation_strategy(name: str | None, *, default: str = "holdo
     """Normalize and reject unknown strategies (fail closed — no silent holdout)."""
     canonical = normalize_validation_strategy(name, default=default)
     if canonical not in KNOWN_VALIDATION_STRATEGIES:
-        raise ValueError(
+        raise InvalidValidationStrategy(
             f"Unknown validation_strategy {name!r} (normalized={canonical!r}). "
             f"Known: {sorted(KNOWN_VALIDATION_STRATEGIES)}"
         )

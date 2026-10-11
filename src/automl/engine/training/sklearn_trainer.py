@@ -623,11 +623,18 @@ def _build_pipeline(
 
 
 def _is_minimizing_metric(metric_name: str, plugin_registry: Any = None) -> bool:
+    from automl.domain.metrics.exceptions import InvalidMetric
+    from automl.domain.metrics.spec import resolve_metric_spec
+
+    greater: bool | None = None
     if plugin_registry and hasattr(plugin_registry, "has") and plugin_registry.has(metric_name):
         plugin = plugin_registry.get_metric_plugin(metric_name)
         if plugin is not None and hasattr(plugin, "greater_is_better"):
-            return not plugin.greater_is_better
-    return str(metric_name).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+            greater = bool(plugin.greater_is_better)
+    try:
+        return resolve_metric_spec(metric_name, greater_is_better=greater).is_minimizing
+    except InvalidMetric:
+        return False
 
 
 def _sklearn_scoring(metric_name: str, task_type: str, plugin_registry: Any = None) -> Any:

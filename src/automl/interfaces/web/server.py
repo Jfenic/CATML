@@ -90,30 +90,23 @@ def _is_metric_minimizing(metric_name: str | None, ws: Any = None) -> bool:
     """Returns True if the metric is minimizing (lower is better, e.g. loss/error metrics)."""
     if not metric_name:
         return False
+    from automl.domain.metrics.exceptions import InvalidMetric
+    from automl.domain.metrics.spec import resolve_metric_spec
+
     metric_str = str(metric_name).lower().strip()
+    greater: bool | None = None
     if ws is not None and hasattr(ws, "plugin_registry") and ws.plugin_registry is not None:
         try:
             if hasattr(ws.plugin_registry, "has") and ws.plugin_registry.has(metric_str):
                 plugin = ws.plugin_registry.get_metric_plugin(metric_str)
                 if plugin is not None and hasattr(plugin, "greater_is_better"):
-                    return not plugin.greater_is_better
+                    greater = bool(plugin.greater_is_better)
         except Exception:
             pass
-    return metric_str in {
-        "mae",
-        "rmse",
-        "mse",
-        "loss",
-        "log_loss",
-        "logloss",
-        "mean_squared_error",
-        "mean_absolute_error",
-        "root_mean_squared_error",
-        "neg_mean_absolute_error",
-        "neg_mean_squared_error",
-        "neg_root_mean_squared_error",
-        "neg_log_loss",
-    }
+    try:
+        return resolve_metric_spec(metric_str, greater_is_better=greater).is_minimizing
+    except InvalidMetric:
+        return False
 
 
 def _get_best_trial_result(trials: list[Any], metric: str | None = None, ws: Any = None) -> Any | None:

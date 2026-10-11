@@ -13,8 +13,13 @@ from automl.domain.datasets.profile import Dataset
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult, TrialStatus
+from automl.domain.experiments.execution_spec import (
+    build_execution_spec,
+    trial_execution_from_spec,
+)
 from automl.domain.experiments.validation import require_known_validation_strategy
-from automl.domain.metrics.direction import is_minimizing_metric_name
+from automl.domain.metrics.exceptions import InvalidMetric
+from automl.domain.metrics.spec import MetricSpec, resolve_metric_spec
 from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionEvidence
 from automl.domain.features.feature import Feature
 from automl.domain.features.feature_set import FeatureSet
@@ -32,7 +37,6 @@ from automl.domain.ports import (
     ExperimentPlannerPort,
     OptimizerPort,
     PriorityScorerPort,
-    TrialExecution,
 )
 from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
@@ -638,22 +642,19 @@ class AutoMLWorkspace:
                 seed=run.config.random_seed,
             )
             self.repository.save_trial(trial)
-            execution = TrialExecution(
+            spec = build_execution_spec(
+                run,
+                experiment,
+                dataset,
+                model_id=model_id,
+                greater_is_better=self._metric_greater_is_better(experiment.metric),
+            )
+            execution = trial_execution_from_spec(
                 trial=trial,
                 experiment=experiment,
                 run=run,
-                feature_names=experiment.feature_names,
-                dataset_path=dataset.path,
-                target_column=dataset.target_column,
-                task_type=dataset.task_type,
-                metric=experiment.metric,
-                validation_strategy=experiment.validation_strategy,
-                test_size=run.config.test_size,
-                cv_folds=run.config.cv_folds,
-                random_seed=run.config.random_seed,
-                group_column=experiment.group_column,
-                column_transforms=list(getattr(experiment, "column_transforms", []) or []),
-                derived_features=list(getattr(experiment, "derived_features", []) or []),
+                dataset=dataset,
+                spec=spec,
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)
@@ -1218,10 +1219,9 @@ class AutoMLWorkspace:
             succeeded = [r for r in results if r.succeeded]
             if succeeded:
                 metric_name = getattr(exp, "metric", None) or run.config.metric
-                if self._is_minimizing_metric(metric_name):
-                    best_score = min(r.primary_score for r in succeeded)
-                else:
-                    best_score = max(r.primary_score for r in succeeded)
+                best_score = self._resolve_metric_spec(metric_name).select_best_score(
+                    r.primary_score for r in succeeded
+                )
             else:
                 best_score = 0.0
             executed.append(
@@ -1273,15 +1273,8 @@ class AutoMLWorkspace:
         self.repository.save_run(run)
 
         space = SearchSpaceBuilder.build(target_model, run.config.task_type)
-        metric_plugin = self.plugin_registry.get_metric_plugin(run.config.metric)
-        if metric_plugin is not None:
-            direction = "maximize" if metric_plugin.greater_is_better else "minimize"
-        else:
-            direction = (
-                "minimize"
-                if str(run.config.metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
-                else "maximize"
-            )
+        metric_spec = self._resolve_metric_spec(run.config.metric)
+        direction = metric_spec.direction.value
 
         # Check meta-learning warm start priors
         warm_params: dict[str, Any] | None = None
@@ -1356,22 +1349,21 @@ class AutoMLWorkspace:
             )
             self.repository.save_trial(trial)
 
-            execution = TrialExecution(
+            # ExecutionSpec.random_seed = run fold seed (fixed); trial.seed may still vary.
+            spec = build_execution_spec(
+                run,
+                experiment,
+                dataset,
+                model_id=target_model,
+                params=params,
+                greater_is_better=metric_spec.greater_is_better,
+            )
+            execution = trial_execution_from_spec(
                 trial=trial,
                 experiment=experiment,
                 run=run,
-                feature_names=experiment.feature_names,
-                dataset_path=dataset.path,
-                target_column=dataset.target_column,
-                task_type=dataset.task_type,
-                metric=experiment.metric,
-                validation_strategy=experiment.validation_strategy,
-                test_size=run.config.test_size,
-                cv_folds=run.config.cv_folds,
-                random_seed=run.config.random_seed,
-                group_column=experiment.group_column,
-                column_transforms=list(getattr(experiment, "column_transforms", []) or []),
-                derived_features=list(getattr(experiment, "derived_features", []) or []),
+                dataset=dataset,
+                spec=spec,
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)
@@ -1417,12 +1409,8 @@ class AutoMLWorkspace:
         best_params = opt.best_parameters() if succeeded else {}
         best_trial_id = ""
         if succeeded:
-            best_res = (
-                max(succeeded, key=lambda r: r.primary_score)
-                if direction == "maximize"
-                else min(succeeded, key=lambda r: r.primary_score)
-            )
-            best_trial_id = best_res.trial_id
+            best_idx = metric_spec.select_best_index([r.primary_score for r in succeeded])
+            best_trial_id = succeeded[best_idx].trial_id
 
         self._emit(
             "ExperimentOptimized",
@@ -1459,12 +1447,27 @@ class AutoMLWorkspace:
             ],
         }
 
-    def _is_minimizing_metric(self, metric_name: str) -> bool:
-        """Prefer plugin-declared direction; fall back to builtin minimizing names."""
+    def _metric_greater_is_better(self, metric_name: str) -> bool | None:
+        """Plugin override for metric direction, or None to use builtin registry."""
         plugin = self.plugin_registry.get_metric_plugin(metric_name)
         if plugin is not None and hasattr(plugin, "greater_is_better"):
-            return not bool(plugin.greater_is_better)
-        return is_minimizing_metric_name(metric_name)
+            return bool(plugin.greater_is_better)
+        return None
+
+    def _resolve_metric_spec(self, metric_name: str) -> MetricSpec:
+        """Resolve MetricSpec via plugin direction when available, else builtins."""
+        try:
+            return resolve_metric_spec(
+                metric_name,
+                greater_is_better=self._metric_greater_is_better(metric_name),
+            )
+        except InvalidMetric:
+            # Unknown plugin-less names: treat as maximize (legacy default).
+            return resolve_metric_spec(metric_name, greater_is_better=True)
+
+    def _is_minimizing_metric(self, metric_name: str) -> bool:
+        """Prefer plugin-declared direction; fall back to builtin MetricSpec registry."""
+        return self._resolve_metric_spec(metric_name).is_minimizing
 
     def get_best_trial(self, experiment_id: str) -> dict | None:
         results = self.repository.list_trial_results(experiment_id)
@@ -1474,8 +1477,9 @@ class AutoMLWorkspace:
         if not valid:
             return None
 
-        is_minimize = self._is_minimizing_metric(valid[0].primary_metric)
-        best = min(valid, key=lambda r: r.primary_score) if is_minimize else max(valid, key=lambda r: r.primary_score)
+        metric_spec = self._resolve_metric_spec(valid[0].primary_metric)
+        best_idx = metric_spec.select_best_index([r.primary_score for r in valid])
+        best = valid[best_idx]
 
         trial = self.repository.get_trial(best.trial_id)
         params = trial.parameters if trial else {}

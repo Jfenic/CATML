@@ -32,11 +32,18 @@ class BenchmarkScenario:
 
 def is_minimizing_metric(metric: str, ws: AutoMLWorkspace | None = None) -> bool:
     """Returns True if the metric is minimizing (lower is better, e.g. loss/error metrics)."""
+    from automl.domain.metrics.exceptions import InvalidMetric
+    from automl.domain.metrics.spec import resolve_metric_spec
+
+    greater: bool | None = None
     if ws is not None and hasattr(ws, "plugin_registry") and ws.plugin_registry is not None:
         plugin = ws.plugin_registry.get_metric_plugin(metric)
-        if plugin is not None:
-            return not plugin.greater_is_better
-    return str(metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+        if plugin is not None and hasattr(plugin, "greater_is_better"):
+            greater = bool(plugin.greater_is_better)
+    try:
+        return resolve_metric_spec(metric, greater_is_better=greater).is_minimizing
+    except InvalidMetric:
+        return False
 
 
 def _best_result(
