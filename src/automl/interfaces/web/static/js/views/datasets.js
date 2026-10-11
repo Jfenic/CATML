@@ -367,10 +367,10 @@ export class DatasetsView {
                   <div class="p-4 rounded-xl bg-[#151B26] hover:bg-[#1A2230] transition-colors space-y-2">
                     <div class="flex items-center justify-between">
                       <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${(r.badge || 'INFO').toUpperCase()}</span>
-                      ${r.column ? `<code class="text-[11px] font-mono text-[#8B95A7]">${r.column}</code>` : ""}
+                      ${r.column ? `<code class="text-[11px] font-mono text-[#8B95A7]">${escapeHtml(r.column)}</code>` : ""}
                     </div>
-                    <h4 class="font-sans font-semibold text-xs text-[#F7F8FA]">${r.title}</h4>
-                    <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">${r.description}</p>
+                    <h4 class="font-sans font-semibold text-xs text-[#F7F8FA]">${escapeHtml(r.title)}</h4>
+                    <p class="text-xs text-[#8B95A7] font-sans leading-relaxed">${escapeHtml(r.description)}</p>
                   </div>
                 `;
               }).join("")}
@@ -1153,8 +1153,8 @@ export class DatasetsView {
               <tr>
                 <th class="p-2.5 text-left font-mono text-[11px] text-[#8B95A7] bg-[#0D1017] sticky left-0 z-20 border-r border-[#242A36] min-w-[130px]">Feature</th>
                 ${cols.map(c => `
-                  <th class="p-2 font-mono text-[11px] text-[#8B95A7] min-w-[70px] max-w-[110px] truncate" title="${c}">
-                    ${c === p.target_column ? `<span class="text-[#4F67FF] inline-flex items-center space-x-1">${icon("target", "icon-sm")}<span>${c}</span></span>` : c}
+                  <th class="p-2 font-mono text-[11px] text-[#8B95A7] min-w-[70px] max-w-[110px] truncate" title="${escapeHtml(c)}">
+                    ${c === p.target_column ? `<span class="text-[#4F67FF] inline-flex items-center space-x-1">${icon("target", "icon-sm")}<span>${escapeHtml(c)}</span></span>` : escapeHtml(c)}
                   </th>
                 `).join("")}
                 <th class="p-2 font-mono text-[11px] text-[#8B95A7]">Visuals</th>
@@ -1163,8 +1163,8 @@ export class DatasetsView {
             <tbody>
               ${cols.map((rowName, rIdx) => `
                 <tr class="border-b border-[#242A36]/60 hover:bg-[#161B26]/50">
-                  <td class="p-2 text-left font-mono font-medium text-[#F7F8FA] bg-[#0D1017]/95 sticky left-0 z-10 border-r border-[#242A36] truncate max-w-[150px]" title="${rowName}">
-                    ${rowName === p.target_column ? `<span class="text-[#4F67FF] inline-flex items-center space-x-1">${icon("target", "icon-sm")}<span>${rowName}</span></span>` : rowName}
+                  <td class="p-2 text-left font-mono font-medium text-[#F7F8FA] bg-[#0D1017]/95 sticky left-0 z-10 border-r border-[#242A36] truncate max-w-[150px]" title="${escapeHtml(rowName)}">
+                    ${rowName === p.target_column ? `<span class="text-[#4F67FF] inline-flex items-center space-x-1">${icon("target", "icon-sm")}<span>${escapeHtml(rowName)}</span></span>` : escapeHtml(rowName)}
                   </td>
                   ${cols.map((colName, cIdx) => {
                     const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;

@@ -131,8 +131,8 @@ export class CompareView {
         <div class="space-y-1.5 mt-3">
           <div class="text-[#8B95A7] uppercase font-sans font-medium tracking-wider text-[10px]">Diferencias de arquitectura</div>
           <div class="bg-[#161B26] p-3 rounded-xl border border-[#242A36] font-mono space-y-1 text-[#F7F8FA] text-xs">
-            <div>Exp 1: <span class="text-[#4F67FF] font-semibold">${escapeHtml(selectedExps[0].name)}</span> (${(selectedExps[0].model_ids || []).join(", ") || 'N/A'})</div>
-            <div>Exp 2: <span class="text-[#6956E8] font-semibold">${escapeHtml(selectedExps[1].name)}</span> (${(selectedExps[1].model_ids || []).join(", ") || 'N/A'})</div>
+            <div>Exp 1: <span class="text-[#4F67FF] font-semibold">${escapeHtml(selectedExps[0].name)}</span> (${escapeHtml((selectedExps[0].model_ids || []).join(", ") || "N/A")})</div>
+            <div>Exp 2: <span class="text-[#6956E8] font-semibold">${escapeHtml(selectedExps[1].name)}</span> (${escapeHtml((selectedExps[1].model_ids || []).join(", ") || "N/A")})</div>
           </div>
         </div>
 

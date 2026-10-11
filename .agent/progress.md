@@ -2,12 +2,30 @@
 
 ### Track Workbench UX Sprint 2 — Explore guided (`fix/workbench-sprint2-explore-guided`, 2026-10-11)
 
+- Merged in PR #99.
 - Guiado/Avanzado toggle: top 5 findings + hypotheses first; matrices/full filters in Advanced.
 - Severity: CRITICAL only for IDs / |r|≥0.9 / strong multivariate outliers (not every collinear pair).
 - `formatPValue` replaces `p=0.000e+00`; guided association list (|r|≥0.70) before full heatmap.
 - Advanced correlation matrix: column search filter + max-height scroll.
 - Comparator chart: floor Y-pad on [0,1] metrics so Δ~3e-5 is not visually exaggerated; neutral band 0.001.
 - Tests: `tests/test_workbench_sprint2_explore_guided.py`.
+
+### Track Clean Architecture Refactor (docs + PR1, 2026-10-11)
+
+- Documented progressive Clean Architecture plan: `docs/features/clean-architecture-refactor/` + ADR-010 (PR #101).
+- Strategy: contracts first (PR1 / #102) → Workspace facade (PR2) → API/`datasets.js` (PR3) → UoW/states (PR4) → tooling (PR5).
+- Gate: #100/#101/#99 merged; merge #102 before PR2+.
+
+### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`, 2026-10-11)
+
+- Merged in PR #100 — recipe/CV/metric/FDR/XSS contracts.
+- Third external audit (post-`beb93a0` / PR #95): secondary paths lacked primary-flow guarantees.
+- **Contracts:** `domain/experiments/validation.py` normalizes CV aliases (`k_fold`→`kfold`) and rejects unknown strategies (trainer + `create_experiment` fail closed).
+- **Recipes:** translator call uses `default_models`; `ExperimentCandidateSpec.drop_features` + `model_id`; submit restores metric/cv/seed/strategy on run; SHA-256 `dataset_content_hash`; block archived submit; promote requires experiments.
+- **Metrics/HPO:** `run_scheduled_experiments` uses minimize/maximize; `get_best_trial` consults metric plugins; HPO `TrialExecution.random_seed` fixed for CV folds (trial bookkeeping seed still varies).
+- **FDR:** Benjamini–Hochberg no longer maps `p=0.0` via `or 1.0`.
+- **XSS:** `escapeHtml` on feature/column/model interpolations in `new_experiment.js`, `datasets.js`, `compare.js`.
+- Tests: `tests/test_audit3_recipe_metric_cv_contracts.py`. Deferred: stacking OOF metamodel, shap naming, pip-audit hard-fail.
 
 ### Track Export / path integrity (`fix/export-parquet-path-confinement`, 2026-10-11)
 

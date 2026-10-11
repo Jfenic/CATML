@@ -27,6 +27,7 @@ from sklearn.preprocessing import (
 )
 
 from automl.domain.experiments.trial import TrialResult, TrialStatus
+from automl.domain.experiments.validation import require_known_validation_strategy
 from automl.domain.runs.states import RunStatus
 from automl.domain.ports import TrialExecution, TrainerPort
 from automl.engine.profiling.dataset_profiler import load_dataframe
@@ -170,7 +171,10 @@ class SklearnTrainer(TrainerPort):
             )
 
             metric_name = execution.metric
-            strategy = (execution.validation_strategy or "holdout").lower()
+            strategy = require_known_validation_strategy(
+                execution.validation_strategy,
+                default="holdout",
+            )
 
             if strategy in {
                 "cross_validation",

@@ -47,12 +47,16 @@ def apply_benjamini_hochberg_correction(findings: list[StatisticalFinding]) -> N
     if m == 0:
         return
 
-    # Sort tests by ascending p-value
-    indexed = sorted(enumerate(tests_with_p), key=lambda x: x[1].p_value or 1.0)
-    
+    def _raw_p(p: float | None) -> float:
+        # Preserve exact 0.0; only None (already filtered) would be ambiguous.
+        return 1.0 if p is None else float(p)
+
+    # Sort tests by ascending p-value (0.0 must rank first, not become 1.0 via `or`)
+    indexed = sorted(enumerate(tests_with_p), key=lambda x: _raw_p(x[1].p_value))
+
     # Compute Benjamini-Hochberg step-up adjusted p-values
     # p_adj(i) = min_{j >= i} (p(j) * m / j)
-    raw_p_values = [item[1].p_value or 1.0 for item in indexed]
+    raw_p_values = [_raw_p(item[1].p_value) for item in indexed]
     adjusted = [0.0] * m
     cum_min = 1.0
 
@@ -67,7 +71,7 @@ def apply_benjamini_hochberg_correction(findings: list[StatisticalFinding]) -> N
     for (orig_idx, finding), adj_p in zip(indexed, adjusted):
         finding.metrics["p_value_fdr"] = round(float(adj_p), 6)
         finding.metrics["fdr_significant"] = bool(adj_p < 0.05)
-        if (finding.p_value or 1.0) < 0.05 and adj_p >= 0.05:
+        if _raw_p(finding.p_value) < 0.05 and adj_p >= 0.05:
             finding.limitations.append(
                 f"El hallazgo no supera la corrección FDR Benjamini-Hochberg (p_fdr={adj_p:.4f} ≥ 0.05). Posible falso positivo."
             )
