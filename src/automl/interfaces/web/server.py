@@ -2111,6 +2111,15 @@ def run_web_dashboard(
         if not effective_token:
             effective_token = secrets.token_urlsafe(16)
         AutoMLWebHandler.auth_token = effective_token
+    elif not is_local and insecure_no_auth:
+        import os
+        if os.environ.get("CATML_ALLOW_INSECURE") != "1":
+            raise PermissionError(
+                f"Refusing to expose Workbench on external interface '{host}' without authentication. "
+                "Provide an authentication token or set environment variable CATML_ALLOW_INSECURE=1 to override."
+            )
+        AutoMLWebHandler.require_auth = False
+        AutoMLWebHandler.auth_token = None
     else:
         AutoMLWebHandler.require_auth = False
         AutoMLWebHandler.auth_token = None
@@ -2132,7 +2141,6 @@ def run_web_dashboard(
         print("  SECURITY NOTICE: Remote binding protected with authentication token.")
         print(f"  Access token: {effective_token}")
         print(f"  Direct secure URL (fragment, not sent over HTTP): http://{host}:{port}/#token={effective_token}")
-        print(f"  Alternative query URL: http://{host}:{port}/?token={effective_token}")
     elif not is_local and insecure_no_auth:
         print(f"  Bound to external interface: http://{host}:{port}")
         print("  WARNING: Workbench is exposed on non-localhost interface WITHOUT authentication!")

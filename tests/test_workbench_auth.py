@@ -6,9 +6,19 @@ from pathlib import Path
 import threading
 import urllib.request
 import urllib.error
+from unittest.mock import MagicMock, patch
 import pytest
 
 from automl.interfaces.web.server import AutoMLWebHandler, run_web_dashboard
+
+
+@pytest.fixture(autouse=True)
+def reset_web_handler_auth():
+    AutoMLWebHandler.require_auth = False
+    AutoMLWebHandler.auth_token = None
+    yield
+    AutoMLWebHandler.require_auth = False
+    AutoMLWebHandler.auth_token = None
 
 
 def test_workbench_auth_local_requires_no_token():
@@ -110,3 +120,41 @@ def test_workbench_payload_size_limit():
     handler.do_POST()
     assert sent_status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
     assert "Payload Too Large" in sent_data.get("error", "")
+
+
+def test_workbench_remote_insecure_fails_closed_without_env_var():
+    """Binding Workbench to external host with insecure_no_auth without CATML_ALLOW_INSECURE=1 must fail closed."""
+    with pytest.raises(PermissionError, match="CATML_ALLOW_INSECURE=1"):
+        run_web_dashboard(host="0.0.0.0", insecure_no_auth=True)
+
+
+def test_workbench_remote_insecure_succeeds_with_env_var():
+    """Binding Workbench to external host with insecure_no_auth and CATML_ALLOW_INSECURE=1 succeeds."""
+    mock_server = MagicMock()
+    mock_worker = MagicMock()
+
+    with patch("automl.interfaces.web.server.ThreadingHTTPServer", return_value=mock_server):
+        with patch("automl.infrastructure.jobs.worker.JobWorker", return_value=mock_worker):
+            with patch.dict("os.environ", {"CATML_ALLOW_INSECURE": "1"}):
+                mock_server.serve_forever.side_effect = KeyboardInterrupt
+                run_web_dashboard(host="0.0.0.0", insecure_no_auth=True)
+                assert AutoMLWebHandler.require_auth is False
+                assert AutoMLWebHandler.auth_token is None
+
+
+def test_workbench_remote_default_requires_token():
+    """Binding Workbench to external host without insecure_no_auth generates an ephemeral token and enables auth."""
+    mock_server = MagicMock()
+    mock_worker = MagicMock()
+
+    try:
+        with patch("automl.interfaces.web.server.ThreadingHTTPServer", return_value=mock_server):
+            with patch("automl.infrastructure.jobs.worker.JobWorker", return_value=mock_worker):
+                mock_server.serve_forever.side_effect = KeyboardInterrupt
+                run_web_dashboard(host="0.0.0.0", insecure_no_auth=False)
+                assert AutoMLWebHandler.require_auth is True
+                assert AutoMLWebHandler.auth_token is not None
+                assert len(AutoMLWebHandler.auth_token) >= 16
+    finally:
+        AutoMLWebHandler.require_auth = False
+        AutoMLWebHandler.auth_token = None

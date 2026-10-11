@@ -5,8 +5,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-664%20Passing-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/Coverage-87%25%2B-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-723%20Passing-brightgreen.svg)](tests/)
+[![Coverage](https://img.shields.io/badge/Coverage-86.8%25%2B-brightgreen.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
 
@@ -52,6 +52,9 @@ model = ModelArtifact.load("model.pkl")
 predictions = model.predict(df.head(5))
 probabilities = model.predict_proba(df.head(5))
 ```
+
+> [!WARNING]
+> **Model Artifact Deserialization Security:** Never load `.pkl` / `joblib` artifacts received from untrusted third parties. Standard Python object deserialization can execute arbitrary code. Companion `.sha256` checksums verify storage integrity against accidental corruption, **not** cryptographic authenticity or provenance. For multi-tenant, LAN, or VPS deployments, see [`docs/trusted-deployment.md`](docs/trusted-deployment.md) and [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -252,6 +255,8 @@ pytest --cov=src/automl --cov-fail-under=85
 - **Developer Extension Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
 - **Feature Specifications & Plans:** [`docs/features/`](docs/features/)
 - **Architectural Decision Records (ADRs):** [`docs/decisions/`](docs/decisions/)
+- **Trusted Deployment & Threat Model:** [`docs/trusted-deployment.md`](docs/trusted-deployment.md)
+- **Security Policy & Reporting:** [`SECURITY.md`](SECURITY.md)
 
 ---
 

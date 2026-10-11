@@ -158,9 +158,14 @@ def test_mcp_streamable_http_external_host_security(caplog):
         with pytest.raises(PermissionError, match="Refusing to bind MCP streamable-http server to external interface '0.0.0.0'"):
             run_mcp_service(transport="streamable-http", host="0.0.0.0", port=8000)
 
-        # 2. External host with insecure_no_auth=True logs critical warning and proceeds
-        with caplog.at_level(logging.WARNING):
+        # 2. External host with insecure_no_auth=True fails closed unless CATML_ALLOW_INSECURE=1
+        with pytest.raises(PermissionError, match="CATML_ALLOW_INSECURE=1"):
             run_mcp_service(transport="streamable-http", host="0.0.0.0", port=8000, insecure_no_auth=True)
+
+        # 3. External host with insecure_no_auth=True and CATML_ALLOW_INSECURE=1 logs critical warning and proceeds
+        with patch.dict("os.environ", {"CATML_ALLOW_INSECURE": "1"}):
+            with caplog.at_level(logging.WARNING):
+                run_mcp_service(transport="streamable-http", host="0.0.0.0", port=8000, insecure_no_auth=True)
 
         assert any("CRITICAL SECURITY WARNING" in rec.message for rec in caplog.records)
         assert any("0.0.0.0" in rec.message for rec in caplog.records)

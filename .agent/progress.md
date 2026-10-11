@@ -1,5 +1,26 @@
 # Progress
 
+### Track Security Hardening & Release Preparation — 0.9.0-rc1 (2026-10-11)
+
+- **Endurecimiento de Interfaces Remotas (Fail-Closed por Defecto):**
+  - **Workbench Fail-Closed:** En `src/automl/interfaces/web/server.py` (`run_web_dashboard`), enlace a interfaces no loopback (`0.0.0.0` o IP externa) sin autenticación levanta `PermissionError` a menos que la variable de entorno `CATML_ALLOW_INSECURE=1` esté explícitamente configurada.
+  - **MCP Streamable-HTTP Fail-Closed:** En `src/automl/interfaces/mcp/server.py` (`run_mcp_service`), exposición no autenticada en interfaces externas levanta `PermissionError` a menos que `CATML_ALLOW_INSECURE=1` esté configurada.
+  - **Sanitización de Tokens en URLs:** Eliminada la impresión en consola de enlaces con parámetros query (`?token=`). Conservación exclusiva de identificadores de fragmento (`/#token=`), que nunca se transmiten por la red HTTP y son sanitizados por el navegador.
+  - **Tests Unitarios de Seguridad:**
+    - Ampliación de `tests/test_audit_findings.py` verificando el bloqueo fail-closed de MCP streamable-http ante `0.0.0.0` y desbloqueo controlado con `CATML_ALLOW_INSECURE=1`.
+    - Ampliación de `tests/test_workbench_auth.py` verificando el rechazo de enlaces remotos sin autenticación y validación de generación de token efímero y flag `CATML_ALLOW_INSECURE=1`.
+- **Public Threat Model & Trusted Deployment Guide:**
+  - Creación de [`docs/trusted-deployment.md`](docs/trusted-deployment.md) definiendo el modelo de amenazas y 3 niveles de despliegue (Tier 1: Local Loopback, Tier 2: Private LAN, Tier 3: Cloud VPS / Producción con proxy inverso TLS de referencia en Nginx).
+  - Alertas explícitas en [`README.md`](README.md) y [`SECURITY.md`](SECURITY.md) sobre los riesgos de deserialización con `joblib`/`pickle`, aclarando que el checksum SHA-256 garantiza integridad ante corrupción, no autenticidad ni procedencia. Roadmap documentado para firmas PKI/HMAC y exportación a ONNX.
+- **Superficie de Agentes y Privacidad:**
+  - Modo compacto `compact=True` verificado por defecto en herramientas de análisis MCP, devolviendo cero filas crudas a los contextos de LLMs.
+  - Confinamiento estricto al workspace y presupuestos cooperativos por sesión.
+- **Bump de Versión a 0.9.0-rc1:**
+  - `src/automl/__init__.py`: Versión actualizada a `0.9.0-rc1`.
+  - `CHANGELOG.md`: Entrada detallada para `[0.9.0-rc1] - 2026-10-11`.
+  - `README.md`: Badges actualizados (727 Passing, 86.8%+ Coverage) y enlaces de navegación a seguridad añadidos.
+  - `SECURITY.md`: Tabla de versiones soportadas actualizada con `0.9.x` activo y `0.8.x` de mantenimiento.
+
 ### Track CATML Explore — Fase E6: Benchmarks Integrales y Preparación de Producto (Release Readiness) (2026-10-11)
 
 - **Implementación de la Batería de Benchmarks en 4 Ejes (Fase E6 - ADR-008):**

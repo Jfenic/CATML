@@ -660,6 +660,12 @@ def run_mcp_service(
             )
 
         if is_external and insecure_no_auth:
+            import os
+            if os.environ.get("CATML_ALLOW_INSECURE") != "1":
+                raise PermissionError(
+                    f"Refusing to expose unauthenticated MCP streamable-http server on external interface '{host}'. "
+                    "Provide an authentication token or set environment variable CATML_ALLOW_INSECURE=1 to override."
+                )
             logger.warning(
                 "CRITICAL SECURITY WARNING: MCP Streamable-HTTP server is binding to external interface '%s' "
                 "WITHOUT authentication (--insecure-no-auth). Do NOT expose to untrusted networks.",
@@ -705,5 +711,5 @@ def run_mcp_service(
             logger.info(f"Iniciando CATML MCP Streamable-HTTP Server en http://{host}:{port}{streamable_http_path}...")
             server.run(transport="streamable-http", host=host, port=port, streamable_http_path=streamable_http_path)
     else:
-        logger.info("Iniciando CATML MCP Stdio Server (V0.7.0)...")
+        logger.info(f"Iniciando CATML MCP Stdio Server (V{__version__})...")
         server.run(transport="stdio")

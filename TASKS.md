@@ -215,6 +215,23 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e6_benchmarks.py` (6 pruebas pasando al 100%).
   - [x] Actualización de `DEVELOPER_GUIDE.md` con arquitectura, comandos de CLI y módulos de Explore.
   - [x] Suite global verde: **723 pruebas pasando (0 fallos)**, cobertura global sostenida en **86.76%** (umbral CI $\ge 85\%$).
+- [x] **Hardening de Seguridad en Interfaces Remotas y Preparación Release 0.9.0-rc1**:
+  - [x] **Fail-Closed Remoto por Defecto**:
+    - [x] Workbench (`run_web_dashboard` en `src/automl/interfaces/web/server.py`) rechaza enlaces externos (`0.0.0.0` o no loopback) sin autenticación con `PermissionError` a menos que `CATML_ALLOW_INSECURE=1` esté explícitamente configurado.
+    - [x] MCP streamable-http (`run_mcp_service` en `src/automl/interfaces/mcp/server.py`) rechaza enlaces externos no autenticados fail-closed con `PermissionError` a menos que `CATML_ALLOW_INSECURE=1` esté configurado.
+    - [x] Retirada de impresión de URLs con query parameter `?token=`; conservación exclusiva de identificadores de fragmento del lado del cliente (`/#token=`), que nunca viajan por la red HTTP ni quedan en registros.
+  - [x] **Guía y Modelo de Amenazas ("Trusted Deployment")**:
+    - [x] Documento exhaustivo en [`docs/trusted-deployment.md`](docs/trusted-deployment.md) estructurado en 3 niveles (Tier 1: Local Loopback, Tier 2: Private LAN, Tier 3: Cloud VPS / Producción con proxy inverso TLS y permisos de workspace `chmod 700`).
+    - [x] Advertencia prominente sobre deserialización de artefactos `joblib`/`pickle` en `README.md` y `SECURITY.md`, especificando que el checksum SHA-256 garantiza integridad ante corrupción accidental, no autenticidad criptográfica ante adversarios.
+    - [x] Hoja de ruta para firmas HMAC/PKI y exportación a ONNX para inferencia pura.
+  - [x] **Superficie de Agentes y Privacidad**:
+    - [x] Modo compacto `compact=True` por defecto en herramientas de análisis MCP, devolviendo cero filas crudas a contextos LLM.
+    - [x] Presupuestos cooperativos por sesión y confinamiento estricto a las raíces del workspace.
+  - [x] **Bump de Versión a 0.9.0-rc1**:
+    - [x] Actualización de `__version__ = "0.9.0-rc1"` en `src/automl/__init__.py`.
+    - [x] Registro en `CHANGELOG.md` con desglose detallado de CATML Explore (E1–E6) y security hardening.
+    - [x] Actualización de badges y enlaces de navegación en `README.md` y `SECURITY.md`.
+    - [x] Suite de pruebas automatizadas: 727 pruebas pasando al 100%, cobertura global $\ge 86.8\%$.
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
