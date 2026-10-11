@@ -100,7 +100,7 @@ def test_best_result_ignores_failed_trials():
     assert best_model == "valid_model"
 
 
-def test_best_result_all_failed_returns_defaults():
+def test_best_result_all_failed_returns_absent_score():
     results = [
         TrialResult(
             trial_id="t1",
@@ -112,5 +112,5 @@ def test_best_result_all_failed_returns_defaults():
         ),
     ]
     best_score, best_model = _best_result(results, metric="roc_auc")
-    assert best_score == 0.0
+    assert best_score is None
     assert best_model is None

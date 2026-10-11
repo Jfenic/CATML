@@ -93,6 +93,7 @@ include-package-data = true
     "static/**/*.woff",
     "static/**/*.woff2",
     "static/**/*.ttf",
+    "static/**/*.txt",
 ]
 
 [tool.setuptools.dynamic]

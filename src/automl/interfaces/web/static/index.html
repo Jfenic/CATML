@@ -4,47 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CATML — Agent-Native AutoML Workbench</title>
-  <!-- Google Fonts: Geist, Geist Mono, Space Grotesk & IBM Plex Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Lucide Vector Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Geist"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            mono: ['"Geist Mono"', '"IBM Plex Mono"', 'ui-monospace', 'Menlo', 'monospace'],
-          },
-          colors: {
-            catml: {
-              black: '#080A0F',
-              bar: '#0D1017',
-              panel: '#11151E',
-              card: '#161B26',
-              border: '#242A36',
-              text: '#F7F8FA',
-              muted: '#8B95A7',
-              blue: '#4F67FF',
-              indigo: '#6956E8',
-              cyan: '#53C8FF',
-              success: '#22C55E',
-              warning: '#F59E0B',
-              danger: '#EF4444',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Offline-first UI chrome: vendored fonts/JS + built Tailwind (no CDN). See scripts/vendor_workbench_assets.sh -->
+  <link rel="stylesheet" href="/static/css/fonts.css">
+  <link rel="stylesheet" href="/static/css/tailwind.built.css">
   <link rel="stylesheet" href="/static/css/workbench.css">
+  <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/vendor/lucide.min.js"></script>
 </head>
 <body class="bg-[#080A0F] text-[#F7F8FA] min-h-screen flex flex-col font-sans antialiased">
 

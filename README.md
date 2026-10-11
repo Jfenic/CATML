@@ -24,7 +24,7 @@ CATML is engineered from the ground up with **five distinct advantages**:
 2. **Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within budget-aware leases and cooperative cancellation controls.
 3. **3-Line Ergonomics & Reproducibility:** Simple, scikit-learn compatible facade (`AutoML(random_state=42).fit(df, target="churn")`) over the same CQRS/hexagonal stages used by CLI and agents—not a separate monolithic engine.
 4. **Portable Artifacts (Database-Free Inference Runtime):** Winning models serialize into `model.pkl` + `.sha256` sidecars for workspace-independent inference. Runtime still needs compatible scientific Python stacks (see security note below)—not a zero-dependency binary.
-5. **Local-First by Default:** Workbench and MCP bind to `127.0.0.1` by default, confine filesystem access to the workspace, and keep an SQLite ledger locally. CATML does not phone home or upload dataset rows. Optional extras (vision weight downloads, remote LLM endpoints, browser CDNs for UI chrome) may use the network when you enable them.
+5. **Local-First by Default:** Workbench and MCP bind to `127.0.0.1` by default, confine filesystem access to the workspace, and keep an SQLite ledger locally. CATML does not phone home or upload dataset rows. Optional extras (vision weight downloads, remote LLM endpoints) may use the network when you enable them. Workbench UI chrome (Tailwind, Chart.js, Lucide, fonts) is vendored offline in the wheel.
 
 ---
 
@@ -116,7 +116,7 @@ Defaults to **`127.0.0.1`**. Binding a non-loopback host requires an auth token 
 - **Visual Experiment Studio:** Interactive comparison diffs, HPO trial history, and model explainability.
 - **Persistent Job Queue:** Resilient SQLite worker with pause, resume, and cooperative cancellation.
 
-> **Network note:** Training and dataset rows stay local. The Workbench HTML currently loads Tailwind/Chart.js/Lucide and web fonts from public CDNs for UI chrome, so a browser with outbound HTTPS is required for full styling. That is not dataset egress. Fully offline UI assets are a follow-up packaging task.
+> **Network note:** Training and dataset rows stay local. Workbench UI chrome is served from packaged `/static/vendor/*` and `/static/css/tailwind.built.css` (no browser CDN). Rebuild vendored assets with `bash scripts/vendor_workbench_assets.sh` when bumping Chart.js/Lucide/Tailwind/fonts.
 
 ---
 

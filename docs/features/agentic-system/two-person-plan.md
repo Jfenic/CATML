@@ -3,6 +3,8 @@
 > Estado: planificación; ninguna tarea de implementación se completa con este documento.
 > Complementa [plan.md](plan.md): conserva su alcance, límites arquitectónicos y aceptación H0–H5.
 > Personas A y B son roles; se pueden asignar a los dos colaboradores sin cambiar los contratos.
+>
+> **Colaboradores del proyecto:** [@Jfenic](https://github.com/Jfenic) (Jose Fenic Peiteado Padilla) y [@tvarmar](https://github.com/tvarmar) (Tania Évora Vargas Martínez). Antes de cada track paralelo, acordar quién actúa como Persona A y quién como Persona B; la otra persona revisa el PR.
 
 **Si acabas de llegar, lee primero [README.md](README.md):** explica cómo escoger A/B, el orden de lectura y la primera entrega A0 o B0. Este documento contiene el reparto completo una vez elegido el rol.
 

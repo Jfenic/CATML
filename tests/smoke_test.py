@@ -26,8 +26,22 @@ import pandas as pd
 REQUIRED_STATIC = (
     "index.html",
     "css/workbench.css",
+    "css/fonts.css",
+    "css/tailwind.built.css",
     "js/app.js",
     "js/views/home.js",
+    "vendor/chart.umd.min.js",
+    "vendor/lucide.min.js",
+    "vendor/fonts/Geist-Regular.woff2",
+    "vendor/fonts/ibm-plex-mono-latin-400-normal.woff2",
+)
+
+_CDN_MARKERS = (
+    "cdn.tailwindcss.com",
+    "cdn.jsdelivr.net",
+    "unpkg.com",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
 )
 
 
@@ -39,6 +53,11 @@ def _assert_workbench_static_packaged() -> Path:
     assert static_dir.is_dir(), f"Workbench static directory missing: {static_dir}"
     missing = [rel for rel in REQUIRED_STATIC if not (static_dir / rel).is_file()]
     assert not missing, f"Workbench static assets missing from installed package: {missing}"
+    index_html = (static_dir / "index.html").read_text(encoding="utf-8")
+    for marker in _CDN_MARKERS:
+        assert marker not in index_html, f"Workbench index.html must not reference CDN host {marker}"
+    assert "/static/vendor/chart.umd.min.js" in index_html
+    assert "/static/css/tailwind.built.css" in index_html
     return static_dir
 
 
@@ -56,8 +75,13 @@ def _assert_workbench_http_serves_assets(workspace_dir: Path) -> None:
         for path in (
             "/",
             "/static/css/workbench.css",
+            "/static/css/fonts.css",
+            "/static/css/tailwind.built.css",
             "/static/js/app.js",
             "/static/js/views/home.js",
+            "/static/vendor/chart.umd.min.js",
+            "/static/vendor/lucide.min.js",
+            "/static/vendor/fonts/Geist-Regular.woff2",
         ):
             url = f"http://127.0.0.1:{port}{path}"
             with urllib.request.urlopen(url, timeout=5) as resp:
