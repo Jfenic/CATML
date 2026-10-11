@@ -109,9 +109,17 @@ class App {
 
       this._updateSidebarActiveDataset(activeDataset);
 
-      if (overview && overview.workspace) {
-        const wsEl = document.getElementById("workspaceLabel");
-        if (wsEl) wsEl.textContent = overview.workspace;
+      if (overview) {
+        if (overview.workspace) {
+          const wsEl = document.getElementById("workspaceLabel");
+          if (wsEl) wsEl.textContent = overview.workspace;
+        }
+        if (overview.version) {
+          const vLabel = document.getElementById("sidebarVersionLabel");
+          if (vLabel) vLabel.textContent = `v${overview.version}`;
+          const aBadge = document.getElementById("sidebarAgentBadge");
+          if (aBadge) aBadge.textContent = `v${overview.version}`;
+        }
       }
 
       // Dynamic Project Name Label
@@ -251,10 +259,15 @@ class App {
   }
 
   _routeTo(navId) {
+    const canonicalNav = (navId === "datasets") ? "dataset"
+      : (navId === "studio") ? "experiments"
+      : (navId === "overview") ? "evidence"
+      : navId;
+
     // Update active class on sidebar items
     document.querySelectorAll(".nav-item").forEach(item => {
       const id = item.getAttribute("data-nav");
-      if (id === navId || (navId === "home" && id === "home") || (navId === "dataset" && id === "dataset") || (navId === "experiments" && id === "experiments") || (navId === "evidence" && id === "evidence")) {
+      if (id === canonicalNav) {
         item.classList.add("active");
       } else if (id !== "agent") {
         item.classList.remove("active");

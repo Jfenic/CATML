@@ -232,6 +232,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Registro en `CHANGELOG.md` con desglose detallado de CATML Explore (E1–E6) y security hardening.
     - [x] Actualización de badges y enlaces de navegación en `README.md` y `SECURITY.md`.
     - [x] Suite de pruebas automatizadas: 727 pruebas pasando al 100%, cobertura global $\ge 86.8\%$.
+- [x] **Track Workbench UI Refinements & Testing (`feat/workbench-ui-refinements`)**:
+  - [x] Sincronización dinámica de versión en cabecera y sidebar de `index.html` e inyección reactiva en `app.js` (`sidebarVersionLabel`, `sidebarAgentBadge`) a partir del endpoint `/api/overview`.
+  - [x] Normalización canónica de rutas y clases activas en `_routeTo` de `app.js` para alias de navegación (`datasets` -> `dataset`, `studio` -> `experiments`, `overview` -> `evidence`, `explore`).
+  - [x] Conexión de acceso directo desde la pestaña de Exploración de `datasets.js` al lienzo completo de `explore.js` mediante el botón `btnOpenFullExploreCanvas` ("Lienzo Completo").
+  - [x] Armonización de idiomas y eliminación de cadenas residuales en inglés en `studio.js` y `knowledge.js`.
+  - [x] Suite de pruebas automatizadas dedicada en `tests/test_workbench_navigation_and_explore_ui.py` (4 tests pasando) y suite de UI de 44 tests al 100%.
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 

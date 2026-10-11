@@ -517,6 +517,11 @@ export class DatasetsView {
                 </select>
               ` : ""}
 
+              <button id="btnOpenFullExploreCanvas" class="bg-[#161B26] hover:bg-[#1E2536] text-[#53C8FF] border border-[#242A36] hover:border-[#53C8FF]/40 text-xs px-3 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-1.5 transition-colors">
+                ${icon("compass", "icon-sm")}
+                <span>Lienzo Completo</span>
+              </button>
+
               <button id="btnOpenCreateStudyModal" class="btn-technical text-xs flex items-center space-x-1.5">
                 ${icon("plus", "icon-sm")}
                 <span>Nuevo Estudio</span>
@@ -2396,6 +2401,10 @@ export class DatasetsView {
 
     this.container.querySelector("#btnRunActiveStudy")?.addEventListener("click", runStudyHandler);
     this.container.querySelector("#btnRunStudyInline")?.addEventListener("click", runStudyHandler);
+
+    this.container.querySelector("#btnOpenFullExploreCanvas")?.addEventListener("click", () => {
+      store.setNav("explore");
+    });
 
     // Hypothesis -> Launch Experiment
     this.container.querySelectorAll(".btn-hypothesis-exp").forEach(btn => {

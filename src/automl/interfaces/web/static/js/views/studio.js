@@ -33,7 +33,7 @@ export class StudioView {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-[#8B95A7] space-y-3">
         <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
-        <div class="text-sm font-medium font-sans">Loading Experiment Studio, plans, and validation metrics...</div>
+        <div class="text-sm font-medium font-sans">Cargando estudio de experimentos, planes y métricas de validación...</div>
       </div>
     `;
   }

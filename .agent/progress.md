@@ -1,5 +1,21 @@
 # Progress
 
+### Track Workbench UI Refinements & Testing — (2026-10-11)
+
+- **Sincronización Reactiva de Versión en Frontend:**
+  - `src/automl/interfaces/web/static/index.html`: Elementos `#sidebarVersionLabel` y `#sidebarAgentBadge` con versión dinámica por defecto `v0.9.0-rc1`.
+  - `src/automl/interfaces/web/static/js/app.js`: Inyección reactiva de `overview.version` en la barra lateral en cuanto el servidor responde en el arranque.
+- **Enrutamiento Canónico y Estados Activos:**
+  - `src/automl/interfaces/web/static/js/app.js`: Normalización de alias en `_routeTo` (`datasets` -> `dataset`, `studio` -> `experiments`, `overview` -> `evidence`, `explore` -> `explore`), garantizando que la barra lateral refleje siempre la vista activa independientemente del origen de la navegación.
+- **Navegación Fluida hacia CATML Explore:**
+  - `src/automl/interfaces/web/static/js/views/datasets.js`: Añadido botón con acceso directo «Lienzo Completo» (`#btnOpenFullExploreCanvas`) en la pestaña de Exploración, permitiendo al usuario saltar instantáneamente desde el perfil de variables al lienzo analítico completo de `ExploreView`.
+- **Armonización Lingüística y Limpieza de Versiones Heredadas:**
+  - `src/automl/interfaces/web/static/js/views/studio.js`: Mensaje de carga traducido al español («Cargando estudio de experimentos, planes y métricas de validación...»).
+  - `src/automl/interfaces/web/static/js/views/knowledge.js`: Eliminado indicador estático `(V0.8)` del encabezado.
+- **Batería de Pruebas Automatizada:**
+  - Nueva suite en `tests/test_workbench_navigation_and_explore_ui.py` (4 tests) validando la presencia de enlaces de las 5 vistas canónicas, el acceso directo a Explore, el enrutador canónico y el servicio HTTP de assets estáticos JS con MIME correcto.
+  - Conjunto global de 44 tests de Workbench ejecutados y aprobados al 100%.
+
 ### Track Governance — Apache-2.0 license consistency (2026-10-11)
 
 - Confirmed canonical licensing already Apache-2.0: root `LICENSE`, `NOTICE`, `pyproject.toml`, README badge/section, and GitHub `spdx_id=Apache-2.0`.

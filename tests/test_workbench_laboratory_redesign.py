@@ -205,10 +205,11 @@ def test_file_browse_and_inspect_api_endpoints(tmp_path):
 
 def test_frontend_audit_remediations_honesty_and_accessibility():
     # 1. index.html checks
+    from automl import __version__
     index_content = Path("src/automl/interfaces/web/static/index.html").read_text(encoding="utf-8")
     assert "select-none" not in index_content, "F15: select-none must be removed from body"
     assert 'id="btnToggleMobileSidebar"' in index_content, "F12: mobile sidebar toggle button must exist"
-    assert "v0.8.2" in index_content, "F13: version badges should be consistent"
+    assert f"v{__version__}" in index_content, "F13: version badges should be consistent"
 
     # 2. knowledge.js checks (no fake benchmark mock fallback)
     knowledge_content = Path("src/automl/interfaces/web/static/js/views/knowledge.js").read_text(encoding="utf-8")

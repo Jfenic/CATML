@@ -70,7 +70,7 @@ export class KnowledgeView {
             <span class="text-[#6956E8]">${icon("brain", "icon-xl", 24)}</span>
             <div>
               <div class="flex items-center space-x-2">
-                <h2 class="text-base font-bold text-slate-100">CATML Meta-Learning Knowledge (V0.8)</h2>
+                <h2 class="text-base font-bold text-slate-100">CATML Meta-Learning Knowledge</h2>
                 <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono">Memory Layer</span>
               </div>
               <p class="text-xs text-slate-400">Autonomous meta-learning from historical experiments and tabular meta-features</p>
