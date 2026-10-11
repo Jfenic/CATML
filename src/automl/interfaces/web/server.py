@@ -54,6 +54,19 @@ from automl.application.analysis.queries import (
     ListStudiesQuery,
     ListVisualizationsQuery,
 )
+from automl.application.recipes.commands import (
+    ArchiveExperimentRecipeCommand,
+    CreateExperimentRecipeFromEvidenceCommand,
+    PromoteExperimentRecipeCommand,
+    SelectExperimentRecipeCommand,
+    SubmitExperimentFromRecipeCommand,
+)
+from automl.application.recipes.queries import (
+    GetExperimentRecipeQuery,
+    ListExperimentRecipesQuery,
+    ListVerifiedImprovementsQuery,
+)
+from dataclasses import asdict
 
 
 def _build_real_activity_feed(
@@ -1277,6 +1290,43 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json([l if isinstance(l, dict) else l.to_dict() for l in (links or [])])
             return
 
+        elif path in ("/api/analysis/verified-improvements", "/api/recipes/verified-improvements"):
+            study_id = query_params.get("study_id", [""])[0]
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            accepted_str = query_params.get("accepted_only", ["true"])[0].lower()
+            accepted_only = accepted_str not in ("false", "0", "no")
+            improvements = qry.dispatch(
+                ListVerifiedImprovementsQuery(
+                    study_id=study_id if study_id else None,
+                    dataset_id=dataset_id if dataset_id else None,
+                    accepted_only=accepted_only,
+                )
+            )
+            self._send_json([asdict(i) for i in (improvements or [])])
+            return
+
+        elif path == "/api/recipes":
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            status = query_params.get("status", [""])[0]
+            recipes = qry.dispatch(
+                ListExperimentRecipesQuery(
+                    dataset_id=dataset_id if dataset_id else None,
+                    status=status if status else None,
+                )
+            )
+            self._send_json([asdict(r) for r in (recipes or [])])
+            return
+
+        elif path.startswith("/api/recipes/"):
+            recipe_id = path[len("/api/recipes/") :]
+            if recipe_id and recipe_id not in ("verified-improvements",):
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                if not recipe:
+                    self._send_json({"error": f"Recipe not found: {recipe_id}"}, HTTPStatus.NOT_FOUND)
+                    return
+                self._send_json(asdict(recipe))
+                return
+
         elif path == "/api/plugins":
             plugins = qry.dispatch(ListPluginsQuery())
             self._send_json(plugins)
@@ -2094,6 +2144,91 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     )
                 )
                 self._send_json(link_data)
+                return
+
+            elif path == "/api/recipes/create-from-evidence":
+                evidence_id = payload.get("evidence_link_id") or payload.get("evidence_id")
+                if not evidence_id:
+                    self._send_json({"error": "evidence_link_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                recipe_name = payload.get("name") or payload.get("recipe_name")
+                notes = payload.get("notes")
+                model_ids = payload.get("model_ids")
+                val_strat = payload.get("validation_strategy")
+                cv_folds = payload.get("cv_folds")
+                metric = payload.get("metric")
+                seed = payload.get("random_seed")
+                recipe_id = cmd.dispatch(
+                    CreateExperimentRecipeFromEvidenceCommand(
+                        evidence_link_id=evidence_id,
+                        recipe_name=recipe_name,
+                        notes=notes,
+                        model_ids=model_ids,
+                        validation_strategy=val_strat,
+                        cv_folds=int(cv_folds) if cv_folds else None,
+                        metric=metric,
+                        random_seed=int(seed) if seed else None,
+                    )
+                )
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({"status": "success", "recipe_id": recipe_id, "recipe": asdict(recipe) if recipe else None})
+                return
+
+            elif path == "/api/recipes/select":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                notes = payload.get("notes")
+                cmd.dispatch(SelectExperimentRecipeCommand(recipe_id=recipe_id, notes=notes))
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({"status": "success", "recipe_id": recipe_id, "recipe": asdict(recipe) if recipe else None})
+                return
+
+            elif path == "/api/recipes/submit":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                run_id = payload.get("run_id")
+                model_ids = payload.get("model_ids")
+                notes = payload.get("notes")
+                exp_ids = cmd.dispatch(
+                    SubmitExperimentFromRecipeCommand(
+                        recipe_id=recipe_id,
+                        run_id=run_id,
+                        model_ids=model_ids,
+                        notes=notes,
+                    )
+                )
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({
+                    "status": "submitted",
+                    "recipe_id": recipe_id,
+                    "experiment_ids": exp_ids,
+                    "recipe": asdict(recipe) if recipe else None,
+                })
+                return
+
+            elif path == "/api/recipes/promote":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                reason = payload.get("reason")
+                notes = payload.get("notes")
+                cmd.dispatch(PromoteExperimentRecipeCommand(recipe_id=recipe_id, reason=reason, notes=notes))
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({"status": "promoted", "recipe_id": recipe_id, "recipe": asdict(recipe) if recipe else None})
+                return
+
+            elif path == "/api/recipes/archive":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                cmd.dispatch(ArchiveExperimentRecipeCommand(recipe_id=recipe_id))
+                self._send_json({"status": "archived", "recipe_id": recipe_id})
                 return
 
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)

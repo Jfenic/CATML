@@ -1,5 +1,40 @@
 # Progress
 
+### Track Experiment Recipes — Fase R3: Paridad Python / CLI / MCP / REST (2026-10-11)
+
+- **Paridad Multi-Superficie de Experiment Recipes (Fase R3):**
+  - **Superficie CLI (`src/automl/interfaces/cli/recipe_cli.py` & `main.py`):**
+    - Subcomandos de `catml recipe` / `automl recipe`:
+      - `list-verified`: Listado tabular y JSON de mejoras empíricamente verificadas desde estudios Explore (`ListVerifiedImprovementsQuery`).
+      - `create-from-evidence`: Creación determinista de recetas en estado `DRAFT` desde un `evidence_id` (`CreateExperimentRecipeFromEvidenceCommand`).
+      - `list`: Listado filtrable por dataset o estado (`ListExperimentRecipesQuery`).
+      - `show`: Inspección profunda de hiperparámetros, transformaciones con/sin estado y linaje auditable (`GetExperimentRecipeQuery`).
+      - `select`: Transición a `SELECTED` para evaluación (`SelectExperimentRecipeCommand`).
+      - `submit`: Ejecución de experimentos de entrenamiento en el split reproducible (`SubmitExperimentFromRecipeCommand`).
+      - `promote`: Promoción explícita con justificación y notas de auditoría (`PromoteExperimentRecipeCommand`).
+      - `archive`: Archivado de recetas (`ArchiveExperimentRecipeCommand`).
+  - **Superficie MCP para Agentes (`src/automl/interfaces/mcp/recipe_tools.py` & `server.py`):**
+    - Registro formal de 8 herramientas de agente integradas con `CommandBus` y `QueryBus`:
+      - `recipe_list_verified_improvements` (paginación con `limit` y `offset`).
+      - `recipe_create_from_evidence`.
+      - `recipe_get`.
+      - `recipe_list`.
+      - `recipe_select`.
+      - `recipe_submit`.
+      - `recipe_promote`.
+      - `recipe_archive`.
+    - Manejo de códigos de error estructurados (`ToolErrorCode.NOT_FOUND`, `ToolErrorCode.INTERNAL_ERROR`).
+  - **Superficie REST API (`src/automl/interfaces/web/server.py`):**
+    - Endpoints GET: `/api/recipes/verified-improvements`, `/api/recipes`, `/api/recipes/{recipe_id}`.
+    - Endpoints POST: `/api/recipes/create-from-evidence`, `/api/recipes/select`, `/api/recipes/submit`, `/api/recipes/promote`, `/api/recipes/archive`.
+    - Respuestas normalizadas con HTTP 200, 400 Bad Request ante parámetros ausentes, y 404 ante recetas inexistentes.
+  - **Cumplimiento Estricto de Reglas Arquitectónicas:**
+    - Cero fugas de repositorios privados en capas de interfaz (test CQRS guard en verde).
+    - Principio "Propose ≠ Accept" protegido: crear desde evidencia nunca promueve automáticamente; la promoción requiere validación explícita.
+  - **Batería de Pruebas y Cobertura:**
+    - Suite de paridad cruzada completa en `tests/test_recipe_phase_r3_parity.py` (4 tests al 100%: CLI, MCP, REST y flujo cruzado E2E).
+    - Suite global verde: **748 pruebas pasando al 100%**, cobertura global sostenida en **86.88%** (requisito $\ge 85\%$).
+
 ### Track Experiment Recipes — Fase R1 & R2: Dominio Recipe, CQRS y Trainer Fit-in-Fold (2026-10-11)
 
 - **Implementación de Experiment Recipes (Fase R1 & R2):**

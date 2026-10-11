@@ -965,6 +965,71 @@ def main(argv: list[str] | None = None) -> int:
     exp_verify.add_argument("--json", action="store_true", help="Output result as JSON")
     exp_verify.set_defaults(func=run_explore_cli)
 
+    # Recipe subparsers
+    recipe_parser = sub.add_parser("recipe", help="Manage reproducible Experiment Recipes born from verified evidence")
+    recipe_sub = recipe_parser.add_subparsers(dest="recipe_action", required=True)
+    from automl.interfaces.cli.recipe_cli import run_recipe_cli
+
+    rcp_list_v = recipe_sub.add_parser("list-verified", help="List verified improvements from explore studies")
+    rcp_list_v.add_argument("--study", "-s", default=None, help="Filter by study ID")
+    rcp_list_v.add_argument("--dataset", "-d", default=None, help="Filter by dataset ID")
+    rcp_list_v.add_argument("--all", "-a", action="store_true", help="Include rejected hypotheses")
+    rcp_list_v.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_list_v.add_argument("--json", action="store_true", help="Output results as JSON")
+    rcp_list_v.set_defaults(func=run_recipe_cli)
+
+    rcp_create = recipe_sub.add_parser("create-from-evidence", help="Create reproducible recipe from verified evidence link")
+    rcp_create.add_argument("evidence_id", help="ID of verified evidence link")
+    rcp_create.add_argument("--name", "-n", default=None, help="Descriptive recipe name")
+    rcp_create.add_argument("--notes", default=None, help="Audit notes")
+    rcp_create.add_argument("--model", "-m", action="append", default=None, help="Model(s) to associate")
+    rcp_create.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_create.add_argument("--json", action="store_true", help="Output result as JSON")
+    rcp_create.set_defaults(func=run_recipe_cli)
+
+    rcp_list = recipe_sub.add_parser("list", help="List experiment recipes")
+    rcp_list.add_argument("--dataset", "-d", default=None, help="Filter by dataset ID")
+    rcp_list.add_argument("--status", choices=["draft", "selected", "submitted", "promoted", "archived"], default=None, help="Filter by status")
+    rcp_list.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_list.add_argument("--json", action="store_true", help="Output results as JSON")
+    rcp_list.set_defaults(func=run_recipe_cli)
+
+    rcp_show = recipe_sub.add_parser("show", help="Show full details of a recipe")
+    rcp_show.add_argument("recipe_id", help="Recipe ID")
+    rcp_show.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_show.add_argument("--json", action="store_true", help="Output details as JSON")
+    rcp_show.set_defaults(func=run_recipe_cli)
+
+    rcp_select = recipe_sub.add_parser("select", help="Select recipe for evaluation/experimentation")
+    rcp_select.add_argument("recipe_id", help="Recipe ID to select")
+    rcp_select.add_argument("--notes", default=None, help="Selection notes")
+    rcp_select.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_select.add_argument("--json", action="store_true", help="Output result as JSON")
+    rcp_select.set_defaults(func=run_recipe_cli)
+
+    rcp_submit = recipe_sub.add_parser("submit", help="Submit and execute experiments using recipe")
+    rcp_submit.add_argument("recipe_id", help="Recipe ID to submit")
+    rcp_submit.add_argument("--run", "-r", default=None, help="Target run ID (defaults to active run)")
+    rcp_submit.add_argument("--model", "-m", action="append", default=None, help="Optional model override(s)")
+    rcp_submit.add_argument("--notes", default=None, help="Execution notes")
+    rcp_submit.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_submit.add_argument("--json", action="store_true", help="Output result as JSON")
+    rcp_submit.set_defaults(func=run_recipe_cli)
+
+    rcp_promote = recipe_sub.add_parser("promote", help="Explicitly promote recipe as verified production candidate")
+    rcp_promote.add_argument("recipe_id", help="Recipe ID to promote")
+    rcp_promote.add_argument("--reason", default=None, help="Promotion reason")
+    rcp_promote.add_argument("--notes", default=None, help="Promotion audit notes")
+    rcp_promote.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_promote.add_argument("--json", action="store_true", help="Output result as JSON")
+    rcp_promote.set_defaults(func=run_recipe_cli)
+
+    rcp_archive = recipe_sub.add_parser("archive", help="Archive recipe")
+    rcp_archive.add_argument("recipe_id", help="Recipe ID to archive")
+    rcp_archive.add_argument("--workspace", default=None, help="Path to workspace root")
+    rcp_archive.add_argument("--json", action="store_true", help="Output result as JSON")
+    rcp_archive.set_defaults(func=run_recipe_cli)
+
     args = parser.parse_args(argv)
     return args.func(args)
 

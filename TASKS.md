@@ -290,9 +290,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] `RobustScaler` / `PowerTransformer` (yeo-johnson) ajustados dentro de cada fold de CV o split de train en `SklearnTrainer` (`_build_pipeline`).
   - [x] Preprocesamiento de derivadas en memoria previo a partición sin leakage.
   - [x] Tests de fit-in-fold y no-leakage en `tests/test_recipe_phase_r0_verify_transforms.py`.
-- [ ] **Fase R3 — Paridad Python / CLI / MCP / REST** [P0]:
-  - [ ] CLI (`catml recipe …`), tools MCP con política de aprobación, endpoints REST.
-  - [ ] Crear draft ≠ ejecutar; promover = operación explícita auditable.
+- [x] **Fase R3 — Paridad Python / CLI / MCP / REST** [P0]:
+  - [x] CLI (`catml recipe …` / `automl recipe …`): subcomandos `list-verified`, `create-from-evidence`, `list`, `show`, `select`, `submit`, `promote`, `archive` con soporte tabular y `--json`.
+  - [x] Herramientas MCP para agentes en `src/automl/interfaces/mcp/recipe_tools.py` (`recipe_list_verified_improvements`, `recipe_create_from_evidence`, `recipe_get`, `recipe_list`, `recipe_select`, `recipe_submit`, `recipe_promote`, `recipe_archive`).
+  - [x] Endpoints REST espejo en `src/automl/interfaces/web/server.py` (`GET /api/recipes/verified-improvements`, `GET /api/recipes`, `GET /api/recipes/{recipe_id}`, `POST /api/recipes/create-from-evidence`, `POST /api/recipes/select`, `POST /api/recipes/submit`, `POST /api/recipes/promote`, `POST /api/recipes/archive`).
+  - [x] Principio "Propose ≠ Accept" garantizado: creación desde evidencia inicializa estado `DRAFT`; promoción requiere comando explícito con justificación auditable.
+  - [x] Suite de paridad cruzada exhaustiva en `tests/test_recipe_phase_r3_parity.py` (4 tests al 100% pasando: CLI, MCP, REST y ciclo E2E cruzado). Cobertura total del proyecto en 86.88% (748 tests pasando).
 - [ ] **Fase R4 — Workbench + test de paridad** [P1]:
   - [ ] UI para seleccionar mejoras verificadas, enviar recetas y promover (cliente del bus, sin lógica de negocio en JS).
   - [ ] Prueba automatizada: misma receta vía CLI → MCP → Workbench → mismo experimento.

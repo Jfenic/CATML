@@ -23,6 +23,12 @@ automl benchmark run            # comparar escenarios de regresión
 automl explore list             # listar estudios exploratorios de CATML Explore
 automl explore export <id> -f markdown -o report.md  # reporte técnico reproducible
 automl explore verify <hyp_id>  # verificar hipótesis empíricamente (Propose ≠ Accept)
+automl recipe list-verified     # listar mejoras empíricas verificadas
+automl recipe create-from-evidence <ev_id>  # crear receta reproducible en draft
+automl recipe list              # listar recetas de experimentos
+automl recipe show <recipe_id>  # inspeccionar receta y linaje auditable
+automl recipe submit <recipe_id>  # ejecutar experimentos basados en receta
+automl recipe promote <recipe_id> --reason "..."  # promover como candidata de producción
 ```
 
 
@@ -76,9 +82,12 @@ infrastructure/ (SQLite, storage)
 | **Dominio — Explore** | `domain/analysis/` | StudySpec, AnalysisRun, StatisticalFinding, VisualizationSpec, EvidenceLink | Nuevas entidades de análisis |
 | **Engine — Explore** | `engine/analysis/` | Diagnósticos de distribución, asociaciones, pruebas FDR, traductor de hipótesis | Nuevas pruebas estadísticas y visualizaciones |
 | **Application — Explore** | `application/analysis/` | AnalysisStudyService, reporting Markdown, handlers CQRS | Nuevas consultas o generadores |
-| **CLI** | `interfaces/cli/` | Subcomandos (incluyendo `catml explore`) | Comandos que deleguen en workspace |
-| **Interfaces — MCP** | `interfaces/mcp/` | Servidor MCP y herramientas de análisis (`analysis_tools.py`) | Nuevas herramientas o recursos de agente |
-| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP, vista Explore SPA | Vistas SPA siguiendo `docs/design/tech-minimalist-brand-system.md` |
+| **Dominio — Recipes** | `domain/recipes/` | ExperimentRecipe, RecipeStatus, RecipeLineage | Nuevos campos de especificación |
+| **Infrastructure — Recipes** | `infrastructure/database/sqlite_recipes.py` | SQLiteRecipeRepository | Persistencia aditiva |
+| **Application — Recipes** | `application/recipes/` | RecipeService, handlers CQRS y DTOs | Nuevos comandos o queries de receta |
+| **CLI** | `interfaces/cli/` | Subcomandos (incluyendo `catml explore` y `catml recipe`) | Comandos que deleguen en workspace |
+| **Interfaces — MCP** | `interfaces/mcp/` | Servidor MCP y herramientas de análisis y recetas (`recipe_tools.py`) | Nuevas herramientas o recursos de agente |
+| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP, vista Explore SPA y recetas | Vistas SPA siguiendo `docs/design/tech-minimalist-brand-system.md` |
 
 ---
 
