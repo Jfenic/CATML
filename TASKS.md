@@ -97,13 +97,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ### Track RC1 Gate — HPO fidelity + release publish gates (`fix/hpo-recipe-fidelity-and-release-gates`)
 
+> Mantenedores: [@Jfenic](https://github.com/Jfenic) (Jose Fenic Peiteado Padilla) y [@tvarmar](https://github.com/tvarmar) (Tania Évora Vargas Martínez). PR #95: revisión cruzada recomendada antes de merge; PyPI Trusted Publisher / environments requieren acuerdo de ambos.
+
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 | HPO passes `column_transforms` + `derived_features` (recipe fidelity) | Done |
 | P0 | HPO all-fail → `FAILED`; best only from succeeded trials | Done |
 | P0 | `release.yml` build → verify → publish; tag↔version; env approval | Done |
 | P1 | SQLite connections close-on-exit + bounded FD stress test | Done (soak: [#94](https://github.com/Jfenic/CATML/issues/94)) |
-| P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Not started |
+| P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Not started (ambos mantenedores) |
 | P1 | CATML Benchmark v1 (external/AMLB campaigns) | Next — scaffold under `benchmarks/` |
 
 ### Track Public Surface Audit — Coherence & Security Claims (`fix/audit-public-surface-coherence`)

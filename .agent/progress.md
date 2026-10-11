@@ -2,6 +2,7 @@
 
 ### Track RC1 Gate — HPO fidelity + release gates (`fix/hpo-recipe-fidelity-and-release-gates`, 2026-10-11)
 
+- **Maintainers:** Jose Fenic Peiteado Padilla (@Jfenic) and Tania Évora Vargas Martínez (@tvarmar). Dual ownership documented in CONTRIBUTING, NOTICE, CODEOWNERS, and two-person-plan; cross-review on PR #95.
 - **P0 HPO recipe fidelity:** `optimize_experiment()` now passes `column_transforms` + `derived_features` into every `TrialExecution` (parity with `run_experiment`).
 - **P0 HPO all-fail:** zero successful trials → experiment/run `FAILED`; `best_score`/`best_trial_id` absent (not invented from failed scores).
 - Tests: `tests/test_hpo_recipe_fidelity.py`.
