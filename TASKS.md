@@ -52,9 +52,13 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Limpieza del Hero Card en `home.js`: detalles técnicos y rutas colapsables en `<details>`, manteniendo una tarjeta principal despejada y acciones principales adaptadas al estado real (sin dataset, preparado sin entrenar, entrenando, completado).
   - Actualización de la numeración y etiquetas de navegación en `index.html` reflejando el flujo de 4 etapas (`00 Inicio`, `01 Datos (Dataset)`, `02 Exploración`, `03 Experimentos`, `04 Resultados & Evidencia`).
   - Nueva suite automatizada `tests/test_workbench_jobs_and_flow.py` con 6 pruebas pasando al 100% (72 pruebas de workbench pasando globalmente).
-- [ ] **PR 4: Fase P1 — Leaderboard centrado en resultados, recomendaciones y recetas**:
-  - Presentación limpia del modelo ganador y condiciones de evaluación.
-  - Distinción visual: Propuesta vs Verificada vs Seleccionada vs Aplicada vs Promovida.
+- [x] **PR 4: Fase P1 — Leaderboard centrado en resultados, recomendaciones y recetas**:
+  - Hero Card de Evaluación y Modelo Ganador colocado en la parte superior de Studio (`studio.js`): métrica, dirección de optimización, score, tipo de validación y comparación prudente contra baseline (`vs baseline` o guión cuando no existe).
+  - Tabla de Leaderboard centrada en resultados con identificación unívoca de ensayos (`row.trial_id || exp?.name`), delta vs baseline, duración, estado y botón de inspección modal de parámetros (`data-inspect-trial`).
+  - Reorganización de pestañas técnicas secundarias debajo del Leaderboard: Modelos (`models`), Convergencia HPO (`hpo`), Decisiones del Planificador (`planner`), Recetas Reproducibles (`recipes`), Recursos (`resources`) y Logs (`logs`).
+  - Ciclo de vida estandarizado de transformaciones en `utils.js` (`TRANSFORMATION_LIFECYCLE_STAGES`, `getTransformationStageInfo`) con badges de estado formalizados: Propuesta (`PROPOSED`), Verificada (`VERIFIED`), Seleccionada (`SELECTED`), Aplicada (`APPLIED`), Promovida (`PROMOTED`). Integrado en `explore.js`.
+  - Sincronización robusta de selección de características en `datasets.js` (`_updateSelectionUi`), actualizando concurrentemente `selectedFeatures`, `customFeatures` y `selectedFeaturesByDataset` en el store.
+  - Nueva suite automatizada `tests/test_workbench_leaderboard_and_recipes.py` (5 pruebas pasando al 100%, total de 80 tests de workbench en verde).
 - [ ] **PR 5: Fase P2 — Idioma, legibilidad y accesibilidad**:
   - Unificación de textos en español conservando terminología técnica universal (ROC-AUC, RMSE, SHAP, K-Fold).
   - Accesibilidad, contraste y diseño responsive en pantallas estrechas.

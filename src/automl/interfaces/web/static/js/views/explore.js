@@ -17,7 +17,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
-import { escapeHtml } from "../utils.js";
+import { escapeHtml, getTransformationStageInfo } from "../utils.js";
 
 export class ExploreView {
   constructor() {
@@ -794,11 +794,7 @@ export class ExploreView {
               </thead>
               <tbody>
                 ${this.recipes.map(r => {
-                  let statusColor = "text-[#8B95A7] bg-[#8B95A7]/10 border-[#8B95A7]/30";
-                  if (r.status === "selected") statusColor = "text-[#6956E8] bg-[#6956E8]/10 border-[#6956E8]/30";
-                  if (r.status === "submitted") statusColor = "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30";
-                  if (r.status === "promoted") statusColor = "text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30";
-
+                  const stageInfo = getTransformationStageInfo(r.status);
                   const transformsList = [
                     ...(r.column_transforms || []).map(t => `${t.column}: ${t.kind}`),
                     ...(r.derived_features || []).map(d => `${d.name || d.expression}`),
@@ -810,8 +806,8 @@ export class ExploreView {
                       <td class="p-2.5 text-[#53C8FF] font-bold">${escapeHtml(r.id)}</td>
                       <td class="p-2.5 text-[#F7F8FA] font-sans font-medium">${escapeHtml(r.name || "-")}</td>
                       <td class="p-2.5 text-center">
-                        <span class="${statusColor} border text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                          ${escapeHtml(r.status)}
+                        <span class="${stageInfo.badgeClass} border text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${escapeHtml(stageInfo.label)}
                         </span>
                       </td>
                       <td class="p-2.5 text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(transformText)}">

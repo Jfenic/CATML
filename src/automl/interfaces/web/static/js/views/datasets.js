@@ -2080,7 +2080,13 @@ export class DatasetsView {
     const featureCols = (p.columns || []).filter(c => c.name !== p.target_column);
 
     // Save to store so NewExperimentModal immediately knows active selection
-    store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+    const feats = Array.from(this.selectedFeatures);
+    const currentMap = store.getState().selectedFeaturesByDataset || {};
+    store.setState({
+      selectedFeatures: feats,
+      customFeatures: feats,
+      selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats },
+    });
 
     const liveCount = this.container.querySelector("#selectionLiveCount");
     if (liveCount) {

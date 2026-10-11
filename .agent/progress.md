@@ -51,6 +51,22 @@
   - **Pruebas Automatizadas:**
     - Creada suite `tests/test_workbench_jobs_and_flow.py` (6 pruebas pasando al 100%).
     - Total acumulado de 72 pruebas del Workbench pasando en verde sin regresiones.
+- **PR 4: Fase P1 — Leaderboard centrado en resultados, recomendaciones y recetas:**
+  - **Presentación Limpia del Ganador y Contexto de Evaluación (`studio.js`):**
+    - Se sitúa un Hero Card prominente en la cabecera de Studio con el modelo ganador, métrica objetivo y dirección, score formateado, tipo de validación y comparación prudente contra baseline (`vs baseline` o guión cuando no existe).
+  - **Leaderboard Centrado en Resultados con Identificación Unívoca:**
+    - Identificación explícita de ensayos mediante `trial_id` con fallback ordenado a `name`, visualizando delta vs baseline, duración y botón de inspección modal de hiperparámetros (`data-inspect-trial`).
+  - **Jerarquía Técnica Reorganizada:**
+    - Pestañas secundarias ubicadas debajo del Leaderboard: Modelos (`models`), Convergencia HPO (`hpo`), Decisiones del Planificador (`planner`), Recetas Reproducibles (`recipes`), Recursos (`resources`) y Logs (`logs`).
+  - **Ciclo de Vida Estandarizado de Transformaciones (`utils.js` y `explore.js`):**
+    - Definidas etapas en `TRANSFORMATION_LIFECYCLE_STAGES` (`PROPOSED`, `VERIFIED`, `SELECTED`, `APPLIED`, `PROMOTED`) con etiquetas en español, descripciones y clases visuales unificadas (`badge-neutral`, `badge-indigo`, `badge-cyan`, `badge-success`).
+    - Renderizado consistente en la vista Explore (`explore.js`).
+  - **Sincronización de Selección de Características (`datasets.js`):**
+    - Sincronizados de forma atómica en el store los estados `selectedFeatures`, `customFeatures` y `selectedFeaturesByDataset` tras cualquier cambio de checkboxes en la tabla de columnas.
+  - **Pruebas Automatizadas:**
+    - Creada suite `tests/test_workbench_leaderboard_and_recipes.py` (5 pruebas pasando al 100%).
+    - Total de 80 pruebas de Workbench pasando al 100%.
+
 
 ### Track Experiment Recipes — Fase R4: Workbench UI y Paridad E2E (2026-10-11)
 
