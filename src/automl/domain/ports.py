@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from automl.domain.jobs.job import Job, JobStatus
@@ -39,6 +39,8 @@ class TrialExecution:
     cv_folds: int
     random_seed: int
     group_column: str | None = None
+    column_transforms: list[dict[str, Any]] = field(default_factory=list)
+    derived_features: list[dict[str, Any]] = field(default_factory=list)
 
 
 class TrainerPort(Protocol):

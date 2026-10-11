@@ -453,6 +453,8 @@ class AutoMLWorkspace:
         validation_strategy: str | None = None,
         group_column: str | None = None,
         allow_leakage: bool = False,
+        column_transforms: list[dict[str, Any]] | None = None,
+        derived_features: list[dict[str, Any]] | None = None,
     ) -> Experiment:
         dataset = self._get_dataset(run.dataset_id)
         priority_value = ExperimentPriority.parse(priority).value
@@ -494,6 +496,12 @@ class AutoMLWorkspace:
 
         registry = self.get_feature_registry(run.dataset_id)
         known_features = {feature.name for feature in registry.list()}
+        if derived_features:
+            derived_names = {
+                (df_item["name"] if isinstance(df_item, dict) else df_item.name)
+                for df_item in derived_features
+            }
+            known_features = known_features | derived_names
         unknown_features = sorted(set(resolved_features) - known_features)
         if unknown_features:
             raise ValueError(f"Unknown features for dataset {run.dataset_id}: {', '.join(unknown_features)}")
@@ -527,6 +535,8 @@ class AutoMLWorkspace:
             priority=priority_value,
             feature_set_id=feature_set_id,
             group_column=resolved_group_col,
+            column_transforms=list(column_transforms or []),
+            derived_features=list(derived_features or []),
         )
         self.repository.save_experiment(experiment)
         self._emit(
@@ -622,6 +632,8 @@ class AutoMLWorkspace:
                 cv_folds=run.config.cv_folds,
                 random_seed=run.config.random_seed,
                 group_column=experiment.group_column,
+                column_transforms=list(getattr(experiment, "column_transforms", []) or []),
+                derived_features=list(getattr(experiment, "derived_features", []) or []),
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)

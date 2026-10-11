@@ -273,9 +273,11 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 > Principio: paridad Python / CLI / REST / MCP / Workbench; UI última capa.  
 > Estados: **Proposed → Verified → Selected → Promoted** (`EvidenceLink.accepted` ≠ autorización automática).
 
-- [ ] **Fase R0 — Verificación real de transforms** [P0]:
-  - [ ] Aplicar de verdad `log1p` / `yeo_johnson` / `robust_scaler` (y drops de colinealidad) en `VerifyHypothesisCommand`, no solo metadata del traductor.
-  - [ ] Distinguir derivadas sin estado vs transforms con estado (fit-in-fold en fases siguientes).
+- [x] **Fase R0 — Verificación real de transforms** [P0]:
+  - [x] Aplicar de verdad `log1p` / `yeo_johnson` / `robust_scaler` (y drops de colinealidad) en `VerifyHypothesisCommand`, no solo metadata del traductor.
+  - [x] Distinguir derivadas sin estado (`derived_features`) vs transforms con estado (`column_transforms`, fit-in-fold en pipeline de entrenamiento).
+  - [x] Persistencia en SQLite (`column_transforms_json`, `derived_features_json`), soporte en `TrialExecution` y `Experiment`.
+  - [x] Suite de pruebas dedicada en `tests/test_recipe_phase_r0_verify_transforms.py` (6 pruebas pasando al 100%).
 - [ ] **Fase R1 — Dominio `ExperimentRecipe` + CQRS** [P0]:
   - [ ] Entidad reproducible: transforms, columnas, dataset/hash, modelo/params, validación, métrica, semilla, `evidence_link_id`.
   - [ ] Comandos: `CreateExperimentRecipeFromEvidence`, `SubmitExperimentFromRecipe`, `PromoteExperimentRecipe`.

@@ -38,6 +38,8 @@ class Experiment:
     priority: str = "normal"
     feature_set_id: str | None = None
     group_column: str | None = None
+    column_transforms: list[dict[str, Any]] = field(default_factory=list)
+    derived_features: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

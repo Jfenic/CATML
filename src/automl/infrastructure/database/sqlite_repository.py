@@ -91,7 +91,9 @@ class SQLiteExperimentRepository:
                     status TEXT NOT NULL,
                     created_by TEXT,
                     priority TEXT,
-                    group_column TEXT
+                    group_column TEXT,
+                    column_transforms_json TEXT,
+                    derived_features_json TEXT
                 );
                 CREATE TABLE IF NOT EXISTS trials (
                     id TEXT PRIMARY KEY,
@@ -228,6 +230,10 @@ class SQLiteExperimentRepository:
             conn.execute("ALTER TABLE experiments ADD COLUMN feature_set_id TEXT")
         if "group_column" not in experiment_cols:
             conn.execute("ALTER TABLE experiments ADD COLUMN group_column TEXT")
+        if "column_transforms_json" not in experiment_cols:
+            conn.execute("ALTER TABLE experiments ADD COLUMN column_transforms_json TEXT")
+        if "derived_features_json" not in experiment_cols:
+            conn.execute("ALTER TABLE experiments ADD COLUMN derived_features_json TEXT")
 
         feature_cols = {row[1] for row in conn.execute("PRAGMA table_info(features)").fetchall()}
         if "semantic_type" not in feature_cols:
@@ -544,8 +550,9 @@ class SQLiteExperimentRepository:
                 """
                 INSERT OR REPLACE INTO experiments
                 (id, run_id, name, hypothesis, feature_set_id, feature_names_json, model_ids_json,
-                 metric, validation_strategy, status, created_by, priority, group_column)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 metric, validation_strategy, status, created_by, priority, group_column,
+                 column_transforms_json, derived_features_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     experiment.id,
@@ -561,6 +568,8 @@ class SQLiteExperimentRepository:
                     experiment.created_by,
                     experiment.priority,
                     experiment.group_column,
+                    json.dumps(getattr(experiment, "column_transforms", []) or []),
+                    json.dumps(getattr(experiment, "derived_features", []) or []),
                 ),
             )
 
@@ -963,6 +972,21 @@ def _row_to_experiment(row: sqlite3.Row) -> Experiment:
         group_column = row["group_column"]
     except (IndexError, KeyError):
         pass
+
+    column_transforms = []
+    try:
+        if "column_transforms_json" in row.keys() and row["column_transforms_json"]:
+            column_transforms = json.loads(row["column_transforms_json"])
+    except (IndexError, KeyError, TypeError):
+        pass
+
+    derived_features = []
+    try:
+        if "derived_features_json" in row.keys() and row["derived_features_json"]:
+            derived_features = json.loads(row["derived_features_json"])
+    except (IndexError, KeyError, TypeError):
+        pass
+
     return Experiment(
         id=row["id"],
         run_id=row["run_id"],
@@ -977,6 +1001,8 @@ def _row_to_experiment(row: sqlite3.Row) -> Experiment:
         priority=row["priority"] or "normal",
         feature_set_id=row["feature_set_id"],
         group_column=group_column,
+        column_transforms=column_transforms,
+        derived_features=derived_features,
     )
 
 

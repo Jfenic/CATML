@@ -1,5 +1,23 @@
 # Progress
 
+### Track Experiment Recipes — Fase R0: Verificación Real de Transforms (2026-10-11)
+
+- **Cierre del Gap de Verificación Real en Hipótesis de Explore (Fase R0):**
+  - **Traductor de Hipótesis (`HypothesisExperimentTranslator`):**
+    - Mapeo de `power_transform` con `log1p` a transformaciones sin estado en `derived_features` (`log1p(col)` evaluada sobre dataframe) con reemplazo de la columna original.
+    - Mapeo de `power_transform` con `yeo_johnson` y `robust_scaler` a transformaciones con estado en `column_transforms` (`{"column": col, "kind": kind, "params": {}}`).
+  - **Dominio y Persistencia:**
+    - Entidades `TrialExecution` y `Experiment` ampliadas con `column_transforms` y `derived_features`.
+    - Persistencia aditiva en SQLite (`column_transforms_json`, `derived_features_json`) con migraciones idempotentes `_migrate()` en `SQLiteExperimentRepository`.
+  - **Entrenamiento Fit-in-Fold sin Fugas de Datos (`SklearnTrainer`):**
+    - `derived_features` materializadas antes de seleccionar columnas de `X`.
+    - `column_transforms` construidos como sub-pipelines en `ColumnTransformer` (`RobustScaler`, `PowerTransformer(method="yeo-johnson")`, etc.) aplicados dentro de cada fold de Cross-Validation o split de train sin fugas sobre validación/test.
+  - **Preservación de Principios ("Propose ≠ Accept"):**
+    - `EvidenceLink` conserva el registro de aprendizaje positivo y negativo (`accepted=True/False`), sin auto-promoción a configuraciones de producción.
+  - **Batería de Pruebas:**
+    - Suite dedicada en `tests/test_recipe_phase_r0_verify_transforms.py` (6 pruebas pasando al 100%).
+    - Suite de regresión pasando (92 pruebas en explore/workbench).
+
 ### Track Benchmark Empírico — AutoML solo vs Explore/Agente (Airline Satisfaction) (2026-10-11)
 
 - **Estudio Experimental y Validación Empírica en Dataset Real (`docs/experiments/`):**
