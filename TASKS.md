@@ -87,12 +87,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Web `register` path confinement (same roots as inspect/browse) | In progress (this branch) |
-| P0 | Upload unique internal filenames (no silent overwrite) | In progress (this branch) |
-| P0 | Inference replays `column_transforms` + derived features | In progress (this branch) |
-| P0 | Ensemble regression scores: flip sklearn `neg_*` before persist | In progress (this branch) |
-| P0 | Stacking nested CV OOF for metamodel (no in-sample `stacked_oof`) | In progress (this branch) |
-| P1 | Unknown optimizer fail-closed (`optuna` / `random` only) | In progress (this branch) |
+| P0 | Web `register` path confinement (same roots as inspect/browse) | PR `#104` |
+| P0 | Upload unique internal filenames (no silent overwrite) | PR `#104` |
+| P0 | Inference replays `column_transforms` + derived features | PR `#104` |
+| P0 | Ensemble regression scores: flip sklearn `neg_*` before persist | PR `#104` |
+| P0 | Stacking nested CV OOF for metamodel (no in-sample `stacked_oof`) | PR `#104` |
+| P1 | Unknown optimizer fail-closed (`optuna` / `random` only) | PR `#104` |
 | P2 | Findings 6–14, 16 (supervised selection leakage, PCA recipe, hypothesis stats, budget status, …) | Deferred |
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
