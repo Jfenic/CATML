@@ -84,6 +84,20 @@ flowchart LR
 
 **Criterio done:** tests nuevos verdes; consumidores críticos ya no usan `max()` ciego ni listas de métricas hardcodeadas duplicadas; cobertura global ≥ 85 %.
 
+### PR1 acceptance checklist
+
+- [x] `MetricSpec` + registro builtin + `resolve_metric_spec` / `InvalidMetric` (`domain/metrics/`)
+- [x] `ExecutionSpec` frozen + `build_execution_spec` / `trial_execution_from_spec`
+- [x] Consumidores cableados: Workspace (`run_experiment`, `optimize_experiment`, schedule, `get_best_trial`), benchmarks `is_minimizing_metric`, web `_is_metric_minimizing`, trainer helper
+- [x] CV desconocido → `InvalidValidationStrategy` (fail closed)
+- [x] HPO mantiene semilla de folds fija (`ExecutionSpec.random_seed` = run seed)
+- [x] Tests: `tests/test_clean_arch_pr1_contracts.py` (+ suites audit-3 / métrica / HPO)
+- [x] Cobertura global ≥ 85 % (suite completa)
+- [x] **Fuera de alcance respetado:** no partir `server.py` ni `datasets.js`; no extraer servicios Workspace (PR2)
+- [ ] Merge: preferir `#100` → `#101` (docs) → `#102` (PR1 código)
+
+Implementación código: PR **#102** (`refactor/clean-arch-pr1-metric-execution-contracts`).
+
 ---
 
 ## PR 2 — Extraer ejecución y optimización de `AutoMLWorkspace`
