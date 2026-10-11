@@ -70,8 +70,6 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-<<<<<<< Updated upstream
-=======
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
 > Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: merge #99 + #100 before PR2+. PR1 implementable in parallel by dedicated agent ([brief](docs/features/clean-architecture-refactor/agent-brief-pr1.md)).
@@ -89,16 +87,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Recipe translator contract (`default_models` / `drop_features` / `model_id`) | Done |
-| P0 | Recipe replay restores `metric`, `cv_folds`, `random_seed`, CV strategy | Done |
-| P0 | Shared CV aliases (`k_fold`→`kfold`); reject unknown strategies | Done |
-| P0 | HPO uses fixed CV fold seed; metric min/max consistent in schedule + `get_best_trial` | Done |
-| P0 | FDR preserves `p=0.0`; recipe `dataset_content_hash` via SHA-256 | Done |
-| P1 | Workbench XSS escapes for column/feature/model interpolations | Done |
-| P1 | Recipe status guards (no submit/promote from archived; promote needs experiments) | Done |
-| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Deferred (out of this PR) |
+| P0 | Shared recipe/CV/metric/FDR/XSS contracts | Open PR `#100` |
 
->>>>>>> Stashed changes
 ### Track Workbench UX — Demo confidence (Sprint 1 → 3)
 
 | Priority | Item | Status |
