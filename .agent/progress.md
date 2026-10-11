@@ -1,5 +1,11 @@
 # Progress
 
+### Track Governance — Apache-2.0 license consistency (2026-10-11)
+
+- Confirmed canonical licensing already Apache-2.0: root `LICENSE`, `NOTICE`, `pyproject.toml`, README badge/section, and GitHub `spdx_id=Apache-2.0`.
+- Removed stale MIT claims that could confuse readers: `website/README.md` (incorrectly said root LICENSE was MIT), `TASKS.md` landing note, and added `license: Apache-2.0` to `website/package.json` plus PyPI classifiers in `pyproject.toml`.
+- Branch: `fix/license-apache-consistency`.
+
 ### Track Security Hardening & Release Preparation — 0.9.0-rc1 (2026-10-11)
 
 - **Endurecimiento de Interfaces Remotas (Fail-Closed por Defecto):**
