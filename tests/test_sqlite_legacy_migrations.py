@@ -217,31 +217,6 @@ def test_migrate_legacy_jobs_table_preserves_data_and_allows_nullable_run_id(tmp
     assert {j.id for j in all_jobs} == {"job_legacy_1", "job_explore_decoupled"}
 
 
-def test_datasets_migration_failure_rolls_back_atomically(tmp_path: Path, monkeypatch):
-    """Test that a failure occurring after DROP TABLE rolls back completely, preserving datasets."""
-    db_path = tmp_path / "legacy_crash_test.db"
-
-    # 1. Create legacy database with NOT NULL constraint and data
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
-            CREATE TABLE datasets (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                path TEXT NOT NULL,
-                target_column TEXT NOT NULL,
-                task_type TEXT NOT NULL
-            );
-            CREATE TABLE runs (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, dataset_id TEXT NOT NULL, config_json TEXT NOT NULL, status TEXT NOT NULL, current_phase TEXT NOT NULL);
-            CREATE TABLE dataset_profiles (dataset_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL);
-            CREATE TABLE features (id TEXT PRIMARY KEY, dataset_id TEXT NOT NULL, name TEXT NOT NULL, physical_dtype TEXT, status TEXT NOT NULL, user_priority REAL DEFAULT 0, semantic_type TEXT DEFAULT 'unknown');
-            CREATE TABLE feature_sets (id TEXT PRIMARY KEY, dataset_id TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, feature_names_json TEXT NOT NULL, created_by TEXT, lineage TEXT);
-            CREATE TABLE experiments (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, name TEXT NOT NULL, hypothesis TEXT, feature_set_id TEXT, feature_names_json TEXT NOT NULL, model_ids_json TEXT NOT NULL, metric TEXT NOT NULL, validation_strategy TEXT NOT NULL, status TEXT NOT NULL, created_by TEXT, priority TEXT, group_column TEXT);
-            INSERT INTO datasets VALUES ('ds_crash_pre', 'ws_1', 'Preserved Dataset', '/path.csv', 'target', 'regression');
-            """
-        )
-
 class _FailingConnectionProxy:
     def __init__(self, real_conn, fail_keyword: str):
         self._conn = real_conn
@@ -296,9 +271,15 @@ def test_datasets_migration_failure_rolls_back_atomically(tmp_path: Path, monkey
     # 2. Monkeypatch _connect to simulate a failure right when RENAME is called (after DROP TABLE)
     orig_connect = SQLiteExperimentRepository._connect
 
+    from contextlib import contextmanager
+
+    @contextmanager
     def mock_connect(self):
-        real_conn = orig_connect(self)
-        return _FailingConnectionProxy(real_conn, fail_keyword="ALTER TABLE datasets_dg_tmp RENAME TO datasets")
+        with orig_connect(self) as real_conn:
+            yield _FailingConnectionProxy(
+                real_conn,
+                fail_keyword="ALTER TABLE datasets_dg_tmp RENAME TO datasets",
+            )
 
     monkeypatch.setattr(SQLiteExperimentRepository, "_connect", mock_connect)
 

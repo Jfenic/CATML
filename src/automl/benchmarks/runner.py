@@ -43,10 +43,14 @@ def _best_result(
     results: list[TrialResult],
     metric: str = "roc_auc",
     ws: AutoMLWorkspace | None = None,
-) -> tuple[float, str | None]:
+) -> tuple[float | None, str | None]:
+    """Return best score among successful trials, or (None, None) if all failed.
+
+    Failed evaluations must not be reported as score 0.0 (ambiguous with a real zero).
+    """
     ok = [r for r in results if r.succeeded]
     if not ok:
-        return 0.0, None
+        return None, None
     if is_minimizing_metric(metric, ws=ws):
         best = min(ok, key=lambda r: r.primary_score)
     else:
@@ -257,16 +261,20 @@ class BenchmarkRunner:
                 trial_results = cmd.dispatch(RunExperimentCommand(run_id, experiment_id))
             elapsed = time.perf_counter() - started
             best_score, best_model = _best_result(trial_results, metric=scenario.metric, ws=ws)
+            failed_count = sum(1 for r in trial_results if not r.succeeded)
+            status = "ok" if best_score is not None else "failed"
 
             details = {
                 "description": scenario.description,
                 "scenario_version": scenario.version,
                 "run_id": run_id,
                 "experiment_id": experiment_id,
+                "status": status,
+                "failed_trials": failed_count,
                 "trials": [
                     {
                         "model_id": r.model_id,
-                        "score": round(r.primary_score, 4),
+                        "score": None if not r.succeeded else round(r.primary_score, 4),
                         "failed": not r.succeeded,
                     }
                     for r in trial_results
@@ -287,10 +295,12 @@ class BenchmarkRunner:
                     "version": scenario.version,
                     "description": scenario.description,
                     "metric": scenario.metric,
-                    "best_score": round(best_score, 4),
+                    "status": status,
+                    "best_score": None if best_score is None else round(best_score, 4),
                     "best_model": best_model,
                     "total_time_s": round(elapsed, 3),
                     "delta_vs_baseline": None,
+                    "failed_trials": failed_count,
                 }
             )
 

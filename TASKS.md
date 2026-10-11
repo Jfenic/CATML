@@ -95,6 +95,19 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | `run_experiment` → `FAILED` when zero successful trials | Done |
 | P2 | Broader offline/distribution UI matrix | Open (packaging track) |
 
+### Track RC1 Gate — HPO fidelity + release publish gates (`fix/hpo-recipe-fidelity-and-release-gates`)
+
+> Mantenedores: [@Jfenic](https://github.com/Jfenic) (Jose Fenic Peiteado Padilla) y [@tvarmar](https://github.com/tvarmar) (Tania Évora Vargas Martínez). PR #95: revisión cruzada recomendada antes de merge; PyPI Trusted Publisher / environments requieren acuerdo de ambos.
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | HPO passes `column_transforms` + `derived_features` (recipe fidelity) | Done |
+| P0 | HPO all-fail → `FAILED`; best only from succeeded trials | Done |
+| P0 | `release.yml` build → verify → publish; tag↔version; env approval | Done |
+| P1 | SQLite connections close-on-exit + bounded FD stress test | Done (soak: [#94](https://github.com/Jfenic/CATML/issues/94)) |
+| P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Not started (ambos mantenedores) |
+| P1 | CATML Benchmark v1 (external/AMLB campaigns) | Next — scaffold under `benchmarks/` |
+
 ### Track Public Surface Audit — Coherence & Security Claims (`fix/audit-public-surface-coherence`)
 
 > External audit mixed outdated README/ARCHITECTURE claims with real gaps. Triage vs `main` (2026-10-11):
@@ -541,6 +554,7 @@ Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF ho
 
 ## Next (Roadmap Phases)
 
+- [ ] **CATML Benchmark v1** (post-`0.9.0rc1`): freeze [`benchmarks/protocol-v1.yaml`](benchmarks/protocol-v1.yaml); Study C adversarial suite; AMLB/OpenML pilot; then Studies A/B with public reproducible report (no superiority claims until measured). See [`benchmarks/README.md`](benchmarks/README.md).
 - [x] Sincronizar el índice y los planes con las capacidades actuales (revisión 2026-10-11): H0–H5, Explore E0–E6, Experiment Recipes R0–R4, stacking/OOF multi-modelo y release `0.9.0-rc1` alineados en `AGENTS.md`, `docs/README.md`, feature plans/specs, ADR-009 y `MASTER_PLAN.md`.
 - [ ] Auditar `feat/workbench-live-experiments` (WIP sin PR, 60 commits detrás de main) y los commits documentales posteriores a PR #40 en `feat/agentic-a4-specialists` antes de limpiar ramas históricas.
 

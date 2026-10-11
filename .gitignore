@@ -26,3 +26,7 @@ docs/experiments/*.csv
 *.cert
 credentials.json
 secrets.json
+
+# Benchmark campaign outputs (keep .gitkeep)
+benchmarks/results/v1/*
+!benchmarks/results/v1/.gitkeep
