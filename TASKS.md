@@ -74,12 +74,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | In progress (`fix/workbench-sprint1-state-coherence`) |
-| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | In progress (same branch) |
-| P0 | Filter Explore transform hypotheses on identifier/discarded columns | In progress (same branch) |
-| P1 | Guided vs Advanced Explore (top findings first) | Open (Sprint 2) |
-| P1 | Correlation matrix UX + p-value/severity formatting | Open (Sprint 2) |
-| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Open (Sprint 2) |
+| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | Done (#98) |
+| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | Done (#98) |
+| P0 | Filter Explore transform hypotheses on identifier/discarded columns | Done (#98) |
+| P1 | Guided vs Advanced Explore (top findings first) | In progress (`fix/workbench-sprint2-explore-guided`) |
+| P1 | Correlation matrix UX + p-value/severity formatting | In progress (same branch) |
+| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | In progress (same branch) |
 | P2 | Demo project + executive results export | Open (Sprint 3) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)

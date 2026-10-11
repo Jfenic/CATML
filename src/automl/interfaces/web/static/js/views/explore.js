@@ -17,7 +17,10 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
-import { escapeHtml, getTransformationStageInfo } from "../utils.js";
+import { escapeHtml, getTransformationStageInfo, formatPValue } from "../utils.js";
+
+const GUIDED_FINDINGS_LIMIT = 5;
+const GUIDED_HYPOTHESES_LIMIT = 5;
 
 export class ExploreView {
   constructor() {
@@ -36,12 +39,16 @@ export class ExploreView {
     this.runningStudy = false;
     this.showCreateModal = false;
 
+    // Guiado = top findings first; Avanzado = full gallery + matrices
+    this.showAdvancedExplore = false;
+
     // Filter states
     this.filterCategory = "ALL";
     this.filterSeverity = "ALL";
     this.filterFdrOnly = false;
     this.activeVizType = "correlation_matrix";
     this.matrixMethod = "pearson"; // "pearson" | "spearman"
+    this.matrixColumnFilter = "";
   }
 
   async mount(container) {
@@ -154,13 +161,33 @@ export class ExploreView {
 
   _classifySeverity(f) {
     const type = f?.finding_type || "";
-    if (["high_collinearity", "multivariate_outliers", "high_cardinality_identifier"].includes(type)) {
-      return "CRITICAL";
-    }
-    if (["skewness", "outlier_density", "categorical_association", "multimodal_distribution", "target_class_separation"].includes(type)) {
+    const effect = Math.abs(Number(
+      f?.effect_size != null
+        ? f.effect_size
+        : (f?.metrics?.pearson_r ?? f?.metrics?.cramers_v ?? f?.metrics?.cohens_d ?? 0)
+    ));
+    const fdrSig = f?.metrics?.fdr_significant === true;
+
+    // Reserve CRITICAL for strong, actionable risks — not every collinear pair.
+    if (type === "high_cardinality_identifier") return "CRITICAL";
+    if (type === "multivariate_outliers" && (fdrSig || effect >= 0.5)) return "CRITICAL";
+    if (type === "high_collinearity" && effect >= 0.90) return "CRITICAL";
+    if (type === "high_collinearity") return "WARNING";
+    if (type === "multivariate_outliers") return "WARNING";
+    if (["skewness", "outlier_density", "categorical_association", "multimodal_distribution", "target_class_separation", "target_correlation"].includes(type)) {
       return "WARNING";
     }
     return "INFO";
+  }
+
+  _visibleFindings(filtered) {
+    if (this.showAdvancedExplore) return filtered;
+    return filtered.slice(0, GUIDED_FINDINGS_LIMIT);
+  }
+
+  _visibleHypotheses() {
+    if (this.showAdvancedExplore) return this.hypotheses;
+    return (this.hypotheses || []).slice(0, GUIDED_HYPOTHESES_LIMIT);
   }
 
   render() {
@@ -178,6 +205,7 @@ export class ExploreView {
     }
 
     const filteredFindings = this._getFilteredFindings();
+    const visibleFindings = this._visibleFindings(filteredFindings);
     const activeViz = this.visualizations.find(v => v.chart_type === this.activeVizType) || this.visualizations[0];
 
     this.container.innerHTML = `
@@ -194,7 +222,11 @@ export class ExploreView {
             </div>
 
             <!-- Action buttons -->
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 flex-wrap justify-end">
+              <div class="flex items-center bg-[#090C12] p-0.5 rounded-lg border border-[#242A36]" role="group" aria-label="Modo de exploración">
+                <button type="button" id="btnExploreModeGuided" class="px-2.5 py-1 rounded text-[11px] font-mono ${!this.showAdvancedExplore ? 'bg-[#4F67FF] text-white font-semibold' : 'text-[#8B95A7]'}">Guiado</button>
+                <button type="button" id="btnExploreModeAdvanced" class="px-2.5 py-1 rounded text-[11px] font-mono ${this.showAdvancedExplore ? 'bg-[#4F67FF] text-white font-semibold' : 'text-[#8B95A7]'}">Avanzado</button>
+              </div>
               <button id="btnOpenNewStudyModal" class="btn-technical text-xs flex items-center space-x-1.5">
                 ${icon("plus", "icon-sm")}
                 <span>Nuevo Estudio</span>
@@ -247,40 +279,22 @@ export class ExploreView {
         </div>
 
         ${this.studyDetail ? `
-          <!-- Visualizations Section -->
-          ${this.visualizations.length > 0 ? `
-            <div class="workbench-card p-5 space-y-4">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-2">
-                <div class="flex items-center space-x-2">
-                  <span class="text-[#53C8FF]">${icon("bar-chart-2", "icon-sm")}</span>
-                  <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Visualizaciones Declarativas</h4>
-                </div>
-
-                <!-- Visualization Type Tabs -->
-                <div class="flex flex-wrap items-center gap-1.5 text-xs font-sans">
-                  ${this._renderVizTypeButtons(activeViz)}
-                </div>
-              </div>
-
-              <!-- Render Active Visualization -->
-              <div id="activeVisualizationContainer">
-                ${this._renderVisualizationContent(activeViz)}
-              </div>
-            </div>
-          ` : ""}
-
-          <!-- Findings Gallery Section -->
+          <!-- Findings first (conclusions before dense matrices) -->
           <div class="workbench-card p-5 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-3">
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-2 flex-wrap">
                 <span class="text-[#F59E0B]">${icon("alert-circle", "icon-sm")}</span>
-                <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Galería de Hallazgos Estadísticos</h4>
-                <span class="badge-sys text-[10px] font-mono">${filteredFindings.length} mostrados</span>
+                <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">
+                  ${this.showAdvancedExplore ? "Galería de Hallazgos Estadísticos" : "Hallazgos prioritarios"}
+                </h4>
+                <span class="badge-sys text-[10px] font-mono">
+                  ${visibleFindings.length} de ${filteredFindings.length}
+                  ${!this.showAdvancedExplore && filteredFindings.length > GUIDED_FINDINGS_LIMIT ? ` · top ${GUIDED_FINDINGS_LIMIT}` : ""}
+                </span>
               </div>
 
-              <!-- Filter chips -->
+              ${this.showAdvancedExplore ? `
               <div class="flex flex-wrap items-center gap-2 text-xs font-sans">
-                <!-- Category select -->
                 <select id="filterCategorySelect" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none cursor-pointer shadow-sm">
                   <option value="ALL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "ALL" ? "selected" : ""}>Todas las categorías</option>
                   <option value="COLLINEARITY" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "COLLINEARITY" ? "selected" : ""}>Colinealidad</option>
@@ -288,39 +302,67 @@ export class ExploreView {
                   <option value="CATEGORICAL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "CATEGORICAL" ? "selected" : ""}>Asociación Categórica</option>
                   <option value="TARGET" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "TARGET" ? "selected" : ""}>Separación Objetivo</option>
                 </select>
-
-                <!-- Severity select -->
                 <select id="filterSeveritySelect" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none cursor-pointer shadow-sm">
                   <option value="ALL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "ALL" ? "selected" : ""}>Toda severidad</option>
                   <option value="CRITICAL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "CRITICAL" ? "selected" : ""}>Críticos</option>
                   <option value="WARNING" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "WARNING" ? "selected" : ""}>Advertencias</option>
                   <option value="INFO" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "INFO" ? "selected" : ""}>Informativos</option>
                 </select>
-
-                <!-- FDR toggle -->
                 <label class="flex items-center space-x-1.5 cursor-pointer text-[#8B95A7] hover:text-[#F7F8FA] select-none text-[11px] font-mono">
                   <input type="checkbox" id="checkFdrOnly" ${this.filterFdrOnly ? "checked" : ""} class="rounded border-[#242A36] bg-[#090C12] text-[#4F67FF] focus:ring-0">
                   <span>Solo FDR p &lt; 0.05</span>
                 </label>
               </div>
+              ` : `
+              <button type="button" id="btnShowAllFindings" class="btn-technical text-[11px] font-mono">
+                Ver todos (${filteredFindings.length})
+              </button>
+              `}
             </div>
 
-            <!-- Findings Grid -->
+            ${!this.showAdvancedExplore ? `
+              <p class="text-xs text-[#8B95A7] font-sans">
+                Resumen ejecutivo: los ${Math.min(GUIDED_FINDINGS_LIMIT, filteredFindings.length)} hallazgos más relevantes por severidad y efecto. Activa <strong class="text-[#F7F8FA]">Avanzado</strong> para filtros, matrices completas e hipótesis restantes.
+              </p>
+            ` : ""}
+
             ${filteredFindings.length === 0 ? `
               <div class="p-8 text-center text-[#8B95A7] font-sans text-xs space-y-1">
                 <p>No se encontraron hallazgos que coincidan con los filtros aplicados.</p>
               </div>
             ` : `
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                ${filteredFindings.map(f => this._renderFindingCardHtml(f)).join("")}
+                ${visibleFindings.map(f => this._renderFindingCardHtml(f)).join("")}
               </div>
             `}
           </div>
 
-          <!-- Section 3: Hipótesis de ML y Evidencia Empírica (Hypothesis Engine) -->
           ${this._renderHypothesesAndEvidenceHtml()}
 
-          <!-- Section 4: Recetas de Experimentos Reproducibles (Experiment Recipes) -->
+          <!-- Visualizations: guided = strong pairs; advanced = full matrices -->
+          ${this.visualizations.length > 0 ? `
+            <div class="workbench-card p-5 space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-2">
+                <div class="flex items-center space-x-2">
+                  <span class="text-[#53C8FF]">${icon("bar-chart-2", "icon-sm")}</span>
+                  <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">
+                    ${this.showAdvancedExplore ? "Visualizaciones Declarativas" : "Asociaciones destacadas"}
+                  </h4>
+                </div>
+                ${this.showAdvancedExplore ? `
+                <div class="flex flex-wrap items-center gap-1.5 text-xs font-sans">
+                  ${this._renderVizTypeButtons(activeViz)}
+                </div>
+                ` : ""}
+              </div>
+              <div id="activeVisualizationContainer">
+                ${this.showAdvancedExplore
+                  ? this._renderVisualizationContent(activeViz)
+                  : this._renderGuidedAssociationsHtml(activeViz)}
+              </div>
+            </div>
+          ` : ""}
+
           ${this._renderRecipesSectionHtml()}
         ` : ""}
 
@@ -370,27 +412,92 @@ export class ExploreView {
     return `<pre class="text-xs font-mono p-4 bg-[#090C12] rounded border border-[#242A36] overflow-x-auto">${escapeHtml(JSON.stringify(viz, null, 2))}</pre>`;
   }
 
-  _renderCorrelationMatrixHtml(viz) {
-    const series = viz.data_series || viz.data || {};
+  _renderGuidedAssociationsHtml(viz) {
+    const series = (viz && (viz.data_series || viz.data)) || {};
     const cols = series.columns || [];
-    const isSpearman = this.matrixMethod === "spearman";
-    const matrix = isSpearman ? (series.spearman_matrix || series.matrix || []) : (series.matrix || []);
+    const matrix = series.matrix || [];
+    const pairs = [];
+    for (let i = 0; i < cols.length; i++) {
+      for (let j = i + 1; j < cols.length; j++) {
+        const val = matrix[i] && matrix[i][j] != null ? Number(matrix[i][j]) : NaN;
+        if (!Number.isFinite(val)) continue;
+        const abs = Math.abs(val);
+        if (abs >= 0.70) {
+          pairs.push({ a: cols[i], b: cols[j], r: val, abs });
+        }
+      }
+    }
+    pairs.sort((x, y) => y.abs - x.abs);
+    const top = pairs.slice(0, 5);
+
+    if (top.length === 0) {
+      return `
+        <div class="text-xs text-[#8B95A7] font-sans p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
+          No hay pares con |r| ≥ 0.70. Cambia a <strong class="text-[#F7F8FA]">Avanzado</strong> para ver la matriz completa.
+        </div>`;
+    }
 
     return `
       <div class="space-y-3">
-        <div class="flex items-center justify-between text-xs font-mono">
-          <span class="text-[#8B95A7]">${viz.title || "Matriz de Correlación"}</span>
-          <div class="flex items-center space-x-1 bg-[#090C12] p-0.5 rounded border border-[#242A36]">
-            <button class="btn-matrix-toggle px-2 py-0.5 rounded ${!isSpearman ? 'bg-[#4F67FF] text-white font-semibold' : 'text-[#8B95A7]'}" data-method="pearson">Pearson</button>
-            <button class="btn-matrix-toggle px-2 py-0.5 rounded ${isSpearman ? 'bg-[#4F67FF] text-white font-semibold' : 'text-[#8B95A7]'}" data-method="spearman">Spearman</button>
-          </div>
-        </div>
-
+        <p class="text-xs text-[#8B95A7] font-sans">Pares más correlacionados (|r| ≥ 0.70). La matriz completa está en modo Avanzado.</p>
         <div class="overflow-x-auto border border-[#242A36] rounded-lg">
           <table class="w-full text-xs font-mono border-collapse">
             <thead>
+              <tr class="bg-[#090C12] text-[#8B95A7] border-b border-[#242A36]">
+                <th class="p-2.5 text-left">Variable A</th>
+                <th class="p-2.5 text-left">Variable B</th>
+                <th class="p-2.5 text-right">r (Pearson)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${top.map(p => `
+                <tr class="border-b border-[#1C2230]">
+                  <td class="p-2.5 text-[#F7F8FA]">${escapeHtml(p.a)}</td>
+                  <td class="p-2.5 text-[#F7F8FA]">${escapeHtml(p.b)}</td>
+                  <td class="p-2.5 text-right font-semibold ${p.abs >= 0.9 ? 'text-[#EF4444]' : 'text-[#53C8FF]'}">${p.r.toFixed(3)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  _renderCorrelationMatrixHtml(viz) {
+    const series = viz.data_series || viz.data || {};
+    const allCols = series.columns || [];
+    const isSpearman = this.matrixMethod === "spearman";
+    const matrix = isSpearman ? (series.spearman_matrix || series.matrix || []) : (series.matrix || []);
+    const q = (this.matrixColumnFilter || "").trim().toLowerCase();
+    const idxs = allCols
+      .map((c, i) => ({ c, i }))
+      .filter(({ c }) => !q || String(c).toLowerCase().includes(q))
+      .map(({ i }) => i);
+    const cols = idxs.map(i => allCols[i]);
+
+    return `
+      <div class="space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+          <span class="text-[#8B95A7]">${viz.title || "Matriz de Correlación"}</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="inputMatrixColumnFilter" type="search" value="${escapeHtml(this.matrixColumnFilter)}"
+              placeholder="Filtrar variables…"
+              class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1 px-2 rounded-lg focus:border-[#4F67FF] outline-none w-44" />
+            <div class="flex items-center space-x-1 bg-[#090C12] p-0.5 rounded border border-[#242A36]">
+              <button class="btn-matrix-toggle px-2 py-0.5 rounded ${!isSpearman ? 'bg-[#4F67FF] text-white font-semibold' : 'text-[#8B95A7]'}" data-method="pearson">Pearson</button>
+              <button class="btn-matrix-toggle px-2 py-0.5 rounded ${isSpearman ? 'bg-[#4F67FF] text-white font-semibold' : 'text-[#8B95A7]'}" data-method="spearman">Spearman</button>
+            </div>
+          </div>
+        </div>
+
+        ${cols.length === 0 ? `
+          <div class="text-xs text-[#8B95A7] p-4 text-center">Ninguna variable coincide con el filtro.</div>
+        ` : `
+        <div class="overflow-x-auto border border-[#242A36] rounded-lg max-h-[70vh]">
+          <table class="w-full text-xs font-mono border-collapse">
+            <thead>
               <tr>
-                <th class="p-2 text-left text-[#8B95A7] bg-[#090C12] border-b border-r border-[#242A36]">Variable</th>
+                <th class="p-2 text-left text-[#8B95A7] bg-[#090C12] border-b border-r border-[#242A36] sticky left-0 z-10">Variable</th>
                 ${cols.map(c => `
                   <th class="p-2 text-center text-[#8B95A7] bg-[#090C12] border-b border-r border-[#242A36] truncate max-w-[100px]" title="${escapeHtml(c)}">
                     ${escapeHtml(c)}
@@ -399,12 +506,15 @@ export class ExploreView {
               </tr>
             </thead>
             <tbody>
-              ${cols.map((rowName, rIdx) => `
+              ${idxs.map((rIdx) => {
+                const rowName = allCols[rIdx];
+                return `
                 <tr>
-                  <td class="p-2 font-medium text-[#F7F8FA] bg-[#090C12] border-b border-r border-[#242A36] truncate max-w-[140px]" title="${escapeHtml(rowName)}">
+                  <td class="p-2 font-medium text-[#F7F8FA] bg-[#090C12] border-b border-r border-[#242A36] truncate max-w-[140px] sticky left-0" title="${escapeHtml(rowName)}">
                     ${escapeHtml(rowName)}
                   </td>
-                  ${cols.map((colName, cIdx) => {
+                  ${idxs.map((cIdx) => {
+                    const colName = allCols[cIdx];
                     const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
                     const absVal = Math.abs(val);
                     const isDiag = rIdx === cIdx;
@@ -428,10 +538,12 @@ export class ExploreView {
                     `;
                   }).join("")}
                 </tr>
-              `).join("")}
+              `;
+              }).join("")}
             </tbody>
           </table>
         </div>
+        `}
       </div>
     `;
   }
@@ -620,7 +732,7 @@ export class ExploreView {
             <div class="flex items-center space-x-1.5">
               ${fdrVal != null && Number.isFinite(fdrVal) ? `
                 <span class="${fdrSig ? 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30' : 'text-amber-400 bg-amber-400/10 border-amber-400/30'} border text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">
-                  ${fdrSig ? 'FDR p < 0.05' : `FDR p=${fdrVal.toFixed(3)}`}
+                  ${fdrSig ? 'FDR p < 0.05' : `FDR p=${formatPValue(fdrVal)}`}
                 </span>
               ` : ""}
               <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
@@ -654,7 +766,7 @@ export class ExploreView {
             ` : ""}
             ${f.p_value != null && Number.isFinite(Number(f.p_value)) ? `
               <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
-                p = ${Number(f.p_value) < 0.0001 ? Number(f.p_value).toExponential(2) : Number(f.p_value).toFixed(4)}
+                p = ${formatPValue(f.p_value)}
               </span>
             ` : ""}
           </div>
@@ -664,13 +776,14 @@ export class ExploreView {
   }
 
   _renderHypothesesAndEvidenceHtml() {
+    const visibleHyps = this._visibleHypotheses();
     return `
       <div class="workbench-card p-5 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-3">
           <div class="flex items-center space-x-2">
             <span class="text-[#22C55E]">${icon("zap", "icon-sm")}</span>
             <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hipótesis de ML y Evidencia Empírica</h4>
-            <span class="badge-sys text-[10px] font-mono">${this.hypotheses.length} formuladas • ${this.evidence.length} verificadas</span>
+            <span class="badge-sys text-[10px] font-mono">${visibleHyps.length} de ${this.hypotheses.length} · ${this.evidence.length} verificadas</span>
           </div>
           <span class="text-[11px] font-mono text-[#8B95A7]">Protocolo Propose ≠ Accept</span>
         </div>
@@ -683,7 +796,7 @@ export class ExploreView {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h5 class="text-xs font-mono font-semibold text-[#8B95A7] uppercase tracking-wider">Catálogo de Hipótesis</h5>
-            <span class="text-[11px] font-mono text-[#8B95A7]">Total: ${this.hypotheses.length}</span>
+            <span class="text-[11px] font-mono text-[#8B95A7]">Mostrando: ${visibleHyps.length} / ${this.hypotheses.length}</span>
           </div>
           ${this.hypotheses.length === 0 ? `
             <div class="p-4 text-center text-[#8B95A7] font-sans text-xs bg-[#090C12] rounded-lg border border-[#242A36]">
@@ -691,7 +804,7 @@ export class ExploreView {
             </div>
           ` : `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              ${this.hypotheses.map(h => this._renderHypothesisCardHtml(h)).join("")}
+              ${visibleHyps.map(h => this._renderHypothesisCardHtml(h)).join("")}
             </div>
           `}
         </div>
@@ -923,6 +1036,25 @@ export class ExploreView {
   }
 
   _bindEvents() {
+    document.getElementById("btnExploreModeGuided")?.addEventListener("click", () => {
+      this.showAdvancedExplore = false;
+      this.render();
+    });
+    document.getElementById("btnExploreModeAdvanced")?.addEventListener("click", () => {
+      this.showAdvancedExplore = true;
+      this.render();
+    });
+    document.getElementById("btnShowAllFindings")?.addEventListener("click", () => {
+      this.showAdvancedExplore = true;
+      this.render();
+    });
+    document.getElementById("inputMatrixColumnFilter")?.addEventListener("input", (e) => {
+      this.matrixColumnFilter = e.target.value || "";
+      // Debounced re-render would be nicer; immediate is OK for filter
+      clearTimeout(this._matrixFilterTimer);
+      this._matrixFilterTimer = setTimeout(() => this.render(), 200);
+    });
+
     // Select active study
     document.getElementById("selectActiveStudy")?.addEventListener("change", async (e) => {
       this.selectedStudyId = e.target.value;

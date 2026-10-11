@@ -168,6 +168,21 @@ export function getMetricDirectionInfo(metric) {
 }
 
 /**
+ * Human-readable p-value (avoids p=0.000e+00).
+ * @param {number|null|undefined} p
+ * @returns {string}
+ */
+export function formatPValue(p) {
+  if (p == null || !Number.isFinite(Number(p))) return "—";
+  const v = Number(p);
+  if (v <= 0) return "< 1e-300";
+  if (v < 0.0001) return `< 0.0001`;
+  if (v < 0.001) return v.toFixed(4);
+  if (v < 0.01) return v.toFixed(3);
+  return v.toFixed(3);
+}
+
+/**
  * Formats a metric delta comparing two scores.
  * @param {number} currentScore - Score of candidate model.
  * @param {number} baselineScore - Score of baseline model.
@@ -180,8 +195,10 @@ export function formatMetricComparison(currentScore, baselineScore, metric) {
   }
   const diff = currentScore - baselineScore;
   const isMin = isMinimizingMetric(metric);
-  const isNeutral = Math.abs(diff) < 0.00005;
-  const isImprovement = isMin ? (diff < -0.00005) : (diff > 0.00005);
+  // Tiny deltas on [0,1] metrics are noise for demos — treat as inconclusive.
+  const eps = 0.001;
+  const isNeutral = Math.abs(diff) < eps;
+  const isImprovement = isMin ? (diff < -eps) : (diff > eps);
   const sign = diff >= 0 ? "+" : "";
   const diffStr = sign + diff.toFixed(5);
 

@@ -1,5 +1,14 @@
 # Progress
 
+### Track Workbench UX Sprint 2 — Explore guided (`fix/workbench-sprint2-explore-guided`, 2026-10-11)
+
+- Guiado/Avanzado toggle: top 5 findings + hypotheses first; matrices/full filters in Advanced.
+- Severity: CRITICAL only for IDs / |r|≥0.9 / strong multivariate outliers (not every collinear pair).
+- `formatPValue` replaces `p=0.000e+00`; guided association list (|r|≥0.70) before full heatmap.
+- Advanced correlation matrix: column search filter + max-height scroll.
+- Comparator chart: floor Y-pad on [0,1] metrics so Δ~3e-5 is not visually exaggerated; neutral band 0.001.
+- Tests: `tests/test_workbench_sprint2_explore_guided.py`.
+
 ### Track Export / path integrity (`fix/export-parquet-path-confinement`, 2026-10-11)
 
 - `save_dataframe()` writes by suffix (parquet/json/tsv/csv) with optional `.bak`; derived-feature apply uses it (fixes Parquet corruption via `to_csv`).
