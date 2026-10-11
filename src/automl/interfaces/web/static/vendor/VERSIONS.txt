@@ -1,0 +1,6 @@
+chart.js=4.4.7
+lucide=0.469.0
+tailwindcss=3.4.17 (built offline to css/tailwind.built.css)
+ibm-plex-mono=@fontsource/ibm-plex-mono@5.2.5
+geist=geist@1.3.1 (woff2 copied when present)
+generated=2026-10-11T19:20:38Z

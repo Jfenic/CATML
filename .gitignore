@@ -26,3 +26,6 @@ docs/experiments/*.csv
 *.cert
 credentials.json
 secrets.json
+
+# Workbench vendor rebuild scratch (npm + Tailwind); committed outputs live under static/
+.vendor-build/
