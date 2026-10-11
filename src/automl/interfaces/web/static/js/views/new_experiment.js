@@ -15,10 +15,16 @@ export class NewExperimentModal {
     this.budget = "balanced"; // 'quick', 'balanced', 'thorough'
     this.validationStrategy = "stratified_kfold";
     this.customFeatures = [];
+    this.recipes = [];
+    this.selectedRecipeId = "";
   }
 
-  mount(container) {
+  async mount(container) {
     this.container = container;
+    const state = store.getState();
+    if (state.activeDatasetId) {
+      this.recipes = await api.getRecipes(state.activeDatasetId).catch(() => []);
+    }
     this.render();
   }
 
@@ -136,6 +142,25 @@ export class NewExperimentModal {
             `}
           </div>
 
+          <!-- Recipe Selection (Optional) -->
+          ${this.recipes && this.recipes.length > 0 ? `
+            <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-2 text-xs font-sans">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="text-[#4F67FF]">${icon("recipe", "icon-sm")}</span>
+                  <span class="font-semibold text-[#F7F8FA]">Receta Reproducible (Opcional):</span>
+                </div>
+                <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono font-bold">${this.recipes.length} disponibles</span>
+              </div>
+              <select id="selectExperimentRecipe" class="input-base w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none">
+                <option value="">Ninguna — Configuración estándar</option>
+                ${this.recipes.map(r => `
+                  <option value="${r.id}" ${this.selectedRecipeId === r.id ? 'selected' : ''}>${r.name || r.id} [${r.status.toUpperCase()}]</option>
+                `).join("")}
+              </select>
+            </div>
+          ` : ""}
+
           <!-- Compute Budget -->
           <div class="space-y-2">
             <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Compute Budget</label>
@@ -231,6 +256,10 @@ export class NewExperimentModal {
       });
     });
 
+    this.container.querySelector("#selectExperimentRecipe")?.addEventListener("change", (e) => {
+      this.selectedRecipeId = e.target.value;
+    });
+
     this.container.querySelector("#btnStartAutoML")?.addEventListener("click", async () => {
       const btn = this.container.querySelector("#btnStartAutoML");
       const modalBox = this.container.querySelector(".workbench-card");
@@ -305,6 +334,22 @@ export class NewExperimentModal {
         const progressBar = modalBox.querySelector("#trainingProgressBar");
         const percentLabel = modalBox.querySelector("#trainingPercentLabel");
         const statusDesc = modalBox.querySelector("#trainingStatusDesc");
+
+        if (this.selectedRecipeId) {
+          if (statusDesc) statusDesc.textContent = `Submitting reproducible recipe ${this.selectedRecipeId}...`;
+          const res = await api.submitRecipe(this.selectedRecipeId, activeRun.id);
+          if (progressBar) progressBar.style.width = "100%";
+          if (percentLabel) percentLabel.textContent = "100%";
+          if (statusDesc) {
+            statusDesc.className = "text-xs text-emerald-400 font-mono font-bold";
+            statusDesc.textContent = `Recipe submitted! Executed: ${(res.experiment_ids || []).join(", ")}`;
+          }
+          setTimeout(() => {
+            this.destroy();
+            store.setNav("studio");
+          }, 800);
+          return;
+        }
 
         const res = await api.createAndRunExperiment({
           run_id: activeRun.id,

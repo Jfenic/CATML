@@ -407,6 +407,67 @@ export class CATMLApiClient {
     if (hypothesisId) url += `hypothesis_id=${encodeURIComponent(hypothesisId)}&`;
     return this._fetch(url.replace(/[?&]$/, ""));
   }
+
+  // CATML Experiment Recipes API methods (Phase R3/R4)
+  async getVerifiedImprovements(datasetId = null, studyId = null, acceptedOnly = true) {
+    let url = "/api/recipes/verified-improvements?";
+    if (datasetId) url += `dataset_id=${encodeURIComponent(datasetId)}&`;
+    if (studyId) url += `study_id=${encodeURIComponent(studyId)}&`;
+    url += `accepted_only=${acceptedOnly ? "true" : "false"}`;
+    return this._fetch(url);
+  }
+
+  async getRecipes(datasetId = null, status = null) {
+    let url = "/api/recipes?";
+    if (datasetId) url += `dataset_id=${encodeURIComponent(datasetId)}&`;
+    if (status) url += `status=${encodeURIComponent(status)}&`;
+    return this._fetch(url.replace(/[?&]$/, ""));
+  }
+
+  async getRecipe(recipeId) {
+    return this._fetch(`/api/recipes/${encodeURIComponent(recipeId)}`);
+  }
+
+  async createRecipeFromEvidence(evidenceLinkId, name = null, notes = null, modelIds = null) {
+    return this._fetch("/api/recipes/create-from-evidence", {
+      method: "POST",
+      body: JSON.stringify({
+        evidence_link_id: evidenceLinkId,
+        name,
+        notes,
+        model_ids: modelIds,
+      }),
+    });
+  }
+
+  async selectRecipe(recipeId, notes = null) {
+    return this._fetch("/api/recipes/select", {
+      method: "POST",
+      body: JSON.stringify({ recipe_id: recipeId, notes }),
+    });
+  }
+
+  async submitRecipe(recipeId, runId = null, modelIds = null, notes = null) {
+    return this._fetch("/api/recipes/submit", {
+      method: "POST",
+      body: JSON.stringify({ recipe_id: recipeId, run_id: runId, model_ids: modelIds, notes }),
+    });
+  }
+
+  async promoteRecipe(recipeId, reason = null, notes = null) {
+    return this._fetch("/api/recipes/promote", {
+      method: "POST",
+      body: JSON.stringify({ recipe_id: recipeId, reason, notes }),
+    });
+  }
+
+  async archiveRecipe(recipeId) {
+    return this._fetch("/api/recipes/archive", {
+      method: "POST",
+      body: JSON.stringify({ recipe_id: recipeId }),
+    });
+  }
 }
 
 export const api = new CATMLApiClient();
+

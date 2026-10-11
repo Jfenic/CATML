@@ -296,9 +296,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Endpoints REST espejo en `src/automl/interfaces/web/server.py` (`GET /api/recipes/verified-improvements`, `GET /api/recipes`, `GET /api/recipes/{recipe_id}`, `POST /api/recipes/create-from-evidence`, `POST /api/recipes/select`, `POST /api/recipes/submit`, `POST /api/recipes/promote`, `POST /api/recipes/archive`).
   - [x] Principio "Propose ≠ Accept" garantizado: creación desde evidencia inicializa estado `DRAFT`; promoción requiere comando explícito con justificación auditable.
   - [x] Suite de paridad cruzada exhaustiva en `tests/test_recipe_phase_r3_parity.py` (4 tests al 100% pasando: CLI, MCP, REST y ciclo E2E cruzado). Cobertura total del proyecto en 86.88% (748 tests pasando).
-- [ ] **Fase R4 — Workbench + test de paridad** [P1]:
-  - [ ] UI para seleccionar mejoras verificadas, enviar recetas y promover (cliente del bus, sin lógica de negocio en JS).
-  - [ ] Prueba automatizada: misma receta vía CLI → MCP → Workbench → mismo experimento.
+- [x] **Fase R4 — Workbench + test de paridad** [P1]:
+  - [x] UI para seleccionar mejoras verificadas, enviar recetas y promover (cliente del bus vía REST API, sin lógica de negocio en JS).
+  - [x] Integración en `ExploreView`: acción "Crear Receta" en enlaces de evidencia de hipótesis aceptadas, tabla dedicada de recetas con acciones de ciclo de vida (Seleccionar, Entrenar, Promover, Archivar).
+  - [x] Integración en `StudioView`: pestaña `Recetas` con renderizado de tarjetas, estado y acciones de ejecución/promoción vinculadas al run.
+  - [x] Integración en `NewExperimentModal`: selector reproducible de recetas para ejecución directa con 1-click.
+  - [x] Suite de paridad multi-superficie cruzada en `tests/test_recipe_phase_r4_workbench_parity.py` (3 tests al 100%: JS client hooks, ciclo de vida REST en servidor real HTTP, y prueba de 4 superficies CLI → MCP → Workbench → REST con idénticos IDs, transformaciones in-fold y linaje). Cobertura global sostenida en 86.88% (751 tests pasando).
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 

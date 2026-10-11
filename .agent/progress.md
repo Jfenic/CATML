@@ -1,5 +1,32 @@
 # Progress
 
+### Track Experiment Recipes — Fase R4: Workbench UI y Paridad E2E (2026-10-11)
+
+- **Integración de Experiment Recipes en Workbench y Paridad E2E (Fase R4):**
+  - **Cliente API Frontend (`src/automl/interfaces/web/static/js/api.js`):**
+    - Métodos REST client respetando Clean Architecture (UI como mero cliente del bus, sin lógica de dominio en frontend):
+      - `getVerifiedImprovements()`, `getRecipes()`, `getRecipe()`.
+      - `createRecipeFromEvidence()`, `selectRecipe()`, `submitRecipe()`, `promoteRecipe()`, `archiveRecipe()`.
+  - **Iconografía (`src/automl/interfaces/web/static/js/icons.js`):**
+    - Añadido icono SVG Lucide `recipe` conforme al sistema de diseño Tech Minimalista Premium.
+  - **Vista Explore (`src/automl/interfaces/web/static/js/views/explore.js`):**
+    - Botón de acción contextual `Crear Receta` en la tabla de Evidence Links para hipótesis aceptadas (`btn-create-recipe`).
+    - Sección dedicada `Recetas de Experimentos Reproducibles` con selector de estado, badges minimalistas, desglose de transformaciones (`derived_features` y `column_transforms` in-fold) y botones de ciclo de vida (`btn-select-recipe`, `btn-submit-recipe`, `btn-promote-recipe`, `btn-archive-recipe`).
+  - **Vista Studio (`src/automl/interfaces/web/static/js/views/studio.js`):**
+    - Pestaña `Recetas` con conteo reactivo, listado de recetas registradas, detalle de dataset hash/split y CTA para entrenar en el run activo o promover como configuración dorada.
+  - **Modal de Nuevo Experimento (`src/automl/interfaces/web/static/js/views/new_experiment.js`):**
+    - Selector desplegable de recetas para el dataset seleccionado, permitiendo ejecución directa con 1-click reutilizando transformaciones y parámetros pre-calibrados.
+  - **Validación de Sintaxis Frontend:**
+    - Los 5 módulos JavaScript verificados con `node -c` sin errores de sintaxis ni de imports ESM.
+  - **Suite de Pruebas Automatizadas de Paridad Multi-Superficie:**
+    - `tests/test_recipe_phase_r4_workbench_parity.py`:
+      - `test_workbench_static_js_recipe_integration`: Verificación de todos los métodos en `api.js` y hooks DOM en vistas.
+      - `test_workbench_rest_recipe_lifecycle`: Servidor HTTP real en puerto efímero ejecutando ciclo REST completo (creación desde evidencia, selección, entrenamiento, promoción con notas y archivado).
+      - `test_end_to_end_cross_surface_parity_r4`: Prueba de 4 superficies cruzadas (CLI crea evidencia Explore → Workbench crea receta → MCP inspecciona/selecciona → Workbench entrena modelo fit-in-fold → CLI promueve → todas las 4 superficies verifican estado `PROMOTED`, idéntico linaje y transformaciones).
+  - **Métricas Globales de Validación:**
+    - **751 tests pasando (100% verde)**, 0 fallos, 0 regresiones.
+    - **86.88% de cobertura de código** (requisito CI $\ge 85\%$).
+
 ### Track Experiment Recipes — Fase R3: Paridad Python / CLI / MCP / REST (2026-10-11)
 
 - **Paridad Multi-Superficie de Experiment Recipes (Fase R3):**

@@ -30,6 +30,7 @@ export class ExploreView {
     this.visualizations = [];
     this.hypotheses = [];
     this.evidence = [];
+    this.recipes = [];
     this.verifyingHypothesisId = null;
     this.loading = true;
     this.runningStudy = false;
@@ -99,6 +100,8 @@ export class ExploreView {
         this.hypotheses = [];
         this.evidence = [];
       }
+
+      this.recipes = await api.getRecipes(this.activeDatasetId).catch(() => []);
     } catch (err) {
       console.error("ExploreView fetch error:", err);
     } finally {
@@ -316,6 +319,9 @@ export class ExploreView {
 
           <!-- Section 3: Hipótesis de ML y Evidencia Empírica (Hypothesis Engine) -->
           ${this._renderHypothesesAndEvidenceHtml()}
+
+          <!-- Section 4: Recetas de Experimentos Reproducibles (Experiment Recipes) -->
+          ${this._renderRecipesSectionHtml()}
         ` : ""}
 
         <!-- Create Study Modal -->
@@ -709,6 +715,7 @@ export class ExploreView {
                     <th class="p-2.5 text-center">Métrica</th>
                     <th class="p-2.5 text-center">Veredicto</th>
                     <th class="p-2.5 text-left">Detalle / Notas</th>
+                    <th class="p-2.5 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -728,6 +735,15 @@ export class ExploreView {
                       <td class="p-2.5 text-left text-[11px] font-sans text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(ev.notes || "")}">
                         ${escapeHtml(ev.notes || "-")}
                       </td>
+                      <td class="p-2.5 text-center whitespace-nowrap">
+                        ${ev.accepted ? `
+                          <button class="btn-create-recipe px-2 py-1 rounded text-[10px] font-mono font-medium bg-[#4F67FF]/20 text-[#53C8FF] hover:bg-[#4F67FF]/30 border border-[#4F67FF]/40 inline-flex items-center gap-1 transition-colors" data-ev-id="${escapeHtml(ev.id)}">
+                            ${icon("plus", "icon-xs")} Crear Receta
+                          </button>
+                        ` : `
+                          <span class="text-[#8B95A7]/40 text-[10px]">—</span>
+                        `}
+                      </td>
                     </tr>
                   `).join("")}
                 </tbody>
@@ -735,6 +751,103 @@ export class ExploreView {
             </div>
           </div>
         ` : ""}
+      </div>
+    `;
+  }
+
+  _renderRecipesSectionHtml() {
+    return `
+      <div class="workbench-card p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-[#4F67FF]">${icon("recipe", "icon-sm")}</span>
+            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Recetas de Experimentos Reproducibles</h4>
+            <span class="badge-sys text-[10px] font-mono">${this.recipes.length} registradas • ${this.recipes.filter(r => r.status === 'promoted').length} promovidas</span>
+          </div>
+          <span class="text-[11px] font-mono text-[#8B95A7]">Transforms Fit-in-Fold sin Fuga</span>
+        </div>
+
+        <p class="text-xs text-[#8B95A7] font-sans">
+          Las <strong>Experiment Recipes</strong> formalizan hipótesis validadas empíricamente en pipelines de producción reproducibles. Incorporan transformaciones fit-in-fold (<code class="text-[#53C8FF]">RobustScaler</code>, <code class="text-[#53C8FF]">PowerTransformer (Yeo-Johnson)</code>, <code class="text-[#53C8FF]">log1p</code>) con trazabilidad estricta a sus evidencias.
+        </p>
+
+        ${this.recipes.length === 0 ? `
+          <div class="p-6 text-center text-[#8B95A7] font-sans text-xs bg-[#090C12] rounded-lg border border-[#242A36] space-y-2">
+            <div class="text-[#8B95A7]/40 flex justify-center">${icon("recipe", "icon-lg")}</div>
+            <p>No hay recetas creadas aún para este dataset.</p>
+            <p class="text-[11px] text-[#8B95A7]/80">Verifica una hipótesis empírica arriba y pulsa <strong>«Crear Receta»</strong> en los enlaces de evidencia aceptados para formalizar un pipeline reproducible.</p>
+          </div>
+        ` : `
+          <div class="overflow-x-auto border border-[#242A36] rounded-lg">
+            <table class="w-full text-xs font-mono border-collapse">
+              <thead>
+                <tr class="bg-[#090C12] text-[#8B95A7] border-b border-[#242A36]">
+                  <th class="p-2.5 text-left">Receta ID</th>
+                  <th class="p-2.5 text-left">Nombre</th>
+                  <th class="p-2.5 text-center">Estado</th>
+                  <th class="p-2.5 text-left">Transformaciones</th>
+                  <th class="p-2.5 text-left">Modelos</th>
+                  <th class="p-2.5 text-left">Evidencia Origen</th>
+                  <th class="p-2.5 text-left">Experimentos</th>
+                  <th class="p-2.5 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${this.recipes.map(r => {
+                  let statusColor = "text-[#8B95A7] bg-[#8B95A7]/10 border-[#8B95A7]/30";
+                  if (r.status === "selected") statusColor = "text-[#6956E8] bg-[#6956E8]/10 border-[#6956E8]/30";
+                  if (r.status === "submitted") statusColor = "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30";
+                  if (r.status === "promoted") statusColor = "text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30";
+
+                  const transformsList = [
+                    ...(r.column_transforms || []).map(t => `${t.column}: ${t.kind}`),
+                    ...(r.derived_features || []).map(d => `${d.name || d.expression}`),
+                  ];
+                  const transformText = transformsList.length > 0 ? transformsList.join(", ") : "Ninguna (Base)";
+
+                  return `
+                    <tr class="border-b border-[#1C2230] hover:bg-[#11151E]">
+                      <td class="p-2.5 text-[#53C8FF] font-bold">${escapeHtml(r.id)}</td>
+                      <td class="p-2.5 text-[#F7F8FA] font-sans font-medium">${escapeHtml(r.name || "-")}</td>
+                      <td class="p-2.5 text-center">
+                        <span class="${statusColor} border text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${escapeHtml(r.status)}
+                        </span>
+                      </td>
+                      <td class="p-2.5 text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(transformText)}">
+                        ${escapeHtml(transformText)}
+                      </td>
+                      <td class="p-2.5 text-[#F7F8FA]">${escapeHtml((r.model_ids || []).join(", ") || "default")}</td>
+                      <td class="p-2.5 text-[#8B95A7]">
+                        ${r.evidence_link_id ? `<span class="text-[#53C8FF]">${escapeHtml(r.evidence_link_id)}</span>` : "-"}
+                      </td>
+                      <td class="p-2.5 text-[#8B95A7]">
+                        ${(r.experiment_ids && r.experiment_ids.length > 0) ? r.experiment_ids.map(eid => `<span class="text-indigo-400 mr-1">${escapeHtml(eid)}</span>`).join("") : '<span class="text-[#8B95A7]/60">Sin ejecutar</span>'}
+                      </td>
+                      <td class="p-2.5 text-right whitespace-nowrap space-x-1">
+                        ${r.status === "draft" ? `
+                          <button class="btn-select-recipe px-2 py-1 rounded text-[11px] font-mono bg-[#6956E8]/20 text-[#6956E8] hover:bg-[#6956E8]/30 border border-[#6956E8]/40 transition-colors" data-recipe-id="${escapeHtml(r.id)}">Seleccionar</button>
+                        ` : ""}
+                        ${r.status !== "archived" && r.status !== "promoted" ? `
+                          <button class="btn-submit-recipe px-2.5 py-1 rounded text-[11px] font-mono bg-[#4F67FF] text-white hover:bg-[#4F67FF]/80 inline-flex items-center gap-1 transition-colors" data-recipe-id="${escapeHtml(r.id)}">${icon("play", "icon-xs")} Entrenar</button>
+                        ` : ""}
+                        ${r.status === "submitted" ? `
+                          <button class="btn-promote-recipe px-2 py-1 rounded text-[11px] font-mono bg-[#22C55E]/20 text-[#22C55E] hover:bg-[#22C55E]/30 border border-[#22C55E]/40 inline-flex items-center gap-1 transition-colors" data-recipe-id="${escapeHtml(r.id)}">${icon("shield-check", "icon-xs")} Promover</button>
+                        ` : ""}
+                        ${r.status === "promoted" ? `
+                          <span class="text-[11px] font-mono text-[#22C55E] inline-flex items-center gap-1 mr-1.5">${icon("check-circle-2", "icon-xs")} Producción</span>
+                        ` : ""}
+                        ${r.status !== "archived" ? `
+                          <button class="btn-archive-recipe p-1 rounded text-[#8B95A7] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" data-recipe-id="${escapeHtml(r.id)}" title="Archivar receta">${icon("x", "icon-xs")}</button>
+                        ` : ""}
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
       </div>
     `;
   }
@@ -929,6 +1042,96 @@ export class ExploreView {
         } finally {
           this.verifyingHypothesisId = null;
           this.render();
+        }
+      });
+    });
+
+    // Recipe: Create from Evidence
+    document.querySelectorAll(".btn-create-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const evId = e.currentTarget.getAttribute("data-ev-id");
+        if (!evId) return;
+        const name = prompt("Nombre descriptivo para la receta:", `Receta desde ${evId}`);
+        if (!name) return;
+        try {
+          await api.createRecipeFromEvidence(evId, name);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error creating recipe:", err);
+          alert("Error creando receta: " + (err.message || err));
+        }
+      });
+    });
+
+    // Recipe: Select
+    document.querySelectorAll(".btn-select-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        try {
+          await api.selectRecipe(recipeId);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error selecting recipe:", err);
+          alert("Error seleccionando receta: " + (err.message || err));
+        }
+      });
+    });
+
+    // Recipe: Submit (Train)
+    document.querySelectorAll(".btn-submit-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        const btnEl = e.currentTarget;
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="animate-spin mr-1">${icon("refresh-cw", "icon-xs")}</span> Entrenando...`;
+        try {
+          const res = await api.submitRecipe(recipeId);
+          alert(`Experimento(s) ejecutados con éxito: ${(res.experiment_ids || []).join(", ")}`);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error submitting recipe:", err);
+          alert("Error ejecutando receta: " + (err.message || err));
+          btnEl.disabled = false;
+        }
+      });
+    });
+
+    // Recipe: Promote
+    document.querySelectorAll(".btn-promote-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        const reason = prompt("Justificación para promover a producción:", "Supera al baseline con significancia estadística");
+        if (!reason) return;
+        try {
+          await api.promoteRecipe(recipeId, reason);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error promoting recipe:", err);
+          alert("Error promoviendo receta: " + (err.message || err));
+        }
+      });
+    });
+
+    // Recipe: Archive
+    document.querySelectorAll(".btn-archive-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        if (!confirm(`¿Desea archivar la receta ${recipeId}?`)) return;
+        try {
+          await api.archiveRecipe(recipeId);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error archiving recipe:", err);
+          alert("Error archivando receta: " + (err.message || err));
         }
       });
     });

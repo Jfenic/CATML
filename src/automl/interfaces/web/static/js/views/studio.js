@@ -18,6 +18,7 @@ export class StudioView {
     this.plan = null;
     this.leaderboard = [];
     this.experiments = [];
+    this.recipes = [];
     this.modelFilter = "all";
     this.modelSearch = "";
   }
@@ -50,15 +51,21 @@ export class StudioView {
         || dsRuns[0]
         || (runs.find(r => r.id === state.activeRunId) || runs[0] || null);
 
+      const targetDatasetId = this.activeRun ? this.activeRun.dataset_id : state.activeDatasetId;
+
       if (this.activeRun) {
-        const [plan, leaderboard, experiments] = await Promise.all([
+        const [plan, leaderboard, experiments, recipes] = await Promise.all([
           api.getPlan(this.activeRun.id).catch(() => null),
           api.getLeaderboard(this.activeRun.id).catch(() => []),
           api.getExperiments(this.activeRun.id).catch(() => []),
+          api.getRecipes(targetDatasetId).catch(() => []),
         ]);
         this.plan = plan;
         this.leaderboard = leaderboard || [];
         this.experiments = experiments || [];
+        this.recipes = recipes || [];
+      } else if (targetDatasetId) {
+        this.recipes = await api.getRecipes(targetDatasetId).catch(() => []);
       }
     } catch (e) {
       console.warn("StudioView fetchData error:", e);
@@ -374,6 +381,10 @@ export class StudioView {
               ${icon("scroll-text", "icon-sm")}
               <span>Logs & Events</span>
             </button>
+            <button class="tab-btn py-3 border-b-2 flex items-center space-x-1.5 ${this.activeTab === 'recipes' ? 'border-[#4F67FF] text-[#4F67FF]' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="recipes">
+              ${icon("recipe", "icon-sm")}
+              <span>Recetas (${this.recipes ? this.recipes.length : 0})</span>
+            </button>
           </div>
 
           <div class="p-5" id="tabContent">
@@ -587,6 +598,8 @@ export class StudioView {
           </div>
         </div>
       `;
+    } else if (this.activeTab === "recipes") {
+      return this._renderRecipesTabHtml();
     } else {
       return `
         <div class="space-y-2 font-mono text-xs">
@@ -616,6 +629,9 @@ export class StudioView {
         const tabContent = this.container.querySelector("#tabContent");
         if (tabContent) {
           tabContent.innerHTML = this._renderTabContent();
+          if (this.activeTab === "recipes") {
+            this._bindRecipeTabEvents(tabContent);
+          }
         }
         this.container.querySelectorAll(".tab-btn").forEach(b => {
           b.className = `tab-btn py-3 border-b-2 ${
@@ -626,6 +642,10 @@ export class StudioView {
         });
       });
     });
+
+    if (this.activeTab === "recipes") {
+      this._bindRecipeTabEvents(this.container);
+    }
 
     this.container.querySelector("#btnPauseRun")?.addEventListener("click", async () => {
       try {
@@ -956,6 +976,179 @@ export class StudioView {
           },
         },
       },
+    });
+  }
+
+  _renderRecipesTabHtml() {
+    const recipes = this.recipes || [];
+    return `
+      <div class="space-y-4 text-xs font-sans">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-3 rounded-xl bg-[#11151E] border border-[#242A36]">
+            <div class="text-[#8B95A7] text-[11px] uppercase font-semibold">Recetas Registradas</div>
+            <div class="text-lg font-bold font-mono text-[#F7F8FA] mt-1">${recipes.length}</div>
+            <div class="text-[10px] text-[#8B95A7]">Configuraciones reproducibles</div>
+          </div>
+          <div class="p-3 rounded-xl bg-[#11151E] border border-[#242A36]">
+            <div class="text-[#8B95A7] text-[11px] uppercase font-semibold">En Producción (Promovidas)</div>
+            <div class="text-lg font-bold font-mono text-[#22C55E] mt-1">${recipes.filter(r => r.status === "promoted").length}</div>
+            <div class="text-[10px] text-[#8B95A7]">Candidatas validadas con auditoría</div>
+          </div>
+          <div class="p-3 rounded-xl bg-[#11151E] border border-[#242A36]">
+            <div class="text-[#8B95A7] text-[11px] uppercase font-semibold">Transformaciones In-Fold</div>
+            <div class="text-lg font-bold font-mono text-[#4F67FF] mt-1">
+              ${recipes.reduce((acc, r) => acc + (r.column_transforms ? r.column_transforms.length : 0), 0)}
+            </div>
+            <div class="text-[10px] text-[#8B95A7]">RobustScaler / Yeo-Johnson / log1p</div>
+          </div>
+        </div>
+
+        ${recipes.length === 0 ? `
+          <div class="p-8 text-center text-[#8B95A7] bg-[#11151E] rounded-xl border border-[#242A36] space-y-2">
+            <div class="text-[#8B95A7]/40 flex justify-center">${icon("recipe", "icon-lg")}</div>
+            <p class="font-medium text-[#F7F8FA]">No hay recetas de experimentos creadas para este dataset.</p>
+            <p class="text-[11px]">Explora hipótesis estadísticas en <strong>CATML Explore</strong> y formaliza las mejoras empíricamente verificadas como recetas.</p>
+          </div>
+        ` : `
+          <div class="overflow-x-auto border border-[#242A36] rounded-xl">
+            <table class="w-full text-xs font-mono border-collapse">
+              <thead>
+                <tr class="bg-[#090C12] text-[#8B95A7] border-b border-[#242A36]">
+                  <th class="p-2.5 text-left">Receta ID</th>
+                  <th class="p-2.5 text-left">Nombre</th>
+                  <th class="p-2.5 text-center">Estado</th>
+                  <th class="p-2.5 text-left">Transforms</th>
+                  <th class="p-2.5 text-left">Modelos</th>
+                  <th class="p-2.5 text-left">Evidencia Origen</th>
+                  <th class="p-2.5 text-left">Experimentos</th>
+                  <th class="p-2.5 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${recipes.map(r => {
+                  let statusColor = "text-[#8B95A7] bg-[#8B95A7]/10 border-[#8B95A7]/30";
+                  if (r.status === "selected") statusColor = "text-[#6956E8] bg-[#6956E8]/10 border-[#6956E8]/30";
+                  if (r.status === "submitted") statusColor = "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30";
+                  if (r.status === "promoted") statusColor = "text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30";
+
+                  const transformsList = [
+                    ...(r.column_transforms || []).map(t => `${t.column}: ${t.kind}`),
+                    ...(r.derived_features || []).map(d => `${d.name || d.expression}`),
+                  ];
+                  const transformText = transformsList.length > 0 ? transformsList.join(", ") : "Ninguna";
+
+                  return `
+                    <tr class="border-b border-[#1C2230] hover:bg-[#151B26]">
+                      <td class="p-2.5 text-[#53C8FF] font-bold">${escapeHtml(r.id)}</td>
+                      <td class="p-2.5 text-[#F7F8FA] font-sans font-medium">${escapeHtml(r.name || "-")}</td>
+                      <td class="p-2.5 text-center">
+                        <span class="${statusColor} border text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${escapeHtml(r.status)}
+                        </span>
+                      </td>
+                      <td class="p-2.5 text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(transformText)}">
+                        ${escapeHtml(transformText)}
+                      </td>
+                      <td class="p-2.5 text-[#F7F8FA]">${escapeHtml((r.model_ids || []).join(", ") || "default")}</td>
+                      <td class="p-2.5 text-[#8B95A7]">
+                        ${r.evidence_link_id ? `<span class="text-[#53C8FF]">${escapeHtml(r.evidence_link_id)}</span>` : "-"}
+                      </td>
+                      <td class="p-2.5 text-[#8B95A7]">
+                        ${(r.experiment_ids && r.experiment_ids.length > 0) ? r.experiment_ids.map(eid => `<span class="text-indigo-400 mr-1">${escapeHtml(eid)}</span>`).join("") : '<span class="text-[#8B95A7]/60">Sin ejecutar</span>'}
+                      </td>
+                      <td class="p-2.5 text-right whitespace-nowrap space-x-1">
+                        ${r.status === "draft" ? `
+                          <button class="btn-studio-select-recipe px-2 py-1 rounded text-[11px] font-mono bg-[#6956E8]/20 text-[#6956E8] hover:bg-[#6956E8]/30 border border-[#6956E8]/40 transition-colors" data-recipe-id="${escapeHtml(r.id)}">Seleccionar</button>
+                        ` : ""}
+                        ${r.status !== "archived" && r.status !== "promoted" ? `
+                          <button class="btn-studio-submit-recipe px-2.5 py-1 rounded text-[11px] font-mono bg-[#4F67FF] text-white hover:bg-[#4F67FF]/80 inline-flex items-center gap-1 transition-colors" data-recipe-id="${escapeHtml(r.id)}">${icon("play", "icon-xs")} Entrenar</button>
+                        ` : ""}
+                        ${r.status === "submitted" ? `
+                          <button class="btn-studio-promote-recipe px-2 py-1 rounded text-[11px] font-mono bg-[#22C55E]/20 text-[#22C55E] hover:bg-[#22C55E]/30 border border-[#22C55E]/40 inline-flex items-center gap-1 transition-colors" data-recipe-id="${escapeHtml(r.id)}">${icon("shield-check", "icon-xs")} Promover</button>
+                        ` : ""}
+                        ${r.status === "promoted" ? `
+                          <span class="text-[11px] font-mono text-[#22C55E] inline-flex items-center gap-1 mr-1.5">${icon("check-circle-2", "icon-xs")} Producción</span>
+                        ` : ""}
+                        ${r.status !== "archived" ? `
+                          <button class="btn-studio-archive-recipe p-1 rounded text-[#8B95A7] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" data-recipe-id="${escapeHtml(r.id)}" title="Archivar receta">${icon("x", "icon-xs")}</button>
+                        ` : ""}
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  _bindRecipeTabEvents(rootEl) {
+    if (!rootEl) return;
+    rootEl.querySelectorAll(".btn-studio-select-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        try {
+          await api.selectRecipe(recipeId);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          alert("Error seleccionando receta: " + (err.message || err));
+        }
+      });
+    });
+
+    rootEl.querySelectorAll(".btn-studio-submit-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        const btnEl = e.currentTarget;
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="animate-spin mr-1">${icon("refresh-cw", "icon-xs")}</span> Entrenando...`;
+        try {
+          const runId = this.activeRun ? this.activeRun.id : null;
+          const res = await api.submitRecipe(recipeId, runId);
+          alert(`Experimento(s) ejecutados con éxito: ${(res.experiment_ids || []).join(", ")}`);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          alert("Error ejecutando receta: " + (err.message || err));
+          btnEl.disabled = false;
+        }
+      });
+    });
+
+    rootEl.querySelectorAll(".btn-studio-promote-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        const reason = prompt("Justificación para promover a producción:", "Supera al baseline con significancia estadística");
+        if (!reason) return;
+        try {
+          await api.promoteRecipe(recipeId, reason);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          alert("Error promoviendo receta: " + (err.message || err));
+        }
+      });
+    });
+
+    rootEl.querySelectorAll(".btn-studio-archive-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        if (!confirm(`¿Desea archivar la receta ${recipeId}?`)) return;
+        try {
+          await api.archiveRecipe(recipeId);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          alert("Error archivando receta: " + (err.message || err));
+        }
+      });
     });
   }
 
