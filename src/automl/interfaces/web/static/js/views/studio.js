@@ -6,7 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
-import { isRunActive, escapeHtml } from "../utils.js";
+import { isRunActive, escapeHtml, isMinimizingMetric, getMetricDirectionInfo } from "../utils.js";
 
 export class StudioView {
   constructor() {
@@ -211,12 +211,12 @@ export class StudioView {
               <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-2 hover:border-[#4F67FF]/40 transition-colors">
                 <div class="flex items-center justify-between">
                   <span class="text-[10px] font-mono uppercase tracking-wider text-[#8B95A7]">Trial #${idx + 1}</span>
-                  ${idx === 0 ? '<span class="badge-gain text-[9px] px-1.5 py-0.5 rounded font-mono font-bold">Best</span>' : '<span class="badge-sys text-[9px] px-1.5 py-0.5 rounded font-mono font-medium">Verified</span>'}
+                  ${idx === 0 ? '<span class="badge-gain text-[9px] px-1.5 py-0.5 rounded font-mono font-bold">Mejor de esta ejecución</span>' : '<span class="badge-sys text-[9px] px-1.5 py-0.5 rounded font-mono font-medium">Evaluado</span>'}
                 </div>
                 <div class="text-sm font-semibold text-[#F7F8FA] font-mono capitalize truncate">${t.model}</div>
                 <div class="text-xl font-bold font-mono text-[#22C55E]">${Number(t.score).toFixed(5)}</div>
                 <div class="text-[10px] font-mono text-[#8B95A7] flex justify-between pt-2 border-t border-[#252C38]">
-                  <span>${activeRun.metric || 'CV'}</span>
+                  <span>${activeRun.metric || 'CV'} (${isMinimizingMetric(activeRun?.metric) ? 'menor es mejor' : 'mayor es mejor'})</span>
                   <span>${t.time != null ? Number(t.time).toFixed(1) + 's' : '5-Fold CV'}</span>
                 </div>
               </div>
@@ -529,12 +529,12 @@ export class StudioView {
                   return `
                   <tr>
                     <td class="font-mono font-bold ${idx === 0 ? 'text-amber-400' : 'text-slate-400'}">#${idx + 1}</td>
-                    <td class="font-medium text-slate-200 capitalize font-mono">${row.model_id}</td>
-                    <td class="font-mono text-xs">${activeRun ? activeRun.metric : "CV"}</td>
+                    <td class="font-medium text-slate-200 capitalize font-mono">${escapeHtml(row.model_id)}</td>
+                    <td class="font-mono text-xs">${activeRun ? `${escapeHtml(activeRun.metric)} <span class="text-[10px] text-[#8B95A7]">(${isMinimizingMetric(activeRun.metric) ? 'menor es mejor' : 'mayor es mejor'})</span>` : "CV"}</td>
                     <td class="font-mono font-bold ${idx === 0 ? 'text-emerald-400' : 'text-slate-200'}">${Number(row.score).toFixed(5)}</td>
                     <td class="font-mono text-xs text-slate-400">${row.training_time_seconds ? Number(row.training_time_seconds).toFixed(2) + 's' : (row.training_time_s ? Number(row.training_time_s).toFixed(2) + 's' : '—')}</td>
                     <td>${recipeBadgeHtml}</td>
-                    <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Optimal' : 'Verified'}</span></td>
+                    <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Mejor de esta ejecución' : 'Evaluado'}</span></td>
                     <td class="text-right">
                       <button data-inspect-model="${row.model_id}" class="btn-inspect-model-params text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 px-2.5 py-0.5 rounded font-mono transition-colors">
                         <span class="inline-flex items-center gap-1">${icon("search", "icon-sm")} <span>Params</span></span>
@@ -579,7 +579,7 @@ export class StudioView {
           </div>
 
           <div class="p-3.5 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
-            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Optimal Parameter Set</div>
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Mejor conjunto de parámetros observado</div>
             ${bestTrial && bestTrial.params && Object.keys(bestTrial.params).length > 0 ? `
               <div class="grid grid-cols-2 md:grid-cols-4 gap-2 font-mono text-xs">
                 ${Object.entries(bestTrial.params).map(([k, v]) => `
@@ -764,7 +764,7 @@ export class StudioView {
       }
       if (bestTrial && bestTrial.params && Object.keys(bestTrial.params).length > 0) {
         store.setState({ promotedParams: bestTrial.params, warmStartParams: bestTrial.params });
-        alert(`Parámetros óptimos del trial ${bestTrial.trial_id || '#1'} (score: ${Number(bestTrial.score).toFixed(5)}) promovidos con éxito al pipeline.`);
+        alert(`Parámetros del mejor trial observado ${bestTrial.trial_id || '#1'} (score: ${Number(bestTrial.score).toFixed(5)}) promovidos con éxito al pipeline.`);
       } else {
         alert("No se han encontrado hiperparámetros optimizados en los experimentos actuales.");
       }

@@ -9,7 +9,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../utils.js";
-import { isRunActive } from "../utils.js";
+import { isRunActive, isMinimizingMetric, getMetricDirectionInfo } from "../utils.js";
 
 export class OverviewView {
   constructor() {
@@ -36,8 +36,11 @@ export class OverviewView {
     const activeDataset = store.getActiveDataset();
     const dsRuns = store.getRunsForActiveDataset();
     const runs = dsRuns;
-    const activeRun = store.getActiveRun() || dsRuns.find(r => isRunActive(r)) || dsRuns[0] || null;
+    const activeRun = store.getActiveRun() || dsRuns.find(r => isRunActive(r)) || null;
     const isRunning = isRunActive(activeRun);
+
+    const activeMetric = activeRun ? activeRun.metric : (overview.best_metric && overview.best_metric !== "-" ? overview.best_metric : null);
+    const metricDirInfo = activeMetric ? getMetricDirectionInfo(activeMetric) : null;
 
     const bestScoreText = (activeRun && activeRun.best_score != null)
       ? Number(activeRun.best_score).toFixed(4)
@@ -142,7 +145,7 @@ export class OverviewView {
             </td>
             <td><span class="text-xs text-[#8B95A7] font-sans capitalize">${escapeHtml((r.task_type || "Classification").replace("_", " "))}</span></td>
             <td><span class="badge-sys px-2 py-0.5 rounded text-xs font-mono uppercase">${escapeHtml(r.best_model || "—")}</span></td>
-            <td class="font-mono text-xs text-[#8B95A7]">${escapeHtml(r.metric || "CV")}</td>
+            <td class="font-mono text-xs text-[#8B95A7]">${escapeHtml(r.metric || "CV")} <span class="text-[10px] text-[#8B95A7]/70">(${isMinimizingMetric(r.metric) ? 'menor es mejor' : 'mayor es mejor'})</span></td>
             <td class="font-mono font-bold text-[#22C55E] text-sm">${r.best_score != null ? Number(r.best_score).toFixed(4) : "—"}</td>
             <td class="text-right">
               <a href="/api/models/export?run_id=${encodeURIComponent(r.id)}" onclick="event.stopPropagation()" class="px-2.5 py-1 text-[11px] font-mono font-semibold text-[#4F67FF] hover:text-white bg-[#4F67FF]/10 hover:bg-[#4F67FF] border border-[#4F67FF]/25 rounded-md transition-all inline-flex items-center space-x-1" title="Download ModelArtifact (.pkl)">
@@ -218,9 +221,12 @@ export class OverviewView {
         <!-- Top KPI row -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div class="metric-block">
-            <div class="metric-lbl">Best Validated Score${overview.best_metric && overview.best_metric !== "-" ? ` (${escapeHtml(overview.best_metric.toUpperCase())})` : ""}</div>
+            <div class="metric-lbl">Mejor resultado observado${activeMetric ? ` (${escapeHtml(activeMetric.toUpperCase())})` : ""}</div>
             <div class="metric-val text-[#22C55E] mt-1">${bestScoreText}</div>
-            <div class="text-[11px] font-sans text-[#8B95A7] mt-1">Model: <span class="text-[#F7F8FA] font-medium font-mono">${escapeHtml(bestModelText)}</span></div>
+            <div class="text-[11px] font-sans text-[#8B95A7] mt-1 flex items-center justify-between">
+              <span>Modelo: <span class="text-[#F7F8FA] font-medium font-mono">${escapeHtml(bestModelText)}</span></span>
+              ${metricDirInfo ? `<span class="text-[10px] font-mono text-[#8B95A7]">(${metricDirInfo.label})</span>` : ""}
+            </div>
           </div>
 
           <div class="metric-block">
@@ -268,7 +274,7 @@ export class OverviewView {
                 ${icon("trophy", "icon-sm text-[#22C55E]")}
                 <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Model Leaderboard</span>
               </div>
-              <span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-medium">Verified by CV</span>
+              <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono font-medium">Evaluado por Cross-Validation</span>
             </div>
             <div class="p-0 overflow-x-auto flex-1">
               <table class="w-full wb-table text-left">

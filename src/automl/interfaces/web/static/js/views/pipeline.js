@@ -201,7 +201,7 @@ export class PipelineView {
               ${icon("package", "icon-sm text-[#22C55E] mb-1.5 block mx-auto")}
               <div class="text-[10px] text-slate-400 uppercase font-mono">Output Artifact</div>
               <div class="text-xs font-bold text-emerald-300">submission.csv</div>
-              <div class="text-[10px] text-slate-400 font-mono">Verified Format</div>
+              <div class="text-[10px] text-slate-400 font-mono">Formato validado</div>
             </div>
           </div>
 
@@ -305,7 +305,7 @@ export class PipelineView {
         description: "Autonomous interaction hypothesis generator producing candidate pairwise features.",
         input: `${columns.length} base features`,
         output: "Empirically accepted features",
-        extra: "<div class='text-emerald-400'>Accepted: Verified by CV gain</div><div class='text-rose-400'>Rejected: Degrading or collinear</div>",
+        extra: "<div class='text-emerald-400'>Accepted: Validado por ganancia en CV</div><div class='text-rose-400'>Rejected: Degrading or collinear</div>",
       },
       Prediction: {
         name: "Prediction & Submission",

@@ -230,7 +230,7 @@ export class HomeView {
                         </div>
                       </div>
                       <div class="text-right text-[11px] font-mono text-[#8B95A7] whitespace-nowrap">
-                        ${job.result && job.result.primary_score != null ? `<span class="text-[#22C55E] font-bold">${Number(job.result.primary_score).toFixed(4)}</span>` : '—'}
+                        ${job.result && job.result.primary_score != null ? `<span class="text-[#22C55E] font-bold">${escapeHtml(job.result.primary_metric || 'Score')}: ${Number(job.result.primary_score).toFixed(4)}</span>` : '—'}
                       </div>
                     </div>
                   `;

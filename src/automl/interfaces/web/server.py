@@ -69,6 +69,49 @@ from automl.application.recipes.queries import (
 from dataclasses import asdict
 
 
+def _is_metric_minimizing(metric_name: str | None, ws: Any = None) -> bool:
+    """Returns True if the metric is minimizing (lower is better, e.g. loss/error metrics)."""
+    if not metric_name:
+        return False
+    metric_str = str(metric_name).lower().strip()
+    if ws is not None and hasattr(ws, "plugin_registry") and ws.plugin_registry is not None:
+        try:
+            if hasattr(ws.plugin_registry, "has") and ws.plugin_registry.has(metric_str):
+                plugin = ws.plugin_registry.get_metric_plugin(metric_str)
+                if plugin is not None and hasattr(plugin, "greater_is_better"):
+                    return not plugin.greater_is_better
+        except Exception:
+            pass
+    return metric_str in {
+        "mae",
+        "rmse",
+        "mse",
+        "loss",
+        "log_loss",
+        "logloss",
+        "mean_squared_error",
+        "mean_absolute_error",
+        "root_mean_squared_error",
+        "neg_mean_absolute_error",
+        "neg_mean_squared_error",
+        "neg_root_mean_squared_error",
+        "neg_log_loss",
+    }
+
+
+def _get_best_trial_result(trials: list[Any], metric: str | None = None, ws: Any = None) -> Any | None:
+    """Selects the best trial result respecting metric optimization direction and trial success."""
+    if not trials:
+        return None
+    valid = [t for t in trials if getattr(t, "succeeded", False)]
+    candidate_pool = valid if valid else trials
+    if not candidate_pool:
+        return None
+    target_metric = metric or getattr(candidate_pool[0], "primary_metric", None)
+    is_min = _is_metric_minimizing(target_metric, ws=ws)
+    return min(candidate_pool, key=lambda t: getattr(t, "primary_score", 0.0)) if is_min else max(candidate_pool, key=lambda t: getattr(t, "primary_score", 0.0))
+
+
 def _build_real_activity_feed(
     ws: Any,
     qry: Any,
@@ -386,7 +429,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     score = float(top["score"])
                     model_id = str(top["model_id"])
                     metric_name = str(top.get("metric") or r.config.metric or "score").lower()
-                    is_minimize = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
+                    is_minimize = _is_metric_minimizing(metric_name, ws=ws)
                     ds_id = str(r.dataset_id)
 
                     # Track per-dataset metrics segregation
@@ -399,6 +442,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "run_id": r.id,
                             "dataset_id": ds_id,
                             "metric": metric_name,
+                            "is_minimizing": is_minimize,
+                            "metric_direction": "minimize" if is_minimize else "maximize",
                         }
                     else:
                         cur_ds_score = best_by_dataset[ds_id][metric_name]["score"]
@@ -409,6 +454,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                                 "run_id": r.id,
                                 "dataset_id": ds_id,
                                 "metric": metric_name,
+                                "is_minimizing": is_minimize,
+                                "metric_direction": "minimize" if is_minimize else "maximize",
                             }
 
                     # Maintain best_by_metric without incomparable cross-dataset numeric comparisons
@@ -419,6 +466,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "run_id": r.id,
                             "dataset_id": ds_id,
                             "metric": metric_name,
+                            "is_minimizing": is_minimize,
+                            "metric_direction": "minimize" if is_minimize else "maximize",
                         }
                     else:
                         cur_entry = best_by_metric[metric_name]
@@ -434,6 +483,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                                     "run_id": r.id,
                                     "dataset_id": ds_id,
                                     "metric": metric_name,
+                                    "is_minimizing": is_minimize,
+                                    "metric_direction": "minimize" if is_minimize else "maximize",
                                 }
                         elif is_active_run:
                             best_by_metric[metric_name] = {
@@ -442,6 +493,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                                 "run_id": r.id,
                                 "dataset_id": ds_id,
                                 "metric": metric_name,
+                                "is_minimizing": is_minimize,
+                                "metric_direction": "minimize" if is_minimize else "maximize",
                             }
 
                     # Track active or latest run for top-level scalar display
@@ -524,6 +577,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 workspace_dir=self.workspace_dir,
             )
 
+            is_best_min = bool(best_metric and _is_metric_minimizing(best_metric, ws=ws))
+
             self._send_json({
                 "platform": "CATML AutoML Platform",
                 "version": __version__,
@@ -534,6 +589,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "best_score": best_score,
                 "best_model": best_model,
                 "best_metric": best_metric,
+                "metric_direction": "minimize" if is_best_min else "maximize",
+                "is_minimizing": is_best_min,
                 "best_by_metric": best_by_metric,
                 "best_by_dataset": best_by_dataset,
                 "recent_datasets": recent_datasets,
@@ -661,6 +718,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
                 exps = ws.list_experiments(r.id)
                 trials_cnt = sum(len(ws.list_trial_results(e.id)) for e in exps)
+                is_run_min = _is_metric_minimizing(r.config.metric, ws=ws)
                 result.append({
                     "id": r.id,
                     "dataset_id": r.dataset_id,
@@ -669,6 +727,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "task_type": r.config.task_type,
                     "target": r.config.target,
                     "metric": r.config.metric,
+                    "metric_direction": "minimize" if is_run_min else "maximize",
+                    "is_minimizing": is_run_min,
+                    "validation_strategy": getattr(r.config, "validation_strategy", "kfold"),
+                    "cv_folds": getattr(r.config, "cv_folds", 5),
                     "status": r.status.value,
                     "is_active": is_active_run_status(r.status),
                     "best_score": lb[0]["score"] if lb else None,
@@ -703,7 +765,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 trials = ws.list_trial_results(e.id)
                 parameters = {t["trial_id"]: t["parameters"]
                               for t in qry.dispatch(GetExperimentTrialsQuery(e.id))}
-                best_trial = max(trials, key=lambda t: t.primary_score) if trials else None
+                best_trial = _get_best_trial_result(trials, metric=e.metric, ws=ws)
                 rec_id = getattr(e, "recipe_id", None) or recipe_map.get(e.id)
                 rec_name = recipe_name_map.get(e.id)
                 if not rec_name and rec_id:
@@ -714,6 +776,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
 
+                is_exp_min = _is_metric_minimizing(e.metric, ws=ws)
                 result.append({
                     "id": e.id,
                     "name": e.name,
@@ -729,7 +792,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "recipe_name": rec_name,
                     "trials_count": len(trials),
                     "best_score": best_trial.primary_score if best_trial else None,
+                    "best_model": best_trial.model_id if best_trial else None,
                     "metric": e.metric,
+                    "metric_direction": "minimize" if is_exp_min else "maximize",
+                    "is_minimizing": is_exp_min,
                     "created_by": e.created_by,
                     "trials": [
                         {
@@ -753,6 +819,19 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
             exp_ids = [i.strip() for i in exp_ids_str.split(",") if i.strip()]
             comparison = qry.dispatch(CompareExperimentsQuery(exp_ids))
+            if isinstance(comparison, list):
+                for item in comparison:
+                    trs = item.get("trials", [])
+                    valid_trs = [t for t in trs if not t.get("failed", False)]
+                    pool = valid_trs if valid_trs else trs
+                    met = pool[0].get("metric") if pool else None
+                    is_min = _is_metric_minimizing(met, ws=ws)
+                    best_t = (min(pool, key=lambda x: x.get("score", 0.0)) if is_min else max(pool, key=lambda x: x.get("score", 0.0))) if pool else None
+                    item["best_score"] = best_t.get("score") if best_t else None
+                    item["best_model"] = best_t.get("model_id") if best_t else None
+                    item["metric"] = met
+                    item["is_minimizing"] = is_min
+                    item["metric_direction"] = "minimize" if is_min else "maximize"
             self._send_json(comparison)
             return
 
@@ -1004,12 +1083,16 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 exps = ws.list_experiments(run_id)
                 for e in exps:
                     trials = ws.list_trial_results(e.id)
-                    best_t = max(trials, key=lambda t: t.primary_score) if trials else None
+                    best_t = _get_best_trial_result(trials, metric=e.metric, ws=ws)
+                    is_p_min = _is_metric_minimizing(e.metric, ws=ws)
                     plan_steps.append({
                         "step": step_idx,
                         "name": e.name,
                         "status": "COMPLETED" if trials else "RUNNING",
                         "score": round(best_t.primary_score, 5) if best_t else None,
+                        "metric": e.metric,
+                        "metric_direction": "minimize" if is_p_min else "maximize",
+                        "is_minimizing": is_p_min,
                         "delta": None,
                         "priority": e.priority.upper() if hasattr(e, "priority") else "HIGH",
                         "why": e.hypothesis or f"Experiment with models: {', '.join(e.model_ids)}",
@@ -1193,12 +1276,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             submissions = []
             for e in exps:
                 trials = ws.list_trial_results(e.id)
-                best_t = max(trials, key=lambda t: t.primary_score) if trials else None
+                best_t = _get_best_trial_result(trials, metric=run.config.metric if run else None, ws=ws)
                 if best_t:
                     submissions.append({
                         "experiment": e.name,
                         "cv": round(best_t.primary_score, 5),
-                        "status": "VERIFIED" if best_t.succeeded else "FAILED",
+                        "status": "EVALUATED" if best_t.succeeded else "FAILED",
                     })
 
             self._send_json({
