@@ -1,12 +1,15 @@
 # Progress
 
-### Track Clean Architecture Refactor (docs + PR1 agent, 2026-10-11)
+### Track Clean Architecture Refactor (PR1 contracts, 2026-10-11)
 
-- Documented progressive Clean Architecture plan (no product-code rewrite):
-  `docs/features/clean-architecture-refactor/{spec,plan,agent-brief-pr1}.md` + ADR-010.
-- Strategy: contracts first (PR1) → Workspace facade (PR2) → API/`datasets.js` (PR3) → UoW/states (PR4) → tooling (PR5). Keep CQRS/plugins/SQLite.
-- PR1 implementation delegated to a dedicated agent via `agent-brief-pr1.md` (branch `refactor/clean-arch-pr1-metric-execution-contracts` from audit-3 / #100). Orchestrator does not touch product code for that PR.
-- Gate: merge #99 + #100 before starting PR2+.
+- Documented progressive plan: `docs/features/clean-architecture-refactor/` + ADR-010 (docs PR / brief).
+- **PR1 done** on `refactor/clean-arch-pr1-metric-execution-contracts` (from audit-3 / #100):
+  - `domain/metrics/spec.py`: `MetricSpec` + builtin registry + `resolve_metric_spec` / `InvalidMetric`.
+  - `domain/experiments/execution_spec.py`: frozen `ExecutionSpec` + `build_execution_spec` / `trial_execution_from_spec`.
+  - Wired Workspace `run_experiment` / `optimize_experiment` / schedule / `get_best_trial`, benchmarks `is_minimizing_metric`, web `_is_metric_minimizing`, trainer helper — no hardcoded minimize sets / blind `max()`.
+  - HPO keeps fixed CV fold seed (`ExecutionSpec.random_seed` = run seed).
+  - Tests: `tests/test_clean_arch_pr1_contracts.py` (+ audit-3 suite green).
+- Gate: merge #99 + #100 before PR2+ (Workspace service extraction).
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`, 2026-10-11)
 
