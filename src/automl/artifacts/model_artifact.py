@@ -184,7 +184,13 @@ class ModelArtifact:
         return target
 
     @classmethod
-    def load(cls, path: str | Path, verify_checksum: bool = True) -> ModelArtifact:
+    def load(
+        cls,
+        path: str | Path,
+        verify_checksum: bool = True,
+        *,
+        allow_missing_checksum: bool = False,
+    ) -> ModelArtifact:
         """
         Load a standalone ModelArtifact from disk.
 
@@ -196,7 +202,9 @@ class ModelArtifact:
 
         Args:
             path: Path to the serialized artifact.
-            verify_checksum: If True and a sidecar '.sha256' file exists, verifies hash integrity.
+            verify_checksum: If True, require and verify the sidecar '.sha256' digest.
+            allow_missing_checksum: Legacy escape hatch when ``verify_checksum`` is True but
+                the sidecar is absent. Default False (fail closed).
         """
         target = Path(path)
         if not target.exists():
@@ -204,7 +212,14 @@ class ModelArtifact:
 
         if verify_checksum:
             sha_file = target.with_suffix(target.suffix + ".sha256")
-            if sha_file.is_file():
+            if not sha_file.is_file():
+                if not allow_missing_checksum:
+                    raise ValueError(
+                        f"Artifact checksum sidecar missing for '{target}'. "
+                        "Refusing to load without integrity verification. "
+                        "Pass allow_missing_checksum=True only for trusted legacy artifacts."
+                    )
+            else:
                 try:
                     expected_sha = sha_file.read_text(encoding="utf-8").strip()
                     actual_sha = _compute_file_sha256(target)

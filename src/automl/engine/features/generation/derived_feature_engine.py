@@ -86,6 +86,55 @@ SAFE_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "std": np.nanstd,
 }
 
+# Aggregates / fit-on-full-frame stats → CV leakage if materialised before split.
+STATEFUL_AGGREGATE_FUNCTIONS: frozenset[str] = frozenset({"zscore", "mean", "std"})
+
+
+def formula_uses_stateful_aggregates(expression: str) -> bool:
+    """Return True if a formula AST calls aggregate/fit statistics on the full frame."""
+    if not expression or not expression.strip():
+        return False
+    try:
+        tree = ast.parse(expression.strip(), mode="eval")
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in STATEFUL_AGGREGATE_FUNCTIONS:
+                return True
+    return False
+
+
+def assert_derived_specs_safe_for_cross_validation(
+    derived_features: list[Any],
+) -> None:
+    """Reject derived specs that leak validation rows or execute arbitrary Python during training."""
+    for df_spec in derived_features:
+        if isinstance(df_spec, dict):
+            expression_type = str(df_spec.get("expression_type", DerivedFeatureType.FORMULA.value))
+            expression = str(df_spec.get("expression", ""))
+            name = str(df_spec.get("name", "<unnamed>"))
+        else:
+            expression_type = getattr(df_spec, "expression_type", DerivedFeatureType.FORMULA)
+            if hasattr(expression_type, "value"):
+                expression_type = expression_type.value
+            expression = str(getattr(df_spec, "expression", ""))
+            name = str(getattr(df_spec, "name", "<unnamed>"))
+
+        if expression_type == DerivedFeatureType.PYTHON_CODE.value:
+            raise ValueError(
+                f"Derived feature '{name}' uses python_code, which is disabled during model "
+                "training/CV (not a secure sandbox for untrusted input). Use row-wise formulas "
+                "(e.g. log1p(x)) or fit-in-fold column_transforms (RobustScaler / PowerTransformer)."
+            )
+        if formula_uses_stateful_aggregates(expression):
+            raise ValueError(
+                f"Derived feature '{name}' uses stateful aggregate(s) in '{expression}' "
+                f"({sorted(STATEFUL_AGGREGATE_FUNCTIONS)}). Computing these on the full dataframe "
+                "before CV leaks validation statistics. Prefer fit-in-fold column_transforms "
+                "(e.g. StandardScaler/RobustScaler) or row-wise formulas such as log1p(x)."
+            )
+
 SAFE_CONSTANTS: dict[str, Any] = {
     "pi": np.pi,
     "e": np.e,
@@ -102,8 +151,9 @@ SAFE_CONSTANTS: dict[str, Any] = {
 class SafeFormulaCalculator:
     """Evaluates mathematical expressions over pandas columns using a strict AST whitelist."""
 
-    def __init__(self, df: pd.DataFrame) -> None:
+    def __init__(self, df: pd.DataFrame, *, allow_stateful_aggregates: bool = False) -> None:
         self.df = df
+        self.allow_stateful_aggregates = allow_stateful_aggregates
         self.zero_division_occurred = False
         self.infinite_values_handled = 0
 
@@ -122,6 +172,17 @@ class SafeFormulaCalculator:
             raise ValueError(f"Syntax error in formula '{expression}': {err}") from err
 
         self._validate_ast(tree.body)
+        if formula_uses_stateful_aggregates(expression):
+            if not self.allow_stateful_aggregates:
+                raise ValueError(
+                    f"Formula '{expression}' uses stateful aggregates "
+                    f"{sorted(STATEFUL_AGGREGATE_FUNCTIONS)} which fit statistics on the full frame. "
+                    "Disallowed unless allow_stateful_aggregates=True (preview only; unsafe for CV)."
+                )
+            warnings.append(
+                "Stateful aggregate (e.g. zscore/mean/std) fitted on the full preview frame; "
+                "do not use for cross-validation without fit-in-fold transforms."
+            )
         raw_result = self._eval_node(tree.body)
 
         # Convert scalar or array to pandas Series aligned with dataframe index
@@ -328,7 +389,12 @@ class SafeFormulaCalculator:
 
 
 class SafePythonEvaluator:
-    """Executes sandboxed Python feature transformations with restricted globals and AST validation."""
+    """Restricted Python feature evaluator.
+
+    Not a security boundary: exposing ``np``/``pd`` to ``exec`` is unsafe for untrusted
+    input. Execution is **disabled by default**; opt in only for trusted local use
+    (``allow_execution=True`` or ``CATML_ALLOW_DERIVED_PYTHON=1``).
+    """
 
     FORBIDDEN_NAMES = {
         "open", "exec", "eval", "compile", "getattr", "setattr", "delattr",
@@ -347,15 +413,25 @@ class SafePythonEvaluator:
         "Exception": Exception,
     }
 
-    def __init__(self, df: pd.DataFrame) -> None:
+    def __init__(self, df: pd.DataFrame, *, allow_execution: bool = False) -> None:
         self.df = df
+        self.allow_execution = allow_execution
 
     def evaluate(self, code: str) -> tuple[pd.Series, list[str]]:
-        """Validates AST security and executes sandboxed Python code."""
+        """Validates AST security and executes sandboxed Python code when explicitly allowed."""
+        if not self.allow_execution:
+            raise PermissionError(
+                "Derived python_code execution is disabled by default. It is not a secure "
+                "sandbox for agents or remote callers (exec + numpy/pandas). Set "
+                "allow_execution=True only for trusted local operators, or prefer formula "
+                "expressions / fit-in-fold column_transforms."
+            )
         if not code or not code.strip():
             raise ValueError("Python feature code cannot be empty.")
 
-        warnings: list[str] = []
+        warnings: list[str] = [
+            "python_code ran with allow_execution=True; treat output as untrusted for security review."
+        ]
         try:
             tree = ast.parse(code.strip())
         except SyntaxError as err:
@@ -468,8 +544,15 @@ class DerivedFeatureEngine:
         self,
         df: pd.DataFrame,
         definition: DerivedFeatureDefinition,
+        *,
+        allow_python_code: bool = False,
+        allow_stateful_aggregates: bool = True,
     ) -> tuple[FeatureEvaluationResult, pd.Series | None]:
-        """Evaluates and validates a derived feature definition against dataframe without modifying it."""
+        """Evaluates and validates a derived feature definition against dataframe without modifying it.
+
+        ``allow_stateful_aggregates`` defaults to True for interactive preview (with warnings).
+        Training/CV paths must call ``assert_derived_specs_safe_for_cross_validation`` instead.
+        """
         feature_name = definition.name.strip()
         if not feature_name:
             return (
@@ -494,12 +577,12 @@ class DerivedFeatureEngine:
 
         try:
             if definition.expression_type == DerivedFeatureType.FORMULA:
-                calc = SafeFormulaCalculator(df)
+                calc = SafeFormulaCalculator(df, allow_stateful_aggregates=allow_stateful_aggregates)
                 series, warnings = calc.evaluate(definition.expression)
                 zero_div = calc.zero_division_occurred
                 inf_handled = calc.infinite_values_handled
             elif definition.expression_type == DerivedFeatureType.PYTHON_CODE:
-                py_eval = SafePythonEvaluator(df)
+                py_eval = SafePythonEvaluator(df, allow_execution=allow_python_code)
                 series, warnings = py_eval.evaluate(definition.expression)
                 zero_div = False
                 inf_handled = 0
@@ -578,9 +661,17 @@ class DerivedFeatureEngine:
         self,
         df: pd.DataFrame,
         definition: DerivedFeatureDefinition,
+        *,
+        allow_python_code: bool = False,
+        allow_stateful_aggregates: bool = True,
     ) -> tuple[pd.DataFrame, FeatureEvaluationResult]:
         """Applies the derived feature, returning a new DataFrame containing the added column."""
-        result, series = self.evaluate(df, definition)
+        result, series = self.evaluate(
+            df,
+            definition,
+            allow_python_code=allow_python_code,
+            allow_stateful_aggregates=allow_stateful_aggregates,
+        )
         if not result.is_valid or series is None:
             raise ValueError(f"Failed to apply derived feature: {result.error_message}")
 

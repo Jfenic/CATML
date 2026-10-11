@@ -1,5 +1,17 @@
 # Progress
 
+### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`, 2026-10-11)
+
+- Reinforced audit blockers before announcing 0.9.0rc1 (post wheel-static PR #92):
+  - `SafePythonEvaluator`: execution off by default; Workbench/FeatureService gated by `CATML_ALLOW_DERIVED_PYTHON=1`.
+  - `assert_derived_specs_safe_for_cross_validation` + trainer path: block `python_code` and stateful aggregates (`zscore`/`mean`/`std`) before CV; row-wise formulas remain allowed.
+  - Interactive preview may still evaluate stateful formulas with warnings (`allow_stateful_aggregates=True`).
+  - `ModelArtifact.load`: missing `.sha256` sidecar fails closed; `allow_missing_checksum=True` for legacy.
+  - Group heuristic: soft name hints require ≥10 distinct values and mid cardinality (avoids `Customer Type`).
+  - TimeSeriesSplit: require `time_column` in run config extra, sort ascending, warn on duplicate timestamps.
+  - `run_experiment`: mark experiment/run `FAILED` when no successful trials.
+- Tests: `tests/test_pre_publish_security_leakage.py` + updates to derived/group/artifact/workbench suites.
+
 ### Track PyPI Pre-Publish — Wheel Workbench static (`fix/pypi-wheel-workbench-static`, 2026-10-11)
 
 - Confirmed audit P0: existing `dist/catml-0.9.0rc1-py3-none-any.whl` had **0** `interfaces/web/static` members.

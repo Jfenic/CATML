@@ -66,15 +66,48 @@ class SklearnTrainer(TrainerPort):
                     DerivedFeatureDefinition,
                     DerivedFeatureType,
                 )
-                from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
+                from automl.engine.features.generation.derived_feature_engine import (
+                    DerivedFeatureEngine,
+                    assert_derived_specs_safe_for_cross_validation,
+                )
+
+                # Fail closed: no arbitrary python_code and no full-frame aggregates before CV.
+                assert_derived_specs_safe_for_cross_validation(list(derived_features))
 
                 derived_engine = DerivedFeatureEngine()
                 for df_spec in derived_features:
                     defn = DerivedFeatureDefinition.from_dict(df_spec) if isinstance(df_spec, dict) else df_spec
                     if defn.name not in df.columns:
-                        df, eval_res = derived_engine.apply(df, defn)
+                        df, eval_res = derived_engine.apply(
+                            df,
+                            defn,
+                            allow_python_code=False,
+                            allow_stateful_aggregates=False,
+                        )
                         if not eval_res.is_valid:
                             raise ValueError(f"Failed to compute derived feature {defn.name}: {eval_res.error_message}")
+
+            strategy_early = (execution.validation_strategy or "holdout").lower()
+            if strategy_early in {"time_series", "time_series_split"}:
+                time_column = None
+                if execution.run and execution.run.config and isinstance(execution.run.config.extra, dict):
+                    time_column = execution.run.config.extra.get("time_column")
+                if not time_column or time_column not in df.columns:
+                    raise ValueError(
+                        "validation_strategy 'time_series' requires run.config.extra['time_column'] "
+                        "naming a real column. Rows are sorted ascending by that column before TimeSeriesSplit; "
+                        "duplicate timestamps should be resolved upstream."
+                    )
+                df = df.sort_values(time_column, kind="mergesort").reset_index(drop=True)
+                dup_count = int(df[time_column].duplicated().sum())
+                if dup_count > 0:
+                    import warnings as _warnings
+                    _warnings.warn(
+                        f"time_column '{time_column}' has {dup_count} duplicate values; "
+                        "TimeSeriesSplit order may be ambiguous.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
             X = df[execution.feature_names]
 

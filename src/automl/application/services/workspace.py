@@ -667,11 +667,37 @@ class AutoMLWorkspace:
         if self.execution_check:
             self.execution_check()
         self.repository.clear_checkpoint(run.id)
+
+        succeeded = [r for r in results if getattr(r, "succeeded", False)]
+        if not results or not succeeded:
+            experiment.status = ExperimentStatus.FAILED
+            self.repository.save_experiment(experiment)
+            run.transition_to(RunStatus.FAILED, RunPhase.EVALUATION)
+            self.repository.save_run(run)
+            self._emit(
+                "ExperimentFailed",
+                {
+                    "experiment_id": experiment.id,
+                    "completed_trials": len(results),
+                    "successful_trials": 0,
+                },
+                run_id=run.id,
+            )
+            return results
+
         experiment.status = ExperimentStatus.COMPLETED
         self.repository.save_experiment(experiment)
         run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
         self.repository.save_run(run)
-        self._emit("ExperimentCompleted", {"experiment_id": experiment.id}, run_id=run.id)
+        self._emit(
+            "ExperimentCompleted",
+            {
+                "experiment_id": experiment.id,
+                "completed_trials": len(results),
+                "successful_trials": len(succeeded),
+            },
+            run_id=run.id,
+        )
         return results
 
     def resume_run(self, run_id: str) -> list[TrialResult]:

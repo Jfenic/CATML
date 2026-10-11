@@ -44,6 +44,11 @@ def test_detect_is_group_candidate():
     # Short dataset (< 10 rows)
     assert detect_is_group_candidate("patient_id", patient_series[:5], 5, target_column="target") is False
 
+    # Low-cardinality categorical attribute (not an entity key)
+    customer_type = pd.Series(["Basic", "Premium"] * (n // 2))
+    assert detect_is_group_candidate("Customer Type", customer_type, n, target_column="target") is False
+    assert detect_is_group_candidate("customer_segment", customer_type, n, target_column="target") is False
+
 
 def test_detect_group_leakage_simulation():
     n = 100

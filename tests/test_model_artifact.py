@@ -139,8 +139,10 @@ def test_model_artifact_load_nonexistent_or_invalid(tmp_path: Path):
     import joblib
 
     joblib.dump({"not": "a model artifact"}, dummy_file)
-    with pytest.raises(TypeError, match="not a ModelArtifact instance"):
+    with pytest.raises(ValueError, match="checksum sidecar missing"):
         ModelArtifact.load(dummy_file)
+    with pytest.raises(TypeError, match="not a ModelArtifact instance"):
+        ModelArtifact.load(dummy_file, allow_missing_checksum=True)
 
 
 def test_model_artifact_provenance_and_describe(tmp_path: Path):
