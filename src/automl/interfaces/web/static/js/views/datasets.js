@@ -7,6 +7,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
+import { escapeHtml, isRunActive } from "../utils.js";
 
 export class DatasetsView {
   constructor() {
@@ -16,6 +17,7 @@ export class DatasetsView {
     this.activeDatasetId = null;
     this.showRegisterForm = false;
     this.selectedFeatures = new Set();
+    this.activeMainTab = "resumen"; // 'resumen' | 'columnas' | 'exploracion'
     this.activeTab = "schema"; // 'schema' | 'stats' | 'preview' | 'categories' | 'correlation'
     this.filterType = "all"; // 'all' | 'numeric' | 'categorical' | 'selected' | 'excluded'
     this.searchQuery = "";
@@ -28,14 +30,40 @@ export class DatasetsView {
     this.calcSuggestions = [];
     this.calcEvaluating = false;
     this.calcApplying = false;
+
+    // CATML Explore state (Phase E1)
+    this.studies = [];
+    this.activeStudyId = null;
+    this.activeStudy = null;
+    this.runningStudy = false;
+    this.showCreateStudyModal = false;
   }
 
   async mount(container) {
     this.container = container;
+    this._unregisterBus = [
+      bus.on("dataset:show-register", () => {
+        bus.emit("modal:register-dataset");
+      }),
+      bus.on("dataset:switched", async (id) => {
+        this.activeDatasetId = id;
+        this.renderLoading();
+        await this.fetchData();
+        this._initSelectedFeatures();
+        this.render();
+      }),
+    ];
     this.renderLoading();
     await this.fetchData();
     this._initSelectedFeatures();
     this.render();
+  }
+
+  destroy() {
+    if (this._unregisterBus) {
+      this._unregisterBus.forEach(fn => fn && fn());
+      this._unregisterBus = [];
+    }
   }
 
   renderLoading() {
@@ -59,9 +87,33 @@ export class DatasetsView {
 
       if (this.activeDatasetId) {
         this.profile = await api.getDatasetProfile(this.activeDatasetId).catch(() => null);
+        await this.loadStudies();
       }
     } catch (e) {
       console.warn("Could not load dataset profile:", e);
+    }
+  }
+
+  async loadStudies() {
+    if (!this.activeDatasetId) {
+      this.studies = [];
+      this.activeStudyId = null;
+      this.activeStudy = null;
+      return;
+    }
+    try {
+      this.studies = await api.getAnalysisStudies(this.activeDatasetId).catch(() => []);
+      if (this.studies && this.studies.length > 0) {
+        if (!this.activeStudyId || !this.studies.find(s => s.id === this.activeStudyId)) {
+          this.activeStudyId = this.studies[0].id;
+        }
+        this.activeStudy = await api.getAnalysisStudy(this.activeStudyId).catch(() => null);
+      } else {
+        this.activeStudyId = null;
+        this.activeStudy = null;
+      }
+    } catch (e) {
+      console.warn("Could not load studies for dataset:", e);
     }
   }
 
@@ -107,110 +159,209 @@ export class DatasetsView {
 
     this.container.innerHTML = `
       <div class="space-y-6">
-        <!-- Architecture Concept Banner & Dataset Switcher -->
-        <div class="workbench-card p-4">
+        <!-- Header del Dataset Activo con Selector y Pestañas Clave -->
+        <div class="workbench-card p-5 space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex flex-wrap items-center space-x-2 text-xs">
-              <span class="text-[#8B95A7] font-medium font-sans uppercase text-[11px] tracking-wide">Flow:</span>
-              <span class="px-2.5 py-1 rounded-md bg-[#161B26] border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">1. Raw Dataset</span>
-              <span class="text-[#4F67FF] font-bold">→</span>
-              <span class="px-2.5 py-1 rounded-md bg-[#4F67FF]/10 border border-[#4F67FF]/25 text-[#4F67FF] font-mono text-[11px] font-semibold">2. Understanding</span>
-              <span class="text-[#4F67FF] font-bold">→</span>
-              <span class="px-2.5 py-1 rounded-md bg-[#161B26] border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">3. Feature Plan</span>
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-2 py-0.5 rounded border border-[#4F67FF]/25 uppercase font-semibold">Dataset Activo</span>
+                <span class="text-xs font-mono text-[#8B95A7]">${escapeHtml(currentDs?.path || p.dataset_id)}</span>
+              </div>
+              <h2 class="text-xl font-bold font-sans text-[#F7F8FA]">${escapeHtml(datasetName)}</h2>
             </div>
 
             <div class="flex items-center space-x-3">
               ${this.datasets.length > 1 ? `
                 <select id="datasetSelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] font-mono outline-none">
                   ${this.datasets.map(d => `
-                    <option value="${d.id}" ${d.id === this.activeDatasetId ? "selected" : ""}>${d.name}</option>
+                    <option value="${d.id}" ${d.id === this.activeDatasetId ? "selected" : ""}>${escapeHtml(d.name)}</option>
                   `).join("")}
                 </select>
               ` : `
-                <span class="font-mono text-xs text-[#F7F8FA] font-medium bg-[#161B26] px-3 py-1 rounded-lg border border-[#242A36]">${datasetName}</span>
+                <button id="btnSwitchDatasetFromDS" class="bg-[#161B26] hover:bg-[#1E2536] text-[#8B95A7] hover:text-[#F7F8FA] border border-[#242A36] text-xs px-3 py-1.5 rounded-lg font-sans flex items-center space-x-1.5 transition-colors">
+                  ${icon("layers", "icon-sm")}
+                  <span>Cambiar</span>
+                </button>
               `}
 
               <button id="btnToggleRegisterForm" class="btn-technical text-xs">
-                + Register New
+                ${this.showRegisterForm ? "Cerrar Registro" : "+ Registrar nuevo"}
               </button>
 
-              <button id="btnNewExperimentFromDS" class="btn-signal text-xs">
-                <span>Create Experiment</span>
+              <button id="btnNewExperimentFromDS" class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20">
+                ${icon("play", "icon-sm")}
+                <span>Nuevo experimento</span>
               </button>
             </div>
+          </div>
+
+          <!-- Pestañas Principales: Resumen | Columnas | Exploración -->
+          <div class="border-t border-[#242A36] pt-3 flex items-center space-x-2 text-xs font-sans">
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'resumen' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="resumen">
+              ${icon("activity", "icon-sm")}
+              <span>Resumen</span>
+            </button>
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'columnas' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="columnas">
+              ${icon("table", "icon-sm")}
+              <span>Columnas</span>
+              <span class="text-[10px] font-mono text-[#8B95A7] bg-[#090C12] px-1.5 py-0.2 rounded">${columns.length}</span>
+            </button>
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'exploracion' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="exploracion">
+              ${icon("compass", "icon-sm")}
+              <span>Exploración</span>
+              ${this.studies && this.studies.length > 0 ? `
+                <span class="text-[10px] font-mono text-[#53C8FF] bg-[#53C8FF]/15 px-1.5 py-0.2 rounded border border-[#53C8FF]/30 font-semibold">${this.studies.length}</span>
+              ` : `
+                <span class="text-[9px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-1.5 py-0.2 rounded border border-[#4F67FF]/20 uppercase font-semibold">Core E1</span>
+              `}
+            </button>
           </div>
         </div>
 
         ${this.showRegisterForm ? this._getRegisterFormHtml() : ""}
 
+        <!-- Contenido según la pestaña activa -->
+        ${this.activeMainTab === "resumen" ? this._renderResumenTab(p, featureCols, numCols, catCols, excludedCount, recommendations) : ""}
+        ${this.activeMainTab === "columnas" ? this._renderColumnasTab(p, featureCols, numCols, catCols) : ""}
+        ${this.activeMainTab === "exploracion" ? this._renderExplorationTab() : ""}
+
+        <!-- Variable Visual Analytics Modal Container -->
+        <div id="variableModalContainer"></div>
+      </div>
+    `;
+
+    this._bindEvents();
+  }
+
+  _renderHealthCard(p) {
+    const hasLeakage = Boolean(p.has_leakage || (p.leakage_columns && p.leakage_columns.length > 0));
+    const hasGroupLeakage = Boolean(p.has_group_leakage || (p.group_leakage_reports && p.group_leakage_reports.length > 0));
+    const leakageCols = p.leakage_columns || [];
+    const idCols = (p.columns || []).filter(c => c.is_identifier).map(c => c.name);
+
+    return `
+      <div class="workbench-card p-5 space-y-3">
+        <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="${hasLeakage ? 'text-[#EF4444]' : 'text-[#22C55E]'}">${icon("shield-check", "icon-sm")}</span>
+            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Diagnóstico de Salud y Anti-Leakage Guardian</h4>
+          </div>
+          ${hasLeakage || hasGroupLeakage ? `
+            <span class="badge-err text-[11px] px-2.5 py-0.5 rounded font-mono font-medium">Fuga Detectada</span>
+          ` : `
+            <span class="badge-gain text-[11px] px-2.5 py-0.5 rounded font-mono font-medium flex items-center space-x-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+              <span>Limpio y Validado</span>
+            </span>
+          `}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans pt-1">
+          <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-[#F7F8FA]">Fuga de Datos (Data Leakage)</span>
+              <span class="font-mono ${hasLeakage ? 'text-[#EF4444]' : 'text-[#22C55E]'} font-semibold">
+                ${hasLeakage ? `${leakageCols.length} columna(s)` : '0 detectadas'}
+              </span>
+            </div>
+            <p class="text-[11px] text-[#8B95A7]">
+              ${hasLeakage
+                ? `Columnas con correlación perfecta o fuga identificadas: <code class="text-[#EF4444] font-mono">${leakageCols.map(c => escapeHtml(c)).join(", ")}</code>. Descartadas automáticamente en el entrenamiento.`
+                : 'Ninguna variable muestra correlación determinista ni contaminación con el target.'
+              }
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-[#F7F8FA]">Identificadores Descartados</span>
+              <span class="font-mono ${idCols.length > 0 ? 'text-[#F59E0B]' : 'text-[#8B95A7]'} font-semibold">
+                ${idCols.length} columna(s)
+              </span>
+            </div>
+            <p class="text-[11px] text-[#8B95A7]">
+              ${idCols.length > 0
+                ? `Identificadores únicos no predictivos detectados: <code class="text-[#F7F8FA] font-mono">${idCols.map(c => escapeHtml(c)).join(", ")}</code>.`
+                : 'No se detectaron columnas con IDs secuenciales o cardinalidad espuria.'
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderResumenTab(p, featureCols, numCols, catCols, excludedCount, recommendations) {
+    return `
+      <div class="space-y-6">
         <!-- Diagnostic Metrics Grid -->
         <div class="workbench-card p-6 space-y-5">
-          <div class="flex items-center justify-between border-b border-[#242A36] pb-4">
+          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
             <div>
-              <div class="flex items-center space-x-2.5">
-                <h3 class="text-base font-semibold text-[#F7F8FA] font-sans">Dataset understanding</h3>
-                <span class="font-mono text-xs text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md border border-[#252C38]">${datasetName}</span>
-              </div>
-              <p class="text-xs text-[#8B95A7] mt-0.5 font-sans">Statistical profile, feature roles, and evidence-based recommendations.</p>
+              <h3 class="text-sm font-semibold text-[#F7F8FA] font-sans">Métricas del Perfil</h3>
+              <p class="text-xs text-[#8B95A7] mt-0.5 font-sans">Dimensiones, tipo de tarea y roles de variables inferidos.</p>
             </div>
-            <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Profiled</span>
+            <span class="badge-gain text-xs px-2.5 py-0.5 rounded-md font-mono font-medium">Perfilado</span>
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-left">
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Task</div>
-              <div class="text-sm font-semibold text-[#F7F8FA] mt-1 truncate capitalize">${(p.task_type || "Classification").replace("_", " ")}</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Tarea</div>
+              <div class="text-sm font-semibold text-[#F7F8FA] mt-1 truncate capitalize">${(p.task_type || "No supervisado").replace("_", " ")}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Target</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Target</div>
               <div class="text-sm font-semibold text-[#4F67FF] font-mono mt-1 truncate">${p.target_column || "—"}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Metric</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Métrica</div>
               <div class="text-sm font-semibold text-[#22C55E] font-mono mt-1">${(p.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC"}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Rows</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Filas</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${p.row_count != null ? Number(p.row_count).toLocaleString() : "—"}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Features</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Predictoras</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${featureCols.length}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Numerical</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Numéricas</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${numCols}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Categorical</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Categóricas</div>
               <div class="text-sm font-semibold text-[#F7F8FA] font-mono mt-1">${catCols}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-[#151B26]">
-              <div class="text-[11px] uppercase text-[#8B95A7] font-medium tracking-normal font-sans">Excluded</div>
+              <div class="text-[11px] uppercase text-[#8B95A7] font-medium font-sans">Excluidas</div>
               <div class="text-sm font-semibold text-[#EF4444] font-mono mt-1">${excludedCount}</div>
             </div>
           </div>
         </div>
 
-        <!-- 2. Smart Recommendations Panel -->
+        <!-- Tarjeta de Salud y Anti-Leakage Guardian -->
+        ${this._renderHealthCard(p)}
+
+        <!-- Smart Recommendations Panel -->
         ${recommendations.length > 0 ? `
           <div class="workbench-card p-5 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#242A36] pb-3">
               <div class="flex items-center space-x-2.5">
                 <span class="text-[#4F67FF]">${icon("lightbulb", "icon-sm")}</span>
-                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Statistical recommendations</span>
-                <span class="text-xs font-mono text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md">${recommendations.length} detected</span>
+                <span class="text-sm font-semibold text-[#F7F8FA] font-sans">Recomendaciones del motor</span>
+                <span class="text-xs font-mono text-[#8B95A7] bg-[#151B26] px-2 py-0.5 rounded-md">${recommendations.length} detectadas</span>
               </div>
               <button id="btnApplyRecommendations" class="btn-technical text-xs font-sans flex items-center space-x-1.5">
                 ${icon("check", "icon-sm")}
-                <span>Apply recommendations</span>
+                <span>Aplicar recomendaciones</span>
               </button>
             </div>
 
@@ -220,29 +371,10 @@ export class DatasetsView {
                 const isSuccess = r.severity === 'success' || r.type === 'recommend';
                 const isWarning = r.severity === 'warning' || r.type === 'warn';
                 const badgeClass = isDanger ? 'badge-err' : isSuccess ? 'badge-gain' : isWarning ? 'badge-warn' : 'badge-intel';
-                let badgeText = isDanger ? 'IDENTIFIER' : isSuccess ? 'HIGH RELEVANCE' : isWarning ? 'ATTENTION' : 'ENCODING';
-                if (r.badge) {
-                  const bLower = r.badge.toLowerCase();
-                  if (bLower.includes('strong signal') || bLower.includes('high relevance') || bLower.includes('señal')) {
-                    badgeText = 'HIGH RELEVANCE';
-                  } else if (bLower.includes('zero variance')) {
-                    badgeText = 'ZERO VARIANCE';
-                  } else if (bLower.includes('null')) {
-                    badgeText = 'HIGH NULLS';
-                  } else if (bLower.includes('collinear')) {
-                    badgeText = 'COLLINEARITY';
-                  } else if (bLower.includes('cardinal')) {
-                    badgeText = 'HIGH CARDINALITY';
-                  } else if (bLower.includes('identifier') || bLower.includes('identificador')) {
-                    badgeText = 'IDENTIFIER';
-                  } else {
-                    badgeText = r.badge.toUpperCase();
-                  }
-                }
                 return `
                   <div class="p-4 rounded-xl bg-[#151B26] hover:bg-[#1A2230] transition-colors space-y-2">
                     <div class="flex items-center justify-between">
-                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${badgeText}</span>
+                      <span class="${badgeClass} text-[10px] px-2 py-0.5 rounded font-mono font-medium">${(r.badge || 'INFO').toUpperCase()}</span>
                       ${r.column ? `<code class="text-[11px] font-mono text-[#8B95A7]">${r.column}</code>` : ""}
                     </div>
                     <h4 class="font-sans font-semibold text-xs text-[#F7F8FA]">${r.title}</h4>
@@ -254,77 +386,85 @@ export class DatasetsView {
           </div>
         ` : ""}
 
-        <!-- 3. Interactive Selection & Exploration Toolbar -->
+        <!-- Muestra de Datos Crudos (Preview) -->
+        <div class="workbench-card p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-[#4F67FF]">${icon("scroll-text", "icon-sm")}</span>
+              <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Muestra previa de datos</h4>
+            </div>
+            <span class="text-xs text-[#8B95A7] font-mono">Primeras filas del dataset</span>
+          </div>
+          ${this._renderPreviewTab(p)}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderColumnasTab(p, featureCols, numCols, catCols) {
+    const imgCols = (p.columns || []).filter(c => c.is_image && c.name !== p.target_column).length;
+    return `
+      <div class="space-y-6">
+        <!-- Interactive Selection & Exploration Toolbar -->
         <div class="workbench-card p-4 space-y-3">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Search & Segmented Filter Pills -->
             <div class="flex flex-wrap items-center gap-3">
-              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filter features..." class="bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-48 font-mono outline-none">
+              <input type="text" id="featureSearchInput" value="${this.searchQuery}" placeholder="Filtrar columnas..." class="bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] w-48 font-mono outline-none">
 
               <div class="segmented-track">
-                <button data-filter="all" class="segmented-pill ${this.filterType === 'all' ? 'active-signal' : ''}">All (${featureCols.length})</button>
-                <button data-filter="numeric" class="segmented-pill ${this.filterType === 'numeric' ? 'active-signal' : ''}">Numeric (${numCols})</button>
-                <button data-filter="categorical" class="segmented-pill ${this.filterType === 'categorical' ? 'active-signal' : ''}">Categorical (${catCols})</button>
-                ${imgCols > 0 ? `<button data-filter="image" class="segmented-pill ${this.filterType === 'image' ? 'active-signal' : ''}">Images (${imgCols})</button>` : ''}
-                <button data-filter="selected" class="segmented-pill ${this.filterType === 'selected' ? 'active-signal' : ''}">Selected (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
+                <button data-filter="all" class="segmented-pill ${this.filterType === 'all' ? 'active-signal' : ''}">Todas (${featureCols.length})</button>
+                <button data-filter="numeric" class="segmented-pill ${this.filterType === 'numeric' ? 'active-signal' : ''}">Numéricas (${numCols})</button>
+                <button data-filter="categorical" class="segmented-pill ${this.filterType === 'categorical' ? 'active-signal' : ''}">Categóricas (${catCols})</button>
+                ${imgCols > 0 ? `<button data-filter="image" class="segmented-pill ${this.filterType === 'image' ? 'active-signal' : ''}">Imágenes (${imgCols})</button>` : ''}
+                <button data-filter="selected" class="segmented-pill ${this.filterType === 'selected' ? 'active-signal' : ''}">Seleccionadas (<span id="pillSelectedCount">${this.selectedFeatures.size}</span>)</button>
               </div>
             </div>
 
             <!-- Batch Selection Controls -->
             <div class="flex items-center gap-1 text-xs">
-              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium mr-1.5">Select:</span>
-              <button id="btnSelectAll" class="btn-ghost text-xs py-1 px-2">All</button>
-              <button id="btnDeselectAll" class="btn-ghost text-xs py-1 px-2">None</button>
+              <span class="text-[11px] text-[#8B95A7] uppercase font-sans font-medium mr-1.5">Selección:</span>
+              <button id="btnSelectAll" class="btn-ghost text-xs py-1 px-2">Todas</button>
+              <button id="btnDeselectAll" class="btn-ghost text-xs py-1 px-2">Ninguna</button>
               <span class="text-[#252C38] px-1">·</span>
-              <button id="btnSelectTop5" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 5 Signal</button>
-              <button id="btnSelectTop10" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 10 Signal</button>
-              <span class="text-[#252C38] px-1">·</span>
-              <button id="btnOpenCalculator" class="btn-ghost text-xs py-1 px-2 text-[#6956E8] hover:text-white">Feature Calculator</button>
+              <button id="btnSelectTop5" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 5 Señal</button>
+              <button id="btnSelectTop10" class="btn-ghost text-xs py-1 px-2 text-[#4F67FF] hover:text-white">Top 10 Señal</button>
             </div>
           </div>
 
           <!-- Bottom Status Counter & Dominant Launch CTA -->
           <div class="pt-3 border-t border-[#252C38]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-center space-x-2 text-xs font-sans text-[#8B95A7]">
-              <span>Selection status:</span>
+              <span>Estado de selección:</span>
               <span id="selectionLiveCount" class="font-mono text-xs text-[#F7F8FA]">
-                <strong class="text-[#4F67FF]">${this.selectedFeatures.size}</strong> of ${featureCols.length} features selected (${featureCols.length - this.selectedFeatures.size} excluded)
+                <strong class="text-[#4F67FF]">${this.selectedFeatures.size}</strong> de ${featureCols.length} características seleccionadas
               </span>
             </div>
 
             <button id="btnLaunchWithSelection" class="btn-signal font-sans font-semibold text-xs px-5 py-2 shadow-md shadow-[#4F67FF]/20 flex items-center space-x-1.5">
               ${icon("rocket", "icon-sm")}
-              <span>Launch Experiment (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
+              <span>Crear experimento con selección (<span id="ctaSelectedCount">${this.selectedFeatures.size}</span>)</span>
             </button>
           </div>
         </div>
 
-        <!-- 4. Multi-Tab Exploration Equipment Module -->
+        <!-- Multi-Tab Equipment Module -->
         <div class="workbench-card overflow-hidden">
           <div class="border-b border-[#242A36] px-4 flex items-center space-x-6 text-xs font-sans font-medium bg-[#0D1017] overflow-x-auto">
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'schema' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="schema">
               ${icon("database", "icon-sm")}
-              <span>Schema & Selection</span>
+              <span>Esquema y Selección</span>
             </button>
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'stats' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="stats">
               ${icon("bar-chart-3", "icon-sm")}
-              <span>Descriptive Statistics</span>
-            </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'preview' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="preview">
-              ${icon("scroll-text", "icon-sm")}
-              <span>Raw Sample</span>
+              <span>Estadísticas Descriptivas</span>
             </button>
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'categories' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="categories">
               ${icon("tags", "icon-sm")}
-              <span>Categorical Distributions</span>
+              <span>Distribución Categórica</span>
             </button>
             <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'correlation' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="correlation">
               ${icon("chart-line", "icon-sm")}
-              <span>Correlation Matrix</span>
-            </button>
-            <button class="view-tab-btn py-3 border-b-2 whitespace-nowrap transition-colors flex items-center space-x-1.5 ${this.activeTab === 'calculator' ? 'border-[#4F67FF] text-[#F7F8FA] font-semibold' : 'border-transparent text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="calculator">
-              ${icon("sparkles", "icon-sm")}
-              <span>Feature Calculator</span>
+              <span>Matriz de Correlación</span>
             </button>
           </div>
 
@@ -332,13 +472,337 @@ export class DatasetsView {
             ${this._renderActiveTabContent(p)}
           </div>
         </div>
-
-        <!-- Variable Visual Analytics Modal Container -->
-        <div id="variableModalContainer"></div>
       </div>
     `;
+  }
 
-    this._bindEvents();
+  _renderExplorationTab() {
+    const study = this.activeStudy;
+    const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
+    const datasetName = currentDs ? currentDs.name : (this.profile?.name || this.activeDatasetId);
+    const findings = study?.findings || [];
+    const visualizations = study?.visualizations || [];
+    const hypotheses = study?.hypotheses || [];
+
+    const corrViz = visualizations.find(v => v.viz_type === "correlation_matrix");
+
+    return `
+      <div class="space-y-6">
+        <!-- Header del Núcleo de Exploración -->
+        <div class="workbench-card p-5 space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/25 uppercase font-semibold">
+                  CATML Explore · Núcleo E1
+                </span>
+                <span class="text-xs font-mono text-[#8B95A7]">ADR-008</span>
+                <span class="text-xs font-mono text-[#8B95A7]">·</span>
+                <span class="text-xs font-mono text-[#F7F8FA]">${escapeHtml(datasetName)}</span>
+              </div>
+              <h3 class="text-lg font-bold font-sans text-[#F7F8FA]">Estudios y Evidencia Estadística</h3>
+              <p class="text-xs text-[#8B95A7] font-sans">
+                Motor matemático determinista («La IA Interpreta, CATML Calcula»). Detección de colinealidad, ANOVA F-test y formulación de hipótesis.
+              </p>
+            </div>
+
+            <div class="flex items-center space-x-3">
+              ${this.studies && this.studies.length > 1 ? `
+                <select id="studySelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] font-mono outline-none">
+                  ${this.studies.map(s => `
+                    <option value="${s.id}" ${s.id === this.activeStudyId ? "selected" : ""}>
+                      ${escapeHtml(s.name || s.id)} (${s.status})
+                    </option>
+                  `).join("")}
+                </select>
+              ` : ""}
+
+              <button id="btnOpenCreateStudyModal" class="btn-technical text-xs flex items-center space-x-1.5">
+                ${icon("plus", "icon-sm")}
+                <span>Nuevo Estudio</span>
+              </button>
+
+              ${study ? `
+                <button id="btnRunActiveStudy" ${this.runningStudy ? "disabled" : ""} class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20 ${this.runningStudy ? 'opacity-60 cursor-not-allowed' : ''}">
+                  ${this.runningStudy ? `<span class="animate-spin">${icon("refresh-cw", "icon-sm")}</span>` : icon("play", "icon-sm")}
+                  <span>${this.runningStudy ? "Calculando..." : "Ejecutar Análisis"}</span>
+                </button>
+              ` : ""}
+            </div>
+          </div>
+
+          ${study ? `
+            <!-- Resumen de Métricas del Estudio Activo -->
+            <div class="border-t border-[#242A36] pt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-sans">
+              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
+                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">ID de Estudio</div>
+                <div class="font-mono font-bold text-[#53C8FF] truncate">${study.id}</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
+                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Target Column</div>
+                <div class="font-mono font-semibold ${study.target_column ? 'text-[#F7F8FA]' : 'text-[#8B95A7]'}">
+                  ${study.target_column ? escapeHtml(study.target_column) : "Sin target (Descriptivo Puro)"}
+                </div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
+                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Estado</div>
+                <div class="font-mono font-bold flex items-center space-x-1.5 ${study.status === 'COMPLETED' ? 'text-[#22C55E]' : study.status === 'RUNNING' ? 'text-[#4F67FF]' : 'text-amber-400'}">
+                  <span class="w-1.5 h-1.5 rounded-full ${study.status === 'COMPLETED' ? 'bg-[#22C55E]' : study.status === 'RUNNING' ? 'bg-[#4F67FF] animate-pulse' : 'bg-amber-400'}"></span>
+                  <span>${study.status}</span>
+                </div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
+                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Hallazgos / Hipótesis</div>
+                <div class="font-mono font-bold text-[#F7F8FA]">
+                  <span class="${findings.length > 0 ? 'text-[#F59E0B]' : 'text-[#22C55E]'}">${findings.length}</span>
+                  <span class="text-[#8B95A7] font-normal"> hallazgos · </span>
+                  <span class="text-[#4F67FF]">${hypotheses.length}</span>
+                  <span class="text-[#8B95A7] font-normal"> hipótesis</span>
+                </div>
+              </div>
+            </div>
+          ` : ""}
+        </div>
+
+        ${!study ? `
+          <!-- Estado Vacío cuando no hay estudios -->
+          <div class="workbench-card p-10 text-center space-y-4">
+            <div class="text-[#53C8FF] inline-flex p-3 rounded-2xl bg-[#53C8FF]/10 border border-[#53C8FF]/20">
+              ${icon("compass", "icon-lg")}
+            </div>
+            <div class="max-w-md mx-auto space-y-1.5">
+              <h4 class="text-base font-bold font-sans text-[#F7F8FA]">Sin estudios para este dataset</h4>
+              <p class="text-xs text-[#8B95A7] font-sans">
+                Registra un estudio exploratorio para calcular correlaciones de Pearson exactas con p-valores, separación univariante de clases (ANOVA) y detección de anomalías.
+              </p>
+            </div>
+            <button id="btnCreateFirstStudy" class="btn-signal text-xs px-4 py-2 shadow-md shadow-[#4F67FF]/20 inline-flex items-center space-x-2">
+              ${icon("plus", "icon-sm")}
+              <span>Crear Estudio Exploratorio</span>
+            </button>
+          </div>
+        ` : `
+          <!-- Sección de Hallazgos Estadísticos Reales -->
+          <div class="workbench-card p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+              <div class="flex items-center space-x-2">
+                <span class="text-[#F59E0B]">${icon("alert-circle", "icon-sm")}</span>
+                <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hallazgos Estadísticos Deterministas</h4>
+              </div>
+              <span class="text-xs font-mono text-[#8B95A7]">
+                ${findings.length} detectado${findings.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            ${findings.length === 0 ? `
+              <div class="p-6 text-center text-[#8B95A7] font-sans text-xs space-y-2">
+                ${study.status === 'CREATED' ? `
+                  <p>Este estudio está configurado pero aún no se ha ejecutado.</p>
+                  <button id="btnRunStudyInline" class="btn-signal text-xs mt-2 inline-flex items-center space-x-1.5">
+                    ${icon("play", "icon-sm")}
+                    <span>Ejecutar Análisis Ahora</span>
+                  </button>
+                ` : `
+                  <div class="text-[#22C55E] flex items-center justify-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
+                    <span class="font-medium">No se detectaron colinealidades severas (r ≥ 0.70) ni outliers críticos en las variables calculadas.</span>
+                  </div>
+                `}
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${findings.map(f => {
+                  const isCrit = f.severity === "CRITICAL";
+                  const isWarn = f.severity === "WARNING";
+                  const sevBadge = isCrit ? "badge-err" : isWarn ? "badge-warn" : "badge-sys";
+
+                  return `
+                    <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] space-y-2.5 hover:border-[#384355] transition-colors">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center space-x-2">
+                          <span class="text-xs font-mono font-bold text-[#F7F8FA]">${escapeHtml(f.finding_type || "FINDING")}</span>
+                        </div>
+                        <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${f.severity}
+                        </span>
+                      </div>
+
+                      <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
+                        ${escapeHtml(f.summary)}
+                      </p>
+
+                      <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        ${(f.columns || []).map(col => `
+                          <span class="text-[11px] font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded border border-[#242A36]">
+                            ${escapeHtml(col)}
+                          </span>
+                        `).join("")}
+
+                        ${f.metric_value != null ? `
+                          <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20 ml-auto">
+                            stat = ${Number(f.metric_value).toFixed(3)}
+                          </span>
+                        ` : ""}
+                        ${f.p_value != null ? `
+                          <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
+                            p = ${f.p_value < 0.0001 ? f.p_value.toExponential(2) : f.p_value.toFixed(4)}
+                          </span>
+                        ` : ""}
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            `}
+          </div>
+
+          <!-- Sección de Matriz de Correlación Bivariada Real -->
+          ${corrViz && corrViz.data && corrViz.data.columns && corrViz.data.columns.length > 0 ? this._renderCorrelationMatrixViz(corrViz) : ""}
+
+          <!-- Sección de Hipótesis Inferidas para Agentes -->
+          ${hypotheses.length > 0 ? `
+            <div class="workbench-card p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+                <div class="flex items-center space-x-2">
+                  <span class="text-[#6956E8]">${icon("zap", "icon-sm")}</span>
+                  <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hipótesis Acciónales Formuladas</h4>
+                </div>
+                <span class="text-xs font-mono text-[#8B95A7]">${hypotheses.length} propuestas</span>
+              </div>
+
+              <div class="space-y-3">
+                ${hypotheses.map(h => `
+                  <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="space-y-1">
+                      <div class="flex items-center space-x-2">
+                        <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${escapeHtml(h.proposed_action || "ACTION")}
+                        </span>
+                        <span class="text-xs font-mono text-[#8B95A7]">ID: ${h.id}</span>
+                      </div>
+                      <p class="text-xs text-[#F7F8FA] font-sans">
+                        ${escapeHtml(h.description)}
+                      </p>
+                    </div>
+
+                    <button class="btn-hypothesis-exp btn-technical text-xs flex items-center space-x-1.5 whitespace-nowrap self-start md:self-auto" data-hyp="${h.id}" data-action="${escapeHtml(h.proposed_action || '')}">
+                      ${icon("play", "icon-sm")}
+                      <span>Probar en Experimento</span>
+                    </button>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+        `}
+
+        <!-- Modal para Crear Nuevo Estudio -->
+        ${this.showCreateStudyModal ? this._renderCreateStudyModalHtml() : ""}
+      </div>
+    `;
+  }
+
+  _renderCorrelationMatrixViz(viz) {
+    const cols = viz.data?.columns || [];
+    const matrix = viz.data?.matrix || [];
+
+    return `
+      <div class="workbench-card p-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-[#53C8FF]">${icon("grid", "icon-sm")}</span>
+            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">${escapeHtml(viz.title || "Matriz de Correlación Bivariada")}</h4>
+          </div>
+          <span class="text-xs font-mono text-[#8B95A7]">Pearson r [-1.0, +1.0]</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs font-mono border-collapse">
+            <thead>
+              <tr>
+                <th class="p-2 text-left text-[#8B95A7] bg-[#090C12] border border-[#242A36]">Variable</th>
+                ${cols.map(c => `
+                  <th class="p-2 text-center text-[#8B95A7] bg-[#090C12] border border-[#242A36] truncate max-w-[100px]" title="${escapeHtml(c)}">
+                    ${escapeHtml(c)}
+                  </th>
+                `).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${cols.map((rowName, rIdx) => `
+                <tr>
+                  <td class="p-2 font-medium text-[#F7F8FA] bg-[#090C12] border border-[#242A36] truncate max-w-[140px]" title="${escapeHtml(rowName)}">
+                    ${escapeHtml(rowName)}
+                  </td>
+                  ${cols.map((colName, cIdx) => {
+                    const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
+                    const absVal = Math.abs(val);
+                    const isDiag = rIdx === cIdx;
+                    let bgColor = "rgba(22, 27, 38, 0.4)";
+                    let textColor = "#8B95A7";
+
+                    if (!isDiag) {
+                      if (val > 0) {
+                        bgColor = `rgba(79, 103, 255, ${Math.min(0.85, absVal * 0.9)})`;
+                        textColor = absVal > 0.4 ? "#FFFFFF" : "#F7F8FA";
+                      } else {
+                        bgColor = `rgba(239, 68, 68, ${Math.min(0.85, absVal * 0.9)})`;
+                        textColor = absVal > 0.4 ? "#FFFFFF" : "#F7F8FA";
+                      }
+                    }
+
+                    return `
+                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}">
+                        ${val.toFixed(2)}
+                      </td>
+                    `;
+                  }).join("")}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderCreateStudyModalHtml() {
+    const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
+    const targetCol = this.profile?.target_column || "";
+
+    return `
+      <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="workbench-card max-w-md w-full p-6 space-y-5 border border-[#4F67FF]/30 shadow-2xl">
+          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-[#4F67FF]">${icon("compass", "icon-sm")}</span>
+              <h3 class="text-sm font-bold font-sans text-[#F7F8FA]">Nuevo Estudio Exploratorio</h3>
+            </div>
+            <button id="btnCloseCreateStudyModal" class="text-[#8B95A7] hover:text-[#F7F8FA]">${icon("x", "icon-sm")}</button>
+          </div>
+
+          <form id="formCreateStudy" class="space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-sans text-[#8B95A7]">Nombre del Estudio</label>
+              <input id="inputStudyName" type="text" value="Estudio Exploratorio ${escapeHtml(currentDs?.name || 'Dataset')}" class="w-full bg-[#090C12] border border-[#242A36] rounded-lg px-3 py-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF] outline-none" required />
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-sans text-[#8B95A7]">Columna Objetivo (Opcional)</label>
+              <input id="inputStudyTarget" type="text" value="${escapeHtml(targetCol)}" placeholder="Dejar en blanco para análisis no supervisado" class="w-full bg-[#090C12] border border-[#242A36] rounded-lg px-3 py-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF] outline-none" />
+              <p class="text-[10px] text-[#8B95A7] font-sans">
+                Si se omite, el motor evaluará únicamente asociaciones entre variables y densidades de outliers.
+              </p>
+            </div>
+
+            <div class="pt-3 border-t border-[#242A36] flex items-center justify-end space-x-2">
+              <button type="button" id="btnCancelCreateStudy" class="btn-ghost text-xs px-3 py-1.5">Cancelar</button>
+              <button type="submit" id="btnSubmitCreateStudy" class="btn-signal text-xs px-4 py-1.5">Crear Estudio</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
   }
 
   _renderActiveTabContent(p) {
@@ -1688,6 +2152,20 @@ export class DatasetsView {
   }
 
   _bindEvents() {
+    this.container.querySelectorAll(".main-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tab = btn.getAttribute("data-main-tab");
+        if (tab && tab !== this.activeMainTab) {
+          this.activeMainTab = tab;
+          this.render();
+        }
+      });
+    });
+
+    this.container.querySelector("#btnSwitchDatasetFromDS")?.addEventListener("click", () => {
+      bus.emit("modal:switch-dataset");
+    });
+
     this.container.querySelector("#btnNewExperimentFromDS")?.addEventListener("click", () => {
       store.setState({ customFeatures: Array.from(this.selectedFeatures) });
       bus.emit("modal:new-experiment");
@@ -1699,15 +2177,14 @@ export class DatasetsView {
     });
 
     this.container.querySelector("#btnToggleRegisterForm")?.addEventListener("click", () => {
-      this.showRegisterForm = !this.showRegisterForm;
-      this.render();
+      bus.emit("modal:register-dataset");
     });
 
     this.container.querySelector("#datasetSelect")?.addEventListener("change", async e => {
       const newId = e.target.value;
       if (newId && newId !== this.activeDatasetId) {
         this.activeDatasetId = newId;
-        store.setState({ activeDatasetId: newId });
+        store.setActiveDataset(newId);
         this.renderLoading();
         this.profile = await api.getDatasetProfile(newId).catch(() => null);
         this._initSelectedFeatures();
@@ -1831,6 +2308,102 @@ export class DatasetsView {
     this._bindRegisterFormEvents();
     this._bindTabSpecificEvents();
     this._bindCalculatorEvents();
+    this._bindExplorationEvents();
+  }
+
+  _bindExplorationEvents() {
+    // Open create study modal
+    this.container.querySelector("#btnOpenCreateStudyModal")?.addEventListener("click", () => {
+      this.showCreateStudyModal = true;
+      this.render();
+    });
+
+    this.container.querySelector("#btnCreateFirstStudy")?.addEventListener("click", () => {
+      this.showCreateStudyModal = true;
+      this.render();
+    });
+
+    // Close create study modal
+    this.container.querySelector("#btnCloseCreateStudyModal")?.addEventListener("click", () => {
+      this.showCreateStudyModal = false;
+      this.render();
+    });
+
+    this.container.querySelector("#btnCancelCreateStudy")?.addEventListener("click", () => {
+      this.showCreateStudyModal = false;
+      this.render();
+    });
+
+    // Submit create study form
+    this.container.querySelector("#formCreateStudy")?.addEventListener("submit", async e => {
+      e.preventDefault();
+      const btn = this.container.querySelector("#btnSubmitCreateStudy");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Creando...";
+      }
+
+      const name = this.container.querySelector("#inputStudyName")?.value.trim() || "";
+      const target = this.container.querySelector("#inputStudyTarget")?.value.trim() || null;
+
+      try {
+        const res = await api.createAnalysisStudy({
+          dataset_id: this.activeDatasetId,
+          name: name,
+          target_column: target,
+        });
+        this.showCreateStudyModal = false;
+        await this.loadStudies();
+        if (res.study_id) {
+          this.activeStudyId = res.study_id;
+          this.activeStudy = await api.getAnalysisStudy(res.study_id).catch(() => null);
+        }
+        this.render();
+      } catch (err) {
+        alert("Error al crear estudio: " + err.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Crear Estudio";
+        }
+      }
+    });
+
+    // Study select dropdown change
+    this.container.querySelector("#studySelect")?.addEventListener("change", async e => {
+      const sId = e.target.value;
+      if (sId && sId !== this.activeStudyId) {
+        this.activeStudyId = sId;
+        this.activeStudy = await api.getAnalysisStudy(sId).catch(() => null);
+        this.render();
+      }
+    });
+
+    // Run active study
+    const runStudyHandler = async () => {
+      if (!this.activeStudyId || this.runningStudy) return;
+      this.runningStudy = true;
+      this.render();
+      try {
+        await api.runAnalysisStudy(this.activeStudyId);
+        await this.loadStudies();
+      } catch (err) {
+        alert("Error al ejecutar estudio: " + err.message);
+      } finally {
+        this.runningStudy = false;
+        this.render();
+      }
+    };
+
+    this.container.querySelector("#btnRunActiveStudy")?.addEventListener("click", runStudyHandler);
+    this.container.querySelector("#btnRunStudyInline")?.addEventListener("click", runStudyHandler);
+
+    // Hypothesis -> Launch Experiment
+    this.container.querySelectorAll(".btn-hypothesis-exp").forEach(btn => {
+      btn.addEventListener("click", () => {
+        store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+        bus.emit("modal:new-experiment");
+      });
+    });
   }
 
   _bindTabSpecificEvents() {

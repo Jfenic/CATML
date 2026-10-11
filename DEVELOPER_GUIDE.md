@@ -20,6 +20,9 @@ automl run-demo --auto          # flujo automático con planner y scheduler
 automl plan-experiments        # inspeccionar candidatos y explicabilidad
 automl optimize --model logistic_regression --optimizer optuna --trials 10  # tuning bayesiano
 automl benchmark run            # comparar escenarios de regresión
+automl explore list             # listar estudios exploratorios de CATML Explore
+automl explore export <id> -f markdown -o report.md  # reporte técnico reproducible
+automl explore verify <hyp_id>  # verificar hipótesis empíricamente (Propose ≠ Accept)
 ```
 
 
@@ -69,8 +72,13 @@ infrastructure/ (SQLite, storage)
 | **Plugins — Models** | `plugins/models/` | Adaptadores sklearn, gradient boosting y voting | Nuevos `ModelPluginPort` |
 | **Infrastructure** | `infrastructure/database/` | SQLite, eventos, benchmark | Postgres adapter |
 | **Benchmarks** | `benchmarks/runner.py` | Escenarios de regresión de calidad | Nuevos escenarios por versión |
-| **CLI** | `interfaces/cli/` | Subcomandos | Comandos que deleguen en workspace |
-| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP y SPA visual | Vistas SPA siguiendo `docs/design/neo-industrial-ui-spec.md` |
+| **Benchmarks — Explore** | `benchmarks/explore_benchmarks.py` | Batería 4 ejes (NIST, calidad AutoML, MCP, esquemas) | Nuevos escenarios de calibración |
+| **Dominio — Explore** | `domain/analysis/` | StudySpec, AnalysisRun, StatisticalFinding, VisualizationSpec, EvidenceLink | Nuevas entidades de análisis |
+| **Engine — Explore** | `engine/analysis/` | Diagnósticos de distribución, asociaciones, pruebas FDR, traductor de hipótesis | Nuevas pruebas estadísticas y visualizaciones |
+| **Application — Explore** | `application/analysis/` | AnalysisStudyService, reporting Markdown, handlers CQRS | Nuevas consultas o generadores |
+| **CLI** | `interfaces/cli/` | Subcomandos (incluyendo `catml explore`) | Comandos que deleguen en workspace |
+| **Interfaces — MCP** | `interfaces/mcp/` | Servidor MCP y herramientas de análisis (`analysis_tools.py`) | Nuevas herramientas o recursos de agente |
+| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP, vista Explore SPA | Vistas SPA siguiendo `docs/design/tech-minimalist-brand-system.md` |
 
 ---
 

@@ -40,6 +40,7 @@ from automl.application.queries.workspace_queries import (
 from automl.application.services.workspace import AutoMLWorkspace
 from automl.domain.agents.entities import AgentPermission, OperationStatus, ToolErrorCode
 from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+from automl.interfaces.mcp.analysis_tools import register_analysis_mcp_tools
 
 logger = logging.getLogger("catml.mcp")
 
@@ -623,6 +624,9 @@ def create_mcp_server(
         except Exception as e:
             return json.dumps({"error": str(e), "code": ToolErrorCode.INTERNAL_ERROR.value})
 
+    # Register CATML Explore analysis tools and resources (Phase E1)
+    register_analysis_mcp_tools(server, query_bus=query_bus, command_bus=command_bus)
+
     return server
 
 
@@ -632,11 +636,13 @@ def run_stdio_server(root_dir: str | None = None) -> None:
 
 
 def run_mcp_service(
-    root_dir: str | None = None,
+    root_dir: str | Path | None = None,
     transport: str = "stdio",
     host: str = "127.0.0.1",
     port: int = 8000,
     streamable_http_path: str = "/mcp",
+    auth_token: str | None = None,
+    insecure_no_auth: bool = False,
 ) -> None:
     """Run the CATML MCP server on stdio or streamable-http transport."""
     logging.basicConfig(
@@ -644,16 +650,66 @@ def run_mcp_service(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    server = create_mcp_server(root_dir=root_dir)
+    server = create_mcp_server(root_dir=str(root_dir) if root_dir else None)
     if transport == "streamable-http":
-        if host not in ("127.0.0.1", "localhost"):
+        is_external = host not in ("127.0.0.1", "localhost", "::1")
+        if is_external and not auth_token and not insecure_no_auth:
+            raise PermissionError(
+                f"Refusing to bind MCP streamable-http server to external interface '{host}' without authentication. "
+                "Provide an authentication token via --token / auth_token or pass --insecure-no-auth."
+            )
+
+        if is_external and insecure_no_auth:
+            import os
+            if os.environ.get("CATML_ALLOW_INSECURE") != "1":
+                raise PermissionError(
+                    f"Refusing to expose unauthenticated MCP streamable-http server on external interface '{host}'. "
+                    "Provide an authentication token or set environment variable CATML_ALLOW_INSECURE=1 to override."
+                )
             logger.warning(
-                "SECURITY NOTICE: MCP Streamable-HTTP server is binding to external interface '%s'. "
-                "Ensure network access is restricted or protected by an authenticated TLS reverse proxy.",
+                "CRITICAL SECURITY WARNING: MCP Streamable-HTTP server is binding to external interface '%s' "
+                "WITHOUT authentication (--insecure-no-auth). Do NOT expose to untrusted networks.",
                 host,
             )
-        logger.info(f"Iniciando CATML MCP Streamable-HTTP Server en http://{host}:{port}{streamable_http_path}...")
-        server.run(transport="streamable-http", host=host, port=port, streamable_http_path=streamable_http_path)
+
+        if auth_token:
+            logger.info("Starting authenticated CATML MCP Streamable-HTTP Server on http://%s:%d%s...", host, port, streamable_http_path)
+            starlette_app = server.streamable_http_app(
+                streamable_http_path=streamable_http_path,
+                host=host,
+            )
+            from starlette.middleware.base import BaseHTTPMiddleware
+            from starlette.responses import JSONResponse
+
+            class BearerAuthMiddleware(BaseHTTPMiddleware):
+                def __init__(self, app, expected_token: str):
+                    super().__init__(app)
+                    self.expected_token = expected_token
+
+                async def dispatch(self, request, call_next):
+                    auth_header = request.headers.get("Authorization", "")
+                    if not auth_header.startswith("Bearer ") or auth_header[7:].strip() != self.expected_token:
+                        return JSONResponse(
+                            {"error": "Unauthorized", "message": "Valid Bearer token required for MCP access"},
+                            status_code=401,
+                        )
+                    return await call_next(request)
+
+            starlette_app.add_middleware(BearerAuthMiddleware, expected_token=auth_token)
+            import anyio
+            import uvicorn
+
+            config = uvicorn.Config(
+                starlette_app,
+                host=host,
+                port=port,
+                log_level="info",
+            )
+            uvicorn_server = uvicorn.Server(config)
+            anyio.run(uvicorn_server.serve)
+        else:
+            logger.info(f"Iniciando CATML MCP Streamable-HTTP Server en http://{host}:{port}{streamable_http_path}...")
+            server.run(transport="streamable-http", host=host, port=port, streamable_http_path=streamable_http_path)
     else:
-        logger.info("Iniciando CATML MCP Stdio Server (V0.7.0)...")
+        logger.info(f"Iniciando CATML MCP Stdio Server (V{__version__})...")
         server.run(transport="stdio")

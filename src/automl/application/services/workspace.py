@@ -138,6 +138,10 @@ class AutoMLWorkspace:
         import time
         return time.monotonic() >= deadline
 
+    def __post_init__(self) -> None:
+        if self.repository is not None and hasattr(self.repository, "plugin_registry"):
+            self.repository.plugin_registry = self.plugin_registry
+
     @classmethod
     def create(cls, name: str, root_dir: str | Path | None = None) -> AutoMLWorkspace:
         base = Path(root_dir or Path.cwd() / ".automl" / name)
@@ -371,7 +375,7 @@ class AutoMLWorkspace:
             workspace_id=self.id,
             dataset_id=dataset.id,
             config=config,
-            status=RunStatus.PROFILING,
+            status=RunStatus.CREATED,
             current_phase=RunPhase.DATASET_PROFILING,
         )
         self._runs[run.id] = run
@@ -384,6 +388,21 @@ class AutoMLWorkspace:
         if dataset_id:
             return [r for r in runs if r.dataset_id == dataset_id]
         return runs
+
+    def get_study_repository(self):
+        """Retrieve SQLiteStudyRepository for this workspace."""
+        from automl.infrastructure.database.sqlite_studies import SQLiteStudyRepository
+        return SQLiteStudyRepository(self.root_dir / "automl.db")
+
+    def get_analysis_service(self):
+        """Retrieve AnalysisStudyService for this workspace."""
+        from automl.application.analysis.study_service import AnalysisStudyService
+        from automl.engine.analysis.statistical_analyzer import StatisticalAnalyzer
+        return AnalysisStudyService(
+            repository=self.get_study_repository(),
+            dataset_resolver=self.get_dataset,
+            statistical_engine=StatisticalAnalyzer(),
+        )
 
     def get_feature_registry(self, dataset_id: str) -> FeatureRegistry:
         if dataset_id not in self._feature_registries:

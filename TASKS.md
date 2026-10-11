@@ -57,8 +57,52 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Segregación del feed de actividad en Workbench sin mezclar métricas incomparables.
   - [x] Función compartida `isRunActive()` en frontend (`utils.js`) y soporte de score 0.0 y $R^2 < 0$.
   - [x] Corrección de mensaje de error al programar plan en `agent.js`.
+- [x] **Rediseño UI Workbench — Modelo de Laboratorio y Dataset Activo (Fase 1)**:
+  - [x] Contexto de Laboratorio Local en barra lateral con widget de Dataset Activo (`#sidebarActiveDatasetName`) y selector rápido (`SwitchDatasetModal`).
+  - [x] Simplificación de navegación principal a 4 vistas canónicas: Inicio (`home`), Dataset (`dataset`), Experimentos (`experiments`), Evidencia (`evidence`).
+  - [x] Nueva vista de Inicio (`src/automl/interfaces/web/static/js/views/home.js`): Hero card «Continuar con {dataset activo}», acciones secundarias «Añadir dataset» y «Abrir dataset guardado», y paneles de ejecuciones activas y trabajos recientes.
+  - [x] Rediseño de la vista Dataset (`src/automl/interfaces/web/static/js/views/datasets.js`): Pestañas «Resumen» (métricas de perfil, salud de datos Anti-Leakage Guardian, recomendaciones y preview crudo), «Columnas» (tabla de variables, filtros, selección interactiva) y «Exploración» (panel conceptual de capacidades estadísticas para CATML Explore Fase E1).
+  - [x] Integración de contexto de dataset activo en `store.js` (`setActiveDataset`, `getActiveDataset`), `app.js`, `studio.js`, `overview.js` y `new_experiment.js`.
+  - [x] Suite de tests automatizada en `tests/test_workbench_laboratory_redesign.py` (3 tests). 667 tests pasando (100% verde).
+- [x] **Rediseño UI Workbench — Modal de Ingestión Polimórfico (Fase 2)**:
+  - [x] Modal de Ingestión Polimórfica (`RegisterDatasetModal` en `register_dataset_modal.js`):
+    - Subida Drag & Drop con subida base64 al servidor (`POST /api/dataset/upload`).
+    - Navegador de archivos local en servidor con exploración de carpetas y búsqueda (`GET /api/files/browse`).
+    - Entrada manual de ruta con inspección instantánea de esquema (`POST /api/dataset/inspect-file`).
+    - Sugerencia automática de columna target y soporte explícito para datasets no supervisados (`target=None`).
+  - [x] Creación dinámica de runs (`POST /api/run/create`) vinculados al dataset activo.
+  - [x] Scoping limpio de variables en `new_experiment.js` y `datasets.js` (`activeRun`, `recentDs`).
+  - [x] Tests de validación e integración en `tests/test_workbench_laboratory_redesign.py` (6 tests).
+- [x] **Remediación Integral de Auditoría Técnica (Octubre 9, 2026 — Commit `5caa1f5`)**:
+  - [x] **H1 [Alta] Aprobación real de agentes en Workbench**: `POST /api/agent/action` integrado con `SqliteAgentLedger`, validación estricta de existencia (404 ante IDs inexistentes), transición de estado persistida en SQLite y registro de revisor humano.
+  - [x] **H2 [Alta] Sentido de métricas personalizadas en CV**: Eliminado `_greater_is_better` inexistente; normalización de signo con `_is_minimizing_metric()` e inspección de `_sign == -1`; sincronización de `plugin_registry` en `SQLiteExperimentRepository.get_leaderboard()` para ordenamiento ascendente (`ASC`).
+  - [x] **H3 [Alta] Autenticación remota en servidor MCP**: Transporte `streamable-http` rechaza enlaces externos sin autenticación (`PermissionError` fail-closed); flags `--token` y `--insecure-no-auth` en CLI con `BearerAuthMiddleware` en Starlette.
+  - [x] **H4 [Media-alta] Límite de tamaño HTTP explícito**: Límite `MAX_PAYLOAD_SIZE = 50 MB` en `server.py`, rechazando peticiones excesivas con `413 Payload Too Large`.
+  - [x] **H5 [Media-alta] Endurecimiento de autenticación remota**: Rechazo de tokens en query string (`?token=`) para operaciones POST; advertencia de seguridad en peticiones GET.
+  - [x] **H6 [Media] Compatibilidad de versión scikit-learn**: Declaración de `scikit-learn>=1.4.0` en `pyproject.toml` con fallback defensivo (`needs_proba`) en `make_scorer`.
+  - [x] **H8 [Media] Bloqueo multiplataforma en worker**: Uso de `msvcrt` en Windows y `fcntl` en Unix en `worker.py`.
+- [x] **Remediación Integral de Auditoría UX/UI Frontend (Workbench)**:
+  - [x] **F01 [Crítico UX]**: Retirados CPU 60%, RAM 45%, 5 workers fijos y logs predefinidos en `studio.js`; telemetría real conectada con ejecuciones y tiempos por estimador.
+  - [x] **F02 [Crítico UX]**: Retirado badge simulado `DAG Validated` en `pipeline.js`; sustituido por estado verificado (`Pipeline Trained & Aligned` / `Schema Inferred`); corregidas descripciones a `StandardScaler` y `OneHotEncoder` / `TargetAdapter`.
+  - [x] **F03 [Crítico UX]**: Retirado fallback mock "Standard Tabular Benchmark" (85% similar) en `knowledge.js`; renderizado de estado vacío honesto.
+  - [x] **F04 [Medio-alto]**: Subsanado `ReferenceError: customFeatures is not defined` en `new_experiment.js`, encapsulado en instancia y vinculado al dispatch.
+  - [x] **F05 [Medio-alto]**: Conectados botones simulados ("Promote Best Parameters" y "Use Warm Start") a almacenamiento reactivo en store (`promotedParams`, `warmStartParams`).
+  - [x] **F06 [Medio-alto]**: Propagación completa de opciones en `createAndRunExperiment` y soporte seguro de presupuesto en `job_executor.py` (`time_budget_seconds`).
+  - [x] **F07 [Medio]**: Desvinculación de ejecución huérfana en `store.setActiveDataset()` al cambiar a datasets sin runs previos.
+  - [x] **F09 [Medio]**: Checklist pre-flight de Kaggle en `kaggle.js` muestra estados pendientes neutrales hasta verificación empírica.
+  - [x] **F10 [Medio]**: Selección del trial óptimo en HPO guiado por dirección de métrica (minimización vs maximización).
+  - [x] **F11 [Medio]**: Enlace de descarga de submissions sustituido por `api.downloadFile()` con autenticación Bearer via blob.
+  - [x] **F12 & F15 [Medio]**: Accesibilidad mejorada: eliminado `select-none` del body; menú responsive con botón hamburguesa para pantallas `< md`.
+- [x] **Eliminación de Maquetas y Estados Simulados en Pantalla de Inicio (Truthful Workbench State)**:
+  - [x] Acotado de `ACTIVE_RUN_STATUSES` y `is_active_run_status` en dominio y frontend únicamente a estados de ejecución efectiva (`EXPERIMENTING`, `OPTIMIZING`, `FINALIZING`, `RUNNING`); estados `CREATED`, `PROFILING` y `PLANNING` no activan falsas alertas de entrenamiento.
+  - [x] Eliminado badge falso de `ENTRENANDO` con spinner y barra fija al 75% en `home.js`; reemplazado por estado verídico `LISTO PARA ENTRENAR` (barra al 0%, métricas neutrales, CTA para lanzar experimento).
+  - [x] Eliminada barra fija al 66% y texto arbitrario `Searching space (72%)` en `overview.js`.
+  - [x] Marcado en **ROJO** del componente Explore en `datasets.js` (`PENDIENTE DE IMPLEMENTACIÓN`, `EN FASE DE IMPLEMENTACIÓN`, `#EF4444`) para clarificar que pertenece al roadmap de ADR-008 sin maquetas decorativas.
+  - [x] Sincronización de la cabecera global (`app.js`): solo exhibe `ENTRENANDO` cuando existen trabajos de entrenamiento activos en ejecución.
+  - [x] Pruebas de integración automatizadas en `tests/test_workbench_laboratory_redesign.py`. 677 tests pasando (100% verde), 86.68% de cobertura.
+  - [x] **F13 & F14 [Bajo]**: Terminología armonizada y versión alineada a `v0.8.2`.
 - [x] **Validación y Cobertura**:
-  - [x] 660 tests pasando (100% de la suite). Cobertura total del 87.31% (requisito >= 85%).
+  - [x] 676 tests pasando (100% de la suite). Cobertura total mantenida $\ge 85\%$.
 
 ## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 
@@ -124,34 +168,70 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Segregación de métricas por dataset en `/api/overview` (`best_by_dataset`), soporte para scores `0.0` en hipótesis y valores iniciales limpios.
     - [x] Suites de pruebas en `tests/test_anti_leakage_guardian.py` y `tests/test_workbench_activity_consistency.py`.
     - [x] 664 tests pasando (100% verde), 87.32% de cobertura.
-- [ ] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
-  - [ ] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`).
-  - [ ] Soporte de estudios sin columna objetivo (`target=None`).
-  - [ ] Esquema de persistencia SQLite aditivo en `src/automl/infrastructure/database/sqlite_studies.py`.
-  - [ ] Servicio de aplicación `AnalysisStudyService` y operaciones CQRS (`CreateStudyCommand`, `GetStudyQuery`, etc.).
-  - [ ] Integración de análisis en segundo plano con `JobService`.
-  - [ ] CLI inicial `catml explore create/show` y herramienta MCP básica `analysis_create_study`.
-- [ ] **Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)** [Prioridad P0]:
-  - [ ] Motor numérico en `src/automl/engine/analysis/` (encapsulando `scipy` y `statsmodels` bajo el extra `catml[explore]`).
-  - [ ] Diagnóstico de calidad: distribuciones, asimetría, curtosis y detección multivariante de anomalías (Isolation Forest/Mahalanobis).
-  - [ ] Matrices de correlación (Pearson, Spearman) con p-valores corregidos.
-  - [ ] Asociaciones categóricas e información mutua estandarizada continua/discreta.
-  - [ ] Pruebas de hipótesis automáticas (t-test, Mann-Whitney, ANOVA, Levene) con cálculo obligatorio de tamaños del efecto e intervalos de confianza.
-  - [ ] Corrección por comparaciones múltiples (FDR Benjamini-Hochberg).
-- [ ] **Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)** [Prioridad P1]:
-  - [ ] Generador backend de `VisualizationSpec` declarativo con agregaciones y decodificación sin saturar el cliente.
-  - [ ] Vista Tech Minimalista en `src/automl/interfaces/web/static/js/views/explore.js` (tipografía Geist, 1px border, alta densidad informativa).
-  - [ ] Galería de hallazgos estadísticos con filtros dinámicos y matrices interactivas de calor.
-- [ ] **Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)** [Prioridad P0]:
-  - [ ] Tools MCP: `analysis_create_study`, `analysis_get_findings`, `analysis_get_visualizations`, `analysis_propose_experiment`.
-  - [ ] Paginación y control de presupuesto de tokens en llamadas MCP para agentes (Codex, Claude Code).
-  - [ ] CLI completa `catml explore list/run/findings/export`.
-- [ ] **Fase E5 — Agente Científico y Conexión con AutoML (Hypothesis Engine)** [Prioridad P1]:
-  - [ ] Mapeo determinista de hallazgos estadísticos a hipótesis de transformación ML.
-  - [ ] Entidad `EvidenceLink` vinculando hipótesis con experimentos AutoML.
-  - [ ] Protocolo "Propose ≠ Accept": validación empírica en el mismo split antes de promover transformaciones o feature sets.
-- [ ] **Fase E6 — Benchmarks Integrales y Preparación de Producto** [Prioridad P1]:
-  - [ ] Batería de 4 ejes: exactitud estadística (NIST/sintéticos), calidad AutoML, seguridad/MCP y suites de regresión.
+- [x] **Fase E1 — Núcleo de Estudios (Explore Core)** [Prioridad P0]:
+  - [x] Entidades de dominio puras en `src/automl/domain/analysis/` (`StudySpec`, `AnalysisRun`, `StatisticalFinding`, `VisualizationSpec`, `EvidenceLink`, `AnalysisHypothesis`).
+  - [x] Soporte de estudios sin columna objetivo (`target_column=None`, modo no supervisado).
+  - [x] Esquema de persistencia SQLite aditivo en `src/automl/infrastructure/database/sqlite_studies.py` con WAL mode, claves foráneas e índices.
+  - [x] Servicio de aplicación `AnalysisStudyService` y operaciones CQRS (`CreateStudyCommand`, `RunAnalysisCommand`, `ArchiveStudyCommand`, `GetStudyQuery`, `ListStudiesQuery`, etc.) modularizados en `src/automl/application/registries/analysis_registry.py`.
+  - [x] Motor de análisis estadístico determinista en `src/automl/engine/analysis/statistical_analyzer.py` (colinealidad de Pearson $r \ge 0.70$, separación ANOVA $p < 0.05$, outliers IQR, cardinalidad e hipótesis de mitigación).
+  - [x] CLI `automl explore create/run/list/show/findings` registrado en `src/automl/interfaces/cli/explore_cli.py` y `main.py`.
+  - [x] Herramientas MCP en `src/automl/interfaces/mcp/analysis_tools.py` (`analysis_create_study`, `analysis_run_study`, `analysis_get_findings`, `analysis_list_studies`, `analysis_get_study`).
+  - [x] Endpoints REST `/api/analysis/...` en `server.py` e interfaz visual verídica en Workbench (`datasets.js` y `api.js` con selector de estudios, matriz de correlación real calculada y tarjetas de hallazgos).
+  - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e1_core.py` (10 pruebas pasando al 100%).
+- [x] **Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)** [Prioridad P0]:
+  - [x] Motor numérico modular en `src/automl/engine/analysis/` (`distribution_diagnostics.py`, `association_metrics.py`, `hypothesis_testing.py`, `statistical_analyzer.py`).
+  - [x] Diagnóstico de distribuciones: pruebas de normalidad (D'Agostino-Pearson y Shapiro-Wilk), asimetría (skewness), curtosis, detección de multimodality (coeficiente bimodal de Sarle $BC > 0.555$) y outliers multivariantes (distancia de Mahalanobis regularizada con corte crítico $\chi^2_{p < 0.001}$).
+  - [x] Matrices de asociación bivariadas: correlación de Pearson con intervalos de confianza de Fisher al 95% ($z$-transform), correlación monótona de Spearman ($\rho$), contraste de relaciones no lineales e hipótesis de modelos basados en árboles/splines.
+  - [x] Asociaciones categóricas e inferencia no lineal: matriz de Cramér's V con corrección de sesgo de Bergsma-Wicher, pruebas Chi-cuadrado de independencia e hipótesis de interacciones categóricas.
+  - [x] Pruebas de hipótesis automáticas supervisadas: comparación de 2 grupos con t-test de Welch y Mann-Whitney U junto con tamaño del efecto Cohen's $d$; comparación multiclase ($>2$ grupos) con ANOVA unidireccional y Kruskal-Wallis junto con tamaño del efecto $\eta^2$ (Eta al cuadrado); prueba de homocedasticidad de Levene.
+  - [x] Corrección de comparaciones múltiples: ajuste por Benjamini-Hochberg (FDR - False Discovery Rate) sobre todos los tests inferenciales del estudio para mitigar falsos descubrimientos (*data dredging*).
+  - [x] Batería de pruebas dedicada en `tests/test_explore_phase_e2_advanced_engine.py` (11 pruebas pasando al 100%, 88% de cobertura en `engine/analysis`).
+- [x] **Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)** [Prioridad P1]:
+  - [x] Generador backend de `VisualizationSpec` declarativo en `src/automl/engine/analysis/visualizations/builder.py` con agregación de histogramas, resumen de cinco números para boxplots con muestreo acotado de outliers, y submuestreo de dispersión bivariada con regresión lineal de tendencia.
+  - [x] Vista profesional en `src/automl/interfaces/web/static/js/views/explore.js` conforme al sistema de diseño Tech Minimalista Premium (ADR-006): selector de estudios, botones para nuevo estudio y ejecución de análisis, e integración en el router global (`app.js`).
+  - [x] Galería de hallazgos estadísticos con filtros dinámicos por categoría, severidad y significancia Benjamini-Hochberg FDR ($p < 0.05$).
+  - [x] Visualizador interactivo de especificaciones: matrices de correlación (Pearson y Spearman con conmutador dinámico), matriz de Cramér's V, histogramas SVG vectoriales, diagramas de caja (boxplots) y nubes de dispersión bivariada.
+  - [x] Exportador de informes técnicos descargables en formato Markdown (`informe_explore_{study_id}.md`).
+  - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e3_ui.py` (6 pruebas pasando al 100%).
+- [x] **Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)** [Prioridad P0]:
+  - [x] Tools MCP: `analysis_create_study`, `analysis_get_findings`, `analysis_get_visualizations`, `analysis_propose_experiment`.
+  - [x] Paginación y control de presupuesto de tokens en llamadas MCP para agentes (`limit`, `offset`, `compact`, `envelope`).
+  - [x] Recursos MCP de solo lectura: `catml://studies/{study_id}/summary` y `catml://studies/{study_id}/visualizations`.
+  - [x] CLI completa `catml explore list/run/findings/export` (soporte de reporte técnico Markdown y JSON exportable).
+  - [x] Generador desacoplado de informes técnicos en `src/automl/application/analysis/reporting.py`.
+  - [x] Batería de pruebas automatizadas completa en `tests/test_explore_phase_e4_agent_surface.py` (7 pruebas pasando al 100%, suite global en 711 pruebas y cobertura 86.64%).
+- [x] **Fase E5 — Agente Científico y Conexión con AutoML (Hypothesis Engine)** [Prioridad P1]:
+  - [x] Mapeo determinista de hallazgos estadísticos a hipótesis de transformación ML (`HypothesisExperimentTranslator`).
+  - [x] Entidad `EvidenceLink` y persistencia SQLite transaccional vinculando hipótesis con experimentos AutoML.
+  - [x] Protocolo "Propose ≠ Accept": validación empírica en el mismo split antes de promover transformaciones o feature sets, preservando aprendizaje negativo.
+  - [x] Paridad total de superficies: CQRS (`VerifyHypothesisCommand`, `GetEvidenceLinkQuery`, `ListEvidenceLinksQuery`), CLI (`automl explore verify`), MCP tool (`analysis_verify_hypothesis`) y recurso (`catml://studies/{study_id}/evidence`), y API REST (`/api/analysis/hypotheses/verify` y `/api/analysis/evidence`).
+  - [x] Batería de pruebas automatizadas completa en `tests/test_explore_phase_e5_hypothesis_engine.py` (6 pruebas pasando al 100%, suite global en 717 pruebas y cobertura 86.60%).
+- [x] **Fase E6 — Benchmarks Integrales y Preparación de Producto** [Prioridad P1]:
+  - [x] Batería de 4 ejes implementada en `ExploreBenchmarkRunner` (`src/automl/benchmarks/explore_benchmarks.py`):
+    - [x] **Eje 1: Exactitud Estadística Numérica:** Calibración tipo NIST ante grandes desplazamientos numéricos ($10^9 + x$), Anscombe Quartet (I-IV con contrastes de no linealidad y outliers), intervalos Fisher $z$ al 95%, ajuste FDR Benjamini-Hochberg, Welch t-test / Cohen's $d$, y cotas de Cramér's V.
+    - [x] **Eje 2: Calidad AutoML y Verificación de Hipótesis:** Comparativa determinista baseline vs hipótesis guiadas por Explore con persistencia de `EvidenceLink` en el mismo split y cumplimiento estricto de "Propose ≠ Accept".
+    - [x] **Eje 3: Seguridad, Privacidad y Confinamiento de Tokens MCP:** Límites acotados de salida (`limit`, `offset`, `envelope`), stripping de matrices densas en `compact=True`, cero filtración de PII/datos crudos en recursos `summary`, y resistencia fail-closed ante inyecciones y path traversal.
+    - [x] **Eje 4: Regresión de Esquemas y Workspaces:** Compatibilidad retroactiva de SQLite (`studies.db` en modo WAL), coexistencia de estudios no supervisados y supervisados, e integridad transaccional.
+  - [x] Suite de pruebas automatizadas completa en `tests/test_explore_phase_e6_benchmarks.py` (6 pruebas pasando al 100%).
+  - [x] Actualización de `DEVELOPER_GUIDE.md` con arquitectura, comandos de CLI y módulos de Explore.
+  - [x] Suite global verde: **723 pruebas pasando (0 fallos)**, cobertura global sostenida en **86.76%** (umbral CI $\ge 85\%$).
+- [x] **Hardening de Seguridad en Interfaces Remotas y Preparación Release 0.9.0-rc1**:
+  - [x] **Fail-Closed Remoto por Defecto**:
+    - [x] Workbench (`run_web_dashboard` en `src/automl/interfaces/web/server.py`) rechaza enlaces externos (`0.0.0.0` o no loopback) sin autenticación con `PermissionError` a menos que `CATML_ALLOW_INSECURE=1` esté explícitamente configurado.
+    - [x] MCP streamable-http (`run_mcp_service` en `src/automl/interfaces/mcp/server.py`) rechaza enlaces externos no autenticados fail-closed con `PermissionError` a menos que `CATML_ALLOW_INSECURE=1` esté configurado.
+    - [x] Retirada de impresión de URLs con query parameter `?token=`; conservación exclusiva de identificadores de fragmento del lado del cliente (`/#token=`), que nunca viajan por la red HTTP ni quedan en registros.
+  - [x] **Guía y Modelo de Amenazas ("Trusted Deployment")**:
+    - [x] Documento exhaustivo en [`docs/trusted-deployment.md`](docs/trusted-deployment.md) estructurado en 3 niveles (Tier 1: Local Loopback, Tier 2: Private LAN, Tier 3: Cloud VPS / Producción con proxy inverso TLS y permisos de workspace `chmod 700`).
+    - [x] Advertencia prominente sobre deserialización de artefactos `joblib`/`pickle` en `README.md` y `SECURITY.md`, especificando que el checksum SHA-256 garantiza integridad ante corrupción accidental, no autenticidad criptográfica ante adversarios.
+    - [x] Hoja de ruta para firmas HMAC/PKI y exportación a ONNX para inferencia pura.
+  - [x] **Superficie de Agentes y Privacidad**:
+    - [x] Modo compacto `compact=True` por defecto en herramientas de análisis MCP, devolviendo cero filas crudas a contextos LLM.
+    - [x] Presupuestos cooperativos por sesión y confinamiento estricto a las raíces del workspace.
+  - [x] **Bump de Versión a 0.9.0-rc1**:
+    - [x] Actualización de `__version__ = "0.9.0-rc1"` en `src/automl/__init__.py`.
+    - [x] Registro en `CHANGELOG.md` con desglose detallado de CATML Explore (E1–E6) y security hardening.
+    - [x] Actualización de badges y enlaces de navegación en `README.md` y `SECURITY.md`.
+    - [x] Suite de pruebas automatizadas: 727 pruebas pasando al 100%, cobertura global $\ge 86.8\%$.
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 

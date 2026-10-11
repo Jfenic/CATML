@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+logger = logging.getLogger("catml.web")
 
 from automl import __version__
 from automl.domain.runs.states import is_active_run_status
@@ -35,6 +38,21 @@ from automl.application.queries.workspace_queries import (
     ListPluginsQuery,
     GetOOFResultQuery,
     GetMetaKnowledgeQuery,
+)
+from automl.application.analysis.commands import (
+    ArchiveStudyCommand,
+    CreateStudyCommand,
+    RunAnalysisCommand,
+    VerifyHypothesisCommand,
+)
+from automl.application.analysis.queries import (
+    GetAnalysisRunQuery,
+    GetStudyQuery,
+    ListEvidenceLinksQuery,
+    ListFindingsQuery,
+    ListHypothesesQuery,
+    ListStudiesQuery,
+    ListVisualizationsQuery,
 )
 
 
@@ -200,6 +218,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
     static_dir: Path = Path(__file__).parent / "static"
     auth_token: str | None = None
     require_auth: bool = False
+    MAX_PAYLOAD_SIZE: int = 50 * 1024 * 1024  # 50 MB
 
     def _is_authenticated(self) -> bool:
         if not self.require_auth or not self.auth_token:
@@ -214,8 +233,18 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query_params = parse_qs(parsed.query)
         token_list = query_params.get("token")
-        if token_list and token_list[0].strip() == self.auth_token:
-            return True
+        if token_list:
+            method = getattr(self, "command", "GET")
+            if method != "GET":
+                logger.warning("Rejected query token on state-mutating HTTP %s request to %s", method, parsed.path)
+                return False
+            if token_list[0].strip() == self.auth_token:
+                logger.warning(
+                    "Insecure authentication via URL query string '?token=' on %s. "
+                    "Use 'Authorization: Bearer <token>' header or URL hash fragment '#token=' instead.",
+                    parsed.path,
+                )
+                return True
 
         return False
 
@@ -227,7 +256,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "error": "Unauthorized",
                 "message": (
                     "Authentication token required for remote workbench access. "
-                    "Provide via 'Authorization: Bearer <token>' header or '?token=<token>' query parameter."
+                    "Provide via 'Authorization: Bearer <token>' header."
                 ),
             },
             status=HTTPStatus.UNAUTHORIZED,
@@ -431,7 +460,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "is_active": True,
                         }
 
-                ds = ws.get_dataset(r.dataset_id)
+                try:
+                    ds = ws.get_dataset(r.dataset_id)
+                except KeyError:
+                    ds = None
                 if ds and ds.name not in [d["name"] for d in recent_datasets]:
                     profile = ws.get_dataset_profile(ds.id)
                     recent_datasets.append({
@@ -513,11 +545,105 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             self._send_json(result)
             return
 
+        elif path == "/api/files/browse":
+            query_params = parse_qs(parsed.query)
+            target_rel = query_params.get("dir", [""])[0].strip()
+            search_query = query_params.get("search", [""])[0].strip().lower()
+
+            base_dir = Path.cwd().resolve()
+            if target_rel == ".":
+                target_path = base_dir
+            elif not target_rel:
+                # If searching without specific dir, search base_dir
+                target_path = base_dir if search_query else ((base_dir / "data").resolve() if (base_dir / "data").exists() else base_dir)
+            elif Path(target_rel).is_absolute():
+                target_path = Path(target_rel).resolve()
+            else:
+                target_path = (base_dir / target_rel).resolve()
+
+            # Security boundary: must remain within base_dir or workspace_dir
+            ws_path = Path(self.workspace_dir).resolve()
+            is_in_base = target_path == base_dir or target_path.is_relative_to(base_dir)
+            is_in_ws = target_path == ws_path or target_path.is_relative_to(ws_path)
+
+            if not (is_in_base or is_in_ws):
+                target_path = (base_dir / "data").resolve() if (base_dir / "data").exists() else base_dir
+
+            if not target_path.exists() or not target_path.is_dir():
+                target_path = base_dir
+
+            allowed_exts = {".csv", ".parquet", ".pq", ".tsv", ".json", ".jsonl"}
+            folders = []
+            files = []
+            parent_dir = str(target_path.parent) if target_path != base_dir and (target_path.parent == base_dir or target_path.parent.is_relative_to(base_dir)) else None
+
+            try:
+                if search_query:
+                    # Recursive search from target_path, limiting to 60 matches
+                    for item in target_path.rglob("*"):
+                        if item.name.startswith(".") or "venv" in str(item) or "__pycache__" in str(item) or "node_modules" in str(item):
+                            continue
+                        if search_query in item.name.lower():
+                            if item.is_file() and item.suffix.lower() in allowed_exts:
+                                try:
+                                    size_bytes = item.stat().st_size
+                                    size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+                                    files.append({
+                                        "name": item.name,
+                                        "path": str(item),
+                                        "rel_path": str(item.relative_to(base_dir)) if item.is_relative_to(base_dir) else str(item),
+                                        "size_bytes": size_bytes,
+                                        "size_formatted": size_str,
+                                        "extension": item.suffix.lower(),
+                                    })
+                                except Exception:
+                                    pass
+                        if len(files) >= 60:
+                            break
+                else:
+                    for item in sorted(target_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+                        if item.name.startswith(".") or item.name in {"venv", ".venv", "__pycache__", "node_modules", "dist", "build", ".git"}:
+                            continue
+                        if item.is_dir():
+                            folders.append({
+                                "name": item.name,
+                                "path": str(item),
+                                "rel_path": str(item.relative_to(base_dir)) if item.is_relative_to(base_dir) else str(item),
+                            })
+                        elif item.is_file() and item.suffix.lower() in allowed_exts:
+                            try:
+                                size_bytes = item.stat().st_size
+                                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+                                files.append({
+                                    "name": item.name,
+                                    "path": str(item),
+                                    "rel_path": str(item.relative_to(base_dir)) if item.is_relative_to(base_dir) else str(item),
+                                    "size_bytes": size_bytes,
+                                    "size_formatted": size_str,
+                                    "extension": item.suffix.lower(),
+                                })
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+            self._send_json({
+                "current_dir": str(target_path),
+                "rel_dir": str(target_path.relative_to(base_dir)) if target_path.is_relative_to(base_dir) else str(target_path),
+                "parent_dir": parent_dir,
+                "folders": folders,
+                "files": files,
+            })
+            return
+
         elif path == "/api/runs":
             runs = ws.list_runs()
             result = []
             for r in runs:
-                dataset = ws.get_dataset(r.dataset_id)
+                try:
+                    dataset = ws.get_dataset(r.dataset_id)
+                except KeyError:
+                    dataset = None
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
                 exps = ws.list_experiments(r.id)
                 trials_cnt = sum(len(ws.list_trial_results(e.id)) for e in exps)
@@ -1012,9 +1138,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             run = ws.get_run(run_id) if run_id else None
             if not run:
                 runs = ws.list_runs()
-                run = runs[0] if runs else None
-
-            dataset = ws.get_dataset(run.dataset_id) if run else None
+            dataset = None
+            if run:
+                try:
+                    dataset = ws.get_dataset(run.dataset_id)
+                except KeyError:
+                    dataset = None
             profile = ws.get_dataset_profile(run.dataset_id) if run else None
             lb = qry.dispatch(GetLeaderboardQuery(run.id)) if run else []
             best_cv = lb[0]["score"] if lb else None
@@ -1057,6 +1186,95 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json({"status": "success", "temporal_structure": struct})
             except Exception as exc:
                 self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+
+        elif path == "/api/analysis/studies":
+            dataset_id = query_params.get("dataset_id", [None])[0]
+            studies = qry.dispatch(ListStudiesQuery(dataset_id=dataset_id))
+            result = []
+            for s in (studies or []):
+                s_dict = dict(s) if isinstance(s, dict) else (s.to_dict() if hasattr(s, "to_dict") else vars(s))
+                s_id = s_dict.get("id", "")
+                try:
+                    findings = qry.dispatch(ListFindingsQuery(study_id=s_id))
+                    s_dict["findings_count"] = len(findings) if findings else 0
+                except Exception:
+                    s_dict["findings_count"] = 0
+                try:
+                    hypotheses = qry.dispatch(ListHypothesesQuery(study_id=s_id))
+                    s_dict["hypotheses_count"] = len(hypotheses) if hypotheses else 0
+                except Exception:
+                    s_dict["hypotheses_count"] = 0
+                result.append(s_dict)
+            self._send_json(result)
+            return
+
+        elif path == "/api/analysis/study":
+            study_id = query_params.get("id", [""])[0] or query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            study = qry.dispatch(GetStudyQuery(study_id=study_id))
+            if not study:
+                self._send_json({"error": f"Study '{study_id}' not found"}, HTTPStatus.NOT_FOUND)
+                return
+            data = dict(study) if isinstance(study, dict) else (study.to_dict() if hasattr(study, "to_dict") else vars(study))
+            try:
+                findings = qry.dispatch(ListFindingsQuery(study_id=study_id))
+                data["findings"] = [f if isinstance(f, dict) else f.to_dict() for f in (findings or [])]
+            except Exception:
+                data["findings"] = []
+            try:
+                visualizations = qry.dispatch(ListVisualizationsQuery(study_id=study_id))
+                data["visualizations"] = [v if isinstance(v, dict) else v.to_dict() for v in (visualizations or [])]
+            except Exception:
+                data["visualizations"] = []
+            try:
+                hypotheses = qry.dispatch(ListHypothesesQuery(study_id=study_id))
+                data["hypotheses"] = [h if isinstance(h, dict) else h.to_dict() for h in (hypotheses or [])]
+            except Exception:
+                data["hypotheses"] = []
+            self._send_json(data)
+            return
+
+        elif path == "/api/analysis/findings":
+            study_id = query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            finding_type = query_params.get("type", [None])[0]
+            findings = qry.dispatch(ListFindingsQuery(study_id=study_id, finding_type=finding_type))
+            self._send_json([f if isinstance(f, dict) else f.to_dict() for f in (findings or [])])
+            return
+
+        elif path == "/api/analysis/visualizations":
+            study_id = query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            visualizations = qry.dispatch(ListVisualizationsQuery(study_id=study_id))
+            self._send_json([v if isinstance(v, dict) else v.to_dict() for v in (visualizations or [])])
+            return
+
+        elif path == "/api/analysis/hypotheses":
+            study_id = query_params.get("study_id", [""])[0]
+            if not study_id:
+                self._send_json({"error": "study_id parameter required"}, HTTPStatus.BAD_REQUEST)
+                return
+            hypotheses = qry.dispatch(ListHypothesesQuery(study_id=study_id))
+            self._send_json([h if isinstance(h, dict) else h.to_dict() for h in (hypotheses or [])])
+            return
+
+        elif path == "/api/analysis/evidence":
+            study_id = query_params.get("study_id", [""])[0]
+            hypothesis_id = query_params.get("hypothesis_id", [""])[0]
+            links = qry.dispatch(
+                ListEvidenceLinksQuery(
+                    study_id=study_id if study_id else None,
+                    hypothesis_id=hypothesis_id if hypothesis_id else None,
+                )
+            )
+            self._send_json([l if isinstance(l, dict) else l.to_dict() for l in (links or [])])
             return
 
         elif path == "/api/plugins":
@@ -1135,7 +1353,25 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
         try:
             content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > self.MAX_PAYLOAD_SIZE:
+                self._send_json(
+                    {
+                        "error": "Payload Too Large",
+                        "message": f"Request size exceeds limit of {self.MAX_PAYLOAD_SIZE // (1024 * 1024)}MB",
+                    },
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                )
+                return
             body = self.rfile.read(content_length)
+            if len(body) > self.MAX_PAYLOAD_SIZE:
+                self._send_json(
+                    {
+                        "error": "Payload Too Large",
+                        "message": f"Request size exceeds limit of {self.MAX_PAYLOAD_SIZE // (1024 * 1024)}MB",
+                    },
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                )
+                return
             payload = json.loads(body.decode("utf-8")) if body else {}
         except Exception as e:
             self._send_json({"error": f"Invalid JSON payload: {e}"}, HTTPStatus.BAD_REQUEST)
@@ -1161,9 +1397,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 target = payload.get("target") or payload.get("target_column")
                 task_type = payload.get("task_type")
 
-                if not data_path or not target:
-                    self._send_json({"error": "path and target are required"}, HTTPStatus.BAD_REQUEST)
+                if not data_path:
+                    self._send_json({"error": "path is required"}, HTTPStatus.BAD_REQUEST)
                     return
+
+                if target and not str(target).strip():
+                    target = None
 
                 dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
                 run = ws.create_run(dataset)
@@ -1177,6 +1416,122 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "task_type": dataset.task_type,
                     "row_count": profile.row_count if profile else None,
                     "feature_count": len(profile.columns) if profile else None,
+                })
+                return
+
+            elif path == "/api/dataset/upload":
+                filename = payload.get("filename", "uploaded_dataset.csv")
+                safe_filename = Path(filename).name
+                if not safe_filename or safe_filename.startswith("."):
+                    safe_filename = f"dataset_{uuid.uuid4().hex[:6]}.csv"
+
+                content_b64 = payload.get("content_base64")
+                if not content_b64:
+                    self._send_json({"error": "content_base64 is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                try:
+                    import base64
+                    data_bytes = base64.b64decode(content_b64)
+                except Exception as b64_err:
+                    self._send_json({"error": f"Invalid base64 payload: {b64_err}"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                upload_dir = Path(self.workspace_dir) / "uploads"
+                upload_dir.mkdir(parents=True, exist_ok=True)
+                dest_path = upload_dir / safe_filename
+                dest_path.write_bytes(data_bytes)
+
+                size_bytes = len(data_bytes)
+                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+
+                detected_cols = []
+                suggested_target = None
+                try:
+                    from automl.engine.profiling.dataset_profiler import load_dataframe
+                    sample_df = load_dataframe(dest_path)
+                    detected_cols = list(sample_df.columns)
+                    candidates = ["target", "label", "class", "churn", "survived", "price", "is_fraud", "Will_Buy_EV"]
+                    for c in detected_cols:
+                        if c.lower() in [cand.lower() for cand in candidates]:
+                            suggested_target = c
+                            break
+                    if not suggested_target and len(detected_cols) > 1:
+                        suggested_target = detected_cols[-1]
+                except Exception:
+                    pass
+
+                self._send_json({
+                    "status": "success",
+                    "path": str(dest_path.resolve()),
+                    "filename": safe_filename,
+                    "size_bytes": size_bytes,
+                    "size_formatted": size_str,
+                    "columns": detected_cols,
+                    "suggested_target": suggested_target,
+                    "suggested_name": Path(safe_filename).stem,
+                })
+                return
+
+            elif path == "/api/dataset/inspect-file":
+                file_path_str = payload.get("path")
+                if not file_path_str:
+                    self._send_json({"error": "path is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+                target_file = Path(file_path_str).resolve()
+                if not target_file.exists() or not target_file.is_file():
+                    self._send_json({"error": f"File not found: {file_path_str}"}, HTTPStatus.NOT_FOUND)
+                    return
+
+                try:
+                    from automl.engine.profiling.dataset_profiler import load_dataframe
+                    df = load_dataframe(target_file)
+                    cols = list(df.columns)
+                    suggested_target = None
+                    candidates = ["target", "label", "class", "churn", "survived", "price", "is_fraud", "Will_Buy_EV"]
+                    for c in cols:
+                        if c.lower() in [cand.lower() for cand in candidates]:
+                            suggested_target = c
+                            break
+                    if not suggested_target and len(cols) > 1:
+                        suggested_target = cols[-1]
+
+                    size_bytes = target_file.stat().st_size
+                    size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1048576 else f"{size_bytes / 1048576:.1f} MB"
+
+                    self._send_json({
+                        "status": "success",
+                        "path": str(target_file),
+                        "suggested_name": target_file.stem,
+                        "columns": cols,
+                        "suggested_target": suggested_target,
+                        "total_rows": len(df),
+                        "total_columns": len(cols),
+                        "size_formatted": size_str,
+                    })
+                    return
+                except Exception as load_err:
+                    self._send_json({"error": f"Could not inspect file: {load_err}"}, HTTPStatus.BAD_REQUEST)
+                    return
+
+            elif path == "/api/run/create":
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                dataset = ws.get_dataset(dataset_id)
+                if not dataset:
+                    self._send_json({"error": f"Dataset {dataset_id} not found"}, HTTPStatus.NOT_FOUND)
+                    return
+                run = ws.create_run(dataset)
+                self._send_json({
+                    "status": "success",
+                    "run_id": run.id,
+                    "dataset_id": dataset.id,
+                    "task_type": run.config.task_type,
+                    "target": run.config.target,
+                    "metric": run.config.metric,
                 })
                 return
 
@@ -1505,12 +1860,61 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
             elif path == "/api/agent/action":
-                hyp_id = payload.get("hypothesis_id")
-                action = payload.get("action")  # 'approve' or 'reject'
+                hyp_id = payload.get("hypothesis_id") or payload.get("approval_id")
+                action = (payload.get("action") or "").strip().lower()
+                reviewer = payload.get("reviewer") or "workbench_user"
+                notes = payload.get("notes")
+
+                if not hyp_id:
+                    self._send_json({"error": "hypothesis_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                if action not in ("approve", "reject"):
+                    self._send_json(
+                        {"error": "Invalid action. Allowed actions are 'approve' or 'reject'."},
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
+
+                ledger_file = Path(self.workspace_dir) / "agent_ledger.db"
+                from automl.infrastructure.database.sqlite_agent_ledger import SqliteAgentLedger
+                from automl.application.agents.ports import ApprovalStatus
+
+                ledger = SqliteAgentLedger(ledger_file)
+                hyp = ledger.get_hypothesis(hyp_id)
+                appr = ledger.get_approval(hyp_id)
+
+                if hyp is None and appr is None:
+                    self._send_json(
+                        {
+                            "error": f"Hypothesis or approval request '{hyp_id}' not found in agent ledger.",
+                            "hypothesis_id": hyp_id,
+                        },
+                        HTTPStatus.NOT_FOUND,
+                    )
+                    return
+
+                new_hyp_status = None
+                new_appr_status = None
+
+                if hyp is not None:
+                    new_hyp_status = "accepted" if action == "approve" else "rejected"
+                    hyp.status = new_hyp_status
+                    ledger.save_hypothesis(hyp)
+
+                if appr is not None:
+                    new_appr_status = ApprovalStatus.APPROVED if action == "approve" else ApprovalStatus.REJECTED
+                    reviewer_info = f"{reviewer} ({notes})" if notes else reviewer
+                    ledger.update_approval_status(
+                        approval_id=hyp_id,
+                        status=new_appr_status,
+                        reviewer=reviewer_info,
+                    )
+
                 self._send_json({
                     "status": "success",
                     "hypothesis_id": hyp_id,
                     "action": action,
+                    "new_status": new_hyp_status or (new_appr_status.value if new_appr_status else action),
                     "message": f"Hypothesis {hyp_id} {action}ed by human operator.",
                 })
                 return
@@ -1614,6 +2018,72 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 })
                 return
 
+            elif path in ("/api/analysis/studies/create", "/api/analysis/study/create"):
+                dataset_id = payload.get("dataset_id")
+                if not dataset_id:
+                    self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                name = payload.get("name", "")
+                target_col = payload.get("target_column")
+                cmd_obj = CreateStudyCommand(
+                    dataset_id=dataset_id,
+                    name=name,
+                    target_column=target_col if target_col else None,
+                )
+                study_res = cmd.dispatch(cmd_obj)
+                study_id = study_res if isinstance(study_res, str) else getattr(study_res, "id", str(study_res))
+                study = qry.dispatch(GetStudyQuery(study_id=study_id))
+                self._send_json({
+                    "status": "success",
+                    "study_id": study_id,
+                    "study": study,
+                })
+                return
+
+            elif path in ("/api/analysis/studies/run", "/api/analysis/study/run"):
+                study_id = payload.get("study_id")
+                if not study_id:
+                    self._send_json({"error": "study_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                run_res = cmd.dispatch(RunAnalysisCommand(study_id=study_id))
+                run_id = run_res if isinstance(run_res, str) else getattr(run_res, "id", str(run_res))
+                run_data = qry.dispatch(GetAnalysisRunQuery(run_id=run_id))
+                findings = qry.dispatch(ListFindingsQuery(study_id=study_id, run_id=run_id))
+                self._send_json({
+                    "status": "success",
+                    "study_id": study_id,
+                    "run_id": run_id,
+                    "run": run_data,
+                    "findings_count": len(findings) if findings else 0,
+                })
+                return
+
+            elif path in ("/api/analysis/studies/archive", "/api/analysis/study/archive"):
+                study_id = payload.get("study_id")
+                if not study_id:
+                    self._send_json({"error": "study_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                cmd.dispatch(ArchiveStudyCommand(study_id=study_id))
+                self._send_json({"status": "success", "study_id": study_id, "archived": True})
+                return
+
+            elif path in ("/api/analysis/hypotheses/verify", "/api/analysis/hypothesis/verify"):
+                hypothesis_id = payload.get("hypothesis_id")
+                if not hypothesis_id:
+                    self._send_json({"error": "hypothesis_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                run_id = payload.get("run_id")
+                min_imp = float(payload.get("min_improvement", 0.0))
+                link_data = cmd.dispatch(
+                    VerifyHypothesisCommand(
+                        hypothesis_id=hypothesis_id,
+                        run_id=run_id,
+                        min_improvement=min_imp,
+                    )
+                )
+                self._send_json(link_data)
+                return
+
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
         except (ValueError, TypeError) as exc:
@@ -1641,6 +2111,15 @@ def run_web_dashboard(
         if not effective_token:
             effective_token = secrets.token_urlsafe(16)
         AutoMLWebHandler.auth_token = effective_token
+    elif not is_local and insecure_no_auth:
+        import os
+        if os.environ.get("CATML_ALLOW_INSECURE") != "1":
+            raise PermissionError(
+                f"Refusing to expose Workbench on external interface '{host}' without authentication. "
+                "Provide an authentication token or set environment variable CATML_ALLOW_INSECURE=1 to override."
+            )
+        AutoMLWebHandler.require_auth = False
+        AutoMLWebHandler.auth_token = None
     else:
         AutoMLWebHandler.require_auth = False
         AutoMLWebHandler.auth_token = None
@@ -1662,7 +2141,6 @@ def run_web_dashboard(
         print("  SECURITY NOTICE: Remote binding protected with authentication token.")
         print(f"  Access token: {effective_token}")
         print(f"  Direct secure URL (fragment, not sent over HTTP): http://{host}:{port}/#token={effective_token}")
-        print(f"  Alternative query URL: http://{host}:{port}/?token={effective_token}")
     elif not is_local and insecure_no_auth:
         print(f"  Bound to external interface: http://{host}:{port}")
         print("  WARNING: Workbench is exposed on non-localhost interface WITHOUT authentication!")

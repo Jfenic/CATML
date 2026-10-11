@@ -14,6 +14,7 @@ export class NewExperimentModal {
     this.mode = "auto"; // 'auto', 'guided', 'manual'
     this.budget = "balanced"; // 'quick', 'balanced', 'thorough'
     this.validationStrategy = "stratified_kfold";
+    this.customFeatures = [];
   }
 
   mount(container) {
@@ -23,17 +24,25 @@ export class NewExperimentModal {
 
   render() {
     const state = store.getState();
+    this.customFeatures = state.selectedFeatures || [];
+    const customFeatures = this.customFeatures;
     const runs = state.runs || [];
-    const activeRun = runs.find(r => isRunActive(r)) || runs[0] || null;
+    const activeRun = (runs || []).find(r => r.dataset_id === state.activeDatasetId)
+      || runs.find(r => isRunActive(r))
+      || runs[0]
+      || null;
     const recentDs = (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0]) || null;
-    const customFeatures = state.customFeatures || null;
+    const activeDs = state.activeDataset
+      || (state.datasets || []).find(d => d.id === state.activeDatasetId)
+      || (activeRun ? { name: activeRun.dataset_name, target_column: activeRun.target, task_type: activeRun.task_type } : null)
+      || recentDs;
 
-    const datasetName = activeRun ? (activeRun.dataset_name || activeRun.id) : (recentDs ? recentDs.name : "No Dataset Registered");
-    const targetCol = activeRun ? (activeRun.target || "Target") : (recentDs ? (recentDs.target || recentDs.target_column || "Target") : "None");
-    const metricName = activeRun ? (activeRun.metric || "ROC-AUC") : "ROC-AUC";
-    const taskType = activeRun ? (activeRun.task_type || "binary_classification").replace("_", " ") : "Classification";
+    const datasetName = activeDs ? (activeDs.name || activeDs.id) : "No Dataset Registered";
+    const targetCol = activeDs ? (activeDs.target_column || activeDs.target || "Target") : "None";
+    const metricName = activeRun ? (activeRun.metric || "ROC-AUC") : (activeDs && (activeDs.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC");
+    const taskType = activeDs ? (activeDs.task_type || "binary_classification").replace("_", " ") : "Classification";
 
-    const hasTarget = Boolean(activeRun || recentDs);
+    const hasTarget = Boolean(activeDs || activeRun);
 
     this.container.innerHTML = `
       <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -229,9 +238,22 @@ export class NewExperimentModal {
 
       try {
         const state = store.getState();
-        const activeRun = state.runs.find(r => isRunActive(r)) || state.runs[0] || null;
+        let activeRun = (state.runs || []).find(r => r.dataset_id === state.activeDatasetId) || null;
         if (!activeRun) {
-          alert("No active AutoML run found. Please create a run or register a dataset first.");
+          const freshRuns = await api.getRuns().catch(() => []);
+          store.setState({ runs: freshRuns });
+          activeRun = freshRuns.find(r => r.dataset_id === state.activeDatasetId) || null;
+        }
+        if (!activeRun && state.activeDatasetId) {
+          const createRes = await api.createRun(state.activeDatasetId).catch(() => null);
+          if (createRes && createRes.run_id) {
+            const freshRuns = await api.getRuns().catch(() => []);
+            store.setState({ runs: freshRuns, activeRunId: createRes.run_id });
+            activeRun = freshRuns.find(r => r.id === createRes.run_id) || { id: createRes.run_id, dataset_id: state.activeDatasetId };
+          }
+        }
+        if (!activeRun) {
+          alert("No se encontró ninguna ejecución activa. Por favor selecciona o registra un dataset primero.");
           return;
         }
 
@@ -289,7 +311,7 @@ export class NewExperimentModal {
           mode: this.mode,
           budget: this.budget,
           models: selectedModels,
-          feature_names: customFeatures && customFeatures.length > 0 ? customFeatures : undefined,
+          feature_names: this.customFeatures && this.customFeatures.length > 0 ? this.customFeatures : undefined,
           validation_strategy: this.validationStrategy,
         }, job => {
           const percent = job.total ? Math.round(job.completed * 100 / job.total) : 0;

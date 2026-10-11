@@ -44,6 +44,14 @@ class JobExecutor:
             experiment_id = job.result.get("experiment_id") or job.payload.get("experiment_id")
             if experiment_id is None:
                 args = dict(job.payload)
+                budget = args.pop("budget", None)
+                args.pop("mode", None)
+                if budget:
+                    budget_map = {"quick": 60.0, "balanced": 300.0, "thorough": 1200.0}
+                    time_sec = budget_map.get(budget, 300.0) if isinstance(budget, str) else float(budget)
+                    r = self.workspace._get_run(job.run_id)
+                    r.config.time_budget_seconds = time_sec
+                    self.workspace.repository.save_run(r)
                 if args.get("feature_names") is None:
                     run = self.workspace._get_run(job.run_id)
                     dataset = self.workspace._get_dataset(run.dataset_id)
@@ -56,7 +64,12 @@ class JobExecutor:
                         args["feature_names"] = [c.name for c in profile.columns
                                                  if not c.is_identifier and c.name != dataset.target_column]
                 args.setdefault("name", "Background experiment")
-                experiment = self.commands.dispatch(CreateExperimentCommand(run_id=job.run_id, **args))
+                valid_cmd_keys = {
+                    "name", "feature_names", "feature_set_id", "model_ids",
+                    "hypothesis", "priority", "validation_strategy", "group_column", "allow_leakage"
+                }
+                cmd_args = {k: v for k, v in args.items() if k in valid_cmd_keys}
+                experiment = self.commands.dispatch(CreateExperimentCommand(run_id=job.run_id, **cmd_args))
                 experiment_id = experiment.id
                 self.repository.change(job.id, ACTIVE_STATUSES, result={"experiment_id": experiment_id})
             else:

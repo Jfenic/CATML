@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0-rc1] - 2026-10-11 — CATML Explore & Security Hardening
+
+### Added
+- **CATML Explore (Phases E1–E6):**
+  - **Phase E1 (Investigation Subsystem & MCP API):** Structured dataset profiling, statistical and quality findings, and MCP analysis tools (`analysis_get_findings`, `analysis_get_dataset_quality`, `analysis_get_feature_interactions`, `analysis_list_hypotheses`, `analysis_record_hypothesis`).
+  - **Phase E2 (Interactive Discovery Canvas):** Real-time EDA workbench view with distribution plots, high-cardinality analysis, outlier diagnostics, and interactive bivariate scatter visualizations.
+  - **Phase E3 (Bivariate Analysis & Leakage Correlation):** Mutual information matrices, Spearman/Pearson correlation grids, class-conditional separation, and group leakage flags.
+  - **Phase E4 (Agentic Hypothesis Engine):** Structured hypothesis ledger (`HypothesisCandidate`, `HypothesisVerification`), automated feature engineering and selection experiments with "Propose ≠ Accept" verification.
+  - **Phase E5 (Hypothesis-to-Pipeline Bridge):** Seamless promotion of verified hypotheses into the production pipeline and experiment scheduler.
+  - **Phase E6 (Comprehensive 4-Axis Benchmark Suite):** Automated evaluation across 4 axes: Detection & Discovery Accuracy, Hypothesis Verification Precision, Operational Safety & Privacy Guardrails (PII redaction, path confinement), and End-to-End Performance & Throughput.
+- **Trusted Deployment Guide:** Comprehensive deployment guide and threat model in [`docs/trusted-deployment.md`](docs/trusted-deployment.md) covering Local Loopback, Private LAN, and Cloud VPS/Production tiers.
+
+### Security & Hardened
+- **Remote Network Fail-Closed Enforcement:** Binding Workbench or MCP streamable-http server to non-loopback interfaces without authentication is strictly blocked. Using `--insecure-no-auth` remotely requires the explicit environment variable `CATML_ALLOW_INSECURE=1`, preventing accidental public exposure.
+- **Fragment Token Delivery:** Stopped printing unencrypted URL query parameters (`?token=`). Workbench remote URLs exclusively provide client-side fragment identifiers (`/#token=`), preventing token transmission across HTTP requests and leakage in server logs.
+- **Model Artifact Security Guidance:** Added prominent warnings in `README.md` and `SECURITY.md` against loading untrusted third-party `.pkl` files (deserialization risks), clarifying that SHA-256 checksums ensure file integrity, not cryptographic authenticity.
+- **Agent Surface Privacy Guardrails:** Enforced `compact=True` default in MCP analysis tools, returning zero raw dataset rows to LLM contexts by default.
+
+---
+
 ## [0.8.1] - 2026-10-07 — Trust Patch
 
 ### Fixed & Hardened

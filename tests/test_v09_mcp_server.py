@@ -456,3 +456,28 @@ def test_mcp_cli_transport_args():
             streamable_http_path="/api/mcp",
         )
 
+
+def test_mcp_cli_transport_args_with_auth():
+    """Verify run_mcp_cli passes token and insecure_no_auth when provided."""
+    with patch("automl.interfaces.mcp.server.HAS_MCP", True), patch("automl.interfaces.mcp.server.run_mcp_service") as mock_service:
+        args = argparse.Namespace(
+            workspace="/tmp/test_ws",
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=9000,
+            path="/api/mcp",
+            token="secret_token",
+            insecure_no_auth=True,
+        )
+        ret = run_mcp_cli(args)
+        assert ret == 0
+        mock_service.assert_called_once_with(
+            root_dir="/tmp/test_ws",
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=9000,
+            streamable_http_path="/api/mcp",
+            auth_token="secret_token",
+            insecure_no_auth=True,
+        )
+

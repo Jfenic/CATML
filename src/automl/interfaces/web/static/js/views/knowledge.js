@@ -48,35 +48,19 @@ export class KnowledgeView {
   }
 
   render() {
-    const k = this.knowledge || {
-      current_fingerprint: {
-        dataset_name: this.activeRun ? this.activeRun.dataset_name : "Active Dataset",
-        rows: 0,
-        features: 0,
-        categorical_ratio: 0.5,
-        numerical_ratio: 0.5,
-        missing_ratio: 0.0,
-        target_entropy: 0.693,
-      },
-      similar_datasets: [
-        { name: "Standard Tabular Benchmark", similarity: 0.85, reasons: ["Tabular modality", "Dense feature matrix"] },
-      ],
-      historical_rankings: [
-        { model: "CatBoost", experiments: 12, mean_rank: 1.6 },
-        { model: "LightGBM", experiments: 18, mean_rank: 2.1 },
-        { model: "XGBoost", experiments: 14, mean_rank: 2.7 },
-      ],
-      warm_start: {
-        recommended_model: "LightGBM",
-        params: { depth: 6, learning_rate: 0.05 },
-        expected_search_reduction: "~35%",
-      },
+    const k = this.knowledge || {};
+    const fp = k.current_fingerprint || {
+      dataset_name: this.activeRun ? this.activeRun.dataset_name : "Active Dataset",
+      rows: null,
+      features: null,
+      categorical_ratio: null,
+      numerical_ratio: null,
+      missing_ratio: null,
+      target_entropy: null,
     };
-
-    const fp = k.current_fingerprint || {};
     const similar = k.similar_datasets || [];
     const rankings = k.historical_rankings || [];
-    const warmStart = k.warm_start || {};
+    const warmStart = k.warm_start || null;
 
     this.container.innerHTML = `
       <div class="space-y-6">
@@ -142,7 +126,7 @@ export class KnowledgeView {
             <div class="workbench-card p-5 space-y-3">
               <span class="text-xs uppercase font-bold text-slate-300 tracking-wider">Similar Datasets in Memory</span>
               <div class="space-y-2 pt-1 text-xs">
-                ${similar.map(ds => `
+                ${similar.length > 0 ? similar.map(ds => `
                   <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer flex items-center justify-between">
                     <div>
                       <div class="font-bold text-slate-200">${ds.name}</div>
@@ -150,7 +134,11 @@ export class KnowledgeView {
                     </div>
                     <span class="badge-gain text-xs px-2.5 py-1 rounded font-mono font-bold">${Math.round(ds.similarity * 100)}% similar</span>
                   </div>
-                `).join("")}
+                `).join("") : `
+                  <div class="p-4 rounded-xl bg-[#090C12] border border-[#252C38] text-center text-[#8B95A7]">
+                    Sin datasets similares registrados en el almacén de meta-aprendizaje.
+                  </div>
+                `}
               </div>
             </div>
           </div>
@@ -170,49 +158,67 @@ export class KnowledgeView {
                     </tr>
                   </thead>
                   <tbody>
-                    ${rankings.map(r => `
+                    ${rankings.length > 0 ? rankings.map(r => `
                       <tr>
                         <td class="font-bold text-slate-200">${r.model}</td>
                         <td class="font-mono text-slate-400">${r.experiments} experiments</td>
                         <td class="font-mono font-bold text-emerald-400">${r.mean_rank}</td>
                       </tr>
-                    `).join("")}
+                    `).join("") : `
+                      <tr>
+                        <td colspan="3" class="text-center text-slate-500 py-6 text-xs">
+                          Sin evaluaciones empíricas previas para esta distribución.
+                        </td>
+                      </tr>
+                    `}
                   </tbody>
                 </table>
               </div>
             </div>
 
             <!-- Recommended Warm Start Box -->
-            <div class="workbench-card p-5 space-y-4 border-indigo-700/60 bg-indigo-950/20">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-xs uppercase font-bold text-indigo-300 tracking-wider">Recommended Warm Start for HPO</div>
-                  <div class="text-base font-bold text-slate-100 mt-0.5">${warmStart.recommended_model || "LightGBM"} Prior</div>
+            ${warmStart ? `
+              <div class="workbench-card p-5 space-y-4 border-indigo-700/60 bg-indigo-950/20">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs uppercase font-bold text-indigo-300 tracking-wider">Recommended Warm Start for HPO</div>
+                    <div class="text-base font-bold text-slate-100 mt-0.5">${warmStart.recommended_model || "LightGBM"} Prior</div>
+                  </div>
+                  <span class="badge-gain text-xs px-3 py-1 rounded font-mono font-bold">${warmStart.expected_search_reduction || "~35%"} Search Reduction</span>
                 </div>
-                <span class="badge-gain text-xs px-3 py-1 rounded font-mono font-bold">${warmStart.expected_search_reduction || "~35%"} Search Reduction</span>
-              </div>
 
-              <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs space-y-1 text-slate-300">
-                ${warmStart.params ? Object.entries(warmStart.params).map(([k, v]) => `
-                  <div>${k}: <span class="text-indigo-400 font-bold">${v}</span></div>
-                `).join("") : `
-                  <div>learning_rate: <span class="text-indigo-400 font-bold">0.05</span></div>
-                `}
-              </div>
+                <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs space-y-1 text-slate-300">
+                  ${warmStart.params ? Object.entries(warmStart.params).map(([k, v]) => `
+                    <div>${k}: <span class="text-indigo-400 font-bold">${v}</span></div>
+                  `).join("") : `
+                    <div>learning_rate: <span class="text-indigo-400 font-bold">0.05</span></div>
+                  `}
+                </div>
 
-              <div class="flex justify-end">
-                <button id="btnUseWarmStart" class="btn-signal">
-                  <span class="inline-flex items-center gap-1.5">${icon("zap", "icon-sm")} <span>Use Warm Start in Next HPO</span></span>
-                </button>
+                <div class="flex justify-end">
+                  <button id="btnUseWarmStart" class="btn-signal">
+                    <span class="inline-flex items-center gap-1.5">${icon("zap", "icon-sm")} <span>Use Warm Start in Next HPO</span></span>
+                  </button>
+                </div>
               </div>
-            </div>
+            ` : `
+              <div class="workbench-card p-5 space-y-3 border-[#242A36] bg-[#090C12]">
+                <div class="text-xs uppercase font-bold text-[#8B95A7] tracking-wider font-sans">Priors de Warm Start</div>
+                <p class="text-xs text-[#8B95A7] font-sans">No hay priors de warm-start disponibles todavía para este dataset. A medida que ejecute optimizaciones bayesianas en diferentes datasets, el motor meta-heurístico aprenderá priors de inicialización.</p>
+              </div>
+            `}
           </div>
         </div>
       </div>
     `;
 
     this.container.querySelector("#btnUseWarmStart")?.addEventListener("click", () => {
-      alert(`Warm start parameters loaded for ${warmStart.recommended_model || "LightGBM"}! Subsequent HPO runs will initialize with this prior.`);
+      if (warmStart && warmStart.params) {
+        store.setState({ warmStartParams: warmStart.params });
+        alert(`Priors de warm start cargados con éxito (${warmStart.recommended_model || "modelo"}). Los próximos experimentos de HPO se inicializarán con esta configuración.`);
+      } else {
+        alert("No hay priors de warm-start disponibles para aplicar.");
+      }
     });
   }
 

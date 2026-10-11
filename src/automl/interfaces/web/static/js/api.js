@@ -68,6 +68,28 @@ export class CATMLApiClient {
     }
   }
 
+  async downloadFile(endpoint, filename = "download.csv") {
+    const url = `${this.baseUrl}${endpoint}`;
+    const token = this._getAuthToken();
+    const headers = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  }
+
   // GET queries
   async getOverview() {
     return this._fetch("/api/overview");
@@ -130,11 +152,40 @@ export class CATMLApiClient {
     return url;
   }
 
+  async browseFiles(dir = "", search = "") {
+    let q = [];
+    if (dir) q.push(`dir=${encodeURIComponent(dir)}`);
+    if (search) q.push(`search=${encodeURIComponent(search)}`);
+    const qs = q.length ? `?${q.join("&")}` : "";
+    return this._fetch(`/api/files/browse${qs}`);
+  }
+
+  async inspectFile(path) {
+    return this._fetch("/api/dataset/inspect-file", {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    });
+  }
+
+  async uploadDataset(filename, contentBase64) {
+    return this._fetch("/api/dataset/upload", {
+      method: "POST",
+      body: JSON.stringify({ filename, content_base64: contentBase64 }),
+    });
+  }
+
   // POST commands
   async registerDataset(payload) {
     return this._fetch("/api/dataset/register", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  }
+
+  async createRun(datasetId) {
+    return this._fetch("/api/run/create", {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId }),
     });
   }
 
@@ -188,10 +239,15 @@ export class CATMLApiClient {
   }
 
   async createAndRunExperiment(payload, onProgress) {
-    return this._runJob("experiment", payload.run_id, {
+    const jobPayload = {
       name: payload.name || "Workbench experiment",
       model_ids: payload.models || ["lightgbm"],
-    }, onProgress);
+    };
+    if (payload.feature_names) jobPayload.feature_names = payload.feature_names;
+    if (payload.validation_strategy) jobPayload.validation_strategy = payload.validation_strategy;
+    if (payload.budget) jobPayload.budget = payload.budget;
+    if (payload.mode) jobPayload.mode = payload.mode;
+    return this._runJob("experiment", payload.run_id, jobPayload, onProgress);
   }
 
   async optimizeExperiment(payload) {
@@ -293,6 +349,63 @@ export class CATMLApiClient {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  }
+
+  // CATML Explore API methods (Phase E1)
+  async getAnalysisStudies(datasetId = null) {
+    let url = "/api/analysis/studies";
+    if (datasetId) url += `?dataset_id=${encodeURIComponent(datasetId)}`;
+    return this._fetch(url);
+  }
+
+  async getAnalysisStudy(studyId) {
+    return this._fetch(`/api/analysis/study?id=${encodeURIComponent(studyId)}`);
+  }
+
+  async createAnalysisStudy(payload) {
+    return this._fetch("/api/analysis/studies/create", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async runAnalysisStudy(studyId) {
+    return this._fetch("/api/analysis/studies/run", {
+      method: "POST",
+      body: JSON.stringify({ study_id: studyId }),
+    });
+  }
+
+  async getAnalysisFindings(studyId, type = null) {
+    let url = `/api/analysis/findings?study_id=${encodeURIComponent(studyId)}`;
+    if (type) url += `&type=${encodeURIComponent(type)}`;
+    return this._fetch(url);
+  }
+
+  async getAnalysisVisualizations(studyId) {
+    return this._fetch(`/api/analysis/visualizations?study_id=${encodeURIComponent(studyId)}`);
+  }
+
+  async getAnalysisHypotheses(studyId) {
+    return this._fetch(`/api/analysis/hypotheses?study_id=${encodeURIComponent(studyId)}`);
+  }
+
+  async verifyHypothesis(hypothesisId, runId = null, minImprovement = 0.0) {
+    return this._fetch("/api/analysis/hypotheses/verify", {
+      method: "POST",
+      body: JSON.stringify({
+        hypothesis_id: hypothesisId,
+        run_id: runId,
+        min_improvement: minImprovement,
+      }),
+    });
+  }
+
+  async getAnalysisEvidence(studyId = null, hypothesisId = null) {
+    let url = "/api/analysis/evidence?";
+    if (studyId) url += `study_id=${encodeURIComponent(studyId)}&`;
+    if (hypothesisId) url += `hypothesis_id=${encodeURIComponent(hypothesisId)}&`;
+    return this._fetch(url.replace(/[?&]$/, ""));
   }
 }
 

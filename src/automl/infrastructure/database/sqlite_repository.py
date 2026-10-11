@@ -25,8 +25,9 @@ from automl.domain.runs.states import RunPhase, RunStatus
 
 
 class SQLiteExperimentRepository:
-    def __init__(self, db_path: str | Path) -> None:
+    def __init__(self, db_path: str | Path, plugin_registry: Any = None) -> None:
         self.db_path = Path(db_path)
+        self.plugin_registry = plugin_registry
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
@@ -651,7 +652,11 @@ class SQLiteExperimentRepository:
                 try:
                     cfg = json.loads(run_row["config_json"])
                     metric_name = str(cfg.get("metric", "")).lower()
-                    if metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}:
+                    if self.plugin_registry and hasattr(self.plugin_registry, "has") and self.plugin_registry.has(metric_name):
+                        plugin = self.plugin_registry.get_metric_plugin(metric_name)
+                        if plugin is not None and hasattr(plugin, "greater_is_better"):
+                            is_minimize = not plugin.greater_is_better
+                    if not is_minimize and metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}:
                         is_minimize = True
                 except Exception:
                     pass

@@ -79,17 +79,24 @@ export class KaggleView {
           ? run.dataset_path.replace("train.csv", "sample_submission.csv")
           : "data/sample_submission.csv");
 
-    const rowCountLabel = this.uploadedTemplateInfo
-      ? `${this.uploadedTemplateInfo.row_count.toLocaleString()} rows`
-      : (st.checklist && st.checklist.row_count ? `${st.checklist.row_count.toLocaleString()} rows` : "MATCH");
+    const hasTemplate = Boolean(this.uploadedTemplateInfo);
+    const rowCountLabel = hasTemplate
+      ? `<span class="text-[#22C55E] font-bold">${this.uploadedTemplateInfo.row_count.toLocaleString()} rows</span>`
+      : (st.checklist && st.checklist.row_count ? `<span class="text-[#22C55E] font-bold">${st.checklist.row_count.toLocaleString()} rows</span>` : `<span class="text-[#8B95A7]">Pendiente de plantilla</span>`);
 
-    const idColLabel = this.uploadedTemplateInfo
-      ? `PASS (${this.uploadedTemplateInfo.id_column})`
-      : "PASS";
+    const idColLabel = hasTemplate
+      ? `<span class="text-[#22C55E] font-bold">PASS (${this.uploadedTemplateInfo.id_column})</span>`
+      : `<span class="text-[#8B95A7]">Pendiente de plantilla</span>`;
 
-    const schemaLabel = this.uploadedTemplateInfo
-      ? `VERIFIED (${this.uploadedTemplateInfo.target_column})`
-      : "ALIGNED";
+    const schemaLabel = hasTemplate
+      ? `<span class="text-[#4F67FF] font-bold">VERIFIED (${this.uploadedTemplateInfo.target_column})</span>`
+      : `<span class="text-[#8B95A7]">Pendiente de verificación</span>`;
+
+    const boundedLabel = this.generatedSubmission
+      ? `<span class="text-[#22C55E] font-bold">BOUNDED</span>`
+      : `<span class="text-[#8B95A7]">Pendiente de inferencias</span>`;
+
+    const checkIcon = (active) => active ? icon("check", "icon-sm text-[#22C55E]") : icon("circle", "icon-sm text-[#8B95A7]");
 
     this.container.innerHTML = `
       <div class="space-y-6">
@@ -163,7 +170,7 @@ export class KaggleView {
             <div class="space-y-4">
               <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
                 <span class="text-xs uppercase font-bold text-[#F7F8FA] tracking-wider font-sans">Submission Pre-Flight Validation</span>
-                <span class="badge-gain text-xs px-2.5 py-0.5 rounded font-mono font-bold">Checks Ready</span>
+                <span class="${hasTemplate ? 'badge-gain' : 'badge-sys'} text-xs px-2.5 py-0.5 rounded font-mono font-bold">${hasTemplate ? 'Checks Verified' : 'Awaiting Template'}</span>
               </div>
 
               <!-- Template Dropzone -->
@@ -192,23 +199,23 @@ export class KaggleView {
               <!-- Checklist Items -->
               <div class="space-y-2 text-xs font-mono">
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>ID Column preserved</span></span>
-                  <span class="text-[#22C55E] font-bold">${idColLabel}</span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate)} <span>ID Column preserved</span></span>
+                  ${idColLabel}
                 </div>
 
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Row count alignment</span></span>
-                  <span class="text-[#22C55E] font-bold">${rowCountLabel}</span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate || (st.checklist && st.checklist.row_count))} <span>Row count alignment</span></span>
+                  ${rowCountLabel}
                 </div>
 
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Prediction range bounded</span></span>
-                  <span class="text-[#22C55E] font-bold">BOUNDED</span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(Boolean(this.generatedSubmission))} <span>Prediction range bounded</span></span>
+                  ${boundedLabel}
                 </div>
 
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${icon("check", "icon-sm text-[#22C55E]")} <span>Schema Alignment</span></span>
-                  <span class="text-[#4F67FF] font-bold">${schemaLabel}</span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate)} <span>Schema Alignment</span></span>
+                  ${schemaLabel}
                 </div>
               </div>
 
@@ -243,10 +250,10 @@ export class KaggleView {
               </button>
 
               ${this.generatedSubmission ? `
-                <a id="btnDownloadSubmission" href="/api/kaggle/download?file=${encodeURIComponent(this.generatedSubmission.output_path)}" download="${this.generatedSubmission.filename || 'submission.csv'}" class="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-[#22C55E]/20">
+                <button id="btnDownloadSubmission" class="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-[#22C55E]/20">
                   ${icon("download", "icon-sm")}
                   <span>Download ${this.generatedSubmission.filename || 'submission.csv'}</span>
-                </a>
+                </button>
               ` : ""}
 
               <button id="btnSubmitKaggleCLI" class="w-full bg-[#1F2633] hover:bg-[#283244] border border-[#2F384A] text-[#F7F8FA] text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
@@ -346,6 +353,19 @@ export class KaggleView {
         alert("Error generating submission: " + err.message);
         btn.disabled = false;
         btn.innerHTML = originalText;
+      }
+    });
+
+    this.container.querySelector("#btnDownloadSubmission")?.addEventListener("click", async () => {
+      if (this.generatedSubmission) {
+        try {
+          await api.downloadFile(
+            `/api/kaggle/download?file=${encodeURIComponent(this.generatedSubmission.output_path)}`,
+            this.generatedSubmission.filename || "submission.csv"
+          );
+        } catch (e) {
+          alert("Error downloading submission: " + e.message);
+        }
       }
     });
 

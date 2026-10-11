@@ -17,6 +17,10 @@ import { KnowledgeView } from "./views/knowledge.js";
 import { KaggleView } from "./views/kaggle.js";
 import { AgentDrawer } from "./views/agent.js";
 import { NewExperimentModal } from "./views/new_experiment.js";
+import { HomeView } from "./views/home.js";
+import { SwitchDatasetModal } from "./views/switch_dataset_modal.js";
+import { RegisterDatasetModal } from "./views/register_dataset_modal.js";
+import { ExploreView } from "./views/explore.js";
 
 class App {
   constructor() {
@@ -27,6 +31,8 @@ class App {
 
     this.agentDrawer = new AgentDrawer();
     this.newExperimentModal = new NewExperimentModal();
+    this.switchDatasetModal = new SwitchDatasetModal();
+    this.registerDatasetModal = new RegisterDatasetModal();
   }
 
   async init() {
@@ -47,24 +53,61 @@ class App {
       if (state.agentDrawerOpen !== prevState.agentDrawerOpen) {
         this._updateAgentDrawer(state.agentDrawerOpen);
       }
+      if (state.activeDatasetId !== prevState.activeDatasetId || state.activeDataset !== prevState.activeDataset) {
+        this._updateSidebarActiveDataset(state.activeDataset);
+      }
     });
 
     // Initial render
     this._routeTo(store.getState().currentNav);
   }
 
+  _updateSidebarActiveDataset(activeDataset) {
+    const nameEl = document.getElementById("sidebarActiveDatasetName");
+    const badgeEl = document.getElementById("sidebarDatasetBadge");
+    if (nameEl) {
+      if (activeDataset) {
+        nameEl.textContent = activeDataset.name || activeDataset.id;
+        nameEl.title = `${activeDataset.name} (${activeDataset.id})`;
+        if (badgeEl) badgeEl.className = "w-1.5 h-1.5 rounded-full bg-[#22C55E]";
+      } else {
+        nameEl.textContent = "Sin dataset seleccionado";
+        nameEl.title = "Ninguno";
+        if (badgeEl) badgeEl.className = "w-1.5 h-1.5 rounded-full bg-[#8B95A7]";
+      }
+    }
+  }
+
   async _fetchInitialState() {
     try {
-      const [overview, runs] = await Promise.all([
+      const [overview, runs, datasets] = await Promise.all([
         api.getOverview().catch(() => null),
         api.getRuns().catch(() => []),
+        api.getDatasets().catch(() => []),
       ]);
+
+      let activeDatasetId = store.getState().activeDatasetId;
+      if (!activeDatasetId || !datasets.some(d => d.id === activeDatasetId)) {
+        if (datasets.length > 0) {
+          activeDatasetId = datasets[0].id;
+        } else if (runs.length > 0 && runs[0].dataset_id) {
+          activeDatasetId = runs[0].dataset_id;
+        }
+      }
+
+      const activeDataset = datasets.find(d => d.id === activeDatasetId) || null;
+      const matchingRun = runs.find(r => r.dataset_id === activeDatasetId);
 
       store.setState({
         overview,
         runs,
-        activeRunId: runs.length ? runs[0].id : null,
+        datasets,
+        activeDatasetId,
+        activeDataset,
+        activeRunId: matchingRun ? matchingRun.id : (runs.length ? runs[0].id : null),
       });
+
+      this._updateSidebarActiveDataset(activeDataset);
 
       if (overview && overview.workspace) {
         const wsEl = document.getElementById("workspaceLabel");
@@ -105,7 +148,9 @@ class App {
         }
       }
 
-      const isAnyRunning = Boolean(overview && overview.is_active) || (runs || []).some(r => isRunActive(r));
+      const isAnyRunning = (this.jobsPanel?.jobs || []).some(j => j.status === "running")
+        || (runs || []).some(r => isRunActive(r))
+        || Boolean(overview && overview.is_active);
       const statusBadge = document.getElementById("globalStatusBadge");
       const sysHw = document.getElementById("sysHardwareHeader");
       if (sysHw) {
@@ -115,9 +160,9 @@ class App {
       if (statusBadge) {
         if (isAnyRunning) {
           statusBadge.className = "badge-warn px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
-          statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>TRAINING</span>`;
+          statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>ENTRENANDO</span>`;
         } else {
-          const lastStatus = runs && runs[0] ? runs[0].status : "READY";
+          const lastStatus = runs && runs[0] && runs[0].status ? runs[0].status : "READY";
           statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
           statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>${lastStatus}</span>`;
         }
@@ -128,16 +173,36 @@ class App {
   }
 
   _bindNavigation() {
+    const sidebar = document.getElementById("sidebarNav");
+    const toggleMobileBtn = document.getElementById("btnToggleMobileSidebar");
+
+    if (toggleMobileBtn && sidebar) {
+      toggleMobileBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("hidden");
+        sidebar.classList.toggle("absolute");
+        sidebar.classList.toggle("z-30");
+        sidebar.classList.toggle("h-[calc(100vh-53px)]");
+      });
+    }
+
     document.querySelectorAll(".nav-item").forEach(item => {
       item.addEventListener("click", e => {
         e.preventDefault();
         const navId = item.getAttribute("data-nav");
+        if (sidebar && sidebar.classList.contains("absolute")) {
+          sidebar.classList.add("hidden");
+          sidebar.classList.remove("absolute", "z-30", "h-[calc(100vh-53px)]");
+        }
         if (navId === "agent") {
           store.toggleAgentDrawer(true);
         } else {
           store.setNav(navId);
         }
       });
+    });
+
+    document.getElementById("btnSidebarSwitchDataset")?.addEventListener("click", () => {
+      this.switchDatasetModal.mount(this.modalContainer);
     });
 
     document.getElementById("btnToggleAgent")?.addEventListener("click", () => {
@@ -155,9 +220,23 @@ class App {
       this.newExperimentModal.mount(this.modalContainer);
     });
 
+    bus.on("modal:switch-dataset", () => {
+      this.switchDatasetModal.mount(this.modalContainer);
+    });
+
+    bus.on("modal:register-dataset", () => {
+      this.registerDatasetModal.mount(this.modalContainer);
+    });
+
+    bus.on("dataset:switched", (datasetId) => {
+      const activeDataset = (store.getState().datasets || []).find(d => d.id === datasetId);
+      this._updateSidebarActiveDataset(activeDataset);
+      this._routeTo(store.getState().currentNav);
+    });
+
     bus.on("run:select", runId => {
       store.setState({ activeRunId: runId });
-      store.setNav("studio");
+      store.setNav("experiments");
     });
   }
 
@@ -175,7 +254,7 @@ class App {
     // Update active class on sidebar items
     document.querySelectorAll(".nav-item").forEach(item => {
       const id = item.getAttribute("data-nav");
-      if (id === navId) {
+      if (id === navId || (navId === "home" && id === "home") || (navId === "dataset" && id === "dataset") || (navId === "experiments" && id === "experiments") || (navId === "evidence" && id === "evidence")) {
         item.classList.add("active");
       } else if (id !== "agent") {
         item.classList.remove("active");
@@ -187,15 +266,23 @@ class App {
     }
 
     switch (navId) {
-      case "overview":
-        this.currentViewInstance = new OverviewView();
+      case "home":
+        this.currentViewInstance = new HomeView();
         break;
+      case "dataset":
       case "datasets":
         this.currentViewInstance = new DatasetsView();
         break;
-      case "studio":
+      case "explore":
+        this.currentViewInstance = new ExploreView();
+        break;
       case "experiments":
+      case "studio":
         this.currentViewInstance = new StudioView();
+        break;
+      case "evidence":
+      case "overview":
+        this.currentViewInstance = new OverviewView();
         break;
       case "compare":
         this.currentViewInstance = new CompareView();
@@ -210,7 +297,7 @@ class App {
         this.currentViewInstance = new KaggleView();
         break;
       default:
-        this.currentViewInstance = new OverviewView();
+        this.currentViewInstance = new HomeView();
         break;
     }
 
@@ -221,7 +308,13 @@ class App {
   }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+function boot() {
   const app = new App();
   app.init();
-});
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}
