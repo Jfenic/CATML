@@ -40,6 +40,7 @@ class Experiment:
     group_column: str | None = None
     column_transforms: list[dict[str, Any]] = field(default_factory=list)
     derived_features: list[dict[str, Any]] = field(default_factory=list)
+    recipe_id: str | None = None
 
 
 @dataclass

@@ -469,6 +469,7 @@ class AutoMLWorkspace:
         allow_leakage: bool = False,
         column_transforms: list[dict[str, Any]] | None = None,
         derived_features: list[dict[str, Any]] | None = None,
+        recipe_id: str | None = None,
     ) -> Experiment:
         dataset = self._get_dataset(run.dataset_id)
         priority_value = ExperimentPriority.parse(priority).value
@@ -551,6 +552,7 @@ class AutoMLWorkspace:
             group_column=resolved_group_col,
             column_transforms=list(column_transforms or []),
             derived_features=list(derived_features or []),
+            recipe_id=recipe_id,
         )
         self.repository.save_experiment(experiment)
         self._emit(

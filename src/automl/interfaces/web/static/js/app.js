@@ -224,8 +224,8 @@ class App {
   }
 
   _bindGlobalEvents() {
-    bus.on("modal:new-experiment", () => {
-      this.newExperimentModal.mount(this.modalContainer);
+    bus.on("modal:new-experiment", (opts) => {
+      this.newExperimentModal.mount(this.modalContainer, opts);
     });
 
     bus.on("modal:switch-dataset", () => {

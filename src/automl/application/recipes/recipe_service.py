@@ -202,6 +202,7 @@ class RecipeService:
                 hypothesis=f"Recipe {recipe.id}: {recipe.name}",
                 column_transforms=recipe.column_transforms,
                 derived_features=recipe.derived_features,
+                recipe_id=recipe.id,
             )
             self.workspace.run_experiment(run, experiment)
             recipe.submit(experiment.id)

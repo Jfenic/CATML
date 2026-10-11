@@ -683,6 +683,19 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             if not run_id:
                 self._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
                 return
+            recipe_map = {}
+            recipe_name_map = {}
+            try:
+                run_obj = ws.get_run(run_id)
+                if run_obj:
+                    rcps = qry.dispatch(ListExperimentRecipesQuery(dataset_id=run_obj.dataset_id))
+                    for r in rcps:
+                        for exp_id in (r.experiment_ids or []):
+                            recipe_map[exp_id] = r.id
+                            recipe_name_map[exp_id] = r.name
+            except Exception:
+                pass
+
             exps = ws.list_experiments(run_id)
             result = []
             for e in exps:
@@ -690,6 +703,16 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 parameters = {t["trial_id"]: t["parameters"]
                               for t in qry.dispatch(GetExperimentTrialsQuery(e.id))}
                 best_trial = max(trials, key=lambda t: t.primary_score) if trials else None
+                rec_id = getattr(e, "recipe_id", None) or recipe_map.get(e.id)
+                rec_name = recipe_name_map.get(e.id)
+                if not rec_name and rec_id:
+                    try:
+                        rcp_obj = qry.dispatch(GetExperimentRecipeQuery(recipe_id=rec_id))
+                        if rcp_obj:
+                            rec_name = rcp_obj.name
+                    except Exception:
+                        pass
+
                 result.append({
                     "id": e.id,
                     "name": e.name,
@@ -699,6 +722,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "model_ids": e.model_ids,
                     "features_count": len(e.feature_names),
                     "feature_names": e.feature_names,
+                    "column_transforms": getattr(e, "column_transforms", []) or [],
+                    "derived_features": getattr(e, "derived_features", []) or [],
+                    "recipe_id": rec_id,
+                    "recipe_name": rec_name,
                     "trials_count": len(trials),
                     "best_score": best_trial.primary_score if best_trial else None,
                     "metric": e.metric,
@@ -1703,6 +1730,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 models = payload.get("models") or ["lightgbm"]
                 budget = payload.get("budget", "balanced")
                 name = payload.get("name", f"exp_{mode}_{models[0]}")
+                recipe_id = payload.get("recipe_id")
 
                 if not run_id:
                     self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
@@ -1711,6 +1739,29 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
                 profile = ws.get_dataset_profile(dataset.id)
+
+                # Time budget enforcement
+                raw_time_budget = payload.get("time_budget_seconds")
+                if not raw_time_budget:
+                    budget_map = {"quick": 10.0, "balanced": 60.0, "thorough": 300.0}
+                    time_budget_seconds = budget_map.get(budget, 60.0)
+                else:
+                    time_budget_seconds = float(raw_time_budget)
+
+                run.config.time_budget_seconds = time_budget_seconds
+                ws.save_run(run)
+
+                column_transforms = payload.get("column_transforms")
+                derived_features = payload.get("derived_features")
+                if recipe_id and (not column_transforms or not derived_features):
+                    try:
+                        rcp = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                        if rcp:
+                            column_transforms = column_transforms or rcp.column_transforms
+                            derived_features = derived_features or rcp.derived_features
+                    except Exception:
+                        pass
+
                 feature_names = payload.get("feature_names") or [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
@@ -1723,10 +1774,24 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         name=name,
                         feature_names=feature_names,
                         model_ids=models,
-                        hypothesis=f"AutoML Workbench {mode.upper()} mode with {budget} compute budget.",
+                        hypothesis=f"AutoML Workbench {mode.upper()} mode with {budget} ({time_budget_seconds}s) compute budget.",
                         validation_strategy=val_strategy,
+                        column_transforms=column_transforms,
+                        derived_features=derived_features,
+                        recipe_id=recipe_id,
+                        time_budget_seconds=time_budget_seconds,
                     )
                 )
+
+                if recipe_id:
+                    try:
+                        rcp_repo = ws.get_recipe_repository()
+                        rcp_to_update = rcp_repo.get(recipe_id) if rcp_repo else None
+                        if rcp_to_update:
+                            rcp_to_update.submit(exp.id)
+                            rcp_repo.save(rcp_to_update)
+                    except Exception:
+                        pass
 
                 results = cmd.dispatch(RunExperimentCommand(run.id, exp.id))
                 res = results[0] if results else None

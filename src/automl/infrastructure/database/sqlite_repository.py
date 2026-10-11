@@ -93,7 +93,8 @@ class SQLiteExperimentRepository:
                     priority TEXT,
                     group_column TEXT,
                     column_transforms_json TEXT,
-                    derived_features_json TEXT
+                    derived_features_json TEXT,
+                    recipe_id TEXT
                 );
                 CREATE TABLE IF NOT EXISTS trials (
                     id TEXT PRIMARY KEY,
@@ -234,6 +235,8 @@ class SQLiteExperimentRepository:
             conn.execute("ALTER TABLE experiments ADD COLUMN column_transforms_json TEXT")
         if "derived_features_json" not in experiment_cols:
             conn.execute("ALTER TABLE experiments ADD COLUMN derived_features_json TEXT")
+        if "recipe_id" not in experiment_cols:
+            conn.execute("ALTER TABLE experiments ADD COLUMN recipe_id TEXT")
 
         feature_cols = {row[1] for row in conn.execute("PRAGMA table_info(features)").fetchall()}
         if "semantic_type" not in feature_cols:
@@ -551,8 +554,8 @@ class SQLiteExperimentRepository:
                 INSERT OR REPLACE INTO experiments
                 (id, run_id, name, hypothesis, feature_set_id, feature_names_json, model_ids_json,
                  metric, validation_strategy, status, created_by, priority, group_column,
-                 column_transforms_json, derived_features_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 column_transforms_json, derived_features_json, recipe_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     experiment.id,
@@ -570,6 +573,7 @@ class SQLiteExperimentRepository:
                     experiment.group_column,
                     json.dumps(getattr(experiment, "column_transforms", []) or []),
                     json.dumps(getattr(experiment, "derived_features", []) or []),
+                    getattr(experiment, "recipe_id", None),
                 ),
             )
 
@@ -987,6 +991,13 @@ def _row_to_experiment(row: sqlite3.Row) -> Experiment:
     except (IndexError, KeyError, TypeError):
         pass
 
+    recipe_id = None
+    try:
+        if "recipe_id" in row.keys():
+            recipe_id = row["recipe_id"]
+    except (IndexError, KeyError, TypeError):
+        pass
+
     return Experiment(
         id=row["id"],
         run_id=row["run_id"],
@@ -1003,6 +1014,7 @@ def _row_to_experiment(row: sqlite3.Row) -> Experiment:
         group_column=group_column,
         column_transforms=column_transforms,
         derived_features=derived_features,
+        recipe_id=recipe_id,
     )
 
 

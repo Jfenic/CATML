@@ -6,7 +6,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
-import { isRunActive } from "../utils.js";
+import { isRunActive, escapeHtml } from "../utils.js";
 
 export class StudioView {
   constructor() {
@@ -479,18 +479,48 @@ export class StudioView {
                   <th>Validation Metric</th>
                   <th>Score</th>
                   <th>Duration</th>
+                  <th>Pipeline de Datos / Receta</th>
                   <th>Status</th>
                   <th class="text-right">Inspect</th>
                 </tr>
               </thead>
               <tbody>
-                ${filteredLeaderboard.length > 0 ? filteredLeaderboard.map((row, idx) => `
+                ${filteredLeaderboard.length > 0 ? filteredLeaderboard.map((row, idx) => {
+                  const exp = this.experiments.find(e => e.id === row.experiment_id);
+                  const recipeId = exp?.recipe_id;
+                  const recipeName = exp?.recipe_name || (recipeId ? this.recipes.find(r => r.id === recipeId)?.name : null);
+                  const transformsCount = (exp?.column_transforms?.length || 0) + (exp?.derived_features?.length || 0);
+
+                  let recipeBadgeHtml = '';
+                  if (recipeId) {
+                    recipeBadgeHtml = `
+                      <span class="badge-intel text-[10px] px-2 py-0.5 rounded font-mono inline-flex items-center gap-1" title="Receta reproducible: ${escapeHtml(recipeName || recipeId)} (${transformsCount} transforms in-fold)">
+                        <span class="text-[#53C8FF]">●</span>
+                        <span class="font-medium">${escapeHtml(recipeName || recipeId)}</span>
+                        ${transformsCount > 0 ? `<span class="opacity-75 text-[9px]">(+${transformsCount})</span>` : ''}
+                      </span>
+                    `;
+                  } else if (transformsCount > 0) {
+                    recipeBadgeHtml = `
+                      <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono inline-flex items-center gap-1" title="${transformsCount} transformaciones in-fold aplicadas sin receta formal">
+                        <span class="text-[#6956E8]">●</span>
+                        <span>Explore (+${transformsCount})</span>
+                      </span>
+                    `;
+                  } else {
+                    recipeBadgeHtml = `
+                      <span class="text-[#8B95A7] font-mono text-[10px]" title="Entrenamiento estándar sin receta previa">Sin receta de Explore</span>
+                    `;
+                  }
+
+                  return `
                   <tr>
                     <td class="font-mono font-bold ${idx === 0 ? 'text-amber-400' : 'text-slate-400'}">#${idx + 1}</td>
                     <td class="font-medium text-slate-200 capitalize font-mono">${row.model_id}</td>
                     <td class="font-mono text-xs">${activeRun ? activeRun.metric : "CV"}</td>
                     <td class="font-mono font-bold ${idx === 0 ? 'text-emerald-400' : 'text-slate-200'}">${Number(row.score).toFixed(5)}</td>
-                    <td class="font-mono text-xs text-slate-400">${row.training_time_seconds ? Number(row.training_time_seconds).toFixed(2) + 's' : '—'}</td>
+                    <td class="font-mono text-xs text-slate-400">${row.training_time_seconds ? Number(row.training_time_seconds).toFixed(2) + 's' : (row.training_time_s ? Number(row.training_time_s).toFixed(2) + 's' : '—')}</td>
+                    <td>${recipeBadgeHtml}</td>
                     <td><span class="${idx === 0 ? 'badge-gain' : 'badge-sys'} text-[10px] px-2 py-0.5 rounded font-mono">${idx === 0 ? 'Optimal' : 'Verified'}</span></td>
                     <td class="text-right">
                       <button data-inspect-model="${row.model_id}" class="btn-inspect-model-params text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 px-2.5 py-0.5 rounded font-mono transition-colors">
@@ -498,8 +528,8 @@ export class StudioView {
                       </button>
                     </td>
                   </tr>
-                `).join("") : `
-                  <tr><td colspan="7" class="text-center text-[#8B95A7] py-6 text-xs font-sans">No models match the selected filter.</td></tr>
+                `}).join("") : `
+                  <tr><td colspan="8" class="text-center text-[#8B95A7] py-6 text-xs font-sans">No models match the selected filter.</td></tr>
                 `}
               </tbody>
             </table>
@@ -603,16 +633,20 @@ export class StudioView {
     } else {
       return `
         <div class="space-y-2 font-mono text-xs">
-          ${this.experiments.length > 0 ? this.experiments.map(exp => `
+          ${this.experiments.length > 0 ? this.experiments.map(exp => {
+            const rcpId = exp.recipe_id;
+            const rcpName = exp.recipe_name || (rcpId ? this.recipes.find(r => r.id === rcpId)?.name : null);
+            return `
             <div class="p-2 rounded bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-between">
-              <div>
+              <div class="flex items-center space-x-2">
                 <span class="text-emerald-400">[EXPERIMENTO]</span>
-                <span class="font-semibold text-slate-200">${exp.name || exp.id}</span>
+                <span class="font-semibold text-slate-200">${escapeHtml(exp.name || exp.id)}</span>
                 <span class="text-slate-400 text-[11px]">(${exp.model_ids ? exp.model_ids.join(", ") : "modelos"})</span>
+                ${rcpId ? `<span class="badge-intel text-[10px] px-1.5 py-0.2 rounded font-mono">${escapeHtml(rcpName || rcpId)}</span>` : ''}
               </div>
               <span class="text-indigo-400 font-bold">${exp.best_score != null ? Number(exp.best_score).toFixed(5) : '—'}</span>
             </div>
-          `).join("") : `
+          `}).join("") : `
             <div class="p-4 rounded-xl bg-[#090C12] border border-[#242A36] text-center text-xs text-[#8B95A7]">
               No hay eventos de ejecución registrados. Inicie un experimento para ver los registros del motor AutoML.
             </div>
@@ -763,27 +797,12 @@ export class StudioView {
       });
     });
 
-    // Quick Action Run buttons
+    // Quick Action Run buttons - opens NewExperimentModal with model preselected
     this.container.querySelectorAll(".btn-quick-run").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         const modelId = btn.getAttribute("data-quick-model");
         if (!this.activeRun || !modelId) return;
-        const oldText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<span class="animate-spin inline-block mr-1">${icon("refresh-cw", "icon-sm")}</span><span>Running...</span>`;
-        try {
-          await api.runExperiment({
-            run_id: this.activeRun.id,
-            model_id: modelId,
-            name: `quick_${modelId}`,
-          });
-          await this.fetchData();
-          this.render();
-        } catch (err) {
-          alert("Failed to run quick experiment: " + err.message);
-          btn.disabled = false;
-          btn.innerHTML = oldText;
-        }
+        bus.emit("modal:new-experiment", { preselectedModel: modelId });
       });
     });
 

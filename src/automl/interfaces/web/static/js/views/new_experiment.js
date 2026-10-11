@@ -17,20 +17,61 @@ export class NewExperimentModal {
     this.customFeatures = [];
     this.recipes = [];
     this.selectedRecipeId = "";
+    this.preselectedModel = null;
+    this.questionnaire = null;
+    this.datasetProfile = null;
   }
 
-  async mount(container) {
+  async mount(container, options = {}) {
     this.container = container;
     const state = store.getState();
-    if (state.activeDatasetId) {
-      this.recipes = await api.getRecipes(state.activeDatasetId).catch(() => []);
+    const targetDatasetId = state.activeDatasetId;
+
+    if (options.preselectedModel || state.preselectedModel) {
+      this.mode = "guided";
+      this.preselectedModel = options.preselectedModel || state.preselectedModel;
+      store.setState({ preselectedModel: null });
+    } else {
+      this.preselectedModel = null;
     }
+
+    if (options.preselectedRecipeId) {
+      this.selectedRecipeId = options.preselectedRecipeId;
+    }
+
+    if (targetDatasetId) {
+      const [recipes, q, profile] = await Promise.all([
+        api.getRecipes(targetDatasetId).catch(() => []),
+        api.getDatasetQuestionnaire(targetDatasetId).catch(() => null),
+        api.getDatasetProfile(targetDatasetId).catch(() => null),
+      ]);
+      this.recipes = recipes || [];
+      this.questionnaire = q;
+      this.datasetProfile = profile;
+    }
+
+    const activeDs = state.activeDataset
+      || (state.datasets || []).find(d => d.id === targetDatasetId);
+    const taskType = (this.datasetProfile?.task_type || activeDs?.task_type || "").toLowerCase();
+    const isRegression = taskType.includes("regression");
+
+    if (this.questionnaire?.split_strategy_recommendation) {
+      this.validationStrategy = this.questionnaire.split_strategy_recommendation;
+    } else if (isRegression) {
+      this.validationStrategy = "kfold";
+    } else {
+      this.validationStrategy = "stratified_kfold";
+    }
+
     this.render();
   }
 
   render() {
     const state = store.getState();
-    this.customFeatures = state.selectedFeatures || [];
+    this.customFeatures = (state.selectedFeaturesByDataset && state.selectedFeaturesByDataset[state.activeDatasetId])
+      || state.customFeatures
+      || state.selectedFeatures
+      || [];
     const customFeatures = this.customFeatures;
     const runs = state.runs || [];
     const activeRun = (runs || []).find(r => r.dataset_id === state.activeDatasetId)
@@ -43,10 +84,18 @@ export class NewExperimentModal {
       || (activeRun ? { name: activeRun.dataset_name, target_column: activeRun.target, task_type: activeRun.task_type } : null)
       || recentDs;
 
+    const taskTypeRaw = (this.datasetProfile?.task_type || activeDs?.task_type || "binary_classification").toLowerCase();
+    const isRegression = taskTypeRaw.includes("regression");
+    const hasImages = Boolean(this.datasetProfile?.columns?.some(c => c.is_image));
+    const hasTemporal = Boolean(
+      this.questionnaire?.temporal_structure === "sequential_time_series"
+      || this.datasetProfile?.columns?.some(c => c.dtype?.includes("datetime") || c.name.toLowerCase().includes("date") || c.name.toLowerCase().includes("timestamp"))
+    );
+
     const datasetName = activeDs ? (activeDs.name || activeDs.id) : "No Dataset Registered";
     const targetCol = activeDs ? (activeDs.target_column || activeDs.target || "Target") : "None";
-    const metricName = activeRun ? (activeRun.metric || "ROC-AUC") : (activeDs && (activeDs.task_type || "").includes("regression") ? "RMSE" : "ROC-AUC");
-    const taskType = activeDs ? (activeDs.task_type || "binary_classification").replace("_", " ") : "Classification";
+    const metricName = activeRun ? (activeRun.metric || (isRegression ? "RMSE" : "ROC-AUC")) : (isRegression ? "RMSE" : "ROC-AUC");
+    const taskType = (activeDs?.task_type || "binary_classification").replace("_", " ");
 
     const hasTarget = Boolean(activeDs || activeRun);
 
@@ -103,20 +152,28 @@ export class NewExperimentModal {
             <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-3 text-xs font-sans">
               <div class="font-semibold text-[#F7F8FA]">Algorithmic Model Families:</div>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[#8B95A7]">
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="lightgbm" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">LightGBM</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="xgboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">XGBoost</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked value="catboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">CatBoost</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="extra_trees" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Extra Trees</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="mlp" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">MLP Neural</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="random_forest" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Random Forest</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="logistic_regression" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Logistic/Ridge</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" value="voting_ensemble" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ensemble Blender</span></label>
-                <label class="flex items-center space-x-1.5" title="Vision Feature Extraction + MLP Head"><input type="checkbox" value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Vision Feature MLP</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'lightgbm') ? 'checked' : ''} value="lightgbm" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">LightGBM</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'xgboost') ? 'checked' : ''} value="xgboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">XGBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'catboost') ? 'checked' : ''} value="catboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">CatBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'extra_trees' ? 'checked' : ''} value="extra_trees" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Extra Trees</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'mlp' ? 'checked' : ''} value="mlp" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">MLP Neural</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'random_forest' ? 'checked' : ''} value="random_forest" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Random Forest</span></label>
+                ${isRegression ? `
+                  <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'ridge' ? 'checked' : ''} value="ridge" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ridge Regression</span></label>
+                ` : `
+                  <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'logistic_regression' ? 'checked' : ''} value="logistic_regression" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Logistic Regression</span></label>
+                `}
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'voting_ensemble' ? 'checked' : ''} value="voting_ensemble" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Ensemble Blender</span></label>
+                ${hasImages ? `
+                  <label class="flex items-center space-x-1.5" title="Vision Feature Extraction + MLP Head"><input type="checkbox" ${this.preselectedModel === 'vision' ? 'checked' : ''} value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#53C8FF]">Vision Feature MLP</span></label>
+                ` : `
+                  <label class="flex items-center space-x-1.5 opacity-40 cursor-not-allowed" title="Requiere columnas de tipo imagen en el dataset"><input type="checkbox" disabled value="vision" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#8B95A7]">Vision MLP (Sin imágenes)</span></label>
+                `}
               </div>
               <div class="grid grid-cols-2 gap-2 pt-2 border-t border-[#252C38] text-[11px] text-[#8B95A7]">
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Feature engineering</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Optuna Bayesian HPO</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Stratified Cross-Validation</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Cross-Validation</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span>Empirical Propose ≠ Accept</span></label>
               </div>
             </div>
@@ -189,20 +246,34 @@ export class NewExperimentModal {
               <span class="text-[10px] text-[#4F67FF] font-mono">CV Splitting</span>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'stratified_kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="stratified_kfold">
-                <div class="font-bold text-[#F7F8FA] font-sans">Stratified K-Fold</div>
-                <div class="text-[10px] text-[#8B95A7] font-sans">Balanced classes</div>
-              </div>
+              ${!isRegression ? `
+                <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'stratified_kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="stratified_kfold">
+                  <div class="font-bold text-[#F7F8FA] font-sans">Stratified K-Fold</div>
+                  <div class="text-[10px] text-[#8B95A7] font-sans">Balanced classes</div>
+                </div>
+              ` : `
+                <div class="val-strategy-card p-2.5 rounded-xl border text-center text-xs opacity-40 cursor-not-allowed border-[#252C38] bg-[#090C12]" data-strategy="stratified_kfold" data-disabled="true" title="No aplicable a regresión">
+                  <div class="font-bold text-[#8B95A7] font-sans">Stratified K-Fold</div>
+                  <div class="text-[10px] text-[#8B95A7] font-sans">Solo Clasificación</div>
+                </div>
+              `}
 
               <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="kfold">
                 <div class="font-bold text-[#F7F8FA] font-sans">Standard K-Fold</div>
                 <div class="text-[10px] text-[#8B95A7] font-sans">Shuffled 5 folds</div>
               </div>
 
-              <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'time_series' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="time_series">
-                <div class="font-bold text-[#F7F8FA] font-sans">Time-Series</div>
-                <div class="text-[10px] text-[#8B95A7] font-sans">Temporal splits</div>
-              </div>
+              ${hasTemporal ? `
+                <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'time_series' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="time_series">
+                  <div class="font-bold text-[#F7F8FA] font-sans">Time-Series</div>
+                  <div class="text-[10px] text-[#22C55E] font-sans">Temporal splits ✓</div>
+                </div>
+              ` : `
+                <div class="val-strategy-card p-2.5 rounded-xl border text-center text-xs opacity-50 cursor-not-allowed border-[#252C38] bg-[#090C12]" data-strategy="time_series" data-disabled="true" title="Requiere columnas de fecha o estructura temporal en el encuadre">
+                  <div class="font-bold text-[#8B95A7] font-sans">Time-Series</div>
+                  <div class="text-[10px] text-[#8B95A7] font-sans">Sin orden temporal</div>
+                </div>
+              `}
 
               <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'holdout' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="holdout">
                 <div class="font-bold text-[#F7F8FA] font-sans">Holdout (80/20)</div>
@@ -251,6 +322,7 @@ export class NewExperimentModal {
 
     this.container.querySelectorAll(".val-strategy-card").forEach(el => {
       el.addEventListener("click", () => {
+        if (el.getAttribute("data-disabled") === "true") return;
         this.validationStrategy = el.getAttribute("data-strategy");
         this.render();
       });
@@ -351,13 +423,22 @@ export class NewExperimentModal {
           return;
         }
 
+        const budgetSecondsMap = {
+          quick: 10,
+          balanced: 60,
+          thorough: 300,
+        };
+        const timeBudgetSeconds = budgetSecondsMap[this.budget] || 60;
+
         const res = await api.createAndRunExperiment({
           run_id: activeRun.id,
           mode: this.mode,
           budget: this.budget,
+          time_budget_seconds: timeBudgetSeconds,
           models: selectedModels,
           feature_names: this.customFeatures && this.customFeatures.length > 0 ? this.customFeatures : undefined,
           validation_strategy: this.validationStrategy,
+          recipe_id: this.selectedRecipeId || undefined,
         }, job => {
           const percent = job.total ? Math.round(job.completed * 100 / job.total) : 0;
           if (progressBar) progressBar.style.width = `${percent}%`;

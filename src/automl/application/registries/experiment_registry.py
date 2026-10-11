@@ -81,6 +81,7 @@ def register_experiment_handlers(
             allow_leakage=cmd.allow_leakage,
             column_transforms=cmd.column_transforms,
             derived_features=cmd.derived_features,
+            recipe_id=cmd.recipe_id,
         ),
     )
     command_bus.register(
