@@ -43,10 +43,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Desbloqueado el rango Y del gráfico de evolución en `compare.js`, eliminando el límite rígido `Math.min(1.0, ...)` que deformaba métricas de regresión (RMSE/MSE superiores a 1.0).
   - Sustitución de etiquetas engañosas por terminología científicamente honesta: "Optimal" -> "Mejor de esta ejecución", "Verified" / "Verified by CV" -> "Evaluado" / "Evaluado por Cross-Validation", "Mejora" -> "Diferencia observada favorable" o "Diferencia no concluyente" cuando $|\Delta| < 0.00005$.
   - Nueva suite automatizada `tests/test_workbench_metric_context.py` con 7 pruebas unitarias y de integración pasando al 100%.
-- [ ] **PR 3: Fase P1 — Simplificación del flujo, navegación y estados de trabajos**:
-  - Centro de control orientado a Datos → Exploración → Experimentos → Resultados.
-  - Diferenciación rigurosa de estados de trabajos (pendiente, en ejecución, completado, fallido, cancelado).
-  - Barra flotante discreta que no oculte contenido cuando no haya trabajos activos.
+- [x] **PR 3: Fase P1 — Simplificación del flujo, navegación y estados de trabajos**:
+  - Centro de control orientado a las 4 etapas del ciclo de ML: Datos (01) → Exploración (02) → Experimentos (03) → Resultados (04).
+  - Banner de flujo guiado en `home.js` con accesos directos por etapa e indicador de estado en tiempo real.
+  - Fidelidad de estados de trabajos y ejecuciones en `utils.js` (`ACTIVE_JOB_STATUSES`, `isJobActive`, `JOB_STATUS_LABELS`, `JOB_ACTION_LABELS`, `getJobStatusLabel`), cubriendo de forma estricta los 9 estados del ciclo de vida (`queued`, `running`, `pause_requested`, `cancel_requested`, `paused`, `completed`, `failed`, `cancelled`, `interrupted`).
+  - Separación rigurosa en `home.js`: «Ejecuciones en curso» muestra EXCLUSIVAMENTE operaciones activas reales; las ejecuciones completadas se muestran en un resumen separado con motor en reposo sin fingir actividad en curso.
+  - Reestructuración de la barra flotante de trabajos en `jobs.js`: cuando hay 0 trabajos activos se colapsa en un discreto disparador circular no invasivo que no cubre botones ni tablas; cuando hay trabajos activos muestra una barra flotante en vivo con progreso real o indeterminado y controles de pausa/cancelación; modal ampliado con separación estricta por pestañas entre «En curso» e «Historial».
+  - Limpieza del Hero Card en `home.js`: detalles técnicos y rutas colapsables en `<details>`, manteniendo una tarjeta principal despejada y acciones principales adaptadas al estado real (sin dataset, preparado sin entrenar, entrenando, completado).
+  - Actualización de la numeración y etiquetas de navegación en `index.html` reflejando el flujo de 4 etapas (`00 Inicio`, `01 Datos (Dataset)`, `02 Exploración`, `03 Experimentos`, `04 Resultados & Evidencia`).
+  - Nueva suite automatizada `tests/test_workbench_jobs_and_flow.py` con 6 pruebas pasando al 100% (72 pruebas de workbench pasando globalmente).
 - [ ] **PR 4: Fase P1 — Leaderboard centrado en resultados, recomendaciones y recetas**:
   - Presentación limpia del modelo ganador y condiciones de evaluación.
   - Distinción visual: Propuesta vs Verificada vs Seleccionada vs Aplicada vs Promovida.

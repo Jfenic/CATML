@@ -24,6 +24,8 @@ export const ACTIVE_RUN_STATUSES = new Set([
   "OPTIMIZING",
   "FINALIZING",
   "RUNNING",
+  "EVALUATING",
+  "QUEUED",
 ]);
 
 /**
@@ -39,6 +41,50 @@ export function isRunActive(run) {
   const status = typeof run === "string" ? run : run.status;
   if (!status) return false;
   return ACTIVE_RUN_STATUSES.has(String(status).toUpperCase());
+}
+
+export const ACTIVE_JOB_STATUSES = new Set([
+  "queued",
+  "running",
+  "pause_requested",
+  "cancel_requested",
+]);
+
+/**
+ * Checks if a background job is actively running or queued.
+ * @param {object|string} job - The job object or status string.
+ * @returns {boolean} True if the job status is active.
+ */
+export function isJobActive(job) {
+  if (!job) return false;
+  const status = typeof job === "string" ? job : job.status;
+  if (!status) return false;
+  return ACTIVE_JOB_STATUSES.has(String(status).toLowerCase());
+}
+
+export const JOB_STATUS_LABELS = {
+  queued: "En cola",
+  running: "En ejecución",
+  pause_requested: "Pausando...",
+  cancel_requested: "Cancelando...",
+  paused: "Pausado",
+  cancelled: "Cancelado",
+  completed: "Completado",
+  failed: "Fallido",
+  interrupted: "Interrumpido",
+};
+
+export const JOB_ACTION_LABELS = {
+  pause: "Pausar",
+  cancel: "Cancelar",
+  resume: "Reanudar",
+  retry: "Reintentar",
+};
+
+export function getJobStatusLabel(status) {
+  if (!status) return "Desconocido";
+  const s = String(status).toLowerCase();
+  return JOB_STATUS_LABELS[s] || status;
 }
 
 /**

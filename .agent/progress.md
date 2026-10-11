@@ -32,6 +32,25 @@
     - Sustituido "Mejora" por "Diferencia observada favorable" o "Diferencia no concluyente" ($|\Delta| < 0.00005$).
   - **Pruebas Automatizadas:**
     - Nueva suite `tests/test_workbench_metric_context.py` con 7 tests pasando al 100%. Total de 66 tests de Workbench pasando en verde.
+- **PR 3: Fase P1 — Simplificación del flujo, navegación y estados de trabajos:**
+  - **Flujo Guiado de 4 Etapas:**
+    - Introducido banner interactivo de 4 etapas en `home.js`: `01 Datos` (Ingesta & Calidad) → `02 Exploración` (Estudios & Hipótesis) → `03 Experimentos` (Modelos & HPO) → `04 Resultados` (Leaderboard & Artefactos), con estados reactivos por etapa y saltos directos al módulo correspondiente.
+    - Alineada la numeración y etiquetas de navegación lateral en `index.html` (`00 Inicio`, `01 Datos (Dataset)`, `02 Exploración`, `03 Experimentos`, `04 Resultados & Evidencia`).
+  - **Fidelidad y Rigor en Estados de Trabajos y Ejecuciones:**
+    - Definidas utilidades formales en `utils.js` (`ACTIVE_JOB_STATUSES`, `isJobActive`, `JOB_STATUS_LABELS`, `JOB_ACTION_LABELS`, `getJobStatusLabel`) que cubren los 9 estados posibles (`queued`, `running`, `pause_requested`, `cancel_requested`, `paused`, `completed`, `failed`, `cancelled`, `interrupted`).
+    - Eliminado el engaño visual en `home.js`: la sección «Ejecuciones en curso» muestra ÚNICAMENTE tareas o entrenamientos activos en segundo plano; si el motor está en reposo, se presenta el último modelo completado de forma honesta con badge `MOTOR EN REPOSO` o `LISTO PARA ENTRENAR` sin fingir que está en ejecución. Barras de progreso verídicas (pasos reales completados/totales o indicador indeterminado pulsante, sin falsos 50% o 75%).
+    - Historial de cola verídico en «Trabajos recientes» con badges de resultado diferenciados (`Completado`, `Fallido`, `Cancelado`, `En ejecución`).
+  - **Barra Flotante Discreta y No Invasiva (`jobs.js`):**
+    - Cuando no hay trabajos activos, se colapsa a un disparador circular mínimo `Trabajos (0 activos)` que no cubre botones, tablas ni área de trabajo.
+    - Cuando hay operaciones activas, muestra una barra flotante en vivo con progreso real y controles rápidos de pausa y cancelación.
+    - Modal expandido organizado en pestañas separadas `En curso` e `Historial`, permitiendo inspeccionar errores con opción de reintento.
+    - Limpieza adecuada de temporizadores con `clearInterval` y prevención de consultas cuando la pestaña está oculta (`document.hidden`).
+  - **Hero Card Despejado en Home:**
+    - Rutas absolutas, UUIDs y metadatos técnicos delegados a un panel colapsable `<details>`, manteniendo visible sólo la información clave del problema.
+    - Botón de acción principal adaptado dinámicamente según el estado del laboratorio (sin dataset, preparado sin entrenar, entrenando, completado).
+  - **Pruebas Automatizadas:**
+    - Creada suite `tests/test_workbench_jobs_and_flow.py` (6 pruebas pasando al 100%).
+    - Total acumulado de 72 pruebas del Workbench pasando en verde sin regresiones.
 
 ### Track Experiment Recipes — Fase R4: Workbench UI y Paridad E2E (2026-10-11)
 

@@ -6,7 +6,7 @@ import { store } from "./store.js";
 import { bus } from "./bus.js";
 import { api } from "./api.js";
 import { JobsPanel } from "./views/jobs.js";
-import { isRunActive } from "./utils.js";
+import { isRunActive, isJobActive } from "./utils.js";
 
 import { OverviewView } from "./views/overview.js";
 import { StudioView } from "./views/studio.js";
@@ -126,7 +126,7 @@ class App {
         }
       }
 
-      const isAnyRunning = (this.jobsPanel?.jobs || []).some(j => j.status === "running")
+      const isAnyRunning = (this.jobsPanel?.jobs || []).some(j => isJobActive(j))
         || (runs || []).some(r => isRunActive(r))
         || Boolean(overview && overview.is_active);
       const statusBadge = document.getElementById("globalStatusBadge");
