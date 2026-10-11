@@ -12,6 +12,18 @@
 
 ### Track Workbench UI Refinements & Testing — (2026-10-11)
 
+- **Corrección de Visualización y Contraste en CATML Explore (`ExploreView`):**
+  - **Resolución de Selector «Estudio activo» y Filtros en Blanco:**
+    - Identificada causa raíz: la clase `.input-base` no tenía definición CSS, provocando que los navegadores aplicaran estilos de agente de usuario con fondo blanco sólido (`#ffffff`) y tipografía clara heredada (`#F7F8FA`), haciendo invisibles las letras en temas oscuros («en todo blanco y no veo las letras»).
+    - En `src/automl/interfaces/web/static/css/workbench.css`: incorporadas reglas globales para `.input-base`, `input[type="text"].input-base`, `select.input-base` y `select option` con superficie oscura (`#151B26`), borde arquitectónico (`#252C38`), texto de alta legibilidad (`#F7F8FA`) y foco en azul eléctrico (`#4F67FF`).
+    - En `src/automl/interfaces/web/static/js/views/explore.js`: clases Tailwind oscuras explícitas (`bg-[#161B26] border-[#242A36] text-[#F7F8FA]`) en selector `#selectActiveStudy`, filtros `#filterCategorySelect`, `#filterSeveritySelect` y campos modales de nuevo estudio.
+  - **Alineación de Visualizaciones Declarativas (`data_series` vs `data`):**
+    - En `src/automl/interfaces/web/static/js/views/explore.js`: adaptadas las funciones de renderizado de visualizaciones (`_renderCorrelationMatrixHtml`, `_renderCategoricalMatrixHtml`, `_renderHistogramSvgHtml`, `_renderBoxplotSvgHtml`, `_renderScatterSvgHtml`) para leer `viz.data_series || viz.data || {}`, renderizando correctamente matrices de correlación (19x19), Cramér's V, histogramas con conteos reales y diagramas de dispersión y caja.
+  - **Galería de Hallazgos Estadísticos:**
+    - Homogeneizada la clasificación de severidad `_classifySeverity` con `datasets.js` (incluyendo `multivariate_outliers` y `high_cardinality_identifier` como `CRITICAL`, `multimodal_distribution` y `target_class_separation` como `WARNING`).
+    - Añadido soporte para métricas alternativas en `effect` (`cramers_v`, `cohens_d`, etc.) y badges formateados para p-valor (`p < 0.0001` o `p = 0.0000`).
+  - **Pruebas de Regresión:**
+    - Test `test_workbench_explore_form_inputs_and_select_styles` en `tests/test_workbench_navigation_and_explore_ui.py`. 46 tests de workbench pasando al 100%.
 - **Soporte de Columnas Booleanas en Perfilado Estadístico y Registro de Datasets:**
   - `src/automl/engine/profiling/dataset_profiler.py`:
     - En `profile_dataset()`, conversión de series booleanas a `float64` (`0.0`/`1.0`) para cálculos estadísticos univariantes (media, std, mediana, `q25`, `q75`, curtosis, asimetría, histogramas). Evita el error `TypeError: numpy boolean subtract, the '-' operator, is not supported` provocado por la interpolación lineal de cuartiles en NumPy 1.25+/2.x sobre tipos booleanos estándar y nulos (`pd.BooleanDtype`).

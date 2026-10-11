@@ -110,7 +110,7 @@ export class ExploreView {
     return this.findings.filter(f => {
       // Category filter
       if (this.filterCategory === "COLLINEARITY" && f.finding_type !== "high_collinearity") return false;
-      if (this.filterCategory === "DISTRIBUTION" && !["skewness", "normality_violation", "multimodal_distribution", "outlier_density"].includes(f.finding_type)) return false;
+      if (this.filterCategory === "DISTRIBUTION" && !["skewness", "normality_violation", "multimodal_distribution", "outlier_density", "multivariate_outliers"].includes(f.finding_type)) return false;
       if (this.filterCategory === "CATEGORICAL" && f.finding_type !== "categorical_association") return false;
       if (this.filterCategory === "TARGET" && !["target_class_separation", "target_correlation"].includes(f.finding_type)) return false;
 
@@ -129,8 +129,13 @@ export class ExploreView {
   }
 
   _classifySeverity(f) {
-    if (["high_collinearity", "multivariate_outliers"].includes(f.finding_type)) return "CRITICAL";
-    if (["skewness", "outlier_density", "categorical_association"].includes(f.finding_type)) return "WARNING";
+    const type = f?.finding_type || "";
+    if (["high_collinearity", "multivariate_outliers", "high_cardinality_identifier"].includes(type)) {
+      return "CRITICAL";
+    }
+    if (["skewness", "outlier_density", "categorical_association", "multimodal_distribution", "target_class_separation"].includes(type)) {
+      return "WARNING";
+    }
     return "INFO";
   }
 
@@ -189,9 +194,9 @@ export class ExploreView {
             <div class="border-t border-[#242A36] pt-3 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center space-x-2">
                 <span class="text-xs font-sans text-[#8B95A7]">Estudio activo:</span>
-                <select id="selectActiveStudy" class="input-base text-xs font-mono py-1 px-2.5 max-w-xs">
+                <select id="selectActiveStudy" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none max-w-sm cursor-pointer shadow-sm">
                   ${this.studies.map(s => `
-                    <option value="${s.id}" ${s.id === this.selectedStudyId ? "selected" : ""}>
+                    <option value="${s.id}" class="bg-[#161B26] text-[#F7F8FA]" ${s.id === this.selectedStudyId ? "selected" : ""}>
                       ${escapeHtml(s.name)} [${s.status}]
                     </option>
                   `).join("")}
@@ -252,20 +257,20 @@ export class ExploreView {
               <!-- Filter chips -->
               <div class="flex flex-wrap items-center gap-2 text-xs font-sans">
                 <!-- Category select -->
-                <select id="filterCategorySelect" class="input-base text-xs py-1 px-2 font-mono">
-                  <option value="ALL" ${this.filterCategory === "ALL" ? "selected" : ""}>Todas las categorías</option>
-                  <option value="COLLINEARITY" ${this.filterCategory === "COLLINEARITY" ? "selected" : ""}>Colinealidad</option>
-                  <option value="DISTRIBUTION" ${this.filterCategory === "DISTRIBUTION" ? "selected" : ""}>Distribución / Outliers</option>
-                  <option value="CATEGORICAL" ${this.filterCategory === "CATEGORICAL" ? "selected" : ""}>Asociación Categórica</option>
-                  <option value="TARGET" ${this.filterCategory === "TARGET" ? "selected" : ""}>Separación Objetivo</option>
+                <select id="filterCategorySelect" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none cursor-pointer shadow-sm">
+                  <option value="ALL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "ALL" ? "selected" : ""}>Todas las categorías</option>
+                  <option value="COLLINEARITY" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "COLLINEARITY" ? "selected" : ""}>Colinealidad</option>
+                  <option value="DISTRIBUTION" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "DISTRIBUTION" ? "selected" : ""}>Distribución / Outliers</option>
+                  <option value="CATEGORICAL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "CATEGORICAL" ? "selected" : ""}>Asociación Categórica</option>
+                  <option value="TARGET" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "TARGET" ? "selected" : ""}>Separación Objetivo</option>
                 </select>
 
                 <!-- Severity select -->
-                <select id="filterSeveritySelect" class="input-base text-xs py-1 px-2 font-mono">
-                  <option value="ALL" ${this.filterSeverity === "ALL" ? "selected" : ""}>Toda severidad</option>
-                  <option value="CRITICAL" ${this.filterSeverity === "CRITICAL" ? "selected" : ""}>Críticos</option>
-                  <option value="WARNING" ${this.filterSeverity === "WARNING" ? "selected" : ""}>Advertencias</option>
-                  <option value="INFO" ${this.filterSeverity === "INFO" ? "selected" : ""}>Informativos</option>
+                <select id="filterSeveritySelect" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none cursor-pointer shadow-sm">
+                  <option value="ALL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "ALL" ? "selected" : ""}>Toda severidad</option>
+                  <option value="CRITICAL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "CRITICAL" ? "selected" : ""}>Críticos</option>
+                  <option value="WARNING" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "WARNING" ? "selected" : ""}>Advertencias</option>
+                  <option value="INFO" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "INFO" ? "selected" : ""}>Informativos</option>
                 </select>
 
                 <!-- FDR toggle -->
@@ -339,9 +344,10 @@ export class ExploreView {
   }
 
   _renderCorrelationMatrixHtml(viz) {
-    const cols = viz.data?.columns || [];
+    const series = viz.data_series || viz.data || {};
+    const cols = series.columns || [];
     const isSpearman = this.matrixMethod === "spearman";
-    const matrix = isSpearman ? (viz.data?.spearman_matrix || viz.data?.matrix || []) : (viz.data?.matrix || []);
+    const matrix = isSpearman ? (series.spearman_matrix || series.matrix || []) : (series.matrix || []);
 
     return `
       <div class="space-y-3">
@@ -389,8 +395,8 @@ export class ExploreView {
                     }
 
                     return `
-                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${val.toFixed(3)}">
-                        ${val.toFixed(2)}
+                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${Number(val).toFixed(3)}">
+                        ${Number(val).toFixed(2)}
                       </td>
                     `;
                   }).join("")}
@@ -404,8 +410,9 @@ export class ExploreView {
   }
 
   _renderCategoricalMatrixHtml(viz) {
-    const cols = viz.data?.columns || [];
-    const matrix = viz.data?.matrix || [];
+    const series = viz.data_series || viz.data || {};
+    const cols = series.columns || [];
+    const matrix = series.matrix || [];
 
     return `
       <div class="space-y-3">
@@ -438,8 +445,8 @@ export class ExploreView {
                     let textColor = val > 0.4 && !isDiag ? "#FFFFFF" : "#F7F8FA";
 
                     return `
-                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${val >= 0.40 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${val.toFixed(3)}">
-                        ${val.toFixed(2)}
+                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${val >= 0.40 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${Number(val).toFixed(3)}">
+                        ${Number(val).toFixed(2)}
                       </td>
                     `;
                   }).join("")}
@@ -453,21 +460,24 @@ export class ExploreView {
   }
 
   _renderHistogramSvgHtml(viz) {
-    const counts = viz.data?.counts || [];
-    const edges = viz.data?.bin_edges || [];
-    const maxCount = Math.max(...counts, 1);
+    const series = viz.data_series || viz.data || {};
+    const counts = series.counts || [];
+    const edges = series.bin_edges || [];
+    const maxCount = counts.length > 0 ? Math.max(...counts, 1) : 1;
     const svgWidth = 600;
     const svgHeight = 180;
     const padding = 30;
     const chartWidth = svgWidth - padding * 2;
     const chartHeight = svgHeight - padding * 2;
     const barWidth = counts.length > 0 ? chartWidth / counts.length : 10;
+    const mean = series.mean != null ? Number(series.mean).toFixed(2) : "-";
+    const std = series.std != null ? Number(series.std).toFixed(2) : "-";
 
     return `
       <div class="space-y-2 p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
         <div class="flex items-center justify-between text-xs font-mono">
           <span class="text-[#F7F8FA] font-medium">${viz.title || "Histograma"}</span>
-          <span class="text-[#8B95A7]">Media: ${viz.data?.mean || "-"} · Desv: ${viz.data?.std || "-"}</span>
+          <span class="text-[#8B95A7]">Media: ${mean} · Desv: ${std}</span>
         </div>
 
         <div class="w-full overflow-x-auto flex justify-center">
@@ -482,9 +492,11 @@ export class ExploreView {
               const barHeight = (c / maxCount) * chartHeight;
               const x = padding + i * barWidth;
               const y = padding + chartHeight - barHeight;
+              const edgeLow = edges[i] != null ? Number(edges[i]).toFixed(1) : "";
+              const edgeHigh = edges[i+1] != null ? Number(edges[i+1]).toFixed(1) : "";
               return `
                 <rect x="${x + 2}" y="${y}" width="${Math.max(1, barWidth - 4)}" height="${barHeight}" fill="#4F67FF" rx="2" opacity="0.85">
-                  <title>Bin [${edges[i]} - ${edges[i+1]}]: ${c} observaciones</title>
+                  <title>Bin [${edgeLow} - ${edgeHigh}]: ${c} observaciones</title>
                 </rect>
               `;
             }).join("")}
@@ -495,13 +507,12 @@ export class ExploreView {
   }
 
   _renderBoxplotSvgHtml(viz) {
-    const data = viz.data || {};
-    const q25 = data.q25 || 0;
-    const med = data.median || 0;
-    const q75 = data.q75 || 0;
-    const wLow = data.whisker_low || 0;
-    const wHigh = data.whisker_high || 0;
-    const range = Math.max(1e-6, wHigh - wLow);
+    const data = viz.data_series || viz.data || {};
+    const q25 = data.q25 != null ? Number(data.q25).toFixed(2) : 0;
+    const med = data.median != null ? Number(data.median).toFixed(2) : 0;
+    const q75 = data.q75 != null ? Number(data.q75).toFixed(2) : 0;
+    const wLow = data.whisker_low != null ? Number(data.whisker_low).toFixed(2) : 0;
+    const wHigh = data.whisker_high != null ? Number(data.whisker_high).toFixed(2) : 0;
 
     return `
       <div class="space-y-2 p-4 bg-[#090C12] rounded-lg border border-[#242A36]">
@@ -521,8 +532,9 @@ export class ExploreView {
   }
 
   _renderScatterSvgHtml(viz) {
-    const xPoints = viz.data?.x_points || [];
-    const yPoints = viz.data?.y_points || [];
+    const series = viz.data_series || viz.data || {};
+    const xPoints = series.x_points || [];
+    const yPoints = series.y_points || [];
     const n = Math.min(xPoints.length, yPoints.length);
     if (n === 0) return `<div class="text-xs text-[#8B95A7] p-4">Sin datos de dispersión.</div>`;
 
@@ -538,12 +550,13 @@ export class ExploreView {
     const padding = 30;
     const chartWidth = svgWidth - padding * 2;
     const chartHeight = svgHeight - padding * 2;
+    const pearsonR = series.pearson_r != null ? Number(series.pearson_r).toFixed(3) : "-";
 
     return `
       <div class="space-y-2 p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
         <div class="flex items-center justify-between text-xs font-mono">
           <span class="text-[#F7F8FA] font-medium">${viz.title || "Dispersión"}</span>
-          <span class="text-[#53C8FF]">Pearson r = ${viz.data?.pearson_r || "-"}</span>
+          <span class="text-[#53C8FF]">Pearson r = ${pearsonR}</span>
         </div>
 
         <div class="w-full overflow-x-auto flex justify-center">
@@ -567,7 +580,10 @@ export class ExploreView {
     const sev = this._classifySeverity(f);
     const sevBadge = sev === "CRITICAL" ? "badge-err" : sev === "WARNING" ? "badge-warn" : "badge-sys";
     const fdrSig = f.metrics && f.metrics.fdr_significant === true;
-    const fdrVal = f.metrics && f.metrics.p_value_fdr != null ? f.metrics.p_value_fdr : null;
+    const fdrVal = (f.metrics && f.metrics.p_value_fdr != null) ? Number(f.metrics.p_value_fdr) : null;
+    const effect = f.effect_size != null
+      ? Number(f.effect_size)
+      : (f.metrics && (f.metrics.pearson_r ?? f.metrics.cramers_v ?? f.metrics.cohens_d ?? f.metrics.bimodal_coefficient));
 
     return `
       <div class="p-4 rounded-xl bg-[#090C12] border border-[#242A36] space-y-3 hover:border-[#384355] transition-colors flex flex-col justify-between">
@@ -575,13 +591,13 @@ export class ExploreView {
           <div class="flex items-start justify-between gap-2">
             <span class="text-xs font-mono font-bold text-[#F7F8FA]">${escapeHtml(f.finding_type || "HALLAZGO")}</span>
             <div class="flex items-center space-x-1.5">
-              ${fdrVal != null ? `
+              ${fdrVal != null && Number.isFinite(fdrVal) ? `
                 <span class="${fdrSig ? 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30' : 'text-amber-400 bg-amber-400/10 border-amber-400/30'} border text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">
                   ${fdrSig ? 'FDR p < 0.05' : `FDR p=${fdrVal.toFixed(3)}`}
                 </span>
               ` : ""}
               <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                ${sev}
+                ${escapeHtml(sev)}
               </span>
             </div>
           </div>
@@ -603,11 +619,18 @@ export class ExploreView {
             ${f.secondary_column ? `<span class="text-[11px] font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded border border-[#242A36]">${escapeHtml(f.secondary_column)}</span>` : ""}
           </div>
 
-          ${f.effect_size != null ? `
-            <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20">
-              Efecto = ${Number(f.effect_size).toFixed(3)}
-            </span>
-          ` : ""}
+          <div class="flex items-center gap-1.5 ml-auto">
+            ${effect != null && Number.isFinite(Number(effect)) ? `
+              <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20">
+                Efecto = ${Number(effect).toFixed(3)}
+              </span>
+            ` : ""}
+            ${f.p_value != null && Number.isFinite(Number(f.p_value)) ? `
+              <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
+                p = ${Number(f.p_value) < 0.0001 ? Number(f.p_value).toExponential(2) : Number(f.p_value).toFixed(4)}
+              </span>
+            ` : ""}
+          </div>
         </div>
       </div>
     `;
@@ -748,12 +771,12 @@ export class ExploreView {
           <div class="space-y-4 text-xs font-sans">
             <div class="space-y-1.5">
               <label class="font-medium text-[#F7F8FA]">Nombre del Estudio</label>
-              <input id="inputStudyName" type="text" class="input-base w-full text-xs" value="Estudio de Diagnóstico Completo" />
+              <input id="inputStudyName" type="text" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] w-full text-xs rounded-lg px-3 py-2 outline-none focus:border-[#4F67FF]" value="Estudio de Diagnóstico Completo" />
             </div>
 
             <div class="space-y-1.5">
               <label class="font-medium text-[#F7F8FA]">Columna Objetivo (Opcional)</label>
-              <input id="inputTargetCol" type="text" class="input-base w-full text-xs font-mono" placeholder="Dejar vacío para modo no supervisado" />
+              <input id="inputTargetCol" type="text" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] w-full text-xs font-mono rounded-lg px-3 py-2 outline-none focus:border-[#4F67FF]" placeholder="Dejar vacío para modo no supervisado" />
               <p class="text-[11px] text-[#8B95A7]">Si se especifica, se ejecutarán pruebas inferenciales contra el target (ANOVA / Welch t-test).</p>
             </div>
           </div>

@@ -98,3 +98,25 @@ def test_workbench_static_assets_serving(running_web_server):
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
         assert data.get("version") == __version__
+
+
+def test_workbench_explore_form_inputs_and_select_styles():
+    css_path = Path("src/automl/interfaces/web/static/css/workbench.css")
+    assert css_path.exists()
+    css_content = css_path.read_text(encoding="utf-8")
+
+    assert ".input-base" in css_content
+    assert "select option" in css_content
+    assert "#151B26" in css_content
+    assert "#F7F8FA" in css_content
+
+    explore_js = Path("src/automl/interfaces/web/static/js/views/explore.js")
+    assert explore_js.exists()
+    js_content = explore_js.read_text(encoding="utf-8")
+
+    assert 'id="selectActiveStudy"' in js_content
+    assert 'id="filterCategorySelect"' in js_content
+    assert 'id="filterSeveritySelect"' in js_content
+    assert "data_series" in js_content
+    assert "bg-[#161B26]" in js_content
+    assert "text-[#F7F8FA]" in js_content

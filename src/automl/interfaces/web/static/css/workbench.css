@@ -479,3 +479,31 @@ body {
   0% { background-position: 1rem 0; }
   100% { background-position: 0 0; }
 }
+
+/* Base Form Inputs, Textareas and Selects (Tech Minimalista Dark) */
+.input-base,
+input[type="text"].input-base,
+select.input-base {
+  background-color: var(--color-bg-card, #151B26) !important;
+  border: 1px solid var(--color-border, #252C38) !important;
+  color: var(--color-text-main, #F7F8FA) !important;
+  border-radius: var(--radius-btn, 8px);
+  outline: none;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.input-base:focus,
+input[type="text"].input-base:focus,
+select.input-base:focus {
+  border-color: var(--catml-blue, #4F67FF) !important;
+  box-shadow: 0 0 0 1px rgba(79, 103, 255, 0.25);
+}
+
+select,
+select option,
+select.input-base,
+select.input-base option {
+  background-color: #151B26 !important;
+  color: #F7F8FA !important;
+}
