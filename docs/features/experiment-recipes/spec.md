@@ -1,8 +1,8 @@
 # Feature Specification: Experiment Recipes (Explore → Evidence → Reusable Config)
 
 > **Módulo:** `experiment-recipes`  
-> **Estado:** Especificación aprobada — **pendiente de implementación**  
-> **Prioridad:** P1 (post Explore E6 / v0.9.x)  
+> **Estado:** Especificación aprobada — **implementada (R0–R4)**; backlog operativo en [`TASKS.md`](../../../TASKS.md)  
+> **Prioridad:** P1 (cerrada en código junto a Explore E6 / `0.9.0-rc1`)  
 > **Relacionado con:** [ADR-001](../../decisions/001-hexagonal-architecture-and-cqrs.md), [ADR-002](../../decisions/002-hypothesis-driven-experiments.md), [ADR-004](../../decisions/004-agentic-system-scope-and-dependencies.md), [ADR-008](../../decisions/008-catml-explore-modular-monolith.md), [ADR-009](../../decisions/009-experiment-recipes-and-interface-parity.md), [Plan](plan.md), [CATML Explore](../catml-explore/spec.md), [TASKS.md](../../../TASKS.md).
 
 ---
@@ -19,21 +19,21 @@ Explore → Verify → EvidenceLink → ExperimentRecipe → Experimentos → Pi
 
 ---
 
-## 2. Problema actual (gap)
+## 2. Problema resuelto (contexto histórico pre-R0)
 
-Hoy (post E5/E6):
+Antes de Recipes (post Explore E5/E6, pre-R0), el gap era:
 
-| Capacidad | Estado |
-|-----------|--------|
-| Hallazgos + hipótesis (`proposed`) | Implementado |
-| `VerifyHypothesisCommand` + `EvidenceLink` | Implementado |
-| Paridad CLI/MCP/REST de verify | Implementado |
-| Aplicación real de `power_transform` / `robust_scaler` en el candidato | **No** (solo metadata en el traductor) |
-| Receta reproducible a partir de evidencia | **No** |
-| Selected / Promoted (más allá de accepted/rejected) | **No** |
-| Reutilizar mejora en un solo modelo o grid de configs | **No** (manual vía calculadora / experimentos) |
+| Capacidad | Pre-R0 | Post R0–R4 |
+|-----------|--------|------------|
+| Hallazgos + hipótesis (`proposed`) | Implementado | Implementado |
+| `VerifyHypothesisCommand` + `EvidenceLink` | Implementado | Implementado |
+| Paridad CLI/MCP/REST de verify | Implementado | Implementado |
+| Aplicación real de `power_transform` / `robust_scaler` en el candidato | Solo metadata | **R0** — transforms reales + fit-in-fold |
+| Receta reproducible a partir de evidencia | No | **R1** — `ExperimentRecipe` + CQRS |
+| Selected / Promoted (más allá de accepted/rejected) | No | **R1/R3** — ciclo de vida auditable |
+| Reutilizar mejora en un solo modelo o grid de configs | Manual | **R3/R4** — CLI / MCP / REST / Workbench |
 
-`EvidenceLink` registra que una hipótesis se midió; **no basta** para reconstruir la transformación ni re-ejecutarla con garantías.
+`EvidenceLink` sigue registrando verificación puntual; la **receta** es el objeto reproducible seleccionable/promovible. *Propose ≠ Accept* se mantiene: `accepted` ≠ promoción automática.
 
 ---
 

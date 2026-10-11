@@ -2,14 +2,22 @@
 
 > Working rules, validation commands, and documentation navigation for AI coding agents.
 
+## Source of truth (read order)
+
+1. **This file** — hard rules and validation.
+2. **[`TASKS.md`](TASKS.md)** — operational status and open backlog (`[ ]` items). Package version is always `src/automl/__init__.py`.
+3. **[`.agent/progress.md`](.agent/progress.md)** — recent execution notes.
+4. Feature specs/plans and [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) — design intent; if a banner conflicts with `TASKS.md`, **trust `TASKS.md`**.
+
 ## Navigation
 
 - **System Architecture:** See [`ARCHITECTURE.md`](ARCHITECTURE.md). For strategic product, architecture and market roadmap, see [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) and [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md).
+- **Docs index (capabilities & evidence):** See [`docs/README.md`](docs/README.md).
 - **Current Work & Backlog:** See [`TASKS.md`](TASKS.md).
 - **Short-Term Memory & Progress:** See [`.agent/progress.md`](.agent/progress.md).
 - **Developer Extension Guide:** See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
-- **Active Feature Specs & Plans:** See [`docs/features/`](docs/features/) (e.g. [`docs/features/feature-discovery/spec.md`](docs/features/feature-discovery/spec.md) and [`plan.md`](docs/features/feature-discovery/plan.md)).
-- **Pending — Experiment Recipes (Explore → reusable configs, interface parity):** [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md), [`plan.md`](docs/features/experiment-recipes/plan.md), [ADR-009](docs/decisions/009-experiment-recipes-and-interface-parity.md).
+- **Feature Specs & Plans:** See [`docs/features/`](docs/features/) (e.g. [`feature-discovery`](docs/features/feature-discovery/spec.md), [`catml-explore`](docs/features/catml-explore/plan.md), [`agentic-system`](docs/features/agentic-system/README.md)).
+- **Shipped — Experiment Recipes (Explore → reusable configs, interface parity; R0–R4):** [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md), [`plan.md`](docs/features/experiment-recipes/plan.md), [ADR-009](docs/decisions/009-experiment-recipes-and-interface-parity.md).
 - **UI Design System (Tech Minimalista Premium):** See [`docs/design/tech-minimalist-brand-system.md`](docs/design/tech-minimalist-brand-system.md), [`docs/decisions/006-tech-minimalist-premium-brand-system.md`](docs/decisions/006-tech-minimalist-premium-brand-system.md) and historical spec [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
 - **Architectural Decisions (ADRs):** See [`docs/decisions/`](docs/decisions/).
 - **Original Architectural Notes:** See [`planning.txt`](planning.txt).

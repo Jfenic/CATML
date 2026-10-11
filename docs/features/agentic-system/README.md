@@ -1,6 +1,6 @@
 # CATML Agentic System: Roles & Implementation Guide
 
-> **Current Status (`main` branch):** Milestones **H0, H1, H2, and H3** are fully implemented and integrated into `main` (PR #22, #23, #24, #25, #26, #30, #35, #36). The system provides a complete tool catalog, budget reservation policies, human approvals, long-running operations lifecycle with worker leases, failure reconciliation, cooperative cancellation, agent operations CLI inspection, and a dual-transport Model Context Protocol (MCP) server. Current work proceeds to **Milestone H4** (autonomous deterministic cycle and specialist agents).
+> **Current Status:** Milestones **H0–H5 are complete** (operational truth: [`TASKS.md`](../../../TASKS.md)). Shipped: tool catalog, budget/approval policies, long-running operations with leases, cooperative cancellation, dual-transport MCP (stdio/HTTP), specialists (Planner / FeatureAdvisor / Critic), deterministic orchestrator, and durable LangGraph checkpoints with session resume (`--engine {deterministic,langgraph}`). This README remains the onboarding guide for roles A/B; do not re-plan H0–H5 unless `TASKS.md` reopens them.
 
 ## Multi-Agent / Two-Person Concurrency & Conflict Prevention Protocol
 
@@ -36,9 +36,9 @@ Comunica tu elección al otro colaborador y acordad **una persona por rol**. Si 
 4. **[ARCHITECTURE.md](../../../ARCHITECTURE.md):** límites entre dominio, aplicación, motor e interfaces.
 5. **[plan.md](plan.md), completo:** alcance, contratos, reglas de ejecución, recuperación y aceptación técnica. Es la referencia de qué construir.
 6. **[two-person-plan.md](two-person-plan.md), completo:** reparto A0–A5/B0–B5, dependencias, archivos propios, revisiones e integración. Es la referencia de quién construye cada parte y cuándo.
-7. **[DEVELOPER_GUIDE.md](../../../DEVELOPER_GUIDE.md):** patrones aplicables al paquete que empiezas. Consultar las secciones V0.9/V1.0 de **[AutoML_Arquitectura_Tecnica.md](../../../AutoML_Arquitectura_Tecnica.md)** para contexto; el alcance actual aplaza V0.8 según `plan.md`.
+7. **[DEVELOPER_GUIDE.md](../../../DEVELOPER_GUIDE.md):** patrones aplicables al paquete que empiezas. Consultar **[AutoML_Arquitectura_Tecnica.md](../../../AutoML_Arquitectura_Tecnica.md)** solo como contexto histórico; el estado shipped está en `TASKS.md`.
 
-Para escoger rol basta esta guía y la comparación de responsabilidades. Para programar, completa las lecturas 2–6 y los patrones pertinentes de la guía. No necesitas leer toda la arquitectura técnica histórica antes de empezar H0.
+Para escoger rol basta esta guía y la comparación de responsabilidades. Para programar, completa las lecturas 2–6 y los patrones pertinentes de la guía. H0–H5 ya están cerrados: úsalos como referencia de contratos, no como backlog activo.
 
 En caso de duda: AGENTS define las reglas del repositorio; `plan.md` define requisitos técnicos; `two-person-plan.md` concreta propiedad y dependencias. Si hay contradicción, registradla y resolvedla conjuntamente antes de cambiar un contrato compartido.
 

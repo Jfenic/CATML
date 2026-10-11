@@ -66,7 +66,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Diseño responsive para pantallas estrechas: media queries para $\le 768\text{px}$ y $\le 1024\text{px}$, contención de modales `.modal-responsive` (`max-height: calc(100vh - 2.5rem); overflow-y: auto`), desplazamiento táctil suave (`-webkit-overflow-scrolling: touch`) en contenedores tabulares.
   - Nueva suite automatizada `tests/test_workbench_i18n_and_a11y.py` (6 pruebas pasando al 100%, total de 86 tests de workbench en verde).
 
-## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
+## Now (Active)
+
+> Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
+
+- [ ] **Close Workbench UI refinements** (`feat/workbench-ui-refinements`, PR #90): audit UX P0–P2 (PR 0–5) implemented on the feature branch; remaining work is review/merge into `main`.
+- Open backlog (see [Next / Roadmap Phases](#next-roadmap-phases) and unchecked items): OOF holdout validation; trial provenance metadata; `feature_selection_v05` benchmark; advanced meta-learning *policies* beyond Phase 1 warm starts; historical branch cleanup.
+
+## Completed Phase: v0.8.2 Phase 2 — Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition
 
 - [x] **Estudio Experimental y Validación Empírica en Kaggle Airline Satisfaction (`docs/experiments/`)**:
   - [x] Comparativa cuantitativa AutoML solo vs Explore/Agente (`docs/experiments/airline_satisfaction_automl_vs_agent_report.md`): Naive con `id` (0.817 ROC-AUC) vs Anti-Leakage Guardian (0.952) vs Drops de colinealidad propuestos por Explore (0.952, Δ = -0.0006). Validación empírica de "Propose ≠ Accept" y registro de aprendizaje negativo.
@@ -175,7 +182,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] **Validación y Cobertura**:
   - [x] 676 tests pasando (100% de la suite). Cobertura total mantenida $\ge 85\%$.
 
-## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
+## Completed Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 
 > Plan de evolución arquitectónica como monolito modular con separación hexagonal y CQRS ([docs/features/catml-explore/plan.md](docs/features/catml-explore/plan.md), [ADR-008](docs/decisions/008-catml-explore-modular-monolith.md)).
 
@@ -310,7 +317,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Armonización de idiomas y eliminación de cadenas residuales en inglés en `studio.js` y `knowledge.js`.
   - [x] Suite de pruebas automatizadas dedicada en `tests/test_workbench_navigation_and_explore_ui.py` (4 tests pasando) y suite de UI de 44 tests al 100%.
 
-## Next Roadmap: Experiment Recipes (Explore → Evidence → Reusable Config) — P1
+## Completed Roadmap: Experiment Recipes (Explore → Evidence → Reusable Config)
 
 > Spec: [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md) · Plan: [`docs/features/experiment-recipes/plan.md`](docs/features/experiment-recipes/plan.md) · ADR: [`docs/decisions/009-experiment-recipes-and-interface-parity.md`](docs/decisions/009-experiment-recipes-and-interface-parity.md).  
 > Principio: paridad Python / CLI / REST / MCP / Workbench; UI última capa.  
@@ -485,7 +492,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ## Next (Roadmap Phases)
 
-- [ ] Sincronizar el índice y los planes con las capacidades actuales: H4, stacking y OOF multi-modelo ya implementados; actualizar las referencias al diseño vigente (revisión 2026-10-02).
+- [x] Sincronizar el índice y los planes con las capacidades actuales (revisión 2026-10-11): H0–H5, Explore E0–E6, Experiment Recipes R0–R4, stacking/OOF multi-modelo y release `0.9.0-rc1` alineados en `AGENTS.md`, `docs/README.md`, feature plans/specs, ADR-009 y `MASTER_PLAN.md`.
 - [ ] Auditar `feat/workbench-live-experiments` (WIP sin PR, 60 commits detrás de main) y los commits documentales posteriores a PR #40 en `feat/agentic-a4-specialists` antes de limpiar ramas históricas.
 
 > **Sistema agéntico — empieza aquí:** [`docs/features/agentic-system/README.md`](docs/features/agentic-system/README.md). Elige Persona A o B; prepara A0 o B0 y acuerda H0 antes de pasar a A1/B1.
@@ -511,7 +518,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] H5 — V1.0 Proveedor real, LangGraph duradero y recuperación (Integración final A5 + B5):
   - [x] Track Persona A (Paquete A5): Adaptador LLM agnóstico con validación de respuesta, timeouts/reintentos acotados, redacción y auditoría de tokens (PR #57).
   - [x] Track Persona B (Paquete B5): Checkpointer LangGraph SQLite, reanudación tras fallo y tests E2E de orquestación (`LangGraphAgentOrchestrator`, `SqliteCheckpointSaver`, CLI `--engine {deterministic,langgraph}`, 590 tests passing, 87.70% cobertura).
-- [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
+- [x] Phase 1 Meta-Learning Warm Starts (dataset fingerprint + Optuna trial-0 priors): completed — see Completed section.
+- [ ] Advanced meta-learning *policies* (transform priors by fingerprint, richer warm-start beyond Phase 1): backlog.
 
 - [x] Stacking with a trained meta-estimator (distinct from voting/blending).
 - [ ] Persist backend class, plugin/library versions and dataset/config hashes per trial ([current limits](docs/backends.md)).

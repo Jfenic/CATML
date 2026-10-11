@@ -5,8 +5,9 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-723%20Passing-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/Coverage-86.8%25%2B-brightgreen.svg)](tests/)
+[![Version](https://img.shields.io/badge/Version-0.9.0--rc1-blue.svg)](src/automl/__init__.py)
+[![Tests](https://img.shields.io/badge/Tests-788%20Collected-brightgreen.svg)](tests/)
+[![Coverage](https://img.shields.io/badge/Coverage-%E2%89%A585%25-brightgreen.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
 
@@ -73,7 +74,7 @@ catml fit data.csv --target churn --models logistic_regression,random_forest --j
 Output:
 ```text
 =================================================================
-  CATML Automated Machine Learning (Platform V0.8.0)
+  CATML Automated Machine Learning (Platform 0.9.0-rc1)
 =================================================================
   Dataset:     examples/data/customers_churn.csv
   Target:      churn

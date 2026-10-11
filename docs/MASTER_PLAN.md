@@ -220,11 +220,14 @@ External network access        DENY
 
 | Fase | Alcance y Capacidades | Estado Actual | Puerta de Decisión (Gate) |
 |---|---|---|---|
-| **v0.8 (Core & Agentic Release)** | AutoML facade + `ModelArtifact` (.sha256) + CLI + Workbench + Servidor MCP + Anti-Leakage Guardian (Group/Entity) + `ProblemSpec` inmutable + NLP ligero + Vision Feature Head Spike + LangGraph Durable Agents | **IMPLEMENTADO (SHIPPED IN 0.8)** | Publicación en PyPI y adopción real por 5–10 usuarios independientes |
-| **v0.8.x (Hardening & Feedback)** | Criptografía en artefactos (firmas HMAC/Ed25519), control plane de políticas remotas, optimizaciones de extras de empaquetado | **PRÓXIMO (v0.8.x)** | Cero incidentes de seguridad y retroalimentación positiva de la comunidad |
+| **v0.8 (Core & Agentic Release)** | AutoML facade + `ModelArtifact` (.sha256) + CLI + Workbench + Servidor MCP + Anti-Leakage Guardian (Group/Entity) + `ProblemSpec` inmutable + NLP ligero + Vision Feature Head Spike + LangGraph Durable Agents (H0–H5) | **IMPLEMENTADO (SHIPPED IN 0.8 / agents in 0.9 track)** | Publicación en PyPI y adopción real por 5–10 usuarios independientes |
+| **v0.9.0-rc1 (Explore + Recipes)** | CATML Explore E0–E6, Experiment Recipes R0–R4, hardening remoto fail-closed, CQRS estricto, Workbench laboratorio | **IMPLEMENTADO EN CÓDIGO (`0.9.0-rc1`)** — ver [`TASKS.md`](../TASKS.md) | Release estable 0.9.0 + evidencia de uso externo |
+| **v0.8.x / post-rc (Hardening & Feedback)** | Criptografía en artefactos (firmas HMAC/Ed25519), control plane de políticas remotas, optimizaciones de extras, PyPI | **PRÓXIMO** | Cero incidentes de seguridad y retroalimentación positiva de la comunidad |
 | **v1.0 (Native Multimodal Core)** | Fine-tuning end-to-end de redes neuronales de visión, pipelines mixtos tabular-visión optimizados conjuntamente | **FUTURO (v1.0)** | Demanda validada de visión activa en datasets multimodales empresariales |
 | **v1.x (Specialized Tasks)** | Detección de objetos y segmentación guiada por agentes locales | **FUTURO (v1.x)** | Casos de uso estructurados donde el paradigma tabular no aplique |
 | **Posterior (Medical & Industrial)** | Extensiones DICOM/NIfTI (`catml[medical]`), validación estricta por paciente/cohorte, zero data egress estricto | **INVESTIGACIÓN FUTURA** | Validación clínica demostrable con hospitales o centros de investigación |
+
+> **Nota de sincronización (2026-10-11):** El backlog operativo y los `[ ]` abiertos viven solo en [`TASKS.md`](../TASKS.md). Este plan no duplica checklists de features.
 
 ---
 
@@ -411,16 +414,16 @@ v1.0 (Agents) ────► Recuperación ante caídas probada de forma determ
 
 ---
 
-## 21. CATML Explore: Análisis Científico y Descubrimiento Estadístico Guiado
+## 21. CATML Explore y Experiment Recipes (shipped en `0.9.0-rc1`)
 
-Como evolución arquitectónica de CATML ([ADR-008](decisions/008-catml-explore-modular-monolith.md) y [especificación de feature](features/catml-explore/spec.md)), la plataforma incorpora el contexto **CATML Explore**:
+Como evolución arquitectónica de CATML ([ADR-008](decisions/008-catml-explore-modular-monolith.md), [ADR-009](decisions/009-experiment-recipes-and-interface-parity.md)), la plataforma incorpora:
 
-* **Propósito:** Análisis científico de datos, diagnóstico de calidad, asociaciones no lineales y pruebas de hipótesis deterministas previas al modelado.
-* **Principio "La IA Interpreta, CATML Calcula":** Los algoritmos estadísticos producen hechos numéricos verificables (`StatisticalFinding`). Los agentes (Codex, Claude Code) consumen evidencia estructurada en lugar de alucinar patrones.
-* **Integración sin target obligatorio:** Permite analizar datasets sin columna objetivo supervisada antes de plantear problemas de ML.
-* **Cierre del ciclo con AutoML:** Hallazgo $\rightarrow$ Hipótesis $\rightarrow$ Experimento en AutoML $\rightarrow$ Verificación ("Propose ≠ Accept").
+* **CATML Explore (E0–E6):** Análisis científico, hallazgos, visualizaciones, MCP/CLI y verificación de hipótesis con `EvidenceLink`.
+* **Experiment Recipes (R0–R4):** Configuraciones reproducibles desde evidencia verificada, fit-in-fold y paridad Python/CLI/REST/MCP/Workbench.
+* **Principio "La IA Interpreta, CATML Calcula":** Los algoritmos producen hechos numéricos; los agentes consumen evidencia estructurada.
+* **Cierre del ciclo:** Hallazgo → Hipótesis → Verify → Receta → Experimento → Promote ("Propose ≠ Accept").
 
-Ver plan detallado de fases en [`docs/features/catml-explore/plan.md`](features/catml-explore/plan.md).
+Planes: [`features/catml-explore/plan.md`](features/catml-explore/plan.md), [`features/experiment-recipes/plan.md`](features/experiment-recipes/plan.md).
 
 ---
 

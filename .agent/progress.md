@@ -1,5 +1,15 @@
 # Progress
 
+### Track Docs — Coordinación y sincronización de fuente de verdad (2026-10-11)
+
+- Alineados banners y estados de **Explore E0–E6**, **Experiment Recipes R0–R4**, **Agentes H0–H5** y versión **`0.9.0-rc1`** en:
+  - `AGENTS.md` (orden de lectura + Recipes shipped)
+  - `TASKS.md` (`## Now` real; roadmaps Explore/Recipes marcados Completed; sync documental cerrado; meta-learning Phase 1 vs políticas avanzadas)
+  - `docs/README.md` (tabla de capacidades)
+  - `docs/MASTER_PLAN.md`, `ARCHITECTURE.md`, `DEVELOPER_GUIDE.md`, `README.md`
+  - `docs/features/{catml-explore,experiment-recipes,agentic-system}/*` y ADR-009
+- Regla explícita: si un plan/spec contradice `TASKS.md`, prevalece `TASKS.md`.
+
 ### Track Workbench — Auditoría UX/UI, Coherencia de Contexto y Refactorización (2026-10-11)
 
 - **PR 0: Restauración de CI y Empaquetado (`pyproject.toml`):**

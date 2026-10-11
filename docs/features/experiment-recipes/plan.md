@@ -1,10 +1,10 @@
 # Plan de Implementación: Experiment Recipes
 
 > **Documento:** Plan por fases (R0–R4)  
-> **Estado:** Pendiente de implementación  
+> **Estado:** **IMPLEMENTADO (R0–R4)** — estado operativo en [`TASKS.md`](../../../TASKS.md)  
 > **Especificación:** [spec.md](spec.md) · [ADR-009](../../decisions/009-experiment-recipes-and-interface-parity.md)  
 > **Dependencia:** CATML Explore E5–E6 (EvidenceLink, verify) completados  
-> **Regla:** Contratos y tests **antes** que UI Workbench
+> **Regla histórica:** Contratos y tests **antes** que UI Workbench (cumplida)
 
 ---
 
@@ -117,8 +117,10 @@ flowchart LR
 
 ## Checklist anti-regresión
 
-- [ ] No bypass de `CommandBus` / `QueryBus` desde interfaces
-- [ ] No fit de RobustScaler/Yeo-Johnson sobre dataset completo pre-split
-- [ ] Aprendizaje negativo (rejected) se conserva
-- [ ] Agente MCP respeta política de aprobación
-- [ ] Cobertura global ≥ 85%
+- [x] No bypass de `CommandBus` / `QueryBus` desde interfaces (`tests/test_cqrs_architecture_guard.py`, paridad R3/R4)
+- [x] No fit de RobustScaler/Yeo-Johnson sobre dataset completo pre-split (`tests/test_recipe_phase_r0_verify_transforms.py`)
+- [x] Aprendizaje negativo (rejected) se conserva (EvidenceLink; *Propose ≠ Accept*)
+- [x] Agente MCP respeta política de aprobación (tools recipe + ledger de agentes)
+- [x] Cobertura global ≥ 85% (suite verde en cierre R4)
+
+Evidencia de fase: `tests/test_recipe_phase_r0_verify_transforms.py`, `tests/test_recipe_phase_r1_domain_and_cqrs.py`, `tests/test_recipe_phase_r3_parity.py`, `tests/test_recipe_phase_r4_workbench_parity.py`.

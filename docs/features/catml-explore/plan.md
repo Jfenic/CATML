@@ -1,8 +1,8 @@
 # Plan de Evolución Arquitectónica: CATML Explore
 
 > **Documento:** Plan de Implementación por Fases (E0 a E6)  
-> **Estado:** Propuesta Técnica de Evolución Aprobada  
-> **Base de Código:** CATML v0.8.x / v0.9.x  
+> **Estado:** **IMPLEMENTADO (E0–E6)** — estado operativo en [`TASKS.md`](../../../TASKS.md)  
+> **Base de Código:** CATML `0.9.0-rc1`  
 > **Estrategia:** Desarrollo Incremental, Modular y 100% Retrocompatible  
 > **Especificación Asociada:** [spec.md](spec.md) · [ADR-008](../../decisions/008-catml-explore-modular-monolith.md)
 
@@ -53,7 +53,8 @@ flowchart TD
 
 ### Fase E1 — Núcleo de Estudios (Explore Core)
 
-* **Prioridad:** **P0 (Inmediata)**
+* **Estado:** **COMPLETADA** (ver `TASKS.md` / `tests/test_explore_phase_e1_core.py`).
+* **Prioridad:** **P0**
 * **Dependencia:** Fase E0.
 * **Objetivo:** Establecer la base estructural del contexto `analysis` sin alterar el comportamiento de AutoML ni romper compatibilidad con workspaces existentes.
 
@@ -87,6 +88,7 @@ flowchart TD
 
 ### Fase E2 — Motor Estadístico Avanzado (Advanced Statistical Engine)
 
+* **Estado:** **COMPLETADA** (ver `tests/test_explore_phase_e2_advanced_engine.py`).
 * **Prioridad:** **P0**
 * **Dependencia:** Fase E1.
 * **Objetivo:** Dotar a Explore de un motor de inferencia estadística matemática real sin depender de generación de código por LLMs.
@@ -114,6 +116,7 @@ flowchart TD
 
 ### Fase E3 — Laboratorio Visual Interactivo (Workbench Exploration UI)
 
+* **Estado:** **COMPLETADA** (ver `tests/test_explore_phase_e3_ui.py`).
 * **Prioridad:** **P1**
 * **Dependencia:** Fases E1 y E2.
 * **Objetivo:** Construir una interfaz visual analítica de nivel profesional en el Workbench existente (`interfaces/web/`).
@@ -139,6 +142,7 @@ flowchart TD
 
 ### Fase E4 — Interoperabilidad MCP y CLI Completa (Agent Surface)
 
+* **Estado:** **COMPLETADA** (ver `tests/test_explore_phase_e4_agent_surface.py`).
 * **Prioridad:** **P0**
 * **Dependencia:** Fase E1 (y E2 para herramientas analíticas completas).
 * **Objetivo:** Permitir que agentes externos como Claude Code, OpenAI Codex y entornos IDE interactúen fluidamente con CATML Explore.
@@ -166,6 +170,7 @@ flowchart TD
 
 ### Fase E5 — Agente Científico y Conexión con AutoML (Hypothesis Engine)
 
+* **Estado:** **COMPLETADA** (ver `tests/test_explore_phase_e5_hypothesis_engine.py`).
 * **Prioridad:** **P1**
 * **Dependencia:** Fases E2 y E4.
 * **Objetivo:** Conectar el descubrimiento estadístico de patrones con la experimentación guiada en AutoML bajo el principio "Propose ≠ Accept".
@@ -208,15 +213,13 @@ flowchart TD
 
 ### Continuación post-E6 — Experiment Recipes (fuera del núcleo Explore)
 
-Explore verifica hipótesis y produce `EvidenceLink`, pero **no** define aún una configuración reproducible seleccionable/promovible con paridad CLI/MCP/UI.
-
-Esa capacidad se especifica en:
+Explore verifica hipótesis y produce `EvidenceLink`. Las **recetas reproducibles** con paridad CLI/MCP/REST/UI se implementaron en **R0–R4** (estado: **IMPLEMENTADO**):
 
 * [Experiment Recipes — Spec](../experiment-recipes/spec.md)
 * [Experiment Recipes — Plan (fases R0–R4)](../experiment-recipes/plan.md)
 * [ADR-009](../../decisions/009-experiment-recipes-and-interface-parity.md)
 
-No implementar como “solo un botón en Explore”: contratos de dominio y CQRS primero; Workbench al final.
+Regla cumplida: contratos de dominio y CQRS primero; Workbench al final.
 
 ---
 
@@ -233,7 +236,7 @@ No implementar como “solo un botón en Explore”: contratos de dominio y CQRS
 | Vista visual interactiva en el Workbench | P1 | E3 | PR 7 (Explore UI View) |
 | Conexión de hipótesis con experimentos AutoML | P1 | E5 | PR 8 (Hypothesis to Experiment Link) |
 | Benchmarks científicos y suite de regresión | P1 | E6 | PR 9 (Benchmarks & Hardening) |
-| Experiment Recipes (recetas + paridad interfaces) | P1 | post-E6 / R0–R4 | Ver [experiment-recipes/plan.md](../experiment-recipes/plan.md) |
+| Experiment Recipes (recetas + paridad interfaces) | P1 | post-E6 / R0–R4 **COMPLETADO** | Ver [experiment-recipes/plan.md](../experiment-recipes/plan.md) |
 
 ---
 
@@ -243,4 +246,4 @@ No implementar como “solo un botón en Explore”: contratos de dominio y CQRS
 2. **Aislamiento Hexagonal:** `domain/analysis/` no importa paquetes externos.
 3. **Extras Opcionales:** `scipy` y `statsmodels` deben declararse en el extra `catml[explore]` para preservar la ligereza del core.
 4. **Evidencia antes que IA:** CATML calcula números reales; los modelos de lenguaje solo interpretan o sintetizan.
-5. **No Regresiones en la Suite:** La suite de pruebas actual (622 tests) debe mantenerse pasando al 100% con cobertura $\ge 85\%$ en cada pull request.
+5. **No Regresiones en la Suite:** La suite completa debe mantenerse pasando al 100% con cobertura $\ge 85\%$ en cada pull request (conteo actual en CI / `pytest --collect-only`).

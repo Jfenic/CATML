@@ -1,7 +1,7 @@
 # ADR-009: Experiment Recipes y Paridad de Interfaces
 
-> **Estado:** Aceptada (intención arquitectónica; implementación pendiente)  
-> **Fecha:** 2026-10-11  
+> **Estado:** Aceptada e **implementada (R0–R4)** — ver [`TASKS.md`](../../TASKS.md)  
+> **Fecha:** 2026-10-11 (actualización de estado: 2026-10-11)  
 > **Alcance:** Puente Explore → Experimentos → aprendizaje reutilizable  
 > **Relacionado con:** [ADR-001](001-hexagonal-architecture-and-cqrs.md), [ADR-002](002-hypothesis-driven-experiments.md), [ADR-004](004-agentic-system-scope-and-dependencies.md), [ADR-008](008-catml-explore-modular-monolith.md), [Spec](../features/experiment-recipes/spec.md), [Plan](../features/experiment-recipes/plan.md).
 
@@ -43,4 +43,4 @@ Sin un objeto de primer nivel y sin paridad de superficies, el riesgo es impleme
 
 ### Coste
 - Nuevo bounded context ligero (recipes), migraciones SQLite, extensión del trainer, más superficie MCP/CLI.
-- Implementación diferida en fases R0–R4 ([plan.md](../features/experiment-recipes/plan.md)); estado operativo en [TASKS.md](../../TASKS.md).
+- Entregado en fases R0–R4 ([plan.md](../features/experiment-recipes/plan.md)); estado operativo y backlog residual en [TASKS.md](../../TASKS.md).
