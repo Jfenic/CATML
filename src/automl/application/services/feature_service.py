@@ -47,6 +47,8 @@ class FeatureEngineeringService:
         )
         from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
 
+        import os
+
         dataset = self.workspace._get_dataset(dataset_id)
         df = load_dataframe(dataset.path)
 
@@ -56,7 +58,13 @@ class FeatureEngineeringService:
             expression=expression,
         )
         engine = DerivedFeatureEngine()
-        result, _ = engine.evaluate(df, def_obj)
+        allow_python = os.environ.get("CATML_ALLOW_DERIVED_PYTHON", "").strip() == "1"
+        result, _ = engine.evaluate(
+            df,
+            def_obj,
+            allow_python_code=allow_python,
+            allow_stateful_aggregates=True,
+        )
         return result
 
     def apply_derived_feature(
@@ -74,6 +82,8 @@ class FeatureEngineeringService:
         )
         from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
 
+        import os
+
         dataset = self.workspace._get_dataset(dataset_id)
         df = load_dataframe(dataset.path)
 
@@ -84,7 +94,13 @@ class FeatureEngineeringService:
             description=description,
         )
         engine = DerivedFeatureEngine()
-        updated_df, result = engine.apply(df, def_obj)
+        allow_python = os.environ.get("CATML_ALLOW_DERIVED_PYTHON", "").strip() == "1"
+        updated_df, result = engine.apply(
+            df,
+            def_obj,
+            allow_python_code=allow_python,
+            allow_stateful_aggregates=True,
+        )
 
         # Save updated dataframe to dataset path
         updated_df.to_csv(dataset.path, index=False)

@@ -122,10 +122,18 @@ def detect_is_group_candidate(
 
     cardinality_ratio = unique_count / row_count if row_count > 0 else 0.0
 
-    if name_has_group_hint and unique_count >= 2 and cardinality_ratio <= 0.90:
+    # Explicit ID-like names (patient_id, user_id, …) with repeated entities.
+    if name_is_id and unique_count >= 2 and cardinality_ratio <= 0.90:
         return True
 
-    if name_is_id and unique_count >= 2 and cardinality_ratio <= 0.90:
+    # Soft name hints ("customer", "hospital", …) must not flag low-cardinality
+    # categoricals such as "Customer Type" (2–few levels). Require enough distinct
+    # entities and a mid-range cardinality ratio typical of entity keys.
+    if (
+        name_has_group_hint
+        and unique_count >= 10
+        and 0.02 <= cardinality_ratio <= 0.85
+    ):
         return True
 
     return False

@@ -83,6 +83,18 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P2 | Vendor Workbench CDN assets for fully offline UI | Open |
 | P0 | Reserve/publish `catml` on TestPyPI then PyPI as **0.9.0rc1** | Not started (needs human Trusted Publisher setup) |
 
+### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Disable derived `python_code` by default (`allow_execution` / `CATML_ALLOW_DERIVED_PYTHON=1`) | Done |
+| P0 | Reject stateful formulas (`zscore`/`mean`/`std`) before CV; row-wise OK | Done |
+| P1 | `ModelArtifact.load` fail-closed when `.sha256` sidecar missing | Done |
+| P1 | Soften group-candidate heuristic (e.g. `Customer Type` not an entity) | Done |
+| P1 | `time_series` requires `run.config.extra['time_column']` + sort | Done |
+| P1 | `run_experiment` → `FAILED` when zero successful trials | Done |
+| P2 | Broader offline/distribution UI matrix | Open (packaging track) |
+
 ### Track Public Surface Audit — Coherence & Security Claims (`fix/audit-public-surface-coherence`)
 
 > External audit mixed outdated README/ARCHITECTURE claims with real gaps. Triage vs `main` (2026-10-11):

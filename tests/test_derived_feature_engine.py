@@ -141,9 +141,14 @@ def test_formula_calculator_math_functions():
     assert res.iloc[2] == 5.0
     assert res.iloc[3] == 0.0
 
-    # Safe zscore
-    res, _ = calc.evaluate("zscore(y)")
+    # Safe zscore (preview-only aggregates; opt-in)
+    calc_stateful = SafeFormulaCalculator(df, allow_stateful_aggregates=True)
+    res, warns = calc_stateful.evaluate("zscore(y)")
     assert np.isclose(np.mean(res), 0.0, atol=1e-5)
+    assert any("Stateful aggregate" in w for w in warns)
+
+    with pytest.raises(ValueError, match="stateful aggregates"):
+        calc.evaluate("zscore(y)")
 
     # Ternary / conditional where
     res, _ = calc.evaluate("where(x > 0, 1, 0)")
@@ -200,7 +205,7 @@ def test_python_evaluator_function_mode():
         "val_a": [10.0, 20.0, 30.0],
         "val_b": [2.0, 4.0, 5.0],
     })
-    py_eval = SafePythonEvaluator(df)
+    py_eval = SafePythonEvaluator(df, allow_execution=True)
 
     code = """
 def compute_feature(df):
@@ -214,7 +219,7 @@ def compute_feature(df):
 
 def test_python_evaluator_result_assignment_mode():
     df = pd.DataFrame({"x": [1, 2, 3]})
-    py_eval = SafePythonEvaluator(df)
+    py_eval = SafePythonEvaluator(df, allow_execution=True)
 
     code = "result = df['x'] * 10 + 5"
     series, _ = py_eval.evaluate(code)
@@ -223,7 +228,7 @@ def test_python_evaluator_result_assignment_mode():
 
 def test_python_evaluator_dimension_mismatch_error():
     df = pd.DataFrame({"x": [1, 2, 3, 4]})
-    py_eval = SafePythonEvaluator(df)
+    py_eval = SafePythonEvaluator(df, allow_execution=True)
 
     code = """
 def compute_feature(df):
@@ -235,7 +240,7 @@ def compute_feature(df):
 
 def test_python_evaluator_security_sandbox():
     df = pd.DataFrame({"x": [1, 2, 3]})
-    py_eval = SafePythonEvaluator(df)
+    py_eval = SafePythonEvaluator(df, allow_execution=True)
 
     # Disallow imports
     with pytest.raises(ValueError, match="Importing modules.*strictly forbidden"):
@@ -528,7 +533,7 @@ def test_web_api_derived_feature_endpoints(running_derived_server):
         assert res["feature_name"] == "profit_margin"
         assert res["zero_division_occurred"] is True  # Row 4 has sales=0.0
 
-    # 2. POST /api/features/calculate with Python code
+    # 2. POST /api/features/calculate with Python code — denied unless opt-in env
     py_payload = {
         "dataset_id": dataset_id,
         "name": "cost_squared",
@@ -544,8 +549,8 @@ def test_web_api_derived_feature_endpoints(running_derived_server):
     with urlopen(req_py) as resp:
         assert resp.status == 200
         data = json.loads(resp.read().decode("utf-8"))
-        assert data["result"]["is_valid"] is True
-        assert data["result"]["sample_values"][0] == 2500.0
+        assert data["result"]["is_valid"] is False
+        assert "disabled" in (data["result"].get("error_message") or "").lower()
 
     # 3. POST /api/features/apply
     apply_payload = {
@@ -598,8 +603,10 @@ def test_formula_calculator_all_safe_math_functions():
     res, _ = calc.evaluate("min(a, b) + max(a, b) + power(a, 2)")
     assert len(res) == 3
 
-    res, _ = calc.evaluate("mean(a) + std(b) + fillna(d, 0.0)")
+    calc_stateful = SafeFormulaCalculator(df, allow_stateful_aggregates=True)
+    res, warns = calc_stateful.evaluate("mean(a) + std(b) + fillna(d, 0.0)")
     assert len(res) == 3
+    assert any("Stateful aggregate" in w for w in warns)
 
     # Mod and floor div with zero-denom
     res, w = calc.evaluate("b % c")
@@ -619,7 +626,7 @@ def test_formula_calculator_all_safe_math_functions():
 
 def test_python_evaluator_error_trapping_and_edge_cases():
     df = pd.DataFrame({"x": [10.0, 20.0]})
-    py_eval = SafePythonEvaluator(df)
+    py_eval = SafePythonEvaluator(df, allow_execution=True)
 
     # Alternative function names: transform
     code_transform = "def transform(df):\n    return df['x'] * 3"

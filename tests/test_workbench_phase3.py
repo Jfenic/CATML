@@ -28,6 +28,7 @@ def binary_data():
         "num_1": np.random.randn(n),
         "num_2": np.random.randn(n),
         "cat_1": ["A", "B", "C"] * (n // 3),
+        "event_time": pd.date_range("2024-01-01", periods=n, freq="h"),
     })
     y = pd.Series([0, 1] * (n // 2), name="target")
     return X, y
@@ -42,6 +43,8 @@ def test_sklearn_trainer_validation_strategies(tmp_path, binary_data):
     trial = MagicMock(model_id="logistic_regression", parameters={"max_iter": 200})
     exp = MagicMock(id="exp_1")
     run = MagicMock(id="run_1")
+    run.config = MagicMock()
+    run.config.extra = {"time_column": "event_time"}
 
     # Stratified K-Fold
     exec_stratified = TrialExecution(

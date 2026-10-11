@@ -59,6 +59,27 @@ def test_model_artifact_load_fail_closed_unreadable_sidecar(tmp_path: Path, monk
         ModelArtifact.load(art_file, verify_checksum=True)
 
 
+def test_model_artifact_load_fail_closed_missing_sidecar(tmp_path: Path):
+    pipe = Pipeline([("model", LogisticRegression())])
+    pipe.fit(np.array([[1.0], [2.0]]), np.array([0, 1]))
+    artifact = ModelArtifact(
+        pipeline=pipe,
+        model_id="logistic_regression",
+        task_type="binary_classification",
+        feature_names=["f1"],
+    )
+
+    art_file = tmp_path / "model_no_sidecar.pkl"
+    artifact.save(art_file, generate_checksum=False)
+    assert not (tmp_path / "model_no_sidecar.pkl.sha256").exists()
+
+    with pytest.raises(ValueError, match="checksum sidecar missing"):
+        ModelArtifact.load(art_file, verify_checksum=True)
+
+    loaded = ModelArtifact.load(art_file, allow_missing_checksum=True)
+    assert loaded.model_id == "logistic_regression"
+
+
 def test_model_artifact_load_fail_closed_tampered_model(tmp_path: Path):
     pipe = Pipeline([("model", LogisticRegression())])
     pipe.fit(np.array([[1.0], [2.0]]), np.array([0, 1]))
