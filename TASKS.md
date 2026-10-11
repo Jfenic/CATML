@@ -93,7 +93,11 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Ensemble regression scores: flip sklearn `neg_*` before persist | Done (`#104`) |
 | P0 | Stacking nested CV OOF for metamodel (no in-sample `stacked_oof`) | Done (`#104`) |
 | P1 | Unknown optimizer fail-closed (`optuna` / `random` only) | Done (`#104`) |
-| P2 | Findings 6–14, 16 (supervised selection leakage, PCA recipe, hypothesis stats, budget status, …) | Open (next) |
+| P1 | #7/#8 invalid targets not fabricated in feature prep | In progress (`fix/audit4-features-simplex-honesty`) |
+| P1 | #11 simplex nested weight evaluation | In progress (`fix/audit4-features-simplex-honesty`) |
+| P1 | #13 tree_importance vs shap_importance labeling | In progress (`fix/audit4-features-simplex-honesty`) |
+| P2 | #6 exploratory labeling for supervised selection (full nested-in-fold deferred) | In progress (`fix/audit4-features-simplex-honesty`) |
+| P2 | Findings 9–10, 12, 14, 16 (hypothesis stats, PCA recipe, image cache, budget status) | Open |
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
 

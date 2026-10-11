@@ -291,11 +291,22 @@ class FeatureEngineeringService:
                 for r in all_ranks["mutual_information"]:
                     if r.feature_name == feature_name:
                         evidence.mutual_information = r.score
+            # Tree selectors report native impurity/gain importance — not SHAP.
             if "importance" in all_ranks:
                 for r in all_ranks["importance"]:
                     if r.feature_name == feature_name:
-                        evidence.shap_importance = r.score
-            evidence.confidence = 0.8
+                        evidence.tree_importance = r.score
+            sources = sum(
+                1
+                for v in (
+                    evidence.mutual_information,
+                    evidence.tree_importance,
+                    evidence.shap_importance,
+                    evidence.permutation_importance,
+                )
+                if v is not None
+            )
+            evidence.confidence = min(0.9, 0.35 + 0.2 * sources)
             self.workspace.repository.save_feature_evidence(run.id, evidence)
 
         if len(selectors) > 1:
@@ -324,6 +335,10 @@ class FeatureEngineeringService:
                         metadata={
                             "strategy": strat.to_dict(),
                             "features": selected_names,
+                            # Supervised selectors fit on the full labeled dataset; treating
+                            # CV scores on the same rows as unbiased estimates is optimistic.
+                            "evaluation_mode": "exploratory_full_dataset",
+                            "supervised_selection_leakage_risk": True,
                         },
                     )
                 )
