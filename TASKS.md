@@ -35,10 +35,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - Eliminadas puntuaciones engañosas globales de `overview.best_score` o `overview.total_trials` en tarjetas locales de Studio y Overview cuando la ejecución no tiene resultados.
   - Soportado filtro `dataset_id` en endpoint REST `/api/runs`.
   - Nueva suite automatizada `tests/test_workbench_context_consistency.py` con 7 pruebas pasando (100% verde).
-- [ ] **PR 2: Fase P0 — Métricas, puntuaciones y comparabilidad**:
-  - Dirección de optimización correcta en `best_trial` (minimizar vs maximizar según métrica: RMSE/MAE menor es mejor).
-  - Bloqueo de comparaciones incompatibles (distinta métrica o tarea).
-  - Etiquetas honestas («Mejor de esta ejecución», «Evaluado», «Diferencia observada»).
+- [x] **PR 2: Fase P0 — Métricas, puntuaciones y comparabilidad**:
+  - Implementadas funciones canónicas de dirección de métrica `_is_metric_minimizing` y selector de mejor trial `_get_best_trial_result` en backend (`server.py`), asegurando que métricas de error (RMSE, MSE, MAE, log-loss) seleccionen siempre el valor mínimo y métricas de score (ROC-AUC, Accuracy, F1) el máximo.
+  - Expuesto metadato explícito `metric_direction` ("minimize" / "maximize") e `is_minimizing` en `/api/runs`, `/api/experiments`, `/api/experiments/compare` y `/api/overview`.
+  - Enriquecidas utilidades frontend en `utils.js` (`isMinimizingMetric`, `getMetricDirectionInfo`, `formatMetricComparison`).
+  - Bloqueo de comparaciones incompatibles en `compare.js`: banner de alerta cuando se intentan comparar experimentos con métricas diferentes, suspensión del cálculo engañoso de deltas y suspensión de gráfico conjunto de escalas mixtas.
+  - Desbloqueado el rango Y del gráfico de evolución en `compare.js`, eliminando el límite rígido `Math.min(1.0, ...)` que deformaba métricas de regresión (RMSE/MSE superiores a 1.0).
+  - Sustitución de etiquetas engañosas por terminología científicamente honesta: "Optimal" -> "Mejor de esta ejecución", "Verified" / "Verified by CV" -> "Evaluado" / "Evaluado por Cross-Validation", "Mejora" -> "Diferencia observada favorable" o "Diferencia no concluyente" cuando $|\Delta| < 0.00005$.
+  - Nueva suite automatizada `tests/test_workbench_metric_context.py` con 7 pruebas unitarias y de integración pasando al 100%.
 - [ ] **PR 3: Fase P1 — Simplificación del flujo, navegación y estados de trabajos**:
   - Centro de control orientado a Datos → Exploración → Experimentos → Resultados.
   - Diferenciación rigurosa de estados de trabajos (pendiente, en ejecución, completado, fallido, cancelado).

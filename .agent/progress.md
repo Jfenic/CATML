@@ -16,9 +16,25 @@
   - **`agent.js`:** Manejo explícito de 3 estados de contexto: (1) Sin dataset seleccionado («Selecciona un dataset para comenzar»), (2) Dataset seleccionado sin ejecución («Sin ejecución activa»), (3) Dataset con ejecución activa (indicando dataset y run a las que pertenecen las hipótesis).
   - **Métricas:** Eliminadas puntuaciones engañosas globales en tarjetas locales de Studio y Overview cuando la ejecución no tiene resultados.
   - **API Backend:** Filtro `dataset_id` soportado en `/api/runs` en `server.py` (`ws.list_runs(dataset_id=...)`).
-  - **Validación Automatizada:** Suite `tests/test_workbench_context_consistency.py` (7 tests pasando) y validación de suite completa (764 tests pasando, 86.80% de cobertura).
+- **PR 2: Fase P0 — Métricas, puntuaciones y comparabilidad:**
+  - **Backend (`server.py`):**
+    - Implementadas `_is_metric_minimizing` y `_get_best_trial_result`, seleccionando el trial mínimo para métricas de error (RMSE, MSE, MAE, log-loss) y el máximo para métricas de score (ROC-AUC, Accuracy, F1).
+    - Metadatos `metric_direction` ("minimize" / "maximize") e `is_minimizing` integrados en respuestas de `/api/runs`, `/api/experiments`, `/api/experiments/compare` y `/api/overview`.
+    - Sanitizada la selección de mejor trial en `/api/kaggle/status` y `/api/planner/plan`.
+  - **Frontend Utilities (`utils.js`):**
+    - Nuevas utilidades canónicas `isMinimizingMetric()`, `getMetricDirectionInfo()` y `formatMetricComparison()`.
+  - **Comparador (`compare.js`):**
+    - Bloqueo de comparaciones incompatibles con banner informativo cuando los experimentos seleccionados miden objetivos matemáticos distintos. Deshabilitado el cálculo engañoso de deltas y suspendido el gráfico combinado para métricas no homogéneas.
+    - Desbloqueado el eje Y del gráfico de evolución (eliminado el techo rígido `Math.min(1.0, ...)` para soportar métricas de regresión como RMSE > 1.0).
+  - **Etiquetado Honesto y Riguroso:**
+    - Sustituido "Optimal" por "Mejor de esta ejecución" o "Mejor resultado observado".
+    - Sustituido "Verified" / "Verified by CV" por "Evaluado" / "Evaluado por Cross-Validation".
+    - Sustituido "Mejora" por "Diferencia observada favorable" o "Diferencia no concluyente" ($|\Delta| < 0.00005$).
+  - **Pruebas Automatizadas:**
+    - Nueva suite `tests/test_workbench_metric_context.py` con 7 tests pasando al 100%. Total de 66 tests de Workbench pasando en verde.
 
 ### Track Experiment Recipes — Fase R4: Workbench UI y Paridad E2E (2026-10-11)
+
 
 - **Integración de Experiment Recipes en Workbench y Paridad E2E (Fase R4):**
   - **Cliente API Frontend (`src/automl/interfaces/web/static/js/api.js`):**
