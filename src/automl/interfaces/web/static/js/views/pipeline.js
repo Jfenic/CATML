@@ -58,6 +58,22 @@ export class PipelineView {
   render() {
     const p = this.profile;
     const run = this.activeRun;
+    if (!p && !run) {
+      this.container.innerHTML = `
+        <div class="workbench-card p-12 text-center space-y-4">
+          <div class="text-[#8B95A7]/40 flex justify-center">${icon("workflow", "icon-xl", 36)}</div>
+          <h3 class="text-base font-bold text-[#F7F8FA]">Sin Pipeline Generado</h3>
+          <p class="text-xs text-[#8B95A7] max-w-sm mx-auto">Registra un dataset y ejecuta un experimento para generar el grafo DAG de transformaciones, ingeniería de features y ensamble.</p>
+          <button id="btnNewExpPipelineEmpty" class="btn-signal">
+            <span class="inline-flex items-center gap-1.5">${icon("plus", "icon-sm")} <span>Nuevo Experimento</span></span>
+          </button>
+        </div>
+      `;
+      this.container.querySelector("#btnNewExpPipelineEmpty")?.addEventListener("click", () => {
+        bus.emit("modal:new-experiment");
+      });
+      return;
+    }
     const columns = p ? (p.columns || []) : [];
     const numCols = columns.filter(c => c.dtype && (c.dtype.includes("int") || c.dtype.includes("float"))).length;
     const imgCols = columns.filter(c => c.is_image).length;

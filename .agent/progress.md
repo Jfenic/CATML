@@ -2,6 +2,20 @@
 
 ### Track Workbench UI Refinements & Testing — (2026-10-11)
 
+- **Eliminación de Datasets Demo y Garantía de Workspace Vacío por Defecto:**
+  - En `src/automl/interfaces/cli/main.py` (`launch_ui_cli`): eliminada la resolución predeterminada a `.automl/s6e9_automl` o `.automl/demo`; ahora resuelve a un workspace limpio por defecto (`.automl/default`).
+  - En `src/automl/interfaces/web/server.py` (`AutoMLWebHandler`, `run_web_dashboard`): actualizado `workspace_dir` por defecto a `.automl/default`.
+  - Limpieza de artefactos residuales en `workspace/automl.db` y `.automl/default/` (eliminando el dataset demo «E-Commerce Multimodal Catalog» y ejecuciones previas).
+  - Verificado arranque limpio en `workspace/`: endpoints `/api/datasets` (`[]`), `/api/runs` (`[]`), `/api/overview` (`total_runs: 0`, `recent_datasets: []`, `activity_feed: []`).
+- **Erradicación de Datos Hardcodeados y Estados Vacíos Honestos en UI:**
+  - `src/automl/interfaces/web/static/index.html`: Inicialización limpia del badge de dataset activo a «Sin dataset activo» con punto neutral en vez de texto transitorio.
+  - `src/automl/interfaces/web/static/js/views/kaggle.js`: Añadido estado vacío honesto cuando no hay ejecución activa («Sin Experimentos de Competición Activos») en lugar de maquetas sintéticas de benchmark.
+  - `src/automl/interfaces/web/static/js/views/pipeline.js`: Añadido estado vacío honesto cuando no hay perfil ni ejecución («Sin Pipeline Generado») en vez de nodos DAG artificiales con conteos en cero.
+  - Todos los datos numéricos y métricas visualizadas en Workbench provienen estrictamente de cálculos reales del backend (CLI, MCP, buses CQRS).
+- **Batería de Pruebas Automatizada:**
+  - Nuevo test unitario `test_workbench_clean_empty_workspace_defaults_and_zero_hardcoding` en `tests/test_workbench_laboratory_redesign.py` validando la resolución predeterminada de CLI y respuestas API totalmente limpias en directorios vacíos.
+  - 45 tests de Workbench ejecutados y aprobados al 100%.
+  - Suite completa de 731 tests aprobada (100% verde) con 87.07% de cobertura (superando el umbral del 85%).
 - **Sincronización Reactiva de Versión en Frontend:**
   - `src/automl/interfaces/web/static/index.html`: Elementos `#sidebarVersionLabel` y `#sidebarAgentBadge` con versión dinámica por defecto `v0.9.0-rc1`.
   - `src/automl/interfaces/web/static/js/app.js`: Inyección reactiva de `overview.version` en la barra lateral en cuanto el servidor responde en el arranque.
@@ -12,9 +26,6 @@
 - **Armonización Lingüística y Limpieza de Versiones Heredadas:**
   - `src/automl/interfaces/web/static/js/views/studio.js`: Mensaje de carga traducido al español («Cargando estudio de experimentos, planes y métricas de validación...»).
   - `src/automl/interfaces/web/static/js/views/knowledge.js`: Eliminado indicador estático `(V0.8)` del encabezado.
-- **Batería de Pruebas Automatizada:**
-  - Nueva suite en `tests/test_workbench_navigation_and_explore_ui.py` (4 tests) validando la presencia de enlaces de las 5 vistas canónicas, el acceso directo a Explore, el enrutador canónico y el servicio HTTP de assets estáticos JS con MIME correcto.
-  - Conjunto global de 44 tests de Workbench ejecutados y aprobados al 100%.
 
 ### Track Governance — Apache-2.0 license consistency (2026-10-11)
 

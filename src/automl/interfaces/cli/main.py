@@ -675,9 +675,7 @@ def launch_ui_cli(args: argparse.Namespace) -> int:
     if args.workspace:
         ws_dir = str(Path(args.workspace))
     else:
-        s6e9_ws = _project_root() / ".automl" / "s6e9_automl"
-        demo_ws = _project_root() / ".automl" / "demo"
-        ws_dir = str(s6e9_ws if s6e9_ws.exists() else demo_ws)
+        ws_dir = str(_project_root() / ".automl" / "default")
 
     port = args.port or 8080
     host = getattr(args, "host", "127.0.0.1")

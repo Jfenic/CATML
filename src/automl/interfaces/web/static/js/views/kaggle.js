@@ -52,11 +52,28 @@ export class KaggleView {
 
   render() {
     const run = this.activeRun;
+    if (!run) {
+      this.container.innerHTML = `
+        <div class="workbench-card p-12 text-center space-y-4">
+          <div class="text-[#8B95A7]/40 flex justify-center">${icon("trophy", "icon-xl", 36)}</div>
+          <h3 class="text-base font-bold text-[#F7F8FA]">Sin Experimentos de Competición Activos</h3>
+          <p class="text-xs text-[#8B95A7] max-w-sm mx-auto">Para generar submissions de Kaggle o verificar datasets de test, primero registra un dataset y entrena un experimento.</p>
+          <button id="btnNewExpKaggleEmpty" class="btn-signal">
+            <span class="inline-flex items-center gap-1.5">${icon("plus", "icon-sm")} <span>Nuevo Experimento</span></span>
+          </button>
+        </div>
+      `;
+      this.container.querySelector("#btnNewExpKaggleEmpty")?.addEventListener("click", () => {
+        bus.emit("modal:new-experiment");
+      });
+      return;
+    }
+
     const st = this.status || {
-      competition: run ? (run.dataset_name || "Custom Competition") : "Custom Competition",
-      title: run ? `AutoML Benchmark — ${run.dataset_name || "Active"}` : "AutoML Benchmark",
-      metric: run ? run.metric : "ROC-AUC",
-      local_best_cv: run ? run.best_score : null,
+      competition: run.dataset_name || "Custom Competition",
+      title: `AutoML Benchmark — ${run.dataset_name || run.id}`,
+      metric: run.metric || "ROC-AUC",
+      local_best_cv: run.best_score,
       submissions: [],
       checklist: { row_count: 0 },
     };

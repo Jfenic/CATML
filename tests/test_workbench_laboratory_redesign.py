@@ -323,6 +323,66 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert is_active_run_status(RunStatus.OPTIMIZING) is True
 
 
+def test_workbench_clean_empty_workspace_defaults_and_zero_hardcoding(tmp_path: Path):
+    import argparse
+    import json
+    import threading
+    from http.server import ThreadingHTTPServer
+    from unittest.mock import patch
+    from urllib.request import urlopen
+    from automl.interfaces.cli.main import launch_ui_cli
+    from automl.interfaces.web.server import AutoMLWebHandler
+
+    # 1. Verify CLI default workspace resolves to clean .automl/default
+    dummy_args = argparse.Namespace(
+        workspace=None,
+        port=8080,
+        host="127.0.0.1",
+        auth_token=None,
+        insecure_no_auth=False,
+    )
+    with patch("automl.interfaces.web.server.run_web_dashboard") as mock_run:
+        launch_ui_cli(dummy_args)
+        assert mock_run.called
+        called_ws = mock_run.call_args[1]["workspace_dir"]
+        assert called_ws.endswith(".automl/default"), f"Default workspace should be .automl/default, got: {called_ws}"
+
+    # 2. Verify empty workspace returns zero datasets and clean empty overview
+    empty_ws = str(tmp_path / "empty_workspace")
+    AutoMLWebHandler.workspace_dir = empty_ws
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), AutoMLWebHandler)
+    host, port = server.server_address
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        base_url = f"http://{host}:{port}"
+
+        # /api/datasets
+        with urlopen(f"{base_url}/api/datasets") as resp:
+            datasets = json.loads(resp.read().decode())
+            assert datasets == [], f"Datasets must be empty list on fresh workspace, got: {datasets}"
+
+        # /api/runs
+        with urlopen(f"{base_url}/api/runs") as resp:
+            runs = json.loads(resp.read().decode())
+            assert runs == [], f"Runs must be empty list on fresh workspace, got: {runs}"
+
+        # /api/overview
+        with urlopen(f"{base_url}/api/overview") as resp:
+            ov = json.loads(resp.read().decode())
+            assert ov["total_runs"] == 0
+            assert ov["total_trials"] == 0
+            assert ov["is_active"] is False
+            assert ov["best_score"] is None
+            assert ov["best_model"] is None
+            assert ov["recent_datasets"] == []
+            assert ov["activity_feed"] == []
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 
 
 

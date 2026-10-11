@@ -214,7 +214,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
     through CommandBus, QueryBus, and AutoMLWorkspace.
     """
 
-    workspace_dir: str = ".automl/demo"
+    workspace_dir: str = ".automl/default"
     static_dir: Path = Path(__file__).parent / "static"
     auth_token: str | None = None
     require_auth: bool = False
@@ -2096,7 +2096,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
 def run_web_dashboard(
     port: int = 8080,
-    workspace_dir: str = ".automl/demo",
+    workspace_dir: str = ".automl/default",
     host: str = "127.0.0.1",
     auth_token: str | None = None,
     insecure_no_auth: bool = False,
