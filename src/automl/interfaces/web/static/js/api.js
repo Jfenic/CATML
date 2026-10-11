@@ -467,6 +467,24 @@ export class CATMLApiClient {
       body: JSON.stringify({ recipe_id: recipeId }),
     });
   }
+
+  async getDatasetQuestionnaire(datasetId) {
+    return this._fetch(`/api/dataset/questionnaire?dataset_id=${encodeURIComponent(datasetId)}`);
+  }
+
+  async saveDatasetQuestionnaire(questionnaire) {
+    return this._fetch("/api/dataset/questionnaire", {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: questionnaire.dataset_id, questionnaire }),
+    });
+  }
+
+  async generateDatasetQuestionnaire(datasetId) {
+    return this._fetch("/api/dataset/questionnaire/generate", {
+      method: "POST",
+      body: JSON.stringify({ dataset_id: datasetId }),
+    });
+  }
 }
 
 export const api = new CATMLApiClient();

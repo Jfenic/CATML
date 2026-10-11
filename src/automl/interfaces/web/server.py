@@ -1982,7 +1982,11 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
             elif path == "/api/dataset/questionnaire":
-                dataset_id = payload.get("dataset_id")
+                dataset_id = payload.get("dataset_id") or (
+                    payload.get("questionnaire", {}).get("dataset_id")
+                    if isinstance(payload.get("questionnaire"), dict)
+                    else None
+                )
                 if not dataset_id:
                     self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
                     return
@@ -1990,6 +1994,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 q_data = dict(payload.get("questionnaire", payload))
                 q_data["dataset_id"] = dataset_id
                 q_data["auto_generated"] = False
+                q_data["user_confirmed"] = bool(payload.get("user_confirmed", q_data.get("user_confirmed", True)))
                 questionnaire = DatasetQuestionnaire.from_dict(q_data)
                 ws.save_dataset_questionnaire(questionnaire)
                 self._send_json({"status": "success", "questionnaire": questionnaire.to_dict()})

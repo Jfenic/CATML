@@ -53,6 +53,8 @@ def test_questionnaire_domain_defaults_and_roundtrip():
     assert data["primary_metric_override"] == "pr_auc"
     assert data["split_strategy_recommendation"] == "stratified_kfold"
     assert data["auto_generated"] is True
+    assert data["user_confirmed"] is False
+    assert data["engine_source"] == "heuristic"
     assert data["confidence"] == 0.95
 
     restored = DatasetQuestionnaire.from_dict(data)
@@ -63,6 +65,8 @@ def test_questionnaire_domain_defaults_and_roundtrip():
     assert restored.latency_constraint == LatencyConstraint.STANDARD_INTERACTIVE
     assert restored.explainability == ExplainabilityLevel.MODERATE
     assert restored.primary_metric_override == "pr_auc"
+    assert restored.user_confirmed is False
+    assert restored.engine_source == "heuristic"
     assert restored.reasoning == "Test reasoning explanation"
 
 
