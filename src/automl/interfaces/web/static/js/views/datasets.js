@@ -17,7 +17,7 @@ export class DatasetsView {
     this.activeDatasetId = null;
     this.showRegisterForm = false;
     this.selectedFeatures = new Set();
-    this.activeMainTab = "resumen"; // 'resumen' | 'columnas' | 'exploracion'
+    this.activeMainTab = "resumen"; // 'resumen' | 'columnas'
     this.activeTab = "schema"; // 'schema' | 'stats' | 'preview' | 'categories' | 'correlation'
     this.filterType = "all"; // 'all' | 'numeric' | 'categorical' | 'selected' | 'excluded'
     this.searchQuery = "";
@@ -30,13 +30,6 @@ export class DatasetsView {
     this.calcSuggestions = [];
     this.calcEvaluating = false;
     this.calcApplying = false;
-
-    // CATML Explore state (Phase E1)
-    this.studies = [];
-    this.activeStudyId = null;
-    this.activeStudy = null;
-    this.runningStudy = false;
-    this.showCreateStudyModal = false;
   }
 
   async mount(container) {
@@ -87,33 +80,9 @@ export class DatasetsView {
 
       if (this.activeDatasetId) {
         this.profile = await api.getDatasetProfile(this.activeDatasetId).catch(() => null);
-        await this.loadStudies();
       }
     } catch (e) {
       console.warn("Could not load dataset profile:", e);
-    }
-  }
-
-  async loadStudies() {
-    if (!this.activeDatasetId) {
-      this.studies = [];
-      this.activeStudyId = null;
-      this.activeStudy = null;
-      return;
-    }
-    try {
-      this.studies = await api.getAnalysisStudies(this.activeDatasetId).catch(() => []);
-      if (this.studies && this.studies.length > 0) {
-        if (!this.activeStudyId || !this.studies.find(s => s.id === this.activeStudyId)) {
-          this.activeStudyId = this.studies[0].id;
-        }
-        this.activeStudy = await api.getAnalysisStudy(this.activeStudyId).catch(() => null);
-      } else {
-        this.activeStudyId = null;
-        this.activeStudy = null;
-      }
-    } catch (e) {
-      console.warn("Could not load studies for dataset:", e);
     }
   }
 
@@ -131,7 +100,16 @@ export class DatasetsView {
     });
 
     // Save to store so NewExperimentModal immediately knows active selection
-    store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+    const feats = Array.from(this.selectedFeatures);
+    const dsFeats = store.getState().selectedFeaturesByDataset || {};
+    if (this.activeDatasetId) {
+      dsFeats[this.activeDatasetId] = feats;
+    }
+    store.setState({
+      selectedFeatures: feats,
+      customFeatures: feats,
+      selectedFeaturesByDataset: dsFeats,
+    });
   }
 
   render() {
@@ -188,6 +166,11 @@ export class DatasetsView {
                 ${this.showRegisterForm ? "Cerrar Registro" : "+ Registrar nuevo"}
               </button>
 
+              <button id="btnOpenFullExploreCanvas" class="bg-[#161B26] hover:bg-[#1E2536] text-[#53C8FF] border border-[#242A36] hover:border-[#53C8FF]/40 text-xs px-3 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-1.5 transition-colors" title="Abrir análisis estadístico y visualizaciones en 03 Explore">
+                ${icon("compass", "icon-sm")}
+                <span>Lienzo Completo (Explore)</span>
+              </button>
+
               <button id="btnNewExperimentFromDS" class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20">
                 ${icon("play", "icon-sm")}
                 <span>Nuevo experimento</span>
@@ -195,7 +178,7 @@ export class DatasetsView {
             </div>
           </div>
 
-          <!-- Pestañas Principales: Resumen | Columnas | Exploración -->
+          <!-- Pestañas Principales: Resumen | Columnas -->
           <div class="border-t border-[#242A36] pt-3 flex items-center space-x-2 text-xs font-sans">
             <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'resumen' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="resumen">
               ${icon("activity", "icon-sm")}
@@ -206,15 +189,6 @@ export class DatasetsView {
               <span>Columnas</span>
               <span class="text-[10px] font-mono text-[#8B95A7] bg-[#090C12] px-1.5 py-0.2 rounded">${columns.length}</span>
             </button>
-            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'exploracion' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="exploracion">
-              ${icon("compass", "icon-sm")}
-              <span>Exploración</span>
-              ${this.studies && this.studies.length > 0 ? `
-                <span class="text-[10px] font-mono text-[#53C8FF] bg-[#53C8FF]/15 px-1.5 py-0.2 rounded border border-[#53C8FF]/30 font-semibold">${this.studies.length}</span>
-              ` : `
-                <span class="text-[9px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-1.5 py-0.2 rounded border border-[#4F67FF]/20 uppercase font-semibold">Core E1</span>
-              `}
-            </button>
           </div>
         </div>
 
@@ -223,7 +197,6 @@ export class DatasetsView {
         <!-- Contenido según la pestaña activa -->
         ${this.activeMainTab === "resumen" ? this._renderResumenTab(p, featureCols, numCols, catCols, excludedCount, recommendations) : ""}
         ${this.activeMainTab === "columnas" ? this._renderColumnasTab(p, featureCols, numCols, catCols) : ""}
-        ${this.activeMainTab === "exploracion" ? this._renderExplorationTab() : ""}
 
         <!-- Variable Visual Analytics Modal Container -->
         <div id="variableModalContainer"></div>
@@ -471,364 +444,6 @@ export class DatasetsView {
           <div class="p-0" id="tabContentContainer">
             ${this._renderActiveTabContent(p)}
           </div>
-        </div>
-      </div>
-    `;
-  }
-
-  _classifyFindingSeverity(f) {
-    const type = f?.finding_type || "";
-    if (["high_collinearity", "multivariate_outliers", "high_cardinality_identifier"].includes(type)) {
-      return "CRITICAL";
-    }
-    if (["skewness", "outlier_density", "categorical_association", "multimodal_distribution", "target_class_separation"].includes(type)) {
-      return "WARNING";
-    }
-    return "INFO";
-  }
-
-  _renderExplorationTab() {
-    const study = this.activeStudy;
-    const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
-    const datasetName = currentDs ? currentDs.name : (this.profile?.name || this.activeDatasetId);
-    const severityWeight = { CRITICAL: 3, WARNING: 2, INFO: 1 };
-    const findings = [...(study?.findings || [])].sort((a, b) => {
-      const sevA = severityWeight[this._classifyFindingSeverity(a)] || 0;
-      const sevB = severityWeight[this._classifyFindingSeverity(b)] || 0;
-      if (sevA !== sevB) return sevB - sevA;
-      const effA = Math.abs(Number(a.effect_size != null ? a.effect_size : (a.metrics?.pearson_r ?? a.metrics?.cramers_v ?? a.metrics?.cohens_d ?? 0)));
-      const effB = Math.abs(Number(b.effect_size != null ? b.effect_size : (b.metrics?.pearson_r ?? b.metrics?.cramers_v ?? b.metrics?.cohens_d ?? 0)));
-      return effB - effA;
-    });
-    const visualizations = study?.visualizations || [];
-    const hypotheses = study?.hypotheses || [];
-
-    const corrViz = visualizations.find(v =>
-      v.chart_type === "correlation_matrix" || v.viz_type === "correlation_matrix"
-    );
-
-    return `
-      <div class="space-y-6">
-        <!-- Header del Núcleo de Exploración -->
-        <div class="workbench-card p-5 space-y-4">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="space-y-1">
-              <div class="flex items-center space-x-2">
-                <span class="text-[10px] font-mono text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/25 uppercase font-semibold">
-                  CATML Explore · Núcleo E1
-                </span>
-                <span class="text-xs font-mono text-[#8B95A7]">ADR-008</span>
-                <span class="text-xs font-mono text-[#8B95A7]">·</span>
-                <span class="text-xs font-mono text-[#F7F8FA]">${escapeHtml(datasetName)}</span>
-              </div>
-              <h3 class="text-lg font-bold font-sans text-[#F7F8FA]">Estudios y Evidencia Estadística</h3>
-              <p class="text-xs text-[#8B95A7] font-sans">
-                Motor matemático determinista («La IA Interpreta, CATML Calcula»). Detección de colinealidad, ANOVA F-test y formulación de hipótesis.
-              </p>
-            </div>
-
-            <div class="flex items-center space-x-3">
-              ${this.studies && this.studies.length > 1 ? `
-                <select id="studySelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] font-mono outline-none">
-                  ${this.studies.map(s => `
-                    <option value="${s.id}" ${s.id === this.activeStudyId ? "selected" : ""}>
-                      ${escapeHtml(s.name || s.id)} (${s.status})
-                    </option>
-                  `).join("")}
-                </select>
-              ` : ""}
-
-              <button id="btnOpenFullExploreCanvas" class="bg-[#161B26] hover:bg-[#1E2536] text-[#53C8FF] border border-[#242A36] hover:border-[#53C8FF]/40 text-xs px-3 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-1.5 transition-colors">
-                ${icon("compass", "icon-sm")}
-                <span>Lienzo Completo</span>
-              </button>
-
-              <button id="btnOpenCreateStudyModal" class="btn-technical text-xs flex items-center space-x-1.5">
-                ${icon("plus", "icon-sm")}
-                <span>Nuevo Estudio</span>
-              </button>
-
-              ${study ? `
-                <button id="btnRunActiveStudy" ${this.runningStudy ? "disabled" : ""} class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20 ${this.runningStudy ? 'opacity-60 cursor-not-allowed' : ''}">
-                  ${this.runningStudy ? `<span class="animate-spin">${icon("refresh-cw", "icon-sm")}</span>` : icon("play", "icon-sm")}
-                  <span>${this.runningStudy ? "Calculando..." : "Ejecutar Análisis"}</span>
-                </button>
-              ` : ""}
-            </div>
-          </div>
-
-          ${study ? `
-            <!-- Resumen de Métricas del Estudio Activo -->
-            <div class="border-t border-[#242A36] pt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-sans">
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">ID de Estudio</div>
-                <div class="font-mono font-bold text-[#53C8FF] truncate">${study.id}</div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Target Column</div>
-                <div class="font-mono font-semibold ${study.target_column ? 'text-[#F7F8FA]' : 'text-[#8B95A7]'}">
-                  ${study.target_column ? escapeHtml(study.target_column) : "Sin target (Descriptivo Puro)"}
-                </div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Estado</div>
-                <div class="font-mono font-bold flex items-center space-x-1.5 ${study.status === 'COMPLETED' ? 'text-[#22C55E]' : study.status === 'RUNNING' ? 'text-[#4F67FF]' : 'text-amber-400'}">
-                  <span class="w-1.5 h-1.5 rounded-full ${study.status === 'COMPLETED' ? 'bg-[#22C55E]' : study.status === 'RUNNING' ? 'bg-[#4F67FF] animate-pulse' : 'bg-amber-400'}"></span>
-                  <span>${study.status}</span>
-                </div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Hallazgos / Hipótesis</div>
-                <div class="font-mono font-bold text-[#F7F8FA]">
-                  <span class="${findings.length > 0 ? 'text-[#F59E0B]' : 'text-[#22C55E]'}">${findings.length}</span>
-                  <span class="text-[#8B95A7] font-normal"> hallazgos · </span>
-                  <span class="text-[#4F67FF]">${hypotheses.length}</span>
-                  <span class="text-[#8B95A7] font-normal"> hipótesis</span>
-                </div>
-              </div>
-            </div>
-          ` : ""}
-        </div>
-
-        ${!study ? `
-          <!-- Estado Vacío cuando no hay estudios -->
-          <div class="workbench-card p-10 text-center space-y-4">
-            <div class="text-[#53C8FF] inline-flex p-3 rounded-2xl bg-[#53C8FF]/10 border border-[#53C8FF]/20">
-              ${icon("compass", "icon-lg")}
-            </div>
-            <div class="max-w-md mx-auto space-y-1.5">
-              <h4 class="text-base font-bold font-sans text-[#F7F8FA]">Sin estudios para este dataset</h4>
-              <p class="text-xs text-[#8B95A7] font-sans">
-                Registra un estudio exploratorio para calcular correlaciones de Pearson exactas con p-valores, separación univariante de clases (ANOVA) y detección de anomalías.
-              </p>
-            </div>
-            <button id="btnCreateFirstStudy" class="btn-signal text-xs px-4 py-2 shadow-md shadow-[#4F67FF]/20 inline-flex items-center space-x-2">
-              ${icon("plus", "icon-sm")}
-              <span>Crear Estudio Exploratorio</span>
-            </button>
-          </div>
-        ` : `
-          <!-- Sección de Hallazgos Estadísticos Reales -->
-          <div class="workbench-card p-5 space-y-4">
-            <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-              <div class="flex items-center space-x-2">
-                <span class="text-[#F59E0B]">${icon("alert-circle", "icon-sm")}</span>
-                <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hallazgos Estadísticos Deterministas</h4>
-              </div>
-              <span class="text-xs font-mono text-[#8B95A7]">
-                ${findings.length} detectado${findings.length === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            ${findings.length === 0 ? `
-              <div class="p-6 text-center text-[#8B95A7] font-sans text-xs space-y-2">
-                ${study.status === 'CREATED' ? `
-                  <p>Este estudio está configurado pero aún no se ha ejecutado.</p>
-                  <button id="btnRunStudyInline" class="btn-signal text-xs mt-2 inline-flex items-center space-x-1.5">
-                    ${icon("play", "icon-sm")}
-                    <span>Ejecutar Análisis Ahora</span>
-                  </button>
-                ` : `
-                  <div class="text-[#22C55E] flex items-center justify-center space-x-1.5">
-                    <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
-                    <span class="font-medium">No se detectaron colinealidades severas (r ≥ 0.70) ni outliers críticos en las variables calculadas.</span>
-                  </div>
-                `}
-              </div>
-            ` : `
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                ${findings.map(f => {
-                  const sev = this._classifyFindingSeverity(f);
-                  const sevBadge = sev === "CRITICAL" ? "badge-err" : sev === "WARNING" ? "badge-warn" : "badge-sys";
-                  const columns = [f.column_name, f.secondary_column].filter(Boolean);
-                  const effect = f.effect_size != null
-                    ? f.effect_size
-                    : (f.metrics && (f.metrics.pearson_r ?? f.metrics.cramers_v ?? f.metrics.cohens_d ?? f.metrics.bimodality_coefficient));
-
-                  return `
-                    <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] space-y-2.5 hover:border-[#384355] transition-colors">
-                      <div class="flex items-start justify-between gap-2">
-                        <div class="flex items-center space-x-2">
-                          <span class="text-xs font-mono font-bold text-[#F7F8FA]">${escapeHtml(f.finding_type || "FINDING")}</span>
-                        </div>
-                        <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                          ${escapeHtml(sev)}
-                        </span>
-                      </div>
-
-                      <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
-                        ${escapeHtml(f.summary)}
-                      </p>
-
-                      <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                        ${columns.map(col => `
-                          <span class="text-[11px] font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded border border-[#242A36]">
-                            ${escapeHtml(col)}
-                          </span>
-                        `).join("")}
-
-                        ${effect != null && Number.isFinite(Number(effect)) ? `
-                          <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20 ml-auto">
-                            effect = ${Number(effect).toFixed(3)}
-                          </span>
-                        ` : ""}
-                        ${f.p_value != null ? `
-                          <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
-                            p = ${f.p_value < 0.0001 ? f.p_value.toExponential(2) : Number(f.p_value).toFixed(4)}
-                          </span>
-                        ` : ""}
-                      </div>
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            `}
-          </div>
-
-          <!-- Sección de Matriz de Correlación Bivariada Real -->
-          ${corrViz && corrViz.data && corrViz.data.columns && corrViz.data.columns.length > 0 ? this._renderCorrelationMatrixViz(corrViz) : ""}
-
-          <!-- Sección de Hipótesis Inferidas para Agentes -->
-          ${hypotheses.length > 0 ? `
-            <div class="workbench-card p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-                <div class="flex items-center space-x-2">
-                  <span class="text-[#6956E8]">${icon("zap", "icon-sm")}</span>
-                  <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hipótesis Acciónales Formuladas</h4>
-                </div>
-                <span class="text-xs font-mono text-[#8B95A7]">${hypotheses.length} propuestas</span>
-              </div>
-
-              <div class="space-y-3">
-                ${hypotheses.map(h => `
-                  <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div class="space-y-1">
-                      <div class="flex items-center space-x-2">
-                        <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                          ${escapeHtml(h.proposed_action || "ACTION")}
-                        </span>
-                        <span class="text-xs font-mono text-[#8B95A7]">ID: ${h.id}</span>
-                      </div>
-                      <p class="text-xs text-[#F7F8FA] font-sans">
-                        ${escapeHtml(h.description)}
-                      </p>
-                    </div>
-
-                    <button class="btn-hypothesis-exp btn-technical text-xs flex items-center space-x-1.5 whitespace-nowrap self-start md:self-auto" data-hyp="${h.id}" data-action="${escapeHtml(h.proposed_action || '')}">
-                      ${icon("play", "icon-sm")}
-                      <span>Probar en Experimento</span>
-                    </button>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-          ` : ""}
-        `}
-
-        <!-- Modal para Crear Nuevo Estudio -->
-        ${this.showCreateStudyModal ? this._renderCreateStudyModalHtml() : ""}
-      </div>
-    `;
-  }
-
-  _renderCorrelationMatrixViz(viz) {
-    const cols = viz.data?.columns || [];
-    const matrix = viz.data?.matrix || [];
-
-    return `
-      <div class="workbench-card p-5 space-y-4">
-        <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-          <div class="flex items-center space-x-2">
-            <span class="text-[#53C8FF]">${icon("grid", "icon-sm")}</span>
-            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">${escapeHtml(viz.title || "Matriz de Correlación Bivariada")}</h4>
-          </div>
-          <span class="text-xs font-mono text-[#8B95A7]">Pearson r [-1.0, +1.0]</span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs font-mono border-collapse">
-            <thead>
-              <tr>
-                <th class="p-2 text-left text-[#8B95A7] bg-[#090C12] border border-[#242A36]">Variable</th>
-                ${cols.map(c => `
-                  <th class="p-2 text-center text-[#8B95A7] bg-[#090C12] border border-[#242A36] truncate max-w-[100px]" title="${escapeHtml(c)}">
-                    ${escapeHtml(c)}
-                  </th>
-                `).join("")}
-              </tr>
-            </thead>
-            <tbody>
-              ${cols.map((rowName, rIdx) => `
-                <tr>
-                  <td class="p-2 font-medium text-[#F7F8FA] bg-[#090C12] border border-[#242A36] truncate max-w-[140px]" title="${escapeHtml(rowName)}">
-                    ${escapeHtml(rowName)}
-                  </td>
-                  ${cols.map((colName, cIdx) => {
-                    const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
-                    const absVal = Math.abs(val);
-                    const isDiag = rIdx === cIdx;
-                    let bgColor = "rgba(22, 27, 38, 0.4)";
-                    let textColor = "#8B95A7";
-
-                    if (!isDiag) {
-                      if (val > 0) {
-                        bgColor = `rgba(79, 103, 255, ${Math.min(0.85, absVal * 0.9)})`;
-                        textColor = absVal > 0.4 ? "#FFFFFF" : "#F7F8FA";
-                      } else {
-                        bgColor = `rgba(239, 68, 68, ${Math.min(0.85, absVal * 0.9)})`;
-                        textColor = absVal > 0.4 ? "#FFFFFF" : "#F7F8FA";
-                      }
-                    }
-
-                    return `
-                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}">
-                        ${val.toFixed(2)}
-                      </td>
-                    `;
-                  }).join("")}
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderCreateStudyModalHtml() {
-    const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
-    const targetCol = this.profile?.target_column || "";
-
-    return `
-      <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="workbench-card max-w-md w-full p-6 space-y-5 border border-[#4F67FF]/30 shadow-2xl">
-          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-            <div class="flex items-center space-x-2">
-              <span class="text-[#4F67FF]">${icon("compass", "icon-sm")}</span>
-              <h3 class="text-sm font-bold font-sans text-[#F7F8FA]">Nuevo Estudio Exploratorio</h3>
-            </div>
-            <button id="btnCloseCreateStudyModal" class="text-[#8B95A7] hover:text-[#F7F8FA]">${icon("x", "icon-sm")}</button>
-          </div>
-
-          <form id="formCreateStudy" class="space-y-4">
-            <div class="space-y-1.5">
-              <label class="text-xs font-sans text-[#8B95A7]">Nombre del Estudio</label>
-              <input id="inputStudyName" type="text" value="Estudio Exploratorio ${escapeHtml(currentDs?.name || 'Dataset')}" class="w-full bg-[#090C12] border border-[#242A36] rounded-lg px-3 py-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF] outline-none" required />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-xs font-sans text-[#8B95A7]">Columna Objetivo (Opcional)</label>
-              <input id="inputStudyTarget" type="text" value="${escapeHtml(targetCol)}" placeholder="Dejar en blanco para análisis no supervisado" class="w-full bg-[#090C12] border border-[#242A36] rounded-lg px-3 py-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF] outline-none" />
-              <p class="text-[10px] text-[#8B95A7] font-sans">
-                Si se omite, el motor evaluará únicamente asociaciones entre variables y densidades de outliers.
-              </p>
-            </div>
-
-            <div class="pt-3 border-t border-[#242A36] flex items-center justify-end space-x-2">
-              <button type="button" id="btnCancelCreateStudy" class="btn-ghost text-xs px-3 py-1.5">Cancelar</button>
-              <button type="submit" id="btnSubmitCreateStudy" class="btn-signal text-xs px-4 py-1.5">Crear Estudio</button>
-            </div>
-          </form>
         </div>
       </div>
     `;
@@ -2337,106 +1952,15 @@ export class DatasetsView {
     this._bindRegisterFormEvents();
     this._bindTabSpecificEvents();
     this._bindCalculatorEvents();
-    this._bindExplorationEvents();
-  }
 
-  _bindExplorationEvents() {
-    // Open create study modal
-    this.container.querySelector("#btnOpenCreateStudyModal")?.addEventListener("click", () => {
-      this.showCreateStudyModal = true;
-      this.render();
-    });
-
-    this.container.querySelector("#btnCreateFirstStudy")?.addEventListener("click", () => {
-      this.showCreateStudyModal = true;
-      this.render();
-    });
-
-    // Close create study modal
-    this.container.querySelector("#btnCloseCreateStudyModal")?.addEventListener("click", () => {
-      this.showCreateStudyModal = false;
-      this.render();
-    });
-
-    this.container.querySelector("#btnCancelCreateStudy")?.addEventListener("click", () => {
-      this.showCreateStudyModal = false;
-      this.render();
-    });
-
-    // Submit create study form
-    this.container.querySelector("#formCreateStudy")?.addEventListener("submit", async e => {
-      e.preventDefault();
-      const btn = this.container.querySelector("#btnSubmitCreateStudy");
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Creando...";
+    const openExploreHandler = () => {
+      if (this.activeDatasetId) {
+        store.setState({ activeDatasetId: this.activeDatasetId });
       }
-
-      const name = this.container.querySelector("#inputStudyName")?.value.trim() || "";
-      const target = this.container.querySelector("#inputStudyTarget")?.value.trim() || null;
-
-      try {
-        const res = await api.createAnalysisStudy({
-          dataset_id: this.activeDatasetId,
-          name: name,
-          target_column: target,
-        });
-        this.showCreateStudyModal = false;
-        await this.loadStudies();
-        if (res.study_id) {
-          this.activeStudyId = res.study_id;
-          this.activeStudy = await api.getAnalysisStudy(res.study_id).catch(() => null);
-        }
-        this.render();
-      } catch (err) {
-        alert("Error al crear estudio: " + err.message);
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Crear Estudio";
-        }
-      }
-    });
-
-    // Study select dropdown change
-    this.container.querySelector("#studySelect")?.addEventListener("change", async e => {
-      const sId = e.target.value;
-      if (sId && sId !== this.activeStudyId) {
-        this.activeStudyId = sId;
-        this.activeStudy = await api.getAnalysisStudy(sId).catch(() => null);
-        this.render();
-      }
-    });
-
-    // Run active study
-    const runStudyHandler = async () => {
-      if (!this.activeStudyId || this.runningStudy) return;
-      this.runningStudy = true;
-      this.render();
-      try {
-        await api.runAnalysisStudy(this.activeStudyId);
-        await this.loadStudies();
-      } catch (err) {
-        alert("Error al ejecutar estudio: " + err.message);
-      } finally {
-        this.runningStudy = false;
-        this.render();
-      }
-    };
-
-    this.container.querySelector("#btnRunActiveStudy")?.addEventListener("click", runStudyHandler);
-    this.container.querySelector("#btnRunStudyInline")?.addEventListener("click", runStudyHandler);
-
-    this.container.querySelector("#btnOpenFullExploreCanvas")?.addEventListener("click", () => {
       store.setNav("explore");
-    });
-
-    // Hypothesis -> Launch Experiment
-    this.container.querySelectorAll(".btn-hypothesis-exp").forEach(btn => {
-      btn.addEventListener("click", () => {
-        store.setState({ customFeatures: Array.from(this.selectedFeatures) });
-        bus.emit("modal:new-experiment");
-      });
-    });
+    };
+    this.container.querySelector("#btnOpenFullExploreCanvas")?.addEventListener("click", openExploreHandler);
+    this.container.querySelector("#btnOpenExploreFromDS")?.addEventListener("click", openExploreHandler);
   }
 
   _bindTabSpecificEvents() {

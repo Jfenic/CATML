@@ -65,12 +65,12 @@ def test_frontend_laboratory_modules_exist_and_integrate():
     assert "Cambiar dataset activo" in modal_content
     assert "btn-select-ds" in modal_content
 
-    # DatasetsView Resumen, Columnas and Exploracion tabs
+    # DatasetsView Resumen and Columnas tabs
     ds_content = datasets_js.read_text(encoding="utf-8")
     assert "_renderResumenTab" in ds_content
     assert "_renderColumnasTab" in ds_content
     assert "_renderHealthCard" in ds_content
-    assert "_renderExplorationTab" in ds_content
+    assert "btnOpenFullExploreCanvas" in ds_content or "btnOpenExploreFromDS" in ds_content
     assert "btnNewExperimentFromDS" in ds_content
     assert "Anti-Leakage Guardian" in ds_content
 
@@ -309,16 +309,15 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert "Searching space (72%)" not in overview_js
     assert "w-2/3" not in overview_js
 
-    # 3. Verify datasets.js implements real Explore module (Phase E1)
+    # 3. Verify datasets.js links to Explore, and explore.js implements dedicated Explore module
     datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
-    assert "_renderExplorationTab" in datasets_js
-    assert "btnOpenCreateStudyModal" in datasets_js
-    assert "Matriz de Correlación" in datasets_js
-    # Finding cards must derive severity/columns from StatisticalFinding fields (no f.severity / f.columns)
-    assert "_classifyFindingSeverity" in datasets_js
-    assert "${f.severity}" not in datasets_js
-    assert "f.column_name" in datasets_js
-    assert 'chart_type === "correlation_matrix"' in datasets_js
+    explore_js = Path("src/automl/interfaces/web/static/js/views/explore.js").read_text(encoding="utf-8")
+    assert "btnOpenExploreFromDS" in datasets_js
+    assert "_renderExplorationTab" not in datasets_js
+    assert "btnOpenNewStudyModal" in explore_js or "btnCreateInitialStudy" in explore_js
+    assert "Matriz de Correlación" in datasets_js or "Matriz de Correlación" in explore_js
+    assert "f.column_name" in explore_js
+    assert 'chart_type === "correlation_matrix"' in explore_js or 'viz_type === "correlation_matrix"' in explore_js
 
     # 4. Verify domain active status rules
     from automl.domain.runs.states import RunStatus, is_active_run_status
