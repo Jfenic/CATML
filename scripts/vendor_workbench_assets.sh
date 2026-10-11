@@ -121,5 +121,25 @@ geist=geist@1.3.1 (woff2 copied when present)
 generated=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 
+echo "==> Third-party license texts (for wheel/sdist compliance)"
+LIC="$VENDOR/licenses"
+mkdir -p "$LIC"
+curl -fsSL "https://raw.githubusercontent.com/chartjs/Chart.js/v${CHART_VER}/LICENSE.md" \
+  -o "$LIC/chartjs-MIT.txt"
+curl -fsSL "https://raw.githubusercontent.com/lucide-icons/lucide/main/LICENSE" \
+  -o "$LIC/lucide-ISC.txt"
+curl -fsSL "https://raw.githubusercontent.com/tailwindlabs/tailwindcss/v${TAILWIND_VER}/LICENSE" \
+  -o "$LIC/tailwindcss-MIT.txt" \
+  || curl -fsSL "https://raw.githubusercontent.com/tailwindlabs/tailwindcss/v${TAILWIND_VER}/LICENSE.md" \
+  -o "$LIC/tailwindcss-MIT.txt"
+curl -fsSL "https://raw.githubusercontent.com/vercel/geist-font/main/OFL.txt" \
+  -o "$LIC/geist-OFL-1.1.txt"
+curl -fsSL "https://raw.githubusercontent.com/IBM/plex/master/LICENSE.txt" \
+  -o "$LIC/ibm-plex-OFL-1.1.txt"
+cat > "$LIC/README.txt" <<'EOF'
+CATML Workbench — third-party license texts
+See repository THIRD_PARTY_LICENSES.md for the inventory.
+EOF
+
 echo "==> Done. Vendor tree:"
 find "$VENDOR" "$STATIC/css/tailwind.built.css" -type f 2>/dev/null | sort

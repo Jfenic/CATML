@@ -1,5 +1,11 @@
 # Progress
 
+### Track License compliance (`docs/third-party-license-compliance`, 2026-10-11)
+
+- Audit: Chart.js MIT, Lucide ISC(+Feather MIT), Tailwind MIT, Geist/IBM Plex OFL-1.1 — commercial-OK with notices; CATML stays Apache-2.0.
+- Added `THIRD_PARTY_LICENSES.md`, vendor license texts under `static/vendor/licenses/`, `license-files` in `pyproject.toml`, NOTICE/README pointers.
+- Tests: `tests/test_third_party_license_compliance.py` (repo + wheel + sdist). No UI redesign; PR not auto-merged.
+
 ### Track Clean Architecture Refactor (PR1 contracts, 2026-10-11)
 
 - Docs ADR-010 / plan: PR #101. **PR1 code merged via #102**:

@@ -70,6 +70,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
+### Track License compliance (documentation / packaging only)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Audit Workbench + Python licenses; keep Apache-2.0; no UI redesign | Done (PR pending review) |
+| P0 | `THIRD_PARTY_LICENSES.md` + vendor license texts in wheel/sdist | Done (PR pending review) |
+| P0 | Automated packaging compliance tests | Done (`tests/test_third_party_license_compliance.py`) |
+
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
 > Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 in this PR (`#102`).

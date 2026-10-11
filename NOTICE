@@ -8,3 +8,9 @@ Historical Licensing Notice:
 CATML versions 0.7.0 and earlier were distributed under the MIT License.
 Starting with CATML version 0.8.0, CATML is distributed under the Apache License,
 Version 2.0. Earlier releases remain available under the MIT License.
+
+Third-Party Components:
+This product redistributes third-party Workbench assets (Chart.js, Lucide,
+Tailwind CSS output, Geist, IBM Plex Mono) and depends on open-source Python
+libraries. See THIRD_PARTY_LICENSES.md and the license texts shipped under
+automl/interfaces/web/static/vendor/licenses/ in the distribution package.

@@ -9,6 +9,11 @@ description = "The Agent-Native AutoML Engine for Humans and AI Agents"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+license-files = [
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_LICENSES.md",
+]
 authors = [{ name = "Jfenic" }]
 maintainers = [{ name = "Jfenic" }]
 classifiers = [
@@ -94,6 +99,7 @@ include-package-data = true
     "static/**/*.woff2",
     "static/**/*.ttf",
     "static/**/*.txt",
+    "static/**/*.md",
 ]
 
 [tool.setuptools.dynamic]
