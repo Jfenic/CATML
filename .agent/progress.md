@@ -1,5 +1,14 @@
 # Progress
 
+### Track RC1 Gate — HPO fidelity + release gates (`fix/hpo-recipe-fidelity-and-release-gates`, 2026-10-11)
+
+- **P0 HPO recipe fidelity:** `optimize_experiment()` now passes `column_transforms` + `derived_features` into every `TrialExecution` (parity with `run_experiment`).
+- **P0 HPO all-fail:** zero successful trials → experiment/run `FAILED`; `best_score`/`best_trial_id` absent (not invented from failed scores).
+- Tests: `tests/test_hpo_recipe_fidelity.py`.
+- **P0 release.yml:** jobs `build` → `verify` (wheel smoke + full pytest) → `publish-testpypi` / `publish-pypi`; tag must match `__version__`; publish only downloads artifact; environments `testpypi`/`pypi`.
+- **P1 SQLite:** `SQLiteExperimentRepository._connect` closes connections (sqlite3 context manager does not); bounded FD stress test; soak debt → blackboard [#94](https://github.com/Jfenic/CATML/issues/94).
+- **Benchmark v1 scaffold:** `benchmarks/` protocol + Study C harness; `_best_result()` returns `None` when all trials fail (not `0.0`).
+
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`, 2026-10-11)
 
 - Reinforced audit blockers before announcing 0.9.0rc1 (post wheel-static PR #92):

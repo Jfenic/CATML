@@ -38,6 +38,7 @@ Esta tabla describe el alcance comprobable; los criterios ampliados de una espec
 | Trabajos persistentes | Experimentos, OOF y submissions con worker, progreso real y controles pause/cancel | [Spec](features/persistent-jobs/spec.md), [tests](../tests/test_jobs.py), [ADR 003](decisions/003-persistent-local-jobs.md) |
 | Knowledge / agente | **H0–H5 completados:** tools, aprobación, leases, MCP dual, especialistas, orquestador determinista + LangGraph durable | [Application agents](../src/automl/application/agents/), [CLI / MCP](../src/automl/interfaces/), [guía agéntica](features/agentic-system/README.md) |
 | Predicciones / submissions | Plantilla Kaggle + OOF multi-modelo; **validación en holdout independiente aún pendiente** antes de promover candidatos | [Tests de plantilla](../tests/test_submission_template.py), [protocolo OOF](features/oof-blending/spec.md), [TASKS.md](../TASKS.md) |
+| CATML Benchmark v1 | Protocolo draft + Study C adversarial; campañas A/B (AMLB/OpenML) post-rc1 | [`benchmarks/README.md`](../benchmarks/README.md), [Study C tests](../tests/test_benchmark_study_c.py) |
 
 ## Mantener la documentación
 

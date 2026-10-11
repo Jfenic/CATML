@@ -72,3 +72,9 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - Core and optional extras primarily declare lower bounds; pin or constrain versions in deployment environments as needed.
 - Release artifacts should be built with `python -m build` and validated with `twine check` plus the Workbench-static wheel assertion in CI / `release.yml`.
 - Optional vision backbones may download pretrained weights on first use; that is not dataset egress.
+
+### 6. Release / PyPI publishing gates
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) separates **build → verify → publish**. Publish jobs only download the verified `dist/` artifact (no rebuild in the privileged job).
+- Tag pushes (`v*`) must match `automl.__version__` (normalized) or the build job fails.
+- Production publish uses the GitHub Environment `pypi`; TestPyPI uses `testpypi`. Configure **required reviewers** on those environments before enabling Trusted Publishing.
+- Manual dispatch defaults to TestPyPI; choose `none` to build/verify without uploading. Do not tag/publish without a green verify job and an installed-wheel smoke test.
