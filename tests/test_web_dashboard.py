@@ -406,7 +406,9 @@ def test_web_dashboard_dataset_profile_enrichment_and_custom_features(running_we
 
 def test_web_dashboard_export_model_artifact(running_web_server):
     import io
-    import joblib
+    import tempfile
+    import zipfile
+
     from automl.artifacts.model_artifact import ModelArtifact
 
     base = running_web_server["base_url"]
@@ -445,30 +447,37 @@ def test_web_dashboard_export_model_artifact(running_web_server):
         assert "feature_names" in info
         assert "/api/models/export" in info["download_url"]
 
-    # 4. Test /api/models/export downloading .pkl
+    # 4. Test /api/models/export downloads zip (.pkl + .sha256) for fail-closed load
     with urlopen(f"{base}/api/models/export?run_id={run_id}") as resp:
         assert resp.status == 200
-        assert resp.headers.get("Content-Type") == "application/octet-stream"
+        assert resp.headers.get("Content-Type") == "application/zip"
         disposition = resp.headers.get("Content-Disposition", "")
         assert "attachment" in disposition
-        assert ".pkl" in disposition
+        assert ".zip" in disposition
 
         raw_bytes = resp.read()
         assert len(raw_bytes) > 0
 
-        # Load artifact and verify standalone inference
-        artifact = joblib.load(io.BytesIO(raw_bytes))
-        assert isinstance(artifact, ModelArtifact)
-        assert artifact.model_id == "logistic_regression"
-        assert artifact.task_type in ("binary_classification", "multiclass_classification", "regression")
+        with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+            names = set(zf.namelist())
+            assert any(n.endswith(".pkl") for n in names)
+            assert any(n.endswith(".sha256") for n in names)
 
-        # Test predict with sample data
-        sample_df = pd.DataFrame({
-            "feat_a": [0.1, -0.5],
-            "feat_b": [25.0, 80.0],
-        })
-        preds = artifact.predict(sample_df)
-        assert len(preds) == 2
+        with tempfile.TemporaryDirectory(prefix="catml_export_test_") as tmp:
+            with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+                zf.extractall(tmp)
+            pkl_path = next(Path(tmp).glob("*.pkl"))
+            artifact = ModelArtifact.load(pkl_path)
+            assert isinstance(artifact, ModelArtifact)
+            assert artifact.model_id == "logistic_regression"
+            assert artifact.task_type in ("binary_classification", "multiclass_classification", "regression")
+
+            sample_df = pd.DataFrame({
+                "feat_a": [0.1, -0.5],
+                "feat_b": [25.0, 80.0],
+            })
+            preds = artifact.predict(sample_df)
+            assert len(preds) == 2
 
 
 def test_web_dashboard_temporal_endpoints(running_web_server):
