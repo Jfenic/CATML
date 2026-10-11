@@ -1,5 +1,24 @@
 # Progress
 
+### Track Benchmark Empírico — AutoML solo vs Explore/Agente (Airline Satisfaction) (2026-10-11)
+
+- **Estudio Experimental y Validación Empírica en Dataset Real (`docs/experiments/`):**
+  - **Dataset:** Kaggle Airline Passenger Satisfaction (`data/kagle/train.csv`, ~700k filas, target binario `satisfaction`). Muestra de trabajo estratificada 50/50 de 25k filas (`random_state=42`) y confirmación en 150k y full train (699k filas). Métrica: ROC-AUC con StratifiedKFold(5).
+  - **Resultados de la Comparativa Cuantitativa:**
+    1. *AutoML Naive (crudo con columna `id`):* ROC-AUC **0.817** (inestabilidad de validación cruzada `std` ~0.036).
+    2. *AutoML + Anti-Leakage Guardian:* ROC-AUC **0.952** (+0.135 sobre naive, `std` ~0.003). Demuestra que en datos tabulares complejos el mayor impacto proviene de la higiene estadística y la exclusión de identificadores únicos.
+    3. *AutoML + Drops de colinealidad propuestos por Explore:* ROC-AUC **0.952** (Δ = -0.0006 vs baseline B). Validación empírica del principio rector *"Propose ≠ Accept"*: Random Forest ya gestiona la colinealidad internamente, por lo que la eliminación de variables correlacionadas no aportó mejora, registrando y preservando el aprendizaje negativo.
+    4. *Push de Rendimiento (LightGBM/XGBoost + Optuna HPO):* ROC-AUC CV **0.9586** en muestra de 150k y en dataset completo de 699k filas. Sometido al test ciego de Kaggle (`submission_airline_lgbm_hpo.csv`) alcanzando **0.9578** (Δ ≈ -0.0008 vs CV), lo que confirma una calibración sobresaliente del protocolo de validación.
+  - **Conclusiones Metodológicas y Reglas Transferibles a Otros Datasets:**
+    - Exclusión estricta de identificadores de alta cardinalidad antes de modelar como P0.
+    - Calibración de heurísticas de fuga: `Customer Type` (2 valores únicos) es una variable categórica con señal real, no una entidad que justifique `GroupKFold` ni su descarte preventivo (evitar falsos positivos en group leakage).
+    - Techo de modelos tabulares: modelos GBDT (LightGBM/XGBoost) superan a stacks básicos de scikit-learn en presencia de interacciones densas. HPO aporta ajustes marginales (+0.001-0.002) una vez que el pipeline está limpio.
+    - Gap de transformaciones con estado: Explore propuso transformaciones `yeo_johnson` y `RobustScaler`, pero el sistema aún no puede aplicarlas de forma segura *fit-in-fold* durante `verify_hypothesis`. Esto fundamenta e impulsa como prioridad P1 la especificación de **Experiment Recipes** (ADR-009, Fases R0–R4).
+  - **Artefactos del Experimento:**
+    - `docs/experiments/airline_satisfaction_automl_vs_agent_report.md`: Informe técnico estructurado con análisis de 55 hallazgos y 37 hipótesis.
+    - `docs/experiments/push_airline_score.py`: Script reproducible con pipeline, encoders, HPO y generación de submission.
+    - `docs/experiments/airline_push_scores.json`, `airline_automl_vs_explore_results.json`, `airline_automl_vs_explore_decomposition.json`: Registro de métricas y deltas.
+
 ### Track Spec — Experiment Recipes backlog (2026-10-11)
 
 - Documented pending feature **Experiment Recipes** (Explore → Evidence → reusable config → Experiments → Promote) with interface parity:

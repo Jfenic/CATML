@@ -25,6 +25,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
 ## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
 
+- [x] **Estudio Experimental y Validación Empírica en Kaggle Airline Satisfaction (`docs/experiments/`)**:
+  - [x] Comparativa cuantitativa AutoML solo vs Explore/Agente (`docs/experiments/airline_satisfaction_automl_vs_agent_report.md`): Naive con `id` (0.817 ROC-AUC) vs Anti-Leakage Guardian (0.952) vs Drops de colinealidad propuestos por Explore (0.952, Δ = -0.0006). Validación empírica de "Propose ≠ Accept" y registro de aprendizaje negativo.
+  - [x] Push de alto rendimiento en dataset de 700k filas con GBDT (LightGBM/XGBoost) y HPO Optuna alcanzando 0.9586 CV y 0.9578 en test ciego de Kaggle (`submission_airline_lgbm_hpo.csv`).
+  - [x] Identificación de gaps transferibles: preservación de variables categóricas binarias (evitar falso positivo en group leakage de `Customer Type`) y necesidad imperativa de transformaciones con estado fit-in-fold que impulsa Experiment Recipes (ADR-009).
+  - [x] Artefactos reproducibles en `docs/experiments/` (`push_airline_score.py`, `airline_push_scores.json`, `airline_automl_vs_explore_results.json`, `airline_automl_vs_explore_decomposition.json`).
+
 - [x] **Corrección de Visualización y Contraste en CATML Explore (`ExploreView`)**:
   - [x] Reglas CSS globales para `.input-base`, `select` y `select option` en `workbench.css` eliminando fondos blancos de navegadores y asegurando texto legible en dark theme (`#151B26` fondo, `#F7F8FA` texto, `#4F67FF` foco).
   - [x] Clases oscuras explícitas en `explore.js` para el selector de estudio activo (`#selectActiveStudy`), filtros de categoría/severidad y campos modales.

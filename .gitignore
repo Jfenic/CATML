@@ -16,6 +16,7 @@ build/
 catml-runs/
 *.pkl
 workspace/
+docs/experiments/*.csv
 
 # Security & Credentials
 .env

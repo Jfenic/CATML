@@ -1,0 +1,73 @@
+{
+  "protocol": {
+    "metric": "roc_auc",
+    "cv": "StratifiedKFold(5)",
+    "drop": [
+      "id"
+    ],
+    "keep_customer_type": true,
+    "external_solutions": false
+  },
+  "results": [
+    {
+      "name": "lgbm_hpo_full_train_cv",
+      "auc": 0.9586075192871828,
+      "n": 699635
+    },
+    {
+      "name": "lgbm_hpo_confirm_150k",
+      "auc": 0.9585716688000001
+    },
+    {
+      "name": "blend_lgbm_xgb",
+      "auc": 0.9576727647999999,
+      "w_lgbm": 0.8
+    },
+    {
+      "name": "lgbm_hpo25",
+      "auc": 0.9576088208,
+      "params": {
+        "n_estimators": 453,
+        "learning_rate": 0.021688035172903835,
+        "num_leaves": 58,
+        "min_child_samples": 46,
+        "subsample": 0.8472932634130829,
+        "colsample_bytree": 0.7935820562539583,
+        "reg_lambda": 0.5233306606680315
+      }
+    },
+    {
+      "name": "xgb_hpo15",
+      "auc": 0.9571298288,
+      "params": {
+        "n_estimators": 385,
+        "learning_rate": 0.024825553838886575,
+        "max_depth": 6,
+        "min_child_weight": 9,
+        "subsample": 0.867557419233787,
+        "colsample_bytree": 0.7291157981240811,
+        "reg_lambda": 2.0630577320339722
+      }
+    },
+    {
+      "name": "lgbm_default",
+      "auc": 0.9564769776,
+      "seconds": 5.44
+    },
+    {
+      "name": "lgbm_log1p",
+      "auc": 0.9563930064,
+      "seconds": 5.49
+    },
+    {
+      "name": "xgb_default",
+      "auc": 0.9562110904000001,
+      "seconds": 7.84
+    }
+  ],
+  "best": {
+    "name": "lgbm_hpo_full_train_cv",
+    "auc": 0.9586075192871828,
+    "n": 699635
+  }
+}
