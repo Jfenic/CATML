@@ -83,6 +83,18 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P2 | PR4: SQLite repos + state machine + Unit of Work | Open |
 | P2 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open |
 
+### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Web `register` path confinement (same roots as inspect/browse) | In progress (this branch) |
+| P0 | Upload unique internal filenames (no silent overwrite) | In progress (this branch) |
+| P0 | Inference replays `column_transforms` + derived features | In progress (this branch) |
+| P0 | Ensemble regression scores: flip sklearn `neg_*` before persist | In progress (this branch) |
+| P0 | Stacking nested CV OOF for metamodel (no in-sample `stacked_oof`) | In progress (this branch) |
+| P1 | Unknown optimizer fail-closed (`optuna` / `random` only) | In progress (this branch) |
+| P2 | Findings 6–14, 16 (supervised selection leakage, PCA recipe, hypothesis stats, budget status, …) | Deferred |
+
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
 
 | Priority | Item | Status |
@@ -94,7 +106,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | FDR preserves `p=0.0`; recipe `dataset_content_hash` via SHA-256 | Done (`#100`) |
 | P1 | Workbench XSS escapes for column/feature/model interpolations | Done (`#100`) |
 | P1 | Recipe status guards (no submit/promote from archived; promote needs experiments) | Done (`#100`) |
-| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Deferred |
+| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Partially addressed (#1 stacking in Audit-4; remainder deferred) |
 
 ### Track Workbench UX — Demo confidence (Sprint 1 → 3)
 

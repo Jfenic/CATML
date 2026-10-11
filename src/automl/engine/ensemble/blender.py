@@ -347,40 +347,70 @@ def stack_predictions(
         "multiclass_classification",
     }
 
+    from sklearn.base import clone
+    from sklearn.model_selection import KFold, cross_val_predict
+
+    n_splits = max(2, min(5, int(n_samples)))
+    if n_samples < 4:
+        n_splits = 2 if n_samples >= 2 else 2
+    cv = KFold(n_splits=min(n_splits, max(2, n_samples)), shuffle=True, random_state=random_state)
+
     if meta_model_lower in ("ridge", "ridge_regression", "ridge_classifier"):
         from sklearn.linear_model import Ridge
 
         estimator = Ridge(alpha=alpha, random_state=random_state)
-        estimator.fit(X_meta, y_arr)
+        # Nested / CV predictions so stacked_oof is not in-sample on the meta fit.
+        stacked_oof = cross_val_predict(clone(estimator), X_meta, y_arr, cv=cv)
         if is_classification:
-            stacked_oof = np.clip(estimator.predict(X_meta), 0.0, 1.0)
-            stacked_test = np.clip(estimator.predict(X_meta_test), 0.0, 1.0) if X_meta_test is not None else None
+            stacked_oof = np.clip(stacked_oof, 0.0, 1.0)
+        estimator.fit(X_meta, y_arr)
+        if X_meta_test is not None:
+            stacked_test = estimator.predict(X_meta_test)
+            if is_classification:
+                stacked_test = np.clip(stacked_test, 0.0, 1.0)
         else:
-            stacked_oof = estimator.predict(X_meta)
-            stacked_test = estimator.predict(X_meta_test) if X_meta_test is not None else None
+            stacked_test = None
     elif meta_model_lower in ("logistic", "logistic_regression"):
         from sklearn.linear_model import LogisticRegression
 
         c_val = 1.0 / max(alpha, 1e-6)
         estimator = LogisticRegression(C=c_val, random_state=random_state, solver="lbfgs", max_iter=500)
-        estimator.fit(X_meta, y_arr)
-        if hasattr(estimator, "classes_") and len(estimator.classes_) == 2 and "binary" in task_type:
-            stacked_oof = estimator.predict_proba(X_meta)[:, 1]
-            stacked_test = estimator.predict_proba(X_meta_test)[:, 1] if X_meta_test is not None else None
+        use_binary_proba = "binary" in task_type
+        if use_binary_proba:
+            proba = cross_val_predict(
+                clone(estimator), X_meta, y_arr, cv=cv, method="predict_proba"
+            )
+            stacked_oof = proba[:, 1] if proba.ndim == 2 and proba.shape[1] >= 2 else proba.ravel()
         else:
-            stacked_oof = estimator.predict_proba(X_meta)
-            stacked_test = estimator.predict_proba(X_meta_test) if X_meta_test is not None else None
+            stacked_oof = cross_val_predict(
+                clone(estimator), X_meta, y_arr, cv=cv, method="predict_proba"
+            )
+        estimator.fit(X_meta, y_arr)
+        if X_meta_test is not None:
+            if (
+                hasattr(estimator, "classes_")
+                and len(estimator.classes_) == 2
+                and use_binary_proba
+            ):
+                stacked_test = estimator.predict_proba(X_meta_test)[:, 1]
+            else:
+                stacked_test = estimator.predict_proba(X_meta_test)
+        else:
+            stacked_test = None
     elif meta_model_lower == "lasso":
         from sklearn.linear_model import Lasso
 
         estimator = Lasso(alpha=alpha, random_state=random_state)
-        estimator.fit(X_meta, y_arr)
+        stacked_oof = cross_val_predict(clone(estimator), X_meta, y_arr, cv=cv)
         if is_classification:
-            stacked_oof = np.clip(estimator.predict(X_meta), 0.0, 1.0)
-            stacked_test = np.clip(estimator.predict(X_meta_test), 0.0, 1.0) if X_meta_test is not None else None
+            stacked_oof = np.clip(stacked_oof, 0.0, 1.0)
+        estimator.fit(X_meta, y_arr)
+        if X_meta_test is not None:
+            stacked_test = estimator.predict(X_meta_test)
+            if is_classification:
+                stacked_test = np.clip(stacked_test, 0.0, 1.0)
         else:
-            stacked_oof = estimator.predict(X_meta)
-            stacked_test = estimator.predict(X_meta_test) if X_meta_test is not None else None
+            stacked_test = None
     else:
         raise ValueError(
             f"Unsupported stacking meta_model '{meta_model}'. Supported: 'ridge', 'logistic_regression', 'lasso'."

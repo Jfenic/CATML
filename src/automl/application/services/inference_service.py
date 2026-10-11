@@ -88,9 +88,50 @@ class InferenceService:
 
             raw_preds = cached_oof_predictions(self.workspace, run_id, experiment.id, test_dataset_path, predict_proba)
         else:
-            feature_names = experiment.feature_names
+            feature_names = list(experiment.feature_names)
+            column_transforms = list(getattr(experiment, "column_transforms", None) or [])
+            derived_features = list(getattr(experiment, "derived_features", None) or [])
 
             train_df = load_dataframe(dataset.path)
+            # Parity with SklearnTrainer.run / export: materialize derived cols then apply transforms.
+            if derived_features:
+                from automl.domain.features.derived_feature import DerivedFeatureDefinition
+                from automl.engine.features.generation.derived_feature_engine import (
+                    DerivedFeatureEngine,
+                    assert_derived_specs_safe_for_cross_validation,
+                )
+
+                assert_derived_specs_safe_for_cross_validation(derived_features)
+                derived_engine = DerivedFeatureEngine()
+                for df_spec in derived_features:
+                    defn = (
+                        DerivedFeatureDefinition.from_dict(df_spec)
+                        if isinstance(df_spec, dict)
+                        else df_spec
+                    )
+                    if defn.name not in train_df.columns:
+                        train_df, eval_res = derived_engine.apply(
+                            train_df,
+                            defn,
+                            allow_python_code=False,
+                            allow_stateful_aggregates=False,
+                        )
+                        if not eval_res.is_valid:
+                            raise ValueError(
+                                f"Failed to compute derived feature {defn.name}: {eval_res.error_message}"
+                            )
+                    if defn.name not in test_df.columns:
+                        test_df, eval_res = derived_engine.apply(
+                            test_df,
+                            defn,
+                            allow_python_code=False,
+                            allow_stateful_aggregates=False,
+                        )
+                        if not eval_res.is_valid:
+                            raise ValueError(
+                                f"Failed to compute derived feature {defn.name} on test: {eval_res.error_message}"
+                            )
+
             X_train = train_df[feature_names]
             y_train = train_df[dataset.target_column]
 
@@ -99,6 +140,10 @@ class InferenceService:
                 raise ValueError(f"Test dataset is missing required features: {missing_features}")
             X_test = test_df[feature_names]
 
+            fit_params = dict(parameters or {})
+            if column_transforms:
+                fit_params["column_transforms"] = column_transforms
+
             trainer = SklearnTrainer(plugin_registry=self.workspace.plugin_registry)
             preds = trainer.fit_and_predict(
                 X_train=X_train,
@@ -106,7 +151,7 @@ class InferenceService:
                 X_test=X_test,
                 model_id=target_model_id,
                 task_type=dataset.task_type,
-                parameters=parameters,
+                parameters=fit_params,
                 predict_proba=predict_proba,
             )
             raw_preds = preds.tolist() if hasattr(preds, "tolist") else list(preds)

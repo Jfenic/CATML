@@ -1292,7 +1292,8 @@ class AutoMLWorkspace:
             pass
 
         opt: OptimizerPort
-        if optimizer.lower() == "optuna":
+        optimizer_key = str(optimizer or "random").lower().strip()
+        if optimizer_key == "optuna":
             opt = OptunaOptimizer(
                 seed=run.config.random_seed,
                 direction=direction,
@@ -1300,13 +1301,18 @@ class AutoMLWorkspace:
                 min_delta=min_delta,
                 warm_start_params=warm_params,
             )
-        else:
+        elif optimizer_key in {"random", "random_search", "randomsearch"}:
             opt = RandomSearchOptimizer(
                 seed=run.config.random_seed,
                 patience=patience,
                 min_delta=min_delta,
                 mode="max" if direction == "maximize" else "min",
                 warm_start_params=warm_params,
+            )
+        else:
+            raise ValueError(
+                f"Unknown optimizer {optimizer!r}. Supported: 'optuna', 'random' "
+                f"(aliases: random_search, randomsearch)."
             )
 
         trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
@@ -1880,14 +1886,27 @@ class AutoMLWorkspace:
             )
             pipeline = _build_pipeline(X, estimator)
             cv_splitter = KFold(n_splits=folds, shuffle=True, random_state=run.config.random_seed)
+            from automl.engine.training.sklearn_trainer import _is_minimizing_metric
+
+            scoring = _sklearn_scoring(
+                run.config.metric, dataset.task_type, self.plugin_registry
+            )
             scores = cross_val_score(
                 pipeline,
                 X,
                 y,
                 cv=cv_splitter,
-                scoring=_sklearn_scoring(run.config.metric, dataset.task_type),
+                scoring=scoring,
                 n_jobs=1,
             )
+            # sklearn neg_* scorers return negative values; persist the natural metric scale.
+            is_neg = (
+                (isinstance(scoring, str) and scoring.startswith("neg_"))
+                or _is_minimizing_metric(run.config.metric, self.plugin_registry)
+                or getattr(scoring, "_sign", 1) == -1
+            )
+            if is_neg:
+                scores = -scores
             best_score = float(np.mean(scores))
             cv_std = float(np.std(scores))
             model_scores = {"ensemble": best_score}
