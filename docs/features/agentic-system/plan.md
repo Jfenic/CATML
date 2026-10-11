@@ -3,7 +3,7 @@
 > **Estado operativo:** H0–H5 **implementados** — ver [`TASKS.md`](../../../TASKS.md) y [README.md](README.md).  
 > Este documento es la **referencia de diseño/contratos** (no el backlog activo).  
 > Revisión original: 2026-09-30. Alcance histórico: V0.9 y V1.0 con reparto A/B.  
-> Referencias: [arquitectura](../../../ARCHITECTURE.md), [arquitectura técnica](../../../AutoML_Arquitectura_Tecnica.md), [guía](../../../DEVELOPER_GUIDE.md), [CQRS](../../decisions/001-hexagonal-architecture-and-cqrs.md) y [experimentación](../../decisions/002-hypothesis-driven-experiments.md).
+> Referencias: [arquitectura](../../../ARCHITECTURE.md), [arquitectura técnica](../../AutoML_Arquitectura_Tecnica.md), [guía](../../../DEVELOPER_GUIDE.md), [CQRS](../../decisions/001-hexagonal-architecture-and-cqrs.md) y [experimentación](../../decisions/002-hypothesis-driven-experiments.md).
 
 **Entrada para colaboradores:** empieza por [README.md](README.md); usa este plan para entender contratos y límites, y `TASKS.md` para saber qué queda abierto.
 

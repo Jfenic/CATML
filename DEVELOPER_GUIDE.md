@@ -145,7 +145,7 @@ El registro personalizado vive en memoria: volver a registrar el plugin al abrir
 
 El estado operativo se mantiene exclusivamente en [`TASKS.md`](TASKS.md). La correspondencia entre funcionalidades, implementación y pruebas está en [`docs/README.md`](docs/README.md).
 
-Los planes V0.5–V0.7 describen la secuencia histórica de implementación. La arquitectura objetivo y las fases V0.8–V1.0 están en [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md); no implican que esas capacidades estén disponibles.
+Los planes V0.5–V0.7 describen la secuencia histórica de implementación. La arquitectura objetivo y las fases V0.8–V1.0 están en [`docs/AutoML_Arquitectura_Tecnica.md`](docs/AutoML_Arquitectura_Tecnica.md); no implican que esas capacidades estén disponibles. El estado shipped vive en [`TASKS.md`](TASKS.md).
 
 ---
 
@@ -164,7 +164,7 @@ Nueva consulta UI/LLM                  → queries/ + bootstrap.py
 Persistencia / auditoría               → sqlite_repository.py
 Modificar UI / Workbench              → interfaces/web/ + docs/design/neo-industrial-ui-spec.md
 Medir mejoras entre versiones          → benchmarks/runner.py
-Documentación formal                   → AutoML_Arquitectura_Tecnica.md
+Documentación formal                   → docs/AutoML_Arquitectura_Tecnica.md
 ```
 
 ---
@@ -209,10 +209,10 @@ Reglas: mismo `CommandBus` / `QueryBus`, políticas de presupuesto/aprobación, 
 
 | Pregunta | Documento |
 |----------|-----------|
-| ¿Qué entidades existen? | `AutoML_Arquitectura_Tecnica.md` §6 |
-| ¿Qué va en V0.3? | `AutoML_Arquitectura_Tecnica.md` §V0.3 |
-| ¿Cómo funciona feature selection? | `AutoML_Arquitectura_Tecnica.md` §12.1 |
-| ¿Decisiones a evitar? | `AutoML_Arquitectura_Tecnica.md` §17 |
+| ¿Qué entidades existen? | `docs/AutoML_Arquitectura_Tecnica.md` §6 |
+| ¿Qué va en V0.3? | `docs/AutoML_Arquitectura_Tecnica.md` §V0.3 |
+| ¿Cómo funciona feature selection? | `docs/AutoML_Arquitectura_Tecnica.md` §12.1 |
+| ¿Decisiones a evitar? | `docs/AutoML_Arquitectura_Tecnica.md` §17 |
 | Checklist clases por fase | Anexo A |
 
 ---

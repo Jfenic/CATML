@@ -70,8 +70,32 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-- [ ] **Close Workbench UI refinements** (`feat/workbench-ui-refinements`, PR #90): audit UX P0–P2 (PR 0–5) implemented on the feature branch; remaining work is review/merge into `main`.
-- Open backlog (see [Next / Roadmap Phases](#next-roadmap-phases) and unchecked items): OOF holdout validation; trial provenance metadata; `feature_selection_v05` benchmark; advanced meta-learning *policies* beyond Phase 1 warm starts; historical branch cleanup.
+### Track Public Surface Audit — Coherence & Security Claims (`fix/audit-public-surface-coherence`)
+
+> External audit mixed outdated README/ARCHITECTURE claims with real gaps. Triage vs `main` (2026-10-11):
+
+| Claim | Reality on `main` | Action |
+| --- | --- | --- |
+| License MIT vs Apache | Repo/`LICENSE`/`pyproject`/GitHub API already **Apache-2.0** | Keep aligned; document historical MIT ≤0.7 |
+| `from catml import AutoML` broken | `src/catml/` re-exports work | Document public `catml` vs internal `automl` |
+| Pickle / zero-deps | Warning + SHA-256 + dep manifest already in code | Clarify README wording (not zero-deps) |
+| MCP/UI bind/auth/paths | Loopback default, fail-closed auth, path confinement shipped | Document CORS/CSRF posture in SECURITY |
+| ARCHITECTURE “illustrative previews” / direct repos | Stale after CQRS guards + agent H0–H5 | Rewrite current-scope section |
+| Badges static | Still shields snapshots | Link CI workflow badge |
+| setuptools vs SPDX license | Real gap (`>=68` vs SPDX string) | Bump build-system to `>=77` |
+| Root doc clutter | Real | Move technical/planning docs under `docs/` |
+| Missing CODE_OF_CONDUCT | Real | Add Contributor Covenant |
+| Rename entire tree to `catml` | Large breaking change | **Deferred** (document dual package) |
+| ONNX / HMAC signatures | Roadmap | Tracked in SECURITY / MASTER_PLAN |
+| Live Codecov badge | Optional | Backlog |
+| Further `workspace.py` split | Debt (~1.8k LOC facade) | Backlog |
+
+- [x] Align public docs/packaging with shipped security & API surface (this branch).
+- [x] Domain import architecture guard test.
+- [ ] Live coverage badge (Codecov) if/when token is configured.
+- [ ] Publish PyPI `0.9.0` (separate release track).
+
+Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF holdout validation; trial provenance metadata; `feature_selection_v05` benchmark; advanced meta-learning *policies*; historical branch cleanup; deeper `workspace.py` decomposition.
 
 ## Completed Phase: v0.8.2 Phase 2 — Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition
 

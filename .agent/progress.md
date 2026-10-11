@@ -1,5 +1,12 @@
 # Progress
 
+### Track Public Surface Audit — Coherence (`fix/audit-public-surface-coherence`, 2026-10-11)
+
+- Branched from `main` after PR #90 merge to address an external audit that mixed outdated claims with real gaps.
+- **Already true on main (no code change needed):** Apache-2.0 license everywhere; `from catml import AutoML` via `src/catml/`; ModelArtifact pickle warning + SHA-256 + dep manifest; Workbench/MCP loopback + fail-closed auth + path confinement; CQRS interface guards.
+- **Fixed on this branch:** README/ARCHITECTURE claim alignment; `setuptools>=77`; self-referential `all` extra; MCP install note; CI badge link; `CODE_OF_CONDUCT.md`; move `AutoML_Arquitectura_Tecnica.md` + `planning.txt` → `docs/`; domain import guard test; SECURITY CORS/CSRF/path notes; TASKS triage table.
+- **Deferred:** full package rename `automl`→`catml`, ONNX/HMAC, Codecov token, PyPI 0.9.0 publish.
+
 ### Track Docs — Coordinación y sincronización de fuente de verdad (2026-10-11)
 
 - Alineados banners y estados de **Explore E0–E6**, **Experiment Recipes R0–R4**, **Agentes H0–H5** y versión **`0.9.0-rc1`** en:

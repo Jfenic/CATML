@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +9,8 @@ description = "The Agent-Native AutoML Engine for Humans and AI Agents"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-authors = [{ name = "CATML Contributors" }]
+authors = [{ name = "Jfenic" }]
+maintainers = [{ name = "Jfenic" }]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -68,18 +69,7 @@ parquet = [
     "pyarrow>=14.0",
 ]
 all = [
-    "catboost>=1.2",
-    "lightgbm>=4.0",
-    "xgboost>=2.0",
-    "mcp>=1.2.0",
-    "langgraph>=0.2.0",
-    "langgraph-checkpoint>=2.0.0",
-    "langgraph-checkpoint-sqlite>=2.0.0",
-    "torch>=2.0",
-    "torchvision>=0.15",
-    "timm>=0.9",
-    "pillow>=9.0",
-    "pyarrow>=14.0",
+    "catml[models,mcp,agents,vision,parquet]",
 ]
 
 [project.scripts]

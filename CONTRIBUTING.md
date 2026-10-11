@@ -1,5 +1,7 @@
 # Guía de contribución — CATML
 
+By participating, you agree to uphold the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 El estado de tareas y el backlog se mantienen en [TASKS.md](TASKS.md). Para elegir trabajo, consultar también los avisos abiertos:
 
 ```bash
