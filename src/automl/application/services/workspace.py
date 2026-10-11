@@ -13,6 +13,8 @@ from automl.domain.datasets.profile import Dataset
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult, TrialStatus
+from automl.domain.experiments.validation import require_known_validation_strategy
+from automl.domain.metrics.direction import is_minimizing_metric_name
 from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionEvidence
 from automl.domain.features.feature import Feature
 from automl.domain.features.feature_set import FeatureSet
@@ -534,10 +536,11 @@ class AutoMLWorkspace:
             raise ValueError("An experiment requires at least one compatible model")
 
         resolved_group_col = group_column or run.config.group_column
-        resolved_val_strat = validation_strategy or (
+        raw_val_strat = validation_strategy or (
             "group_kfold" if (resolved_group_col and run.config.validation_strategy == "holdout")
             else run.config.validation_strategy
         )
+        resolved_val_strat = require_known_validation_strategy(raw_val_strat, default="holdout")
 
         experiment = Experiment(
             id=f"exp_{uuid.uuid4().hex[:8]}",
@@ -1212,7 +1215,15 @@ class AutoMLWorkspace:
             if exp is None:
                 break
 
-            best_score = max([r.primary_score for r in results if r.succeeded], default=0.0)
+            succeeded = [r for r in results if r.succeeded]
+            if succeeded:
+                metric_name = getattr(exp, "metric", None) or run.config.metric
+                if self._is_minimizing_metric(metric_name):
+                    best_score = min(r.primary_score for r in succeeded)
+                else:
+                    best_score = max(r.primary_score for r in succeeded)
+            else:
+                best_score = 0.0
             executed.append(
                 {
                     "experiment_id": exp.id,
@@ -1220,7 +1231,7 @@ class AutoMLWorkspace:
                     "priority": exp.priority,
                     "trials_count": len(results),
                     "best_score": round(best_score, 4),
-                    "succeeded": any(r.succeeded for r in results),
+                    "succeeded": bool(succeeded),
                 }
             )
 
@@ -1336,6 +1347,7 @@ class AutoMLWorkspace:
                 break
 
             params = opt.suggest(trial_idx, space)
+            # Estimator seed may vary per trial; CV fold seed stays fixed for fair HPO comparison.
             trial = TrialFactory.create(
                 experiment_id=experiment.id,
                 model_id=target_model,
@@ -1356,7 +1368,7 @@ class AutoMLWorkspace:
                 validation_strategy=experiment.validation_strategy,
                 test_size=run.config.test_size,
                 cv_folds=run.config.cv_folds,
-                random_seed=run.config.random_seed + trial_idx,
+                random_seed=run.config.random_seed,
                 group_column=experiment.group_column,
                 column_transforms=list(getattr(experiment, "column_transforms", []) or []),
                 derived_features=list(getattr(experiment, "derived_features", []) or []),
@@ -1447,6 +1459,13 @@ class AutoMLWorkspace:
             ],
         }
 
+    def _is_minimizing_metric(self, metric_name: str) -> bool:
+        """Prefer plugin-declared direction; fall back to builtin minimizing names."""
+        plugin = self.plugin_registry.get_metric_plugin(metric_name)
+        if plugin is not None and hasattr(plugin, "greater_is_better"):
+            return not bool(plugin.greater_is_better)
+        return is_minimizing_metric_name(metric_name)
+
     def get_best_trial(self, experiment_id: str) -> dict | None:
         results = self.repository.list_trial_results(experiment_id)
         if not results:
@@ -1455,7 +1474,7 @@ class AutoMLWorkspace:
         if not valid:
             return None
 
-        is_minimize = str(valid[0].primary_metric).lower() in {"mae", "rmse", "mse", "loss", "log_loss"}
+        is_minimize = self._is_minimizing_metric(valid[0].primary_metric)
         best = min(valid, key=lambda r: r.primary_score) if is_minimize else max(valid, key=lambda r: r.primary_score)
 
         trial = self.repository.get_trial(best.trial_id)

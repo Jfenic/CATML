@@ -17,6 +17,8 @@ from automl.application.recipes.queries import (
     ListVerifiedImprovementsQuery,
     VerifiedImprovementDTO,
 )
+from automl.domain.datasets.content_hash import try_compute_file_content_hash
+from automl.domain.experiments.validation import require_known_validation_strategy
 from automl.domain.recipes.ports import ExperimentRecipeRepositoryPort
 from automl.domain.recipes.recipe import ExperimentRecipe, RecipeStatus
 
@@ -65,14 +67,21 @@ class RecipeService:
 
         dataset_id = study.data_source.dataset_id
         dataset = self.workspace.get_dataset(dataset_id)
-        dataset_content_hash = getattr(dataset, "content_hash", None) if dataset else None
+        dataset_content_hash = None
+        if dataset is not None:
+            dataset_content_hash = getattr(dataset, "content_hash", None) or try_compute_file_content_hash(
+                getattr(dataset, "path", None)
+            )
 
         feature_names: list[str] = []
         derived_features: list[dict[str, Any]] = []
         column_transforms: list[dict[str, Any]] = []
         drop_features: list[str] = []
         model_ids: list[str] = list(cmd.model_ids or [])
-        validation_strategy: str = cmd.validation_strategy or "k_fold"
+        validation_strategy: str = require_known_validation_strategy(
+            cmd.validation_strategy or "kfold",
+            default="kfold",
+        )
         metric: str = cmd.metric or evidence.metric
         cv_folds: int = cmd.cv_folds or 5
         random_seed: int = cmd.random_seed or 42
@@ -91,10 +100,17 @@ class RecipeService:
             if not cmd.metric:
                 metric = candidate_exp.metric
             if not cmd.validation_strategy:
-                validation_strategy = candidate_exp.validation_strategy
+                validation_strategy = require_known_validation_strategy(
+                    candidate_exp.validation_strategy,
+                    default="kfold",
+                )
 
             # Infer dropped features by checking baseline experiment if recorded
-            baseline_exp_id = hypothesis.experiment_delta.get("baseline_experiment_id") if isinstance(hypothesis.experiment_delta, dict) else None
+            baseline_exp_id = (
+                hypothesis.experiment_delta.get("baseline_experiment_id")
+                if isinstance(hypothesis.experiment_delta, dict)
+                else None
+            )
             if baseline_exp_id:
                 baseline_exp = self.workspace.get_experiment(baseline_exp_id)
                 if baseline_exp:
@@ -102,19 +118,26 @@ class RecipeService:
         else:
             # Fallback to translate via HypothesisExperimentTranslator
             from automl.engine.analysis.hypothesis_translator import HypothesisExperimentTranslator
-            from automl.domain.features.registry import FeatureRegistry
+
             base_reg = self.workspace.get_feature_registry(dataset_id)
             base_features = [f.name for f in base_reg.list()]
             target_col = study.target_column
             if target_col and target_col in base_features:
                 base_features.remove(target_col)
-            spec = HypothesisExperimentTranslator.translate(hypothesis, base_features, base_model=model_ids[0] if model_ids else "random_forest")
-            feature_names = spec.feature_names
+            task_type = getattr(dataset, "task_type", None) if dataset else None
+            default_models = list(model_ids) if model_ids else None
+            spec = HypothesisExperimentTranslator.translate(
+                hypothesis,
+                base_features,
+                task_type=task_type,
+                default_models=default_models,
+            )
+            feature_names = list(spec.feature_names)
             derived_features = [dict(df) for df in spec.derived_features]
             column_transforms = [dict(ct) for ct in spec.column_transforms]
             drop_features = list(spec.drop_features)
             if not model_ids:
-                model_ids = [spec.model_id]
+                model_ids = list(spec.model_ids)
 
         if not drop_features and isinstance(hypothesis.experiment_delta, dict):
             drop_features = list(hypothesis.experiment_delta.get("drop_features", []))
@@ -167,6 +190,9 @@ class RecipeService:
         if not recipe:
             raise ValueError(f"Experiment recipe not found: {cmd.recipe_id}")
 
+        if recipe.status == RecipeStatus.ARCHIVED:
+            raise ValueError(f"Cannot submit archived recipe: {recipe.id}")
+
         # Resolve Run
         if cmd.run_id:
             run = self.workspace.get_run(cmd.run_id)
@@ -176,7 +202,8 @@ class RecipeService:
             runs = self.workspace.list_runs(recipe.dataset_id)
             active_runs = [
                 r for r in runs
-                if getattr(r, "is_active", False) or getattr(r.status, "value", str(r.status)) in ("CREATED", "RUNNING", "EXPERIMENTING")
+                if getattr(r, "is_active", False)
+                or getattr(r.status, "value", str(r.status)) in ("CREATED", "RUNNING", "EXPERIMENTING")
             ]
             if active_runs:
                 run = active_runs[0]
@@ -188,6 +215,34 @@ class RecipeService:
                     raise ValueError(f"Dataset not found for recipe: {recipe.dataset_id}")
                 run = self.workspace.create_run(dataset)
 
+        # Restore declared recipe execution contracts onto the run before creating experiments.
+        val_strategy = require_known_validation_strategy(
+            recipe.validation_strategy,
+            default="kfold",
+        )
+        run.config.metric = recipe.metric
+        run.config.cv_folds = int(recipe.cv_folds)
+        run.config.random_seed = int(recipe.random_seed)
+        run.config.validation_strategy = val_strategy
+        self.workspace.save_run(run)
+
+        # Optional integrity check: warn (do not hard-fail) when dataset bytes drifted.
+        dataset = self.workspace.get_dataset(recipe.dataset_id)
+        if recipe.dataset_content_hash and dataset is not None:
+            current_hash = try_compute_file_content_hash(getattr(dataset, "path", None))
+            if current_hash and current_hash != recipe.dataset_content_hash:
+                logger.warning(
+                    "Recipe %s dataset content_hash mismatch (recipe=%s current=%s)",
+                    recipe.id,
+                    recipe.dataset_content_hash[:12],
+                    current_hash[:12],
+                )
+                recipe.lineage.setdefault("integrity_warnings", []).append({
+                    "type": "dataset_content_hash_mismatch",
+                    "expected": recipe.dataset_content_hash,
+                    "actual": current_hash,
+                })
+
         models_to_run = list(cmd.model_ids or recipe.model_ids or ["random_forest"])
         new_experiment_ids: list[str] = []
 
@@ -198,7 +253,7 @@ class RecipeService:
                 name=exp_name,
                 model_ids=[model_id],
                 feature_names=recipe.feature_names,
-                validation_strategy=recipe.validation_strategy,
+                validation_strategy=val_strategy,
                 hypothesis=f"Recipe {recipe.id}: {recipe.name}",
                 column_transforms=recipe.column_transforms,
                 derived_features=recipe.derived_features,
@@ -276,7 +331,7 @@ class RecipeService:
                 if l.hypothesis_id not in hyp_map:
                     h = self.study_repo.get_hypothesis(l.hypothesis_id)
                     if h:
-                        hyp_map[h.id] = h
+                        hyp_map[l.hypothesis_id] = h
 
         results: list[VerifiedImprovementDTO] = []
         for l in links:

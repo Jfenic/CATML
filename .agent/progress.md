@@ -1,16 +1,21 @@
 # Progress
 
-### Track Clean Architecture Refactor (docs + PR1 agent, 2026-10-11)
+### Track Clean Architecture Refactor (docs + PR1, 2026-10-11)
 
-- Documented progressive Clean Architecture plan (no product-code rewrite):  
-  `docs/features/clean-architecture-refactor/{spec,plan,agent-brief-pr1}.md` + ADR-010.
-- Strategy: contracts first (PR1) → Workspace facade (PR2) → API/`datasets.js` (PR3) → UoW/states (PR4) → tooling (PR5). Keep CQRS/plugins/SQLite.
-- PR1 implementation delegated to a dedicated agent via `agent-brief-pr1.md` (branch `refactor/clean-arch-pr1-metric-execution-contracts` from audit-3 / #100). Orchestrator does not touch product code for that PR.
-- Gate: merge #99 + #100 before starting PR2+.
+- Documented progressive Clean Architecture plan: `docs/features/clean-architecture-refactor/` + ADR-010 (PR #101).
+- Strategy: contracts first (PR1 / #102) → Workspace facade (PR2) → API/`datasets.js` (PR3) → UoW/states (PR4) → tooling (PR5).
+- Gate: #100 merged; merge #99 then #102 before PR2+.
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`, 2026-10-11)
 
-- Open PR #100 — recipe/CV/metric/FDR/XSS contracts (not merged to main yet).
+- Merged in PR #100 — recipe/CV/metric/FDR/XSS contracts.
+- Third external audit (post-`beb93a0` / PR #95): secondary paths lacked primary-flow guarantees.
+- **Contracts:** `domain/experiments/validation.py` normalizes CV aliases (`k_fold`→`kfold`) and rejects unknown strategies (trainer + `create_experiment` fail closed).
+- **Recipes:** translator call uses `default_models`; `ExperimentCandidateSpec.drop_features` + `model_id`; submit restores metric/cv/seed/strategy on run; SHA-256 `dataset_content_hash`; block archived submit; promote requires experiments.
+- **Metrics/HPO:** `run_scheduled_experiments` uses minimize/maximize; `get_best_trial` consults metric plugins; HPO `TrialExecution.random_seed` fixed for CV folds (trial bookkeeping seed still varies).
+- **FDR:** Benjamini–Hochberg no longer maps `p=0.0` via `or 1.0`.
+- **XSS:** `escapeHtml` on feature/column/model interpolations in `new_experiment.js`, `datasets.js`, `compare.js`.
+- Tests: `tests/test_audit3_recipe_metric_cv_contracts.py`. Deferred: stacking OOF metamodel, shap naming, pip-audit hard-fail.
 
 ### Track Export / path integrity (`fix/export-parquet-path-confinement`, 2026-10-11)
 

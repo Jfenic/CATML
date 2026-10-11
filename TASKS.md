@@ -72,12 +72,12 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
-> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: merge #99 + #100 before PR2+. PR1 implementable in parallel by dedicated agent ([brief](docs/features/clean-architecture-refactor/agent-brief-pr1.md)).
+> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #100 merged; merge #99 then #102 before PR2+.
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done |
-| P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Assigned to implementer agent |
+| P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done (this PR / `#101`) |
+| P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Open PR `#102` |
 | P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Open (after PR1) |
 | P1 | PR3: Web controllers + split `datasets.js` components | Open |
 | P2 | PR4: SQLite repos + state machine + Unit of Work | Open |
@@ -87,18 +87,25 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Shared recipe/CV/metric/FDR/XSS contracts | Open PR `#100` |
+| P0 | Recipe translator contract (`default_models` / `drop_features` / `model_id`) | Done (`#100`) |
+| P0 | Recipe replay restores `metric`, `cv_folds`, `random_seed`, CV strategy | Done (`#100`) |
+| P0 | Shared CV aliases (`k_fold`→`kfold`); reject unknown strategies | Done (`#100`) |
+| P0 | HPO uses fixed CV fold seed; metric min/max consistent in schedule + `get_best_trial` | Done (`#100`) |
+| P0 | FDR preserves `p=0.0`; recipe `dataset_content_hash` via SHA-256 | Done (`#100`) |
+| P1 | Workbench XSS escapes for column/feature/model interpolations | Done (`#100`) |
+| P1 | Recipe status guards (no submit/promote from archived; promote needs experiments) | Done (`#100`) |
+| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Deferred |
 
 ### Track Workbench UX — Demo confidence (Sprint 1 → 3)
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | In progress (`fix/workbench-sprint1-state-coherence`) |
-| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | In progress (same branch) |
-| P0 | Filter Explore transform hypotheses on identifier/discarded columns | In progress (same branch) |
-| P1 | Guided vs Advanced Explore (top findings first) | Open (Sprint 2) |
-| P1 | Correlation matrix UX + p-value/severity formatting | Open (Sprint 2) |
-| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Open (Sprint 2) |
+| P0 | Unify run vs experiment vs job status labels; honest API status when trials exist | Done (`#98`) |
+| P0 | Single source for trial counters (leaderboard vs «ensayos completados») | Done (`#98`) |
+| P0 | Filter Explore transform hypotheses on identifier/discarded columns | Done (`#98`) |
+| P1 | Guided vs Advanced Explore (top findings first) | Done / open PR `#99` |
+| P1 | Correlation matrix UX + p-value/severity formatting | Done / open PR `#99` |
+| P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done / open PR `#99` |
 | P2 | Demo project + executive results export | Open (Sprint 3) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)
