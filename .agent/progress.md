@@ -1,5 +1,15 @@
 # Progress
 
+### Track Spec — Experiment Recipes backlog (2026-10-11)
+
+- Documented pending feature **Experiment Recipes** (Explore → Evidence → reusable config → Experiments → Promote) with interface parity:
+  - Spec: `docs/features/experiment-recipes/spec.md`
+  - Plan R0–R4: `docs/features/experiment-recipes/plan.md`
+  - ADR-009: `docs/decisions/009-experiment-recipes-and-interface-parity.md`
+  - Checklist in `TASKS.md` under “Next Roadmap: Experiment Recipes”
+  - Cross-links from `docs/features/catml-explore/plan.md` and `AGENTS.md`
+- Explicit: `EvidenceLink.accepted` ≠ Selected/Promoted; fit-in-fold for stateful transforms; implement contracts before Workbench UI.
+
 ### Track Workbench UI Refinements & Testing — (2026-10-11)
 
 - **Soporte de Columnas Booleanas en Perfilado Estadístico y Registro de Datasets:**

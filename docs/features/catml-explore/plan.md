@@ -202,6 +202,22 @@ flowchart TD
 2. **Documentación de Cierre y Guías de Usuario:**
    * Actualización del `DEVELOPER_GUIDE.md` y documentación de la API pública.
 
+* **Estado:** Completada en código (ver `TASKS.md`). El puente hacia recetas reutilizables se documenta como feature separada (siguiente).
+
+---
+
+### Continuación post-E6 — Experiment Recipes (fuera del núcleo Explore)
+
+Explore verifica hipótesis y produce `EvidenceLink`, pero **no** define aún una configuración reproducible seleccionable/promovible con paridad CLI/MCP/UI.
+
+Esa capacidad se especifica en:
+
+* [Experiment Recipes — Spec](../experiment-recipes/spec.md)
+* [Experiment Recipes — Plan (fases R0–R4)](../experiment-recipes/plan.md)
+* [ADR-009](../../decisions/009-experiment-recipes-and-interface-parity.md)
+
+No implementar como “solo un botón en Explore”: contratos de dominio y CQRS primero; Workbench al final.
+
 ---
 
 ## 3. Matriz de Priorización y Entregables
@@ -217,6 +233,7 @@ flowchart TD
 | Vista visual interactiva en el Workbench | P1 | E3 | PR 7 (Explore UI View) |
 | Conexión de hipótesis con experimentos AutoML | P1 | E5 | PR 8 (Hypothesis to Experiment Link) |
 | Benchmarks científicos y suite de regresión | P1 | E6 | PR 9 (Benchmarks & Hardening) |
+| Experiment Recipes (recetas + paridad interfaces) | P1 | post-E6 / R0–R4 | Ver [experiment-recipes/plan.md](../experiment-recipes/plan.md) |
 
 ---
 

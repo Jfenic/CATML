@@ -9,6 +9,7 @@
 - **Short-Term Memory & Progress:** See [`.agent/progress.md`](.agent/progress.md).
 - **Developer Extension Guide:** See [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 - **Active Feature Specs & Plans:** See [`docs/features/`](docs/features/) (e.g. [`docs/features/feature-discovery/spec.md`](docs/features/feature-discovery/spec.md) and [`plan.md`](docs/features/feature-discovery/plan.md)).
+- **Pending — Experiment Recipes (Explore → reusable configs, interface parity):** [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md), [`plan.md`](docs/features/experiment-recipes/plan.md), [ADR-009](docs/decisions/009-experiment-recipes-and-interface-parity.md).
 - **UI Design System (Tech Minimalista Premium):** See [`docs/design/tech-minimalist-brand-system.md`](docs/design/tech-minimalist-brand-system.md), [`docs/decisions/006-tech-minimalist-premium-brand-system.md`](docs/decisions/006-tech-minimalist-premium-brand-system.md) and historical spec [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
 - **Architectural Decisions (ADRs):** See [`docs/decisions/`](docs/decisions/).
 - **Original Architectural Notes:** See [`planning.txt`](planning.txt).

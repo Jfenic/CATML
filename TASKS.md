@@ -252,6 +252,29 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Armonización de idiomas y eliminación de cadenas residuales en inglés en `studio.js` y `knowledge.js`.
   - [x] Suite de pruebas automatizadas dedicada en `tests/test_workbench_navigation_and_explore_ui.py` (4 tests pasando) y suite de UI de 44 tests al 100%.
 
+## Next Roadmap: Experiment Recipes (Explore → Evidence → Reusable Config) — P1
+
+> Spec: [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md) · Plan: [`docs/features/experiment-recipes/plan.md`](docs/features/experiment-recipes/plan.md) · ADR: [`docs/decisions/009-experiment-recipes-and-interface-parity.md`](docs/decisions/009-experiment-recipes-and-interface-parity.md).  
+> Principio: paridad Python / CLI / REST / MCP / Workbench; UI última capa.  
+> Estados: **Proposed → Verified → Selected → Promoted** (`EvidenceLink.accepted` ≠ autorización automática).
+
+- [ ] **Fase R0 — Verificación real de transforms** [P0]:
+  - [ ] Aplicar de verdad `log1p` / `yeo_johnson` / `robust_scaler` (y drops de colinealidad) en `VerifyHypothesisCommand`, no solo metadata del traductor.
+  - [ ] Distinguir derivadas sin estado vs transforms con estado (fit-in-fold en fases siguientes).
+- [ ] **Fase R1 — Dominio `ExperimentRecipe` + CQRS** [P0]:
+  - [ ] Entidad reproducible: transforms, columnas, dataset/hash, modelo/params, validación, métrica, semilla, `evidence_link_id`.
+  - [ ] Comandos: `CreateExperimentRecipeFromEvidence`, `SubmitExperimentFromRecipe`, `PromoteExperimentRecipe`.
+  - [ ] Consultas: `ListVerifiedImprovements`, `GetExperimentRecipe`, `ListExperimentRecipes`.
+- [ ] **Fase R2 — Trainer fit-in-fold** [P0]:
+  - [ ] `RobustScaler` / `PowerTransformer` ajustados dentro de cada fold de CV en `SklearnTrainer`.
+  - [ ] Tests de no-leakage.
+- [ ] **Fase R3 — Paridad Python / CLI / MCP / REST** [P0]:
+  - [ ] CLI (`catml recipe …`), tools MCP con política de aprobación, endpoints REST.
+  - [ ] Crear draft ≠ ejecutar; promover = operación explícita auditable.
+- [ ] **Fase R4 — Workbench + test de paridad** [P1]:
+  - [ ] UI para seleccionar mejoras verificadas, enviar recetas y promover (cliente del bus, sin lógica de negocio en JS).
+  - [ ] Prueba automatizada: misma receta vía CLI → MCP → Workbench → mismo experimento.
+
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
 - [x] **Cumplimiento Real y Operacional de `time_budget`**:
