@@ -70,6 +70,19 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
+### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Include Workbench `static/` in wheel via `package-data` | Done (22 static files in wheel) |
+| P0 | Smoke + CI assert wheel contains UI assets and HTTP 200 | Done |
+| P0 | `release.yml` Trusted Publishing skeleton (no auto-publish on push) | Done |
+| P1 | PyPI-safe README quickstart (sklearn dataset) + CDN honesty | Done |
+| P1 | SECURITY/`pip-audit` honesty + CI audit job | Done (audit job non-blocking) |
+| P1 | CI matrix Python 3.11 + 3.13 | Done |
+| P2 | Vendor Workbench CDN assets for fully offline UI | Open |
+| P0 | Reserve/publish `catml` on TestPyPI then PyPI as **0.9.0rc1** | Not started (needs human Trusted Publisher setup) |
+
 ### Track Public Surface Audit — Coherence & Security Claims (`fix/audit-public-surface-coherence`)
 
 > External audit mixed outdated README/ARCHITECTURE claims with real gaps. Triage vs `main` (2026-10-11):
@@ -90,10 +103,10 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | Live Codecov badge | Optional | Backlog |
 | Further `workspace.py` split | Debt (~1.8k LOC facade) | Backlog |
 
-- [x] Align public docs/packaging with shipped security & API surface (this branch).
+- [x] Align public docs/packaging with shipped security & API surface (merged PR #91).
 - [x] Domain import architecture guard test.
 - [ ] Live coverage badge (Codecov) if/when token is configured.
-- [ ] Publish PyPI `0.9.0` (separate release track).
+- [ ] Publish PyPI `0.9.0rc1` then stable `0.9.0` (see PyPI pre-publish track above).
 
 Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF holdout validation; trial provenance metadata; `feature_selection_v05` benchmark; advanced meta-learning *policies*; historical branch cleanup; deeper `workspace.py` decomposition.
 

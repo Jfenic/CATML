@@ -62,6 +62,7 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - **Auditing & Policies:** Agent actions are dispatched through typed CQRS commands and recorded in a durable SQLite ledger. Long-running tasks operate under budget leases with cooperative cancellation.
 
 ### 5. Supply Chain & Dependencies
-- Upstream dependencies are audited using `pip-audit` in CI workflows.
-- Heavy optional extras (`torch`, `torchvision`, `optuna`) specify upper version bounds to mitigate unexpected upstream breakages.
-- Release artifacts are published with SHA-256 integrity checksums.
+- CI includes a `pip-audit` job against the installed editable environment (currently **non-blocking** / `continue-on-error` until the advisory backlog is cleared).
+- Core and optional extras primarily declare lower bounds; pin or constrain versions in deployment environments as needed.
+- Release artifacts should be built with `python -m build` and validated with `twine check` plus the Workbench-static wheel assertion in CI / `release.yml`.
+- Optional vision backbones may download pretrained weights on first use; that is not dataset egress.
