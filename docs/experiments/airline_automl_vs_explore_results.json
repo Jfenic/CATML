@@ -1,0 +1,405 @@
+{
+  "dataset": {
+    "source": "data/kagle/train.csv",
+    "full_rows": 699635,
+    "sample_rows": 25000,
+    "sampling": "stratified 50/50 on satisfaction, random_state=42",
+    "target": "satisfaction",
+    "metric": "roc_auc",
+    "models": [
+      "logistic_regression",
+      "random_forest"
+    ],
+    "cv_folds": 5
+  },
+  "baseline_automl_only": {
+    "best_score": 0.8171385528089716,
+    "seconds": 11.48,
+    "leaderboard": [
+      {
+        "rank": 1,
+        "model_id": "random_forest",
+        "score": 0.8171385528089716,
+        "metric": "roc_auc",
+        "training_time_s": 5.048,
+        "cv_std": 0.03615301584356795,
+        "parameters": {}
+      },
+      {
+        "rank": 2,
+        "model_id": "logistic_regression",
+        "score": 0.7146559364034403,
+        "metric": "roc_auc",
+        "training_time_s": 3.198,
+        "cv_std": 0.059000213104878796,
+        "parameters": {}
+      }
+    ]
+  },
+  "explore": {
+    "study_id": "study_20ea6217",
+    "findings_count": 55,
+    "hypotheses_count": 37,
+    "finding_type_counts": {
+      "multimodal_distribution": 7,
+      "normality_violation": 18,
+      "outlier_density": 3,
+      "skewness": 2,
+      "multivariate_outliers": 1,
+      "high_cardinality_identifier": 1,
+      "high_collinearity": 5,
+      "categorical_association": 1,
+      "target_class_separation": 17
+    },
+    "identifier_findings": [
+      {
+        "id": "find_d97ca47a",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "high_cardinality_identifier",
+        "column_name": "id",
+        "secondary_column": null,
+        "method_name": "cardinality_ratio",
+        "summary": "Columna 'id' presenta cardinalidad casi \u00fanica (25000/25000, 100.0%), probable clave primaria o ID.",
+        "metrics": {
+          "unique_count": 25000,
+          "cardinality_ratio": 1.0
+        },
+        "p_value": null,
+        "effect_size": null,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:53.966356+00:00"
+      }
+    ],
+    "skewness_findings": [
+      {
+        "id": "find_c2bfb256",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "skewness",
+        "column_name": "Arrival Delay in Minutes",
+        "secondary_column": null,
+        "method_name": "scipy.stats.skew",
+        "summary": "Asimetr\u00eda severa positiva (cola derecha) detectada en 'Arrival Delay in Minutes' (skewness=17.75, curtosis=793.88).",
+        "metrics": {
+          "skewness": 17.75,
+          "kurtosis": 793.878
+        },
+        "p_value": null,
+        "effect_size": 17.75,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:53.938263+00:00"
+      },
+      {
+        "id": "find_47f8d42f",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "skewness",
+        "column_name": "Departure Delay in Minutes",
+        "secondary_column": null,
+        "method_name": "scipy.stats.skew",
+        "summary": "Asimetr\u00eda severa positiva (cola derecha) detectada en 'Departure Delay in Minutes' (skewness=17.54, curtosis=768.57).",
+        "metrics": {
+          "skewness": 17.54,
+          "kurtosis": 768.569
+        },
+        "p_value": null,
+        "effect_size": 17.54,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:53.933659+00:00"
+      }
+    ],
+    "collinearity_findings": [
+      {
+        "id": "find_68592a2a",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "high_collinearity",
+        "column_name": "Departure Delay in Minutes",
+        "secondary_column": "Arrival Delay in Minutes",
+        "method_name": "pearson_correlation",
+        "summary": "Alta colinealidad bivariada entre 'Departure Delay in Minutes' y 'Arrival Delay in Minutes' (Pearson r=0.859, IC95%=[0.856, 0.862], p=0.0000e+00).",
+        "metrics": {
+          "pearson_r": 0.8592,
+          "ci_lower": 0.8559,
+          "ci_upper": 0.8624,
+          "spearman_rho": 0.4644,
+          "sample_size": 24988,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.859,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:55.056649+00:00"
+      },
+      {
+        "id": "find_9e9fd57e",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "high_collinearity",
+        "column_name": "Inflight wifi service",
+        "secondary_column": "Ease of Online booking",
+        "method_name": "pearson_correlation",
+        "summary": "Alta colinealidad bivariada entre 'Inflight wifi service' y 'Ease of Online booking' (Pearson r=0.783, IC95%=[0.778, 0.787], p=0.0000e+00).",
+        "metrics": {
+          "pearson_r": 0.7826,
+          "ci_lower": 0.7778,
+          "ci_upper": 0.7874,
+          "spearman_rho": 0.7799,
+          "sample_size": 25000,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.783,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:54.409636+00:00"
+      },
+      {
+        "id": "find_ead24183",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "high_collinearity",
+        "column_name": "Seat comfort",
+        "secondary_column": "Cleanliness",
+        "method_name": "pearson_correlation",
+        "summary": "Alta colinealidad bivariada entre 'Seat comfort' y 'Cleanliness' (Pearson r=0.755, IC95%=[0.750, 0.760], p=0.0000e+00).",
+        "metrics": {
+          "pearson_r": 0.7552,
+          "ci_lower": 0.7498,
+          "ci_upper": 0.7605,
+          "spearman_rho": 0.7134,
+          "sample_size": 25000,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.755,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:54.903934+00:00"
+      },
+      {
+        "id": "find_3aa68964",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "high_collinearity",
+        "column_name": "Inflight entertainment",
+        "secondary_column": "Cleanliness",
+        "method_name": "pearson_correlation",
+        "summary": "Alta colinealidad bivariada entre 'Inflight entertainment' y 'Cleanliness' (Pearson r=0.742, IC95%=[0.736, 0.747], p=0.0000e+00).",
+        "metrics": {
+          "pearson_r": 0.7419,
+          "ci_lower": 0.7363,
+          "ci_upper": 0.7474,
+          "spearman_rho": 0.7093,
+          "sample_size": 25000,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.742,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:54.937478+00:00"
+      },
+      {
+        "id": "find_11e8f4ee",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "high_collinearity",
+        "column_name": "Seat comfort",
+        "secondary_column": "Inflight entertainment",
+        "method_name": "pearson_correlation",
+        "summary": "Alta colinealidad bivariada entre 'Seat comfort' y 'Inflight entertainment' (Pearson r=0.734, IC95%=[0.728, 0.740], p=0.0000e+00).",
+        "metrics": {
+          "pearson_r": 0.7343,
+          "ci_lower": 0.7285,
+          "ci_upper": 0.7399,
+          "spearman_rho": 0.7028,
+          "sample_size": 25000,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.734,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:54.875463+00:00"
+      }
+    ],
+    "target_separation_findings": [
+      {
+        "id": "find_ccc87c5a",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "target_class_separation",
+        "column_name": "Online boarding",
+        "secondary_column": "satisfaction",
+        "method_name": "welch_ttest_and_mannwhitney",
+        "summary": "Separaci\u00f3n univariante significativa en 'Online boarding' entre clases de 'satisfaction' (Welch t=-108.49, p=0.0000e+00, Mann-Whitney p=0.0000e+00, Cohen's d=1.37).",
+        "metrics": {
+          "welch_t": -108.492,
+          "mann_whitney_u": 24672080.0,
+          "cohens_d": 1.372,
+          "levene_p_variance_homogeneity": 0.0,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 1.372,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:55.168178+00:00"
+      },
+      {
+        "id": "find_a52a54ac",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "target_class_separation",
+        "column_name": "Inflight entertainment",
+        "secondary_column": "satisfaction",
+        "method_name": "welch_ttest_and_mannwhitney",
+        "summary": "Separaci\u00f3n univariante significativa en 'Inflight entertainment' entre clases de 'satisfaction' (Welch t=-76.33, p=0.0000e+00, Mann-Whitney p=0.0000e+00, Cohen's d=0.97).",
+        "metrics": {
+          "welch_t": -76.334,
+          "mann_whitney_u": 40328123.5,
+          "cohens_d": 0.966,
+          "levene_p_variance_homogeneity": 0.0,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.966,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:55.176224+00:00"
+      },
+      {
+        "id": "find_3e140f85",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "target_class_separation",
+        "column_name": "Seat comfort",
+        "secondary_column": "satisfaction",
+        "method_name": "welch_ttest_and_mannwhitney",
+        "summary": "Separaci\u00f3n univariante significativa en 'Seat comfort' entre clases de 'satisfaction' (Welch t=-70.15, p=0.0000e+00, Mann-Whitney p=0.0000e+00, Cohen's d=0.89).",
+        "metrics": {
+          "welch_t": -70.151,
+          "mann_whitney_u": 42159003.0,
+          "cohens_d": 0.887,
+          "levene_p_variance_homogeneity": 0.0,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.887,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:55.172179+00:00"
+      },
+      {
+        "id": "find_6b33de05",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "target_class_separation",
+        "column_name": "Flight Distance",
+        "secondary_column": "satisfaction",
+        "method_name": "welch_ttest_and_mannwhitney",
+        "summary": "Separaci\u00f3n univariante significativa en 'Flight Distance' entre clases de 'satisfaction' (Welch t=-64.20, p=0.0000e+00, Mann-Whitney p=0.0000e+00, Cohen's d=0.81).",
+        "metrics": {
+          "welch_t": -64.198,
+          "mann_whitney_u": 46583888.5,
+          "cohens_d": 0.812,
+          "levene_p_variance_homogeneity": 0.0,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.812,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:55.140259+00:00"
+      },
+      {
+        "id": "find_2ed6a7a7",
+        "study_id": "study_20ea6217",
+        "analysis_run_id": "arun_0b499540",
+        "finding_type": "target_class_separation",
+        "column_name": "On-board service",
+        "secondary_column": "satisfaction",
+        "method_name": "welch_ttest_and_mannwhitney",
+        "summary": "Separaci\u00f3n univariante significativa en 'On-board service' entre clases de 'satisfaction' (Welch t=-59.76, p=0.0000e+00, Mann-Whitney p=0.0000e+00, Cohen's d=0.76).",
+        "metrics": {
+          "welch_t": -59.765,
+          "mann_whitney_u": 46754977.0,
+          "cohens_d": 0.756,
+          "levene_p_variance_homogeneity": 0.0,
+          "p_value_fdr": 1.0,
+          "fdr_significant": false
+        },
+        "p_value": 0.0,
+        "effect_size": 0.756,
+        "limitations": [],
+        "created_at": "2026-10-11T02:07:55.180204+00:00"
+      }
+    ]
+  },
+  "explore_guided_automl": {
+    "best_score": 0.951643056,
+    "seconds": 17.38,
+    "delta_vs_baseline": 0.134505,
+    "feature_count": 17,
+    "actions": [
+      {
+        "rule": "anti_leakage_safe_features",
+        "detail": "Use profiler-safe features only (20 cols). Dropped non-safe: ['Customer Type', 'id']",
+        "transferable": true
+      },
+      {
+        "rule": "stateful_transform_deferred",
+        "detail": "Detected yeo_johnson for Departure Delay in Minutes; not materializing (requires fit-in-fold recipe). Flagged for Experiment Recipes R0\u2013R2.",
+        "transferable": true,
+        "column": "Departure Delay in Minutes"
+      },
+      {
+        "rule": "stateful_transform_deferred",
+        "detail": "Detected yeo_johnson for Arrival Delay in Minutes; not materializing (requires fit-in-fold recipe). Flagged for Experiment Recipes R0\u2013R2.",
+        "transferable": true,
+        "column": "Arrival Delay in Minutes"
+      },
+      {
+        "rule": "collinearity_drop_second",
+        "detail": "Explore collinearity pair ['Inflight wifi service', 'Ease of Online booking'] \u2192 drop 'Ease of Online booking' (deterministic second element).",
+        "transferable": true,
+        "hypothesis_id": "hyp_1a7276a6"
+      },
+      {
+        "rule": "collinearity_drop_second",
+        "detail": "Explore collinearity pair ['Seat comfort', 'Inflight entertainment'] \u2192 drop 'Inflight entertainment' (deterministic second element).",
+        "transferable": true,
+        "hypothesis_id": "hyp_c569eee2"
+      },
+      {
+        "rule": "collinearity_drop_second",
+        "detail": "Explore collinearity pair ['Seat comfort', 'Cleanliness'] \u2192 drop 'Cleanliness' (deterministic second element).",
+        "transferable": true,
+        "hypothesis_id": "hyp_7a624f48"
+      }
+    ],
+    "leaderboard": [
+      {
+        "rank": 1,
+        "model_id": "random_forest",
+        "score": 0.951643056,
+        "metric": "roc_auc",
+        "training_time_s": 11.794,
+        "cv_std": 0.002390513337286283,
+        "parameters": {}
+      },
+      {
+        "rank": 2,
+        "model_id": "logistic_regression",
+        "score": 0.9185724480000002,
+        "metric": "roc_auc",
+        "training_time_s": 1.599,
+        "cv_std": 0.0019862647574419964,
+        "parameters": {}
+      }
+    ]
+  }
+}

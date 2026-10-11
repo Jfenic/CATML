@@ -49,6 +49,8 @@ class DatasetQuestionnaire:
     primary_metric_override: str | None = None
     split_strategy_recommendation: str = "stratified_kfold"
     auto_generated: bool = True
+    user_confirmed: bool = False
+    engine_source: str = "heuristic"
     confidence: float = 1.0
     reasoning: str = ""
 
@@ -75,6 +77,8 @@ class DatasetQuestionnaire:
             primary_metric_override=data.get("primary_metric_override"),
             split_strategy_recommendation=data.get("split_strategy_recommendation", "stratified_kfold"),
             auto_generated=bool(data.get("auto_generated", True)),
+            user_confirmed=bool(data.get("user_confirmed", False)),
+            engine_source=str(data.get("engine_source", "heuristic")),
             confidence=float(data.get("confidence", 1.0)),
             reasoning=data.get("reasoning", ""),
         )

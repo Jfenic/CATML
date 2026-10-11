@@ -54,6 +54,62 @@ from automl.application.analysis.queries import (
     ListStudiesQuery,
     ListVisualizationsQuery,
 )
+from automl.application.recipes.commands import (
+    ArchiveExperimentRecipeCommand,
+    CreateExperimentRecipeFromEvidenceCommand,
+    PromoteExperimentRecipeCommand,
+    SelectExperimentRecipeCommand,
+    SubmitExperimentFromRecipeCommand,
+)
+from automl.application.recipes.queries import (
+    GetExperimentRecipeQuery,
+    ListExperimentRecipesQuery,
+    ListVerifiedImprovementsQuery,
+)
+from dataclasses import asdict
+
+
+def _is_metric_minimizing(metric_name: str | None, ws: Any = None) -> bool:
+    """Returns True if the metric is minimizing (lower is better, e.g. loss/error metrics)."""
+    if not metric_name:
+        return False
+    metric_str = str(metric_name).lower().strip()
+    if ws is not None and hasattr(ws, "plugin_registry") and ws.plugin_registry is not None:
+        try:
+            if hasattr(ws.plugin_registry, "has") and ws.plugin_registry.has(metric_str):
+                plugin = ws.plugin_registry.get_metric_plugin(metric_str)
+                if plugin is not None and hasattr(plugin, "greater_is_better"):
+                    return not plugin.greater_is_better
+        except Exception:
+            pass
+    return metric_str in {
+        "mae",
+        "rmse",
+        "mse",
+        "loss",
+        "log_loss",
+        "logloss",
+        "mean_squared_error",
+        "mean_absolute_error",
+        "root_mean_squared_error",
+        "neg_mean_absolute_error",
+        "neg_mean_squared_error",
+        "neg_root_mean_squared_error",
+        "neg_log_loss",
+    }
+
+
+def _get_best_trial_result(trials: list[Any], metric: str | None = None, ws: Any = None) -> Any | None:
+    """Selects the best trial result respecting metric optimization direction and trial success."""
+    if not trials:
+        return None
+    valid = [t for t in trials if getattr(t, "succeeded", False)]
+    candidate_pool = valid if valid else trials
+    if not candidate_pool:
+        return None
+    target_metric = metric or getattr(candidate_pool[0], "primary_metric", None)
+    is_min = _is_metric_minimizing(target_metric, ws=ws)
+    return min(candidate_pool, key=lambda t: getattr(t, "primary_score", 0.0)) if is_min else max(candidate_pool, key=lambda t: getattr(t, "primary_score", 0.0))
 
 
 def _build_real_activity_feed(
@@ -214,7 +270,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
     through CommandBus, QueryBus, and AutoMLWorkspace.
     """
 
-    workspace_dir: str = ".automl/demo"
+    workspace_dir: str = ".automl/default"
     static_dir: Path = Path(__file__).parent / "static"
     auth_token: str | None = None
     require_auth: bool = False
@@ -373,7 +429,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     score = float(top["score"])
                     model_id = str(top["model_id"])
                     metric_name = str(top.get("metric") or r.config.metric or "score").lower()
-                    is_minimize = metric_name in {"mae", "rmse", "mse", "loss", "log_loss"}
+                    is_minimize = _is_metric_minimizing(metric_name, ws=ws)
                     ds_id = str(r.dataset_id)
 
                     # Track per-dataset metrics segregation
@@ -386,6 +442,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "run_id": r.id,
                             "dataset_id": ds_id,
                             "metric": metric_name,
+                            "is_minimizing": is_minimize,
+                            "metric_direction": "minimize" if is_minimize else "maximize",
                         }
                     else:
                         cur_ds_score = best_by_dataset[ds_id][metric_name]["score"]
@@ -396,6 +454,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                                 "run_id": r.id,
                                 "dataset_id": ds_id,
                                 "metric": metric_name,
+                                "is_minimizing": is_minimize,
+                                "metric_direction": "minimize" if is_minimize else "maximize",
                             }
 
                     # Maintain best_by_metric without incomparable cross-dataset numeric comparisons
@@ -406,6 +466,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                             "run_id": r.id,
                             "dataset_id": ds_id,
                             "metric": metric_name,
+                            "is_minimizing": is_minimize,
+                            "metric_direction": "minimize" if is_minimize else "maximize",
                         }
                     else:
                         cur_entry = best_by_metric[metric_name]
@@ -421,6 +483,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                                     "run_id": r.id,
                                     "dataset_id": ds_id,
                                     "metric": metric_name,
+                                    "is_minimizing": is_minimize,
+                                    "metric_direction": "minimize" if is_minimize else "maximize",
                                 }
                         elif is_active_run:
                             best_by_metric[metric_name] = {
@@ -429,6 +493,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                                 "run_id": r.id,
                                 "dataset_id": ds_id,
                                 "metric": metric_name,
+                                "is_minimizing": is_minimize,
+                                "metric_direction": "minimize" if is_minimize else "maximize",
                             }
 
                     # Track active or latest run for top-level scalar display
@@ -511,6 +577,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 workspace_dir=self.workspace_dir,
             )
 
+            is_best_min = bool(best_metric and _is_metric_minimizing(best_metric, ws=ws))
+
             self._send_json({
                 "platform": "CATML AutoML Platform",
                 "version": __version__,
@@ -521,6 +589,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 "best_score": best_score,
                 "best_model": best_model,
                 "best_metric": best_metric,
+                "metric_direction": "minimize" if is_best_min else "maximize",
+                "is_minimizing": is_best_min,
                 "best_by_metric": best_by_metric,
                 "best_by_dataset": best_by_dataset,
                 "recent_datasets": recent_datasets,
@@ -637,7 +707,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/runs":
-            runs = ws.list_runs()
+            ds_filter = query_params.get("dataset_id", [None])[0]
+            runs = ws.list_runs(dataset_id=ds_filter) if ds_filter else ws.list_runs()
             result = []
             for r in runs:
                 try:
@@ -647,6 +718,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 lb = qry.dispatch(GetLeaderboardQuery(r.id))
                 exps = ws.list_experiments(r.id)
                 trials_cnt = sum(len(ws.list_trial_results(e.id)) for e in exps)
+                is_run_min = _is_metric_minimizing(r.config.metric, ws=ws)
                 result.append({
                     "id": r.id,
                     "dataset_id": r.dataset_id,
@@ -655,6 +727,10 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "task_type": r.config.task_type,
                     "target": r.config.target,
                     "metric": r.config.metric,
+                    "metric_direction": "minimize" if is_run_min else "maximize",
+                    "is_minimizing": is_run_min,
+                    "validation_strategy": getattr(r.config, "validation_strategy", "kfold"),
+                    "cv_folds": getattr(r.config, "cv_folds", 5),
                     "status": r.status.value,
                     "is_active": is_active_run_status(r.status),
                     "best_score": lb[0]["score"] if lb else None,
@@ -670,13 +746,37 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             if not run_id:
                 self._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
                 return
+            recipe_map = {}
+            recipe_name_map = {}
+            try:
+                run_obj = ws.get_run(run_id)
+                if run_obj:
+                    rcps = qry.dispatch(ListExperimentRecipesQuery(dataset_id=run_obj.dataset_id))
+                    for r in rcps:
+                        for exp_id in (r.experiment_ids or []):
+                            recipe_map[exp_id] = r.id
+                            recipe_name_map[exp_id] = r.name
+            except Exception:
+                pass
+
             exps = ws.list_experiments(run_id)
             result = []
             for e in exps:
                 trials = ws.list_trial_results(e.id)
                 parameters = {t["trial_id"]: t["parameters"]
                               for t in qry.dispatch(GetExperimentTrialsQuery(e.id))}
-                best_trial = max(trials, key=lambda t: t.primary_score) if trials else None
+                best_trial = _get_best_trial_result(trials, metric=e.metric, ws=ws)
+                rec_id = getattr(e, "recipe_id", None) or recipe_map.get(e.id)
+                rec_name = recipe_name_map.get(e.id)
+                if not rec_name and rec_id:
+                    try:
+                        rcp_obj = qry.dispatch(GetExperimentRecipeQuery(recipe_id=rec_id))
+                        if rcp_obj:
+                            rec_name = rcp_obj.name
+                    except Exception:
+                        pass
+
+                is_exp_min = _is_metric_minimizing(e.metric, ws=ws)
                 result.append({
                     "id": e.id,
                     "name": e.name,
@@ -686,9 +786,16 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     "model_ids": e.model_ids,
                     "features_count": len(e.feature_names),
                     "feature_names": e.feature_names,
+                    "column_transforms": getattr(e, "column_transforms", []) or [],
+                    "derived_features": getattr(e, "derived_features", []) or [],
+                    "recipe_id": rec_id,
+                    "recipe_name": rec_name,
                     "trials_count": len(trials),
                     "best_score": best_trial.primary_score if best_trial else None,
+                    "best_model": best_trial.model_id if best_trial else None,
                     "metric": e.metric,
+                    "metric_direction": "minimize" if is_exp_min else "maximize",
+                    "is_minimizing": is_exp_min,
                     "created_by": e.created_by,
                     "trials": [
                         {
@@ -712,6 +819,19 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
             exp_ids = [i.strip() for i in exp_ids_str.split(",") if i.strip()]
             comparison = qry.dispatch(CompareExperimentsQuery(exp_ids))
+            if isinstance(comparison, list):
+                for item in comparison:
+                    trs = item.get("trials", [])
+                    valid_trs = [t for t in trs if not t.get("failed", False)]
+                    pool = valid_trs if valid_trs else trs
+                    met = pool[0].get("metric") if pool else None
+                    is_min = _is_metric_minimizing(met, ws=ws)
+                    best_t = (min(pool, key=lambda x: x.get("score", 0.0)) if is_min else max(pool, key=lambda x: x.get("score", 0.0))) if pool else None
+                    item["best_score"] = best_t.get("score") if best_t else None
+                    item["best_model"] = best_t.get("model_id") if best_t else None
+                    item["metric"] = met
+                    item["is_minimizing"] = is_min
+                    item["metric_direction"] = "minimize" if is_min else "maximize"
             self._send_json(comparison)
             return
 
@@ -963,12 +1083,16 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 exps = ws.list_experiments(run_id)
                 for e in exps:
                     trials = ws.list_trial_results(e.id)
-                    best_t = max(trials, key=lambda t: t.primary_score) if trials else None
+                    best_t = _get_best_trial_result(trials, metric=e.metric, ws=ws)
+                    is_p_min = _is_metric_minimizing(e.metric, ws=ws)
                     plan_steps.append({
                         "step": step_idx,
                         "name": e.name,
                         "status": "COMPLETED" if trials else "RUNNING",
                         "score": round(best_t.primary_score, 5) if best_t else None,
+                        "metric": e.metric,
+                        "metric_direction": "minimize" if is_p_min else "maximize",
+                        "is_minimizing": is_p_min,
                         "delta": None,
                         "priority": e.priority.upper() if hasattr(e, "priority") else "HIGH",
                         "why": e.hypothesis or f"Experiment with models: {', '.join(e.model_ids)}",
@@ -1152,12 +1276,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             submissions = []
             for e in exps:
                 trials = ws.list_trial_results(e.id)
-                best_t = max(trials, key=lambda t: t.primary_score) if trials else None
+                best_t = _get_best_trial_result(trials, metric=run.config.metric if run else None, ws=ws)
                 if best_t:
                     submissions.append({
                         "experiment": e.name,
                         "cv": round(best_t.primary_score, 5),
-                        "status": "VERIFIED" if best_t.succeeded else "FAILED",
+                        "status": "EVALUATED" if best_t.succeeded else "FAILED",
                     })
 
             self._send_json({
@@ -1276,6 +1400,43 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
             )
             self._send_json([l if isinstance(l, dict) else l.to_dict() for l in (links or [])])
             return
+
+        elif path in ("/api/analysis/verified-improvements", "/api/recipes/verified-improvements"):
+            study_id = query_params.get("study_id", [""])[0]
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            accepted_str = query_params.get("accepted_only", ["true"])[0].lower()
+            accepted_only = accepted_str not in ("false", "0", "no")
+            improvements = qry.dispatch(
+                ListVerifiedImprovementsQuery(
+                    study_id=study_id if study_id else None,
+                    dataset_id=dataset_id if dataset_id else None,
+                    accepted_only=accepted_only,
+                )
+            )
+            self._send_json([asdict(i) for i in (improvements or [])])
+            return
+
+        elif path == "/api/recipes":
+            dataset_id = query_params.get("dataset_id", [""])[0]
+            status = query_params.get("status", [""])[0]
+            recipes = qry.dispatch(
+                ListExperimentRecipesQuery(
+                    dataset_id=dataset_id if dataset_id else None,
+                    status=status if status else None,
+                )
+            )
+            self._send_json([asdict(r) for r in (recipes or [])])
+            return
+
+        elif path.startswith("/api/recipes/"):
+            recipe_id = path[len("/api/recipes/") :]
+            if recipe_id and recipe_id not in ("verified-improvements",):
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                if not recipe:
+                    self._send_json({"error": f"Recipe not found: {recipe_id}"}, HTTPStatus.NOT_FOUND)
+                    return
+                self._send_json(asdict(recipe))
+                return
 
         elif path == "/api/plugins":
             plugins = qry.dispatch(ListPluginsQuery())
@@ -1404,20 +1565,32 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 if target and not str(target).strip():
                     target = None
 
-                dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
-                run = ws.create_run(dataset)
-                profile = ws.get_dataset_profile(dataset.id)
+                try:
+                    dataset = ws.register_dataset(name=name, path=data_path, target=target, task_type=task_type)
+                    run = ws.create_run(dataset)
+                    profile = ws.get_dataset_profile(dataset.id)
 
-                self._send_json({
-                    "status": "success",
-                    "dataset_id": dataset.id,
-                    "run_id": run.id,
-                    "target": dataset.target_column,
-                    "task_type": dataset.task_type,
-                    "row_count": profile.row_count if profile else None,
-                    "feature_count": len(profile.columns) if profile else None,
-                })
-                return
+                    self._send_json({
+                        "status": "success",
+                        "dataset_id": dataset.id,
+                        "run_id": run.id,
+                        "target": dataset.target_column,
+                        "task_type": dataset.task_type,
+                        "row_count": profile.row_count if profile else None,
+                        "feature_count": len(profile.columns) if profile else None,
+                    })
+                    return
+                except Exception as exc:
+                    import traceback
+                    traceback.print_exc()
+                    self._send_json(
+                        {
+                            "error": f"No se ha podido analizar o registrar el dataset: {exc}",
+                            "message": str(exc),
+                        },
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
 
             elif path == "/api/dataset/upload":
                 filename = payload.get("filename", "uploaded_dataset.csv")
@@ -1641,6 +1814,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 models = payload.get("models") or ["lightgbm"]
                 budget = payload.get("budget", "balanced")
                 name = payload.get("name", f"exp_{mode}_{models[0]}")
+                recipe_id = payload.get("recipe_id")
 
                 if not run_id:
                     self._send_json({"error": "run_id is required"}, HTTPStatus.BAD_REQUEST)
@@ -1649,6 +1823,29 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 run = ws._get_run(run_id)
                 dataset = ws._get_dataset(run.dataset_id)
                 profile = ws.get_dataset_profile(dataset.id)
+
+                # Time budget enforcement
+                raw_time_budget = payload.get("time_budget_seconds")
+                if not raw_time_budget:
+                    budget_map = {"quick": 10.0, "balanced": 60.0, "thorough": 300.0}
+                    time_budget_seconds = budget_map.get(budget, 60.0)
+                else:
+                    time_budget_seconds = float(raw_time_budget)
+
+                run.config.time_budget_seconds = time_budget_seconds
+                ws.save_run(run)
+
+                column_transforms = payload.get("column_transforms")
+                derived_features = payload.get("derived_features")
+                if recipe_id and (not column_transforms or not derived_features):
+                    try:
+                        rcp = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                        if rcp:
+                            column_transforms = column_transforms or rcp.column_transforms
+                            derived_features = derived_features or rcp.derived_features
+                    except Exception:
+                        pass
+
                 feature_names = payload.get("feature_names") or [
                     c.name for c in profile.columns if not c.is_identifier and c.name != dataset.target_column
                 ]
@@ -1661,10 +1858,24 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                         name=name,
                         feature_names=feature_names,
                         model_ids=models,
-                        hypothesis=f"AutoML Workbench {mode.upper()} mode with {budget} compute budget.",
+                        hypothesis=f"AutoML Workbench {mode.upper()} mode with {budget} ({time_budget_seconds}s) compute budget.",
                         validation_strategy=val_strategy,
+                        column_transforms=column_transforms,
+                        derived_features=derived_features,
+                        recipe_id=recipe_id,
+                        time_budget_seconds=time_budget_seconds,
                     )
                 )
+
+                if recipe_id:
+                    try:
+                        rcp_repo = ws.get_recipe_repository()
+                        rcp_to_update = rcp_repo.get(recipe_id) if rcp_repo else None
+                        if rcp_to_update:
+                            rcp_to_update.submit(exp.id)
+                            rcp_repo.save(rcp_to_update)
+                    except Exception:
+                        pass
 
                 results = cmd.dispatch(RunExperimentCommand(run.id, exp.id))
                 res = results[0] if results else None
@@ -1920,7 +2131,11 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 return
 
             elif path == "/api/dataset/questionnaire":
-                dataset_id = payload.get("dataset_id")
+                dataset_id = payload.get("dataset_id") or (
+                    payload.get("questionnaire", {}).get("dataset_id")
+                    if isinstance(payload.get("questionnaire"), dict)
+                    else None
+                )
                 if not dataset_id:
                     self._send_json({"error": "dataset_id is required"}, HTTPStatus.BAD_REQUEST)
                     return
@@ -1928,6 +2143,7 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 q_data = dict(payload.get("questionnaire", payload))
                 q_data["dataset_id"] = dataset_id
                 q_data["auto_generated"] = False
+                q_data["user_confirmed"] = bool(payload.get("user_confirmed", q_data.get("user_confirmed", True)))
                 questionnaire = DatasetQuestionnaire.from_dict(q_data)
                 ws.save_dataset_questionnaire(questionnaire)
                 self._send_json({"status": "success", "questionnaire": questionnaire.to_dict()})
@@ -2084,19 +2300,110 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                 self._send_json(link_data)
                 return
 
+            elif path == "/api/recipes/create-from-evidence":
+                evidence_id = payload.get("evidence_link_id") or payload.get("evidence_id")
+                if not evidence_id:
+                    self._send_json({"error": "evidence_link_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                recipe_name = payload.get("name") or payload.get("recipe_name")
+                notes = payload.get("notes")
+                model_ids = payload.get("model_ids")
+                val_strat = payload.get("validation_strategy")
+                cv_folds = payload.get("cv_folds")
+                metric = payload.get("metric")
+                seed = payload.get("random_seed")
+                recipe_id = cmd.dispatch(
+                    CreateExperimentRecipeFromEvidenceCommand(
+                        evidence_link_id=evidence_id,
+                        recipe_name=recipe_name,
+                        notes=notes,
+                        model_ids=model_ids,
+                        validation_strategy=val_strat,
+                        cv_folds=int(cv_folds) if cv_folds else None,
+                        metric=metric,
+                        random_seed=int(seed) if seed else None,
+                    )
+                )
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({"status": "success", "recipe_id": recipe_id, "recipe": asdict(recipe) if recipe else None})
+                return
+
+            elif path == "/api/recipes/select":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                notes = payload.get("notes")
+                cmd.dispatch(SelectExperimentRecipeCommand(recipe_id=recipe_id, notes=notes))
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({"status": "success", "recipe_id": recipe_id, "recipe": asdict(recipe) if recipe else None})
+                return
+
+            elif path == "/api/recipes/submit":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                run_id = payload.get("run_id")
+                model_ids = payload.get("model_ids")
+                notes = payload.get("notes")
+                exp_ids = cmd.dispatch(
+                    SubmitExperimentFromRecipeCommand(
+                        recipe_id=recipe_id,
+                        run_id=run_id,
+                        model_ids=model_ids,
+                        notes=notes,
+                    )
+                )
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({
+                    "status": "submitted",
+                    "recipe_id": recipe_id,
+                    "experiment_ids": exp_ids,
+                    "recipe": asdict(recipe) if recipe else None,
+                })
+                return
+
+            elif path == "/api/recipes/promote":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                reason = payload.get("reason")
+                notes = payload.get("notes")
+                cmd.dispatch(PromoteExperimentRecipeCommand(recipe_id=recipe_id, reason=reason, notes=notes))
+                recipe = qry.dispatch(GetExperimentRecipeQuery(recipe_id=recipe_id))
+                self._send_json({"status": "promoted", "recipe_id": recipe_id, "recipe": asdict(recipe) if recipe else None})
+                return
+
+            elif path == "/api/recipes/archive":
+                recipe_id = payload.get("recipe_id")
+                if not recipe_id:
+                    self._send_json({"error": "recipe_id is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                cmd.dispatch(ArchiveExperimentRecipeCommand(recipe_id=recipe_id))
+                self._send_json({"status": "archived", "recipe_id": recipe_id})
+                return
+
             self._send_json({"error": "Endpoint not found"}, HTTPStatus.NOT_FOUND)
 
         except (ValueError, TypeError) as exc:
+            import traceback
+            traceback.print_exc()
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except KeyError as exc:
+            import traceback
+            traceback.print_exc()
             self._send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             self._send_json({"status": "error", "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def run_web_dashboard(
     port: int = 8080,
-    workspace_dir: str = ".automl/demo",
+    workspace_dir: str = ".automl/default",
     host: str = "127.0.0.1",
     auth_token: str | None = None,
     insecure_no_auth: bool = False,

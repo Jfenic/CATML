@@ -1,0 +1,166 @@
+{
+  "all_columns": {
+    "best": 0.8171385528089716,
+    "lb": [
+      {
+        "rank": 1,
+        "model_id": "random_forest",
+        "score": 0.8171385528089716,
+        "metric": "roc_auc",
+        "training_time_s": 4.443,
+        "cv_std": 0.03615301584356795,
+        "parameters": {}
+      },
+      {
+        "rank": 2,
+        "model_id": "logistic_regression",
+        "score": 0.7146559364034403,
+        "metric": "roc_auc",
+        "training_time_s": 3.199,
+        "cv_std": 0.059000213104878796,
+        "parameters": {}
+      }
+    ]
+  },
+  "safe_only_automl_guardian": {
+    "best": 0.952259264,
+    "lb": [
+      {
+        "rank": 1,
+        "model_id": "random_forest",
+        "score": 0.952259264,
+        "metric": "roc_auc",
+        "training_time_s": 10.728,
+        "cv_std": 0.0032071853917951007,
+        "parameters": {}
+      },
+      {
+        "rank": 2,
+        "model_id": "logistic_regression",
+        "score": 0.9191515520000001,
+        "metric": "roc_auc",
+        "training_time_s": 8.861,
+        "cv_std": 0.002239151270981035,
+        "parameters": {}
+      }
+    ],
+    "features": [
+      "Age",
+      "Flight Distance",
+      "Inflight wifi service",
+      "Departure/Arrival time convenient",
+      "Ease of Online booking",
+      "Gate location",
+      "Food and drink",
+      "Online boarding",
+      "Seat comfort",
+      "Inflight entertainment",
+      "On-board service",
+      "Leg room service",
+      "Baggage handling",
+      "Checkin service",
+      "Cleanliness",
+      "Departure Delay in Minutes",
+      "Arrival Delay in Minutes",
+      "Gender",
+      "Type of Travel",
+      "Class"
+    ]
+  },
+  "safe_plus_collinear_drops": {
+    "best": 0.951643056,
+    "lb": [
+      {
+        "rank": 1,
+        "model_id": "random_forest",
+        "score": 0.951643056,
+        "metric": "roc_auc",
+        "training_time_s": 10.633,
+        "cv_std": 0.002390513337286283,
+        "parameters": {}
+      },
+      {
+        "rank": 2,
+        "model_id": "logistic_regression",
+        "score": 0.9185724480000002,
+        "metric": "roc_auc",
+        "training_time_s": 1.761,
+        "cv_std": 0.0019862647574419964,
+        "parameters": {}
+      }
+    ],
+    "dropped": [
+      "Ease of Online booking",
+      "Inflight entertainment",
+      "Cleanliness"
+    ],
+    "features": [
+      "Age",
+      "Flight Distance",
+      "Inflight wifi service",
+      "Departure/Arrival time convenient",
+      "Gate location",
+      "Food and drink",
+      "Online boarding",
+      "Seat comfort",
+      "On-board service",
+      "Leg room service",
+      "Baggage handling",
+      "Checkin service",
+      "Departure Delay in Minutes",
+      "Arrival Delay in Minutes",
+      "Gender",
+      "Type of Travel",
+      "Class"
+    ]
+  },
+  "safe_collinear_log1p": {
+    "best": 0.951643056,
+    "lb": [
+      {
+        "rank": 1,
+        "model_id": "random_forest",
+        "score": 0.951643056,
+        "metric": "roc_auc",
+        "training_time_s": 10.417,
+        "cv_std": 0.002390513337286283,
+        "parameters": {}
+      },
+      {
+        "rank": 2,
+        "model_id": "logistic_regression",
+        "score": 0.9185724480000002,
+        "metric": "roc_auc",
+        "training_time_s": 1.532,
+        "cv_std": 0.0019862647574419964,
+        "parameters": {}
+      }
+    ],
+    "added": [],
+    "features": [
+      "Age",
+      "Flight Distance",
+      "Inflight wifi service",
+      "Departure/Arrival time convenient",
+      "Gate location",
+      "Food and drink",
+      "Online boarding",
+      "Seat comfort",
+      "On-board service",
+      "Leg room service",
+      "Baggage handling",
+      "Checkin service",
+      "Departure Delay in Minutes",
+      "Arrival Delay in Minutes",
+      "Gender",
+      "Type of Travel",
+      "Class"
+    ]
+  },
+  "deltas": {
+    "safe_vs_all": 0.13512071119102842,
+    "collinear_vs_safe": -0.0006162080000000625,
+    "log1p_vs_collinear": 0.0,
+    "full_explore_stack_vs_all": 0.13450450319102836
+  }
+}

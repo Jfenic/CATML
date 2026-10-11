@@ -30,18 +30,17 @@ export class KaggleView {
     this.container.innerHTML = `
       <div class="workbench-card p-12 text-center text-slate-400 space-y-3">
         <div class="animate-spin text-[#4F67FF] inline-block">${icon("refresh-cw", "icon-lg")}</div>
-        <div class="text-sm font-medium">Loading competition state and pre-flight verifications...</div>
+        <div class="text-sm font-medium font-sans">Cargando estado de la competición y verificaciones previas...</div>
       </div>
     `;
   }
 
   async fetchData() {
     try {
-      const state = store.getState();
-      const runs = state.runs || [];
-      this.activeRun = runs.find(r => r.id === state.activeRunId)
-        || runs.find(r => isRunActive(r))
-        || runs[0]
+      const dsRuns = store.getRunsForActiveDataset();
+      this.activeRun = store.getActiveRun()
+        || dsRuns.find(r => isRunActive(r))
+        || dsRuns[0]
         || null;
 
       this.status = await api.getKaggleStatus(this.activeRun ? this.activeRun.id : "").catch(() => null);
@@ -52,11 +51,28 @@ export class KaggleView {
 
   render() {
     const run = this.activeRun;
+    if (!run) {
+      this.container.innerHTML = `
+        <div class="workbench-card p-12 text-center space-y-4">
+          <div class="text-[#8B95A7]/40 flex justify-center">${icon("trophy", "icon-xl", 36)}</div>
+          <h3 class="text-base font-bold text-[#F7F8FA]">Sin Experimentos de Competición Activos</h3>
+          <p class="text-xs text-[#8B95A7] max-w-sm mx-auto">Para generar submissions de Kaggle o verificar datasets de test, primero registra un dataset y entrena un experimento.</p>
+          <button id="btnNewExpKaggleEmpty" class="btn-signal">
+            <span class="inline-flex items-center gap-1.5">${icon("plus", "icon-sm")} <span>Nuevo Experimento</span></span>
+          </button>
+        </div>
+      `;
+      this.container.querySelector("#btnNewExpKaggleEmpty")?.addEventListener("click", () => {
+        bus.emit("modal:new-experiment");
+      });
+      return;
+    }
+
     const st = this.status || {
-      competition: run ? (run.dataset_name || "Custom Competition") : "Custom Competition",
-      title: run ? `AutoML Benchmark — ${run.dataset_name || "Active"}` : "AutoML Benchmark",
-      metric: run ? run.metric : "ROC-AUC",
-      local_best_cv: run ? run.best_score : null,
+      competition: run.dataset_name || "Custom Competition",
+      title: `AutoML Benchmark — ${run.dataset_name || run.id}`,
+      metric: run.metric || "ROC-AUC",
+      local_best_cv: run.best_score,
       submissions: [],
       checklist: { row_count: 0 },
     };
@@ -81,19 +97,19 @@ export class KaggleView {
 
     const hasTemplate = Boolean(this.uploadedTemplateInfo);
     const rowCountLabel = hasTemplate
-      ? `<span class="text-[#22C55E] font-bold">${this.uploadedTemplateInfo.row_count.toLocaleString()} rows</span>`
-      : (st.checklist && st.checklist.row_count ? `<span class="text-[#22C55E] font-bold">${st.checklist.row_count.toLocaleString()} rows</span>` : `<span class="text-[#8B95A7]">Pendiente de plantilla</span>`);
+      ? `<span class="text-[#22C55E] font-bold">${this.uploadedTemplateInfo.row_count.toLocaleString()} filas</span>`
+      : (st.checklist && st.checklist.row_count ? `<span class="text-[#22C55E] font-bold">${st.checklist.row_count.toLocaleString()} filas</span>` : `<span class="text-[#8B95A7]">Pendiente de plantilla</span>`);
 
     const idColLabel = hasTemplate
-      ? `<span class="text-[#22C55E] font-bold">PASS (${this.uploadedTemplateInfo.id_column})</span>`
+      ? `<span class="text-[#22C55E] font-bold">VALIDADO (${this.uploadedTemplateInfo.id_column})</span>`
       : `<span class="text-[#8B95A7]">Pendiente de plantilla</span>`;
 
     const schemaLabel = hasTemplate
-      ? `<span class="text-[#4F67FF] font-bold">VERIFIED (${this.uploadedTemplateInfo.target_column})</span>`
+      ? `<span class="text-[#4F67FF] font-bold">VERIFICADO (${this.uploadedTemplateInfo.target_column})</span>`
       : `<span class="text-[#8B95A7]">Pendiente de verificación</span>`;
 
     const boundedLabel = this.generatedSubmission
-      ? `<span class="text-[#22C55E] font-bold">BOUNDED</span>`
+      ? `<span class="text-[#22C55E] font-bold">ACOTADO</span>`
       : `<span class="text-[#8B95A7]">Pendiente de inferencias</span>`;
 
     const checkIcon = (active) => active ? icon("check", "icon-sm text-[#22C55E]") : icon("circle", "icon-sm text-[#8B95A7]");
@@ -107,19 +123,19 @@ export class KaggleView {
             <div>
               <div class="flex items-center space-x-2">
                 <h2 class="text-lg font-bold text-slate-100">${st.title}</h2>
-                <span class="badge-sys text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold">Active Benchmark</span>
+                <span class="badge-sys text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold">Benchmark Activo</span>
               </div>
-              <p class="text-xs text-slate-400 mt-0.5">${st.competition} • Target: <span class="text-indigo-300 font-mono">${run ? run.target : 'target'}</span> • Metric: <span class="text-emerald-400 font-mono font-semibold">${st.metric}</span></p>
+              <p class="text-xs text-slate-400 mt-0.5">${st.competition} • Target: <span class="text-indigo-300 font-mono">${run ? run.target : 'target'}</span> • Métrica: <span class="text-emerald-400 font-mono font-semibold">${st.metric}</span></p>
             </div>
           </div>
 
           <div class="flex items-center space-x-6 text-right">
             <div>
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Local Best CV</div>
+              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Mejor CV Local</div>
               <div class="text-xl font-bold font-mono-num text-emerald-400">${bestScoreText}</div>
             </div>
             <div>
-              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Metric Scale</div>
+              <div class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Métrica Objetivo</div>
               <div class="text-xl font-bold font-mono-num text-indigo-400">${st.metric || 'Score'}</div>
             </div>
           </div>
@@ -129,19 +145,19 @@ export class KaggleView {
           <!-- Left: Submissions History & CV vs LB Tracking -->
           <div class="lg:col-span-7 workbench-card overflow-hidden flex flex-col">
             <div class="workbench-panel-header flex items-center justify-between">
-              <span class="text-sm font-semibold text-slate-200">Submissions & Public Leaderboard Tracker</span>
-              <span class="text-xs text-slate-400">Parity verified</span>
+              <span class="text-sm font-semibold text-slate-200">Envíos y Seguimiento de Leaderboard</span>
+              <span class="text-xs text-slate-400">Paridad verificada</span>
             </div>
 
             <div class="overflow-x-auto flex-1">
-              <table class="w-full wb-table text-left">
+              <table class="w-full wb-table text-left" aria-label="Tabla de envíos y puntuaciones">
                 <thead>
                   <tr>
-                    <th>Experiment</th>
-                    <th>Local CV</th>
-                    <th>Public LB</th>
+                    <th>Experimento</th>
+                    <th>CV Local</th>
+                    <th>LB Público</th>
                     <th>Delta CV ↔ LB</th>
-                    <th>Status</th>
+                    <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -155,8 +171,8 @@ export class KaggleView {
                     </tr>
                   `).join("") : `
                     <tr>
-                      <td colspan="5" class="text-center text-slate-500 py-8 text-xs">
-                        No submissions generated yet for active run. Generate a submission below.
+                      <td colspan="5" class="text-center text-slate-500 py-8 text-xs font-sans">
+                        Aún no se han generado envíos para la ejecución activa. Genere un envío a continuación.
                       </td>
                     </tr>
                   `}
@@ -169,52 +185,52 @@ export class KaggleView {
           <div class="lg:col-span-5 workbench-card p-5 space-y-5 flex flex-col justify-between">
             <div class="space-y-4">
               <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
-                <span class="text-xs uppercase font-bold text-[#F7F8FA] tracking-wider font-sans">Submission Pre-Flight Validation</span>
-                <span class="${hasTemplate ? 'badge-gain' : 'badge-sys'} text-xs px-2.5 py-0.5 rounded font-mono font-bold">${hasTemplate ? 'Checks Verified' : 'Awaiting Template'}</span>
+                <span class="text-xs uppercase font-bold text-[#F7F8FA] tracking-wider font-sans">Validación Previa al Envío (Pre-Flight)</span>
+                <span class="${hasTemplate ? 'badge-gain' : 'badge-sys'} text-xs px-2.5 py-0.5 rounded font-mono font-bold">${hasTemplate ? 'Verificaciones Superadas' : 'Pendiente de Plantilla'}</span>
               </div>
 
               <!-- Template Dropzone -->
               <div class="space-y-1.5">
                 <div class="flex items-center justify-between">
-                  <label class="text-[11px] font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Template Dropzone</label>
-                  ${this.uploadedTemplateInfo ? `<span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-bold">Uploaded</span>` : `<span class="text-[10px] text-[#8B95A7] font-mono">sample_submission.csv</span>`}
+                  <label class="text-[11px] font-semibold text-[#8B95A7] uppercase tracking-wider font-sans">Zona de Carga de Plantilla</label>
+                  ${this.uploadedTemplateInfo ? `<span class="badge-gain text-[10px] px-2 py-0.5 rounded font-mono font-bold">Cargada</span>` : `<span class="text-[10px] text-[#8B95A7] font-mono">sample_submission.csv</span>`}
                 </div>
-                <div id="kaggleDropzone" class="border-2 border-dashed border-[#252C38] hover:border-[#4F67FF] bg-[#090C12] rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5">
+                <div id="kaggleDropzone" class="border-2 border-dashed border-[#252C38] hover:border-[#4F67FF] bg-[#090C12] rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5" role="button" tabindex="0" aria-label="Cargar archivo sample_submission.csv">
                   <div class="text-[#4F67FF] flex justify-center">${icon("upload", "icon-lg")}</div>
                   ${this.uploadedTemplateInfo ? `
                     <div class="space-y-0.5">
                       <div class="text-xs font-mono font-bold text-[#F7F8FA]">${this.uploadedTemplateInfo.filename}</div>
-                      <div class="text-[11px] text-[#22C55E] font-mono">✓ ${this.uploadedTemplateInfo.row_count} rows • Target: "${this.uploadedTemplateInfo.target_column}"</div>
+                      <div class="text-[11px] text-[#22C55E] font-mono">✓ ${this.uploadedTemplateInfo.row_count} filas • Target: "${this.uploadedTemplateInfo.target_column}"</div>
                     </div>
                   ` : `
                     <div class="space-y-0.5">
-                      <div class="text-xs font-medium text-[#F7F8FA] font-sans">Drag & drop <span class="font-mono text-[#4F67FF]">sample_submission.csv</span> here</div>
-                      <div class="text-[10px] text-[#8B95A7] font-sans">or click to browse from disk for instant schema validation</div>
+                      <div class="text-xs font-medium text-[#F7F8FA] font-sans">Arrastra y suelta <span class="font-mono text-[#4F67FF]">sample_submission.csv</span> aquí</div>
+                      <div class="text-[10px] text-[#8B95A7] font-sans">o haz clic para examinar desde el disco y validar el esquema al instante</div>
                     </div>
                   `}
-                  <input type="file" id="kaggleTemplateFileInput" accept=".csv" class="hidden">
+                  <input type="file" id="kaggleTemplateFileInput" accept=".csv" class="hidden" aria-label="Seleccionar archivo CSV de muestra">
                 </div>
               </div>
 
               <!-- Checklist Items -->
               <div class="space-y-2 text-xs font-mono">
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate)} <span>ID Column preserved</span></span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate)} <span>Columna de ID preservada</span></span>
                   ${idColLabel}
                 </div>
 
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate || (st.checklist && st.checklist.row_count))} <span>Row count alignment</span></span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate || (st.checklist && st.checklist.row_count))} <span>Alineación de recuento de filas</span></span>
                   ${rowCountLabel}
                 </div>
 
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(Boolean(this.generatedSubmission))} <span>Prediction range bounded</span></span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(Boolean(this.generatedSubmission))} <span>Rango de predicción acotado</span></span>
                   ${boundedLabel}
                 </div>
 
                 <div class="p-2.5 rounded-lg bg-[#0F131C] border border-[#252C38] flex items-center justify-between">
-                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate)} <span>Schema Alignment</span></span>
+                  <span class="text-[#F7F8FA] inline-flex items-center gap-1.5">${checkIcon(hasTemplate)} <span>Alineación del Esquema</span></span>
                   ${schemaLabel}
                 </div>
               </div>
@@ -222,18 +238,18 @@ export class KaggleView {
               <!-- Configurable File Paths -->
               <div class="space-y-3 pt-2 border-t border-[#252C38] text-xs">
                 <div>
-                  <label class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Test Dataset Path</label>
-                  <input type="text" id="inputTestPath" value="${defaultTestPath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]">
+                  <label for="inputTestPath" class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Ruta del Dataset de Test</label>
+                  <input type="text" id="inputTestPath" value="${defaultTestPath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]" aria-label="Ruta del dataset de test">
                 </div>
 
                 <div>
-                  <label class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Output Submission Path</label>
-                  <input type="text" id="inputOutputPath" value="${defaultOutputPath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]">
+                  <label for="inputOutputPath" class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Ruta del Archivo de Envío (Salida)</label>
+                  <input type="text" id="inputOutputPath" value="${defaultOutputPath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]" aria-label="Ruta del archivo de envío">
                 </div>
 
                 <div>
-                  <label class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Sample Submission Template (Optional)</label>
-                  <input type="text" id="inputTemplatePath" value="${defaultTemplatePath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]">
+                  <label for="inputTemplatePath" class="block text-[#8B95A7] text-[11px] font-semibold mb-1">Plantilla de Muestra de Envío (Opcional)</label>
+                  <input type="text" id="inputTemplatePath" value="${defaultTemplatePath}" class="w-full bg-[#090C12] border border-[#252C38] rounded-lg p-2 text-[#F7F8FA] font-mono text-[11px] focus:border-[#4F67FF]" aria-label="Plantilla de muestra opcional">
                 </div>
               </div>
             </div>
@@ -241,24 +257,24 @@ export class KaggleView {
             <!-- Action Buttons -->
             <div class="space-y-2 pt-2 border-t border-[#252C38]">
               <label class="flex items-center gap-2 text-xs text-[#8B95A7]">
-                <input type="checkbox" id="useOOF" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]" /> Average 5 folds (OOF Ensemble)
+                <input type="checkbox" id="useOOF" checked class="rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]" /> Promediar 5 pliegues (Ensamble OOF)
               </label>
 
-              <button id="btnGenerateSubmission" class="btn-signal w-full py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2 text-xs">
+              <button id="btnGenerateSubmission" class="btn-signal w-full py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2 text-xs" aria-label="Generar y validar archivo de submission">
                 ${icon("zap", "icon-sm")}
-                <span>Generate & Validate submission.csv</span>
+                <span>Generar y Validar submission.csv</span>
               </button>
 
               ${this.generatedSubmission ? `
-                <button id="btnDownloadSubmission" class="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-[#22C55E]/20">
+                <button id="btnDownloadSubmission" class="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-[#22C55E]/20" aria-label="Descargar submission">
                   ${icon("download", "icon-sm")}
-                  <span>Download ${this.generatedSubmission.filename || 'submission.csv'}</span>
+                  <span>Descargar ${this.generatedSubmission.filename || 'submission.csv'}</span>
                 </button>
               ` : ""}
 
-              <button id="btnSubmitKaggleCLI" class="w-full bg-[#1F2633] hover:bg-[#283244] border border-[#2F384A] text-[#F7F8FA] text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
+              <button id="btnSubmitKaggleCLI" class="w-full bg-[#1F2633] hover:bg-[#283244] border border-[#2F384A] text-[#F7F8FA] text-xs py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2" aria-label="Preparar comando para Kaggle CLI">
                 ${icon("terminal", "icon-sm")}
-                <span>Prepare Kaggle CLI Submission</span>
+                <span>Preparar Envío con Kaggle CLI</span>
               </button>
             </div>
           </div>
@@ -307,8 +323,7 @@ export class KaggleView {
       const originalText = btn.innerHTML;
 
       try {
-        const state = store.getState();
-        const activeRun = this.activeRun || state.runs[0];
+        const activeRun = this.activeRun || store.getActiveRun();
         if (!activeRun) {
           alert("No active run found.");
           return;
@@ -324,7 +339,7 @@ export class KaggleView {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Generating inferences...</span>
+          <span>Generando inferencias...</span>
         `;
 
         const res = await api.generateSubmission({
@@ -339,7 +354,7 @@ export class KaggleView {
         });
 
         btn.className = "w-full bg-[#22C55E] text-white text-xs py-2.5 rounded-lg font-semibold flex items-center justify-center space-x-2";
-        btn.innerHTML = `<span class="flex items-center gap-1.5">${icon("check", "icon-sm")} <span>Generated successfully! (${res.row_count} rows)</span></span>`;
+        btn.innerHTML = `<span class="flex items-center gap-1.5">${icon("check", "icon-sm")} <span>¡Generado con éxito! (${res.row_count} filas)</span></span>`;
 
         this.generatedSubmission = {
           output_path: res.output_path || outputPath || "submissions/submission.csv",

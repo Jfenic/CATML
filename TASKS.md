@@ -23,7 +23,85 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] B5: Implementar `LangGraphAgentOrchestrator` con StateGraph (`observe` -> `propose` -> `gate` -> `execute` -> `critique` -> `check_stop`), adapter durable `SqliteCheckpointSaver` con reconexión resiliente a caídas.
 - [x] B5: Paridad CLI en `automl agent session resume/status` con soporte para `--engine {deterministic,langgraph}`.
 - [x] B5: Suites de tests exhaustivas en `tests/test_v10_orchestrator_b5.py` (13 tests) y `tests/test_v10_agent_e2e.py` (3 tests E2E y recuperación de crashes sin duplicación de hipótesis ni ejecuciones). 590 tests globales pasando, 87.70% de cobertura.
-## Now (Active Phase — v0.8.2 Phase 2: Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition)
+### Track Workbench — Auditoría UX/UI, Coherencia de Contexto y Refactorización
+
+- [x] **PR 0: Restaurar CI y empaquetado (`pyproject.toml`)**:
+  - Eliminado clasificador redundante de licencia en `pyproject.toml` que provocaba `setuptools.errors.InvalidConfigError`.
+  - Verificado empaquetado completo `python -m build` (generación exitosa de sdist `.tar.gz` y wheel `.whl`).
+- [x] **PR 1: Fase P0 — Contexto único de dataset y ejecución (`activeDatasetId`, `activeRunId`)**:
+  - Centralizada resolución de contexto reactivo en `store.js` (`resolveContext`, `setActiveDataset`, `setActiveRun`, `getActiveDataset`, `getActiveRun`, `getRunsForActiveDataset`, `contextVersion`).
+  - Erradicados todos los fallbacks cruzados a `runs[0]` o `datasets[0]` en `app.js`, `agent.js`, `studio.js`, `compare.js`, `home.js`, `overview.js`, `new_experiment.js`, `kaggle.js`, `knowledge.js`, `pipeline.js` y `datasets.js`.
+  - Reestructurado `AgentDrawer` con tres estados explícitos: (1) Sin dataset seleccionado («Selecciona un dataset para comenzar»), (2) Dataset seleccionado sin ejecución («Sin ejecución activa»), (3) Dataset con ejecución activa (indicando dataset y run a las que pertenecen las hipótesis).
+  - Eliminadas puntuaciones engañosas globales de `overview.best_score` o `overview.total_trials` en tarjetas locales de Studio y Overview cuando la ejecución no tiene resultados.
+  - Soportado filtro `dataset_id` en endpoint REST `/api/runs`.
+  - Nueva suite automatizada `tests/test_workbench_context_consistency.py` con 7 pruebas pasando (100% verde).
+- [x] **PR 2: Fase P0 — Métricas, puntuaciones y comparabilidad**:
+  - Implementadas funciones canónicas de dirección de métrica `_is_metric_minimizing` y selector de mejor trial `_get_best_trial_result` en backend (`server.py`), asegurando que métricas de error (RMSE, MSE, MAE, log-loss) seleccionen siempre el valor mínimo y métricas de score (ROC-AUC, Accuracy, F1) el máximo.
+  - Expuesto metadato explícito `metric_direction` ("minimize" / "maximize") e `is_minimizing` en `/api/runs`, `/api/experiments`, `/api/experiments/compare` y `/api/overview`.
+  - Enriquecidas utilidades frontend en `utils.js` (`isMinimizingMetric`, `getMetricDirectionInfo`, `formatMetricComparison`).
+  - Bloqueo de comparaciones incompatibles en `compare.js`: banner de alerta cuando se intentan comparar experimentos con métricas diferentes, suspensión del cálculo engañoso de deltas y suspensión de gráfico conjunto de escalas mixtas.
+  - Desbloqueado el rango Y del gráfico de evolución en `compare.js`, eliminando el límite rígido `Math.min(1.0, ...)` que deformaba métricas de regresión (RMSE/MSE superiores a 1.0).
+  - Sustitución de etiquetas engañosas por terminología científicamente honesta: "Optimal" -> "Mejor de esta ejecución", "Verified" / "Verified by CV" -> "Evaluado" / "Evaluado por Cross-Validation", "Mejora" -> "Diferencia observada favorable" o "Diferencia no concluyente" cuando $|\Delta| < 0.00005$.
+  - Nueva suite automatizada `tests/test_workbench_metric_context.py` con 7 pruebas unitarias y de integración pasando al 100%.
+- [x] **PR 3: Fase P1 — Simplificación del flujo, navegación y estados de trabajos**:
+  - Centro de control orientado a las 4 etapas del ciclo de ML: Datos (01) → Exploración (02) → Experimentos (03) → Resultados (04).
+  - Banner de flujo guiado en `home.js` con accesos directos por etapa e indicador de estado en tiempo real.
+  - Fidelidad de estados de trabajos y ejecuciones en `utils.js` (`ACTIVE_JOB_STATUSES`, `isJobActive`, `JOB_STATUS_LABELS`, `JOB_ACTION_LABELS`, `getJobStatusLabel`), cubriendo de forma estricta los 9 estados del ciclo de vida (`queued`, `running`, `pause_requested`, `cancel_requested`, `paused`, `completed`, `failed`, `cancelled`, `interrupted`).
+  - Separación rigurosa en `home.js`: «Ejecuciones en curso» muestra EXCLUSIVAMENTE operaciones activas reales; las ejecuciones completadas se muestran en un resumen separado con motor en reposo sin fingir actividad en curso.
+  - Reestructuración de la barra flotante de trabajos en `jobs.js`: cuando hay 0 trabajos activos se colapsa en un discreto disparador circular no invasivo que no cubre botones ni tablas; cuando hay trabajos activos muestra una barra flotante en vivo con progreso real o indeterminado y controles de pausa/cancelación; modal ampliado con separación estricta por pestañas entre «En curso» e «Historial».
+  - Limpieza del Hero Card en `home.js`: detalles técnicos y rutas colapsables en `<details>`, manteniendo una tarjeta principal despejada y acciones principales adaptadas al estado real (sin dataset, preparado sin entrenar, entrenando, completado).
+  - Actualización de la numeración y etiquetas de navegación en `index.html` reflejando el flujo de 4 etapas (`00 Inicio`, `01 Datos (Dataset)`, `02 Exploración`, `03 Experimentos`, `04 Resultados & Evidencia`).
+  - Nueva suite automatizada `tests/test_workbench_jobs_and_flow.py` con 6 pruebas pasando al 100% (72 pruebas de workbench pasando globalmente).
+- [x] **PR 4: Fase P1 — Leaderboard centrado en resultados, recomendaciones y recetas**:
+  - Hero Card de Evaluación y Modelo Ganador colocado en la parte superior de Studio (`studio.js`): métrica, dirección de optimización, score, tipo de validación y comparación prudente contra baseline (`vs baseline` o guión cuando no existe).
+  - Tabla de Leaderboard centrada en resultados con identificación unívoca de ensayos (`row.trial_id || exp?.name`), delta vs baseline, duración, estado y botón de inspección modal de parámetros (`data-inspect-trial`).
+  - Reorganización de pestañas técnicas secundarias debajo del Leaderboard: Modelos (`models`), Convergencia HPO (`hpo`), Decisiones del Planificador (`planner`), Recetas Reproducibles (`recipes`), Recursos (`resources`) y Logs (`logs`).
+  - Ciclo de vida estandarizado de transformaciones en `utils.js` (`TRANSFORMATION_LIFECYCLE_STAGES`, `getTransformationStageInfo`) con badges de estado formalizados: Propuesta (`PROPOSED`), Verificada (`VERIFIED`), Seleccionada (`SELECTED`), Aplicada (`APPLIED`), Promovida (`PROMOTED`). Integrado en `explore.js`.
+  - Sincronización robusta de selección de características en `datasets.js` (`_updateSelectionUi`), actualizando concurrentemente `selectedFeatures`, `customFeatures` y `selectedFeaturesByDataset` en el store.
+  - Nueva suite automatizada `tests/test_workbench_leaderboard_and_recipes.py` (5 pruebas pasando al 100%, total de 80 tests de workbench en verde).
+- [x] **PR 5: Fase P2 — Idioma, legibilidad y accesibilidad**:
+  - Unificación integral de textos en español en todas las pantallas del Workbench (`index.html`, `app.js`, `workbench.css`, `datasets.js`, `overview.js`, `studio.js`, `new_experiment.js`, `compare.js`, `kaggle.js`, `pipeline.js`, `knowledge.js`).
+  - Preservación rigurosa de acrónimos y términos universales de machine learning (ROC-AUC, RMSE, MAE, MSE, K-Fold, Stratified K-Fold, LightGBM, XGBoost, CatBoost, Random Forest, SHAP, Out-of-fold, etc.).
+  - Accesibilidad WCAG AA: atributo `lang="es"`, selectores `:focus-visible` con anillo de contraste `--catml-blue`, soporte para `prefers-reduced-motion`, `aria-label` en navegación principal, controles interactivos, botones de acción y tablas.
+  - Diseño responsive para pantallas estrechas: media queries para $\le 768\text{px}$ y $\le 1024\text{px}$, contención de modales `.modal-responsive` (`max-height: calc(100vh - 2.5rem); overflow-y: auto`), desplazamiento táctil suave (`-webkit-overflow-scrolling: touch`) en contenedores tabulares.
+  - Nueva suite automatizada `tests/test_workbench_i18n_and_a11y.py` (6 pruebas pasando al 100%, total de 86 tests de workbench en verde).
+
+## Now (Active)
+
+> Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
+
+- [ ] **Close Workbench UI refinements** (`feat/workbench-ui-refinements`, PR #90): audit UX P0–P2 (PR 0–5) implemented on the feature branch; remaining work is review/merge into `main`.
+- Open backlog (see [Next / Roadmap Phases](#next-roadmap-phases) and unchecked items): OOF holdout validation; trial provenance metadata; `feature_selection_v05` benchmark; advanced meta-learning *policies* beyond Phase 1 warm starts; historical branch cleanup.
+
+## Completed Phase: v0.8.2 Phase 2 — Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition
+
+- [x] **Estudio Experimental y Validación Empírica en Kaggle Airline Satisfaction (`docs/experiments/`)**:
+  - [x] Comparativa cuantitativa AutoML solo vs Explore/Agente (`docs/experiments/airline_satisfaction_automl_vs_agent_report.md`): Naive con `id` (0.817 ROC-AUC) vs Anti-Leakage Guardian (0.952) vs Drops de colinealidad propuestos por Explore (0.952, Δ = -0.0006). Validación empírica de "Propose ≠ Accept" y registro de aprendizaje negativo.
+  - [x] Push de alto rendimiento en dataset de 700k filas con GBDT (LightGBM/XGBoost) y HPO Optuna alcanzando 0.9586 CV y 0.9578 en test ciego de Kaggle (`submission_airline_lgbm_hpo.csv`).
+  - [x] Identificación de gaps transferibles: preservación de variables categóricas binarias (evitar falso positivo en group leakage de `Customer Type`) y necesidad imperativa de transformaciones con estado fit-in-fold que impulsa Experiment Recipes (ADR-009).
+  - [x] Artefactos reproducibles en `docs/experiments/` (`push_airline_score.py`, `airline_push_scores.json`, `airline_automl_vs_explore_results.json`, `airline_automl_vs_explore_decomposition.json`).
+
+- [x] **Corrección de Visualización y Contraste en CATML Explore (`ExploreView`)**:
+  - [x] Reglas CSS globales para `.input-base`, `select` y `select option` en `workbench.css` eliminando fondos blancos de navegadores y asegurando texto legible en dark theme (`#151B26` fondo, `#F7F8FA` texto, `#4F67FF` foco).
+  - [x] Clases oscuras explícitas en `explore.js` para el selector de estudio activo (`#selectActiveStudy`), filtros de categoría/severidad y campos modales.
+  - [x] Soporte dual `viz.data_series || viz.data` en renderizado declarativo de visualizaciones (matriz de correlación Pearson/Spearman 19x19, Cramér's V, histogramas, diagramas de caja y dispersión).
+  - [x] Homogeneización de clasificación de severidad de hallazgos estadísticos y cálculo robusto de tamaño del efecto y p-valores en tarjetas de la galería.
+  - [x] Ordenación por importancia en la galería de hallazgos estadísticos (`_getFilteredFindings` y `datasets.js`): severidad descendente (`CRITICAL` > `WARNING` > `INFO`), significancia FDR y magnitud del tamaño del efecto.
+  - [x] Auto-backfill en `AutoMLWorkspace._hydrate_feature_registry()` registrando características a partir del perfil del dataset cuando la tabla de features no las contiene, previniendo el error `Unknown features for dataset` en verificación de hipótesis.
+  - [x] Test automatizado `test_workbench_explore_form_inputs_and_select_styles` en `tests/test_workbench_navigation_and_explore_ui.py`.
+
+- [x] **Corrección de Perfilado de Columnas Booleanas y Registro de Datasets en Workbench**:
+  - [x] Conversión de series booleanas (estándar y nullable `pd.BooleanDtype`) a `float64` antes del cálculo de cuartiles, medianas, histogramas y correlaciones en `dataset_profiler.py`, `distribution_diagnostics.py` y `builder.py`. Resuelve la incompatibilidad de resta booleana en NumPy (`TypeError: numpy boolean subtract, the '-' operator, is not supported`).
+  - [x] Hardening de captura de excepciones y logging de traceback en `/api/dataset/register` (`server.py`).
+  - [x] Resiliencia en vista frontend de hallazgos estadísticos (`datasets.js`) infiriendo severidad y métricas sin depender de campos indefinidos.
+  - [x] Pruebas de regresión automatizadas en `tests/test_profiler_cardinality.py` y validación en dataset real (`data/kagle/train.csv`, ~700k filas). 732 tests pasando, 87% cobertura.
+
+- [x] **Refinamiento UI Workbench — Eliminación de Datasets Demo y Garantía de Workspace Vacío**:
+  - [x] Eliminada resolución predeterminada a `.automl/s6e9_automl` o `.automl/demo` en `launch_ui_cli` (`main.py`) y en `server.py`; resolución canónica limpia a `.automl/default`.
+  - [x] Limpieza de base de datos residual `workspace/automl.db` y `.automl/default/` (eliminando dataset «E-Commerce Multimodal Catalog» y ejecuciones demo huérfanas).
+  - [x] Erradicación de datos sintéticos o hardcodeados en el frontend: estados vacíos honestos en `kaggle.js` («Sin Experimentos de Competición Activos») y `pipeline.js` («Sin Pipeline Generado»).
+  - [x] Inicialización inmediata del widget lateral en `index.html` a «Sin dataset activo» con punto indicador neutral.
+  - [x] Test automatizado `test_workbench_clean_empty_workspace_defaults_and_zero_hardcoding` en `tests/test_workbench_laboratory_redesign.py`. 731 tests pasando (100% verde), 87.07% cobertura.
 
 - [x] **Ingestión Polimórfica y Soporte Nativo de Parquet/DataFrames**:
   - [x] Soporte nativo para `.parquet`, `.pq`, `.json`, `.jsonl`, `.tsv` y `.csv` en `src/automl/engine/profiling/dataset_profiler.py` (`load_dataframe`).
@@ -104,7 +182,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] **Validación y Cobertura**:
   - [x] 676 tests pasando (100% de la suite). Cobertura total mantenida $\ge 85\%$.
 
-## Next Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
+## Completed Roadmap: CATML Explore (Análisis Estadístico, Evidencia y Agentes)
 
 > Plan de evolución arquitectónica como monolito modular con separación hexagonal y CQRS ([docs/features/catml-explore/plan.md](docs/features/catml-explore/plan.md), [ADR-008](docs/decisions/008-catml-explore-modular-monolith.md)).
 
@@ -232,6 +310,48 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
     - [x] Registro en `CHANGELOG.md` con desglose detallado de CATML Explore (E1–E6) y security hardening.
     - [x] Actualización de badges y enlaces de navegación en `README.md` y `SECURITY.md`.
     - [x] Suite de pruebas automatizadas: 727 pruebas pasando al 100%, cobertura global $\ge 86.8\%$.
+- [x] **Track Workbench UI Refinements & Testing (`feat/workbench-ui-refinements`)**:
+  - [x] Sincronización dinámica de versión en cabecera y sidebar de `index.html` e inyección reactiva en `app.js` (`sidebarVersionLabel`, `sidebarAgentBadge`) a partir del endpoint `/api/overview`.
+  - [x] Normalización canónica de rutas y clases activas en `_routeTo` de `app.js` para alias de navegación (`datasets` -> `dataset`, `studio` -> `experiments`, `overview` -> `evidence`, `explore`).
+  - [x] Conexión de acceso directo desde la pestaña de Exploración de `datasets.js` al lienzo completo de `explore.js` mediante el botón `btnOpenFullExploreCanvas` ("Lienzo Completo").
+  - [x] Armonización de idiomas y eliminación de cadenas residuales en inglés en `studio.js` y `knowledge.js`.
+  - [x] Suite de pruebas automatizadas dedicada en `tests/test_workbench_navigation_and_explore_ui.py` (4 tests pasando) y suite de UI de 44 tests al 100%.
+
+## Completed Roadmap: Experiment Recipes (Explore → Evidence → Reusable Config)
+
+> Spec: [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md) · Plan: [`docs/features/experiment-recipes/plan.md`](docs/features/experiment-recipes/plan.md) · ADR: [`docs/decisions/009-experiment-recipes-and-interface-parity.md`](docs/decisions/009-experiment-recipes-and-interface-parity.md).  
+> Principio: paridad Python / CLI / REST / MCP / Workbench; UI última capa.  
+> Estados: **Proposed → Verified → Selected → Promoted** (`EvidenceLink.accepted` ≠ autorización automática).
+
+- [x] **Fase R0 — Verificación real de transforms** [P0]:
+  - [x] Aplicar de verdad `log1p` / `yeo_johnson` / `robust_scaler` (y drops de colinealidad) en `VerifyHypothesisCommand`, no solo metadata del traductor.
+  - [x] Distinguir derivadas sin estado (`derived_features`) vs transforms con estado (`column_transforms`, fit-in-fold en pipeline de entrenamiento).
+  - [x] Persistencia en SQLite (`column_transforms_json`, `derived_features_json`), soporte en `TrialExecution` y `Experiment`.
+  - [x] Suite de pruebas dedicada en `tests/test_recipe_phase_r0_verify_transforms.py` (6 pruebas pasando al 100%).
+- [x] **Fase R1 — Dominio `ExperimentRecipe` + CQRS** [P0]:
+  - [x] Entidad reproducible en `domain/recipes/`: `ExperimentRecipe` con transforms, columnas, dataset/hash, modelo/params, validación, métrica, semilla, `evidence_link_id`, status (`draft`/`selected`/`submitted`/`promoted`/`archived`).
+  - [x] Persistencia relacional aditiva SQLite en `sqlite_recipes.py` (`SQLiteRecipeRepository`).
+  - [x] Comandos CQRS: `CreateExperimentRecipeFromEvidenceCommand`, `SubmitExperimentFromRecipeCommand`, `SelectExperimentRecipeCommand`, `PromoteExperimentRecipeCommand`, `ArchiveExperimentRecipeCommand`.
+  - [x] Consultas CQRS: `ListVerifiedImprovementsQuery`, `GetExperimentRecipeQuery`, `ListExperimentRecipesQuery`.
+  - [x] Servicio de aplicación `RecipeService` orquestando ciclo de vida sin auto-promoción ("EvidenceLink.accepted ≠ Promoted").
+  - [x] Registro modular en `recipe_registry.py` y `bootstrap.py`.
+  - [x] Suite de tests dedicada en `tests/test_recipe_phase_r1_domain_and_cqrs.py` (5 pruebas pasando al 100%).
+- [x] **Fase R2 — Trainer fit-in-fold** [P0]:
+  - [x] `RobustScaler` / `PowerTransformer` (yeo-johnson) ajustados dentro de cada fold de CV o split de train en `SklearnTrainer` (`_build_pipeline`).
+  - [x] Preprocesamiento de derivadas en memoria previo a partición sin leakage.
+  - [x] Tests de fit-in-fold y no-leakage en `tests/test_recipe_phase_r0_verify_transforms.py`.
+- [x] **Fase R3 — Paridad Python / CLI / MCP / REST** [P0]:
+  - [x] CLI (`catml recipe …` / `automl recipe …`): subcomandos `list-verified`, `create-from-evidence`, `list`, `show`, `select`, `submit`, `promote`, `archive` con soporte tabular y `--json`.
+  - [x] Herramientas MCP para agentes en `src/automl/interfaces/mcp/recipe_tools.py` (`recipe_list_verified_improvements`, `recipe_create_from_evidence`, `recipe_get`, `recipe_list`, `recipe_select`, `recipe_submit`, `recipe_promote`, `recipe_archive`).
+  - [x] Endpoints REST espejo en `src/automl/interfaces/web/server.py` (`GET /api/recipes/verified-improvements`, `GET /api/recipes`, `GET /api/recipes/{recipe_id}`, `POST /api/recipes/create-from-evidence`, `POST /api/recipes/select`, `POST /api/recipes/submit`, `POST /api/recipes/promote`, `POST /api/recipes/archive`).
+  - [x] Principio "Propose ≠ Accept" garantizado: creación desde evidencia inicializa estado `DRAFT`; promoción requiere comando explícito con justificación auditable.
+  - [x] Suite de paridad cruzada exhaustiva en `tests/test_recipe_phase_r3_parity.py` (4 tests al 100% pasando: CLI, MCP, REST y ciclo E2E cruzado). Cobertura total del proyecto en 86.88% (748 tests pasando).
+- [x] **Fase R4 — Workbench + test de paridad** [P1]:
+  - [x] UI para seleccionar mejoras verificadas, enviar recetas y promover (cliente del bus vía REST API, sin lógica de negocio en JS).
+  - [x] Integración en `ExploreView`: acción "Crear Receta" en enlaces de evidencia de hipótesis aceptadas, tabla dedicada de recetas con acciones de ciclo de vida (Seleccionar, Entrenar, Promover, Archivar).
+  - [x] Integración en `StudioView`: pestaña `Recetas` con renderizado de tarjetas, estado y acciones de ejecución/promoción vinculadas al run.
+  - [x] Integración en `NewExperimentModal`: selector reproducible de recetas para ejecución directa con 1-click.
+  - [x] Suite de paridad multi-superficie cruzada en `tests/test_recipe_phase_r4_workbench_parity.py` (3 tests al 100%: JS client hooks, ciclo de vida REST en servidor real HTTP, y prueba de 4 superficies CLI → MCP → Workbench → REST con idénticos IDs, transformaciones in-fold y linaje). Cobertura global sostenida en 86.88% (751 tests pasando).
 
 ## Completed Phase: v0.8.2 Phase 1 (Operational Time Budget, Fail-Closed Artifacts & Remote Workbench Security)
 
@@ -372,7 +492,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ## Next (Roadmap Phases)
 
-- [ ] Sincronizar el índice y los planes con las capacidades actuales: H4, stacking y OOF multi-modelo ya implementados; actualizar las referencias al diseño vigente (revisión 2026-10-02).
+- [x] Sincronizar el índice y los planes con las capacidades actuales (revisión 2026-10-11): H0–H5, Explore E0–E6, Experiment Recipes R0–R4, stacking/OOF multi-modelo y release `0.9.0-rc1` alineados en `AGENTS.md`, `docs/README.md`, feature plans/specs, ADR-009 y `MASTER_PLAN.md`.
 - [ ] Auditar `feat/workbench-live-experiments` (WIP sin PR, 60 commits detrás de main) y los commits documentales posteriores a PR #40 en `feat/agentic-a4-specialists` antes de limpiar ramas históricas.
 
 > **Sistema agéntico — empieza aquí:** [`docs/features/agentic-system/README.md`](docs/features/agentic-system/README.md). Elige Persona A o B; prepara A0 o B0 y acuerda H0 antes de pasar a A1/B1.
@@ -398,7 +518,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] H5 — V1.0 Proveedor real, LangGraph duradero y recuperación (Integración final A5 + B5):
   - [x] Track Persona A (Paquete A5): Adaptador LLM agnóstico con validación de respuesta, timeouts/reintentos acotados, redacción y auditoría de tokens (PR #57).
   - [x] Track Persona B (Paquete B5): Checkpointer LangGraph SQLite, reanudación tras fallo y tests E2E de orquestación (`LangGraphAgentOrchestrator`, `SqliteCheckpointSaver`, CLI `--engine {deterministic,langgraph}`, 590 tests passing, 87.70% cobertura).
-- [ ] V0.8 Phase: Meta-learning & knowledge base for warm-start policies (pospuesta temporalmente a favor del subsistema agéntico)
+- [x] Phase 1 Meta-Learning Warm Starts (dataset fingerprint + Optuna trial-0 priors): completed — see Completed section.
+- [ ] Advanced meta-learning *policies* (transform priors by fingerprint, richer warm-start beyond Phase 1): backlog.
 
 - [x] Stacking with a trained meta-estimator (distinct from voting/blending).
 - [ ] Persist backend class, plugin/library versions and dataset/config hashes per trial ([current limits](docs/backends.md)).

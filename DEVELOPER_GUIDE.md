@@ -23,6 +23,12 @@ automl benchmark run            # comparar escenarios de regresión
 automl explore list             # listar estudios exploratorios de CATML Explore
 automl explore export <id> -f markdown -o report.md  # reporte técnico reproducible
 automl explore verify <hyp_id>  # verificar hipótesis empíricamente (Propose ≠ Accept)
+automl recipe list-verified     # listar mejoras empíricas verificadas
+automl recipe create-from-evidence <ev_id>  # crear receta reproducible en draft
+automl recipe list              # listar recetas de experimentos
+automl recipe show <recipe_id>  # inspeccionar receta y linaje auditable
+automl recipe submit <recipe_id>  # ejecutar experimentos basados en receta
+automl recipe promote <recipe_id> --reason "..."  # promover como candidata de producción
 ```
 
 
@@ -76,9 +82,12 @@ infrastructure/ (SQLite, storage)
 | **Dominio — Explore** | `domain/analysis/` | StudySpec, AnalysisRun, StatisticalFinding, VisualizationSpec, EvidenceLink | Nuevas entidades de análisis |
 | **Engine — Explore** | `engine/analysis/` | Diagnósticos de distribución, asociaciones, pruebas FDR, traductor de hipótesis | Nuevas pruebas estadísticas y visualizaciones |
 | **Application — Explore** | `application/analysis/` | AnalysisStudyService, reporting Markdown, handlers CQRS | Nuevas consultas o generadores |
-| **CLI** | `interfaces/cli/` | Subcomandos (incluyendo `catml explore`) | Comandos que deleguen en workspace |
-| **Interfaces — MCP** | `interfaces/mcp/` | Servidor MCP y herramientas de análisis (`analysis_tools.py`) | Nuevas herramientas o recursos de agente |
-| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP, vista Explore SPA | Vistas SPA siguiendo `docs/design/tech-minimalist-brand-system.md` |
+| **Dominio — Recipes** | `domain/recipes/` | ExperimentRecipe, RecipeStatus, RecipeLineage | Nuevos campos de especificación |
+| **Infrastructure — Recipes** | `infrastructure/database/sqlite_recipes.py` | SQLiteRecipeRepository | Persistencia aditiva |
+| **Application — Recipes** | `application/recipes/` | RecipeService, handlers CQRS y DTOs | Nuevos comandos o queries de receta |
+| **CLI** | `interfaces/cli/` | Subcomandos (incluyendo `catml explore` y `catml recipe`) | Comandos que deleguen en workspace |
+| **Interfaces — MCP** | `interfaces/mcp/` | Servidor MCP y herramientas de análisis y recetas (`recipe_tools.py`) | Nuevas herramientas o recursos de agente |
+| **Interfaces — Web** | `interfaces/web/` | Workbench HTTP, vista Explore SPA y recetas | Vistas SPA siguiendo `docs/design/tech-minimalist-brand-system.md` |
 
 ---
 
@@ -168,20 +177,20 @@ Documentación formal                   → AutoML_Arquitectura_Tecnica.md
 4. **Eventos** en toda mutación relevante (`repository.append_event`).
 5. **Tests:** agrupar por funcionalidad; añadir pruebas de regresión en la suite relevante.
 6. **Versión:** actualizar `automl.__version__` en `src/automl/__init__.py`; empaquetado, CLI y Workbench comparten esa fuente. Actualizar las referencias de versión en la documentación.
-7. **Estilo Neo-Industrial en UI:** Toda la interfaz web y paneles de visualización deben seguir rigurosamente el diseño de laboratorio técnico en [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md) (paleta `#111111` / `#D8D6CF` / `#E5512D`, fuentes `Space Grotesk` + `IBM Plex Mono`, bordes de 1px y radio $\le 4$px).
+7. **Estilo Tech Minimalista Premium en UI:** Toda la interfaz web debe cumplir [`docs/design/tech-minimalist-brand-system.md`](docs/design/tech-minimalist-brand-system.md) y [ADR-006](docs/decisions/006-tech-minimalist-premium-brand-system.md). El spec Neo-Industrial es histórico ([ADR-005](docs/decisions/005-neo-industrial-visual-ml-lab-ui.md)).
 
 ---
 
-## 8. Composición para futuro LLM (V0.9)
+## 8. Composición para agentes / MCP (V0.9 — shipped H0–H5)
 
-Cuando llegue V0.9, cada Command/Query existente se envuelve en un `AgentTool`:
+Los Commands/Queries se exponen a agentes como tools MCP / catálogo de aplicación (`application/agents/`), no como lógica nueva en la capa de agentes:
 
 ```text
-CreateExperimentCommand  →  CreateExperimentTool
-GetTaskPlanQuery         →  GetTaskPlanTool
+CreateExperimentCommand  →  create_experiment (tool)
+GetLeaderboardQuery      →  get_leaderboard (tool)
 ```
 
-No crear lógica nueva en la capa de agentes; solo wrappers con schema JSON.
+Reglas: mismo `CommandBus` / `QueryBus`, políticas de presupuesto/aprobación, y *Propose ≠ Accept*. Estado operativo en [`TASKS.md`](TASKS.md); onboarding A/B en [`docs/features/agentic-system/README.md`](docs/features/agentic-system/README.md).
 
 ---
 

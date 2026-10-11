@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: CATML Explore
 
 > **Módulo:** `catml-explore`  
-> **Estado:** Especificación de Arquitectura y Ampliación de Capacidades  
+> **Estado:** Especificación de Arquitectura — **implementada (E0–E6)**; ver [`plan.md`](plan.md) y [`TASKS.md`](../../../TASKS.md)  
 > **Base:** CATML v0.8.x / v0.9.x  
 > **Relacionado con:** [ADR-001 (Hexagonal/CQRS)](../../decisions/001-hexagonal-architecture-and-cqrs.md), [ADR-002 (Hipótesis)](../../decisions/002-hypothesis-driven-experiments.md), [ADR-006 (Tech Minimalista)](../../decisions/006-tech-minimalist-premium-brand-system.md), [ADR-008 (Monolito Modular Explore)](../../decisions/008-catml-explore-modular-monolith.md) y [Plan Maestro](../../MASTER_PLAN.md).
 

@@ -185,33 +185,44 @@ class AutoMLWorkspace:
         return cls.create(name, root_dir=base)
 
     def _hydrate_feature_registry(self, dataset_id: str) -> None:
-        features = self.repository.list_features(dataset_id)
+        features = list(self.repository.list_features(dataset_id))
         profile = self.repository.get_dataset_profile(dataset_id)
-        if features:
-            if profile:
-                id_names = set(profile.identifier_column_names)
-                for f in features:
-                    if f.semantic_type == "unknown" and f.name in id_names:
-                        f.semantic_type = "identifier"
-                        self.repository.save_feature(f)
-            registry = FeatureRegistry(features)
-        else:
-            profile = self.repository.get_dataset_profile(dataset_id)
-            if profile is None:
-                return
-            registry = FeatureRegistry()
+        if profile is None:
+            try:
+                dataset = self._get_dataset(dataset_id)
+                if dataset and Path(dataset.path).exists():
+                    from automl.engine.profiling.dataset_profiler import profile_dataset
+                    profile = profile_dataset(dataset)
+                    self.repository.save_dataset_profile(profile)
+            except Exception:
+                pass
+
+        registry = FeatureRegistry(features)
+        known_names = {f.name for f in registry.list()}
+
+        if profile:
+            id_names = set(profile.identifier_column_names)
+            for f in registry.list():
+                if f.semantic_type == "unknown" and f.name in id_names:
+                    f.semantic_type = "identifier"
+                    self.repository.save_feature(f)
+
+            target = profile.target_column
             for column in profile.columns:
-                if column.name == profile.target_column:
+                if target is not None and column.name == target:
                     continue
-                registry.register(
-                    Feature(
+                if column.name not in known_names:
+                    feature = Feature(
                         id=f"feat_{column.name}",
                         dataset_id=dataset_id,
                         name=column.name,
                         physical_dtype=column.dtype,
                         semantic_type="identifier" if column.is_identifier else "unknown",
                     )
-                )
+                    registry.register(feature)
+                    self.repository.save_feature(feature)
+                    known_names.add(column.name)
+
         self._feature_registries[dataset_id] = registry
 
     def _emit(self, event_type: str, payload: dict, run_id: str | None = None) -> None:
@@ -404,6 +415,20 @@ class AutoMLWorkspace:
             statistical_engine=StatisticalAnalyzer(),
         )
 
+    def get_recipe_repository(self):
+        """Retrieve SQLiteRecipeRepository for this workspace."""
+        from automl.infrastructure.database.sqlite_recipes import SQLiteRecipeRepository
+        return SQLiteRecipeRepository(self.root_dir / "automl.db")
+
+    def get_recipe_service(self):
+        """Retrieve RecipeService for this workspace."""
+        from automl.application.recipes.recipe_service import RecipeService
+        return RecipeService(
+            recipe_repository=self.get_recipe_repository(),
+            study_repository=self.get_study_repository(),
+            workspace=self,
+        )
+
     def get_feature_registry(self, dataset_id: str) -> FeatureRegistry:
         if dataset_id not in self._feature_registries:
             self._hydrate_feature_registry(dataset_id)
@@ -442,6 +467,9 @@ class AutoMLWorkspace:
         validation_strategy: str | None = None,
         group_column: str | None = None,
         allow_leakage: bool = False,
+        column_transforms: list[dict[str, Any]] | None = None,
+        derived_features: list[dict[str, Any]] | None = None,
+        recipe_id: str | None = None,
     ) -> Experiment:
         dataset = self._get_dataset(run.dataset_id)
         priority_value = ExperimentPriority.parse(priority).value
@@ -483,6 +511,12 @@ class AutoMLWorkspace:
 
         registry = self.get_feature_registry(run.dataset_id)
         known_features = {feature.name for feature in registry.list()}
+        if derived_features:
+            derived_names = {
+                (df_item["name"] if isinstance(df_item, dict) else df_item.name)
+                for df_item in derived_features
+            }
+            known_features = known_features | derived_names
         unknown_features = sorted(set(resolved_features) - known_features)
         if unknown_features:
             raise ValueError(f"Unknown features for dataset {run.dataset_id}: {', '.join(unknown_features)}")
@@ -516,6 +550,9 @@ class AutoMLWorkspace:
             priority=priority_value,
             feature_set_id=feature_set_id,
             group_column=resolved_group_col,
+            column_transforms=list(column_transforms or []),
+            derived_features=list(derived_features or []),
+            recipe_id=recipe_id,
         )
         self.repository.save_experiment(experiment)
         self._emit(
@@ -611,6 +648,8 @@ class AutoMLWorkspace:
                 cv_folds=run.config.cv_folds,
                 random_seed=run.config.random_seed,
                 group_column=experiment.group_column,
+                column_transforms=list(getattr(experiment, "column_transforms", []) or []),
+                derived_features=list(getattr(experiment, "derived_features", []) or []),
             )
             result = trainer.run(execution)
             self.repository.save_trial(trial)

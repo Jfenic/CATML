@@ -11,7 +11,7 @@ CATML implements a **Hexagonal (Ports & Adapters)** architecture combined with *
 
 ```text
        ┌────────────────────────────────────────────────────────┐
-       │      Interfaces (CLI, Workbench HTTP, future LLM)      │
+       │   Interfaces (CLI, Workbench HTTP, MCP / Agents)       │
        └───────────────────────────┬────────────────────────────┘
                                    │ (dispatches Commands & Queries)
                                    ▼
@@ -58,6 +58,8 @@ src/automl/
 │   ├── tasks/               # TaskType, TASK_CATALOG, ProblemDefinition
 │   ├── datasets/            # Dataset reference, metadata, schema
 │   ├── features/            # Feature, FeatureSet, FeatureRegistry, FeatureEvidence
+│   ├── analysis/            # Explore: StudySpec, StatisticalFinding, EvidenceLink, hypotheses
+│   ├── recipes/             # ExperimentRecipe lifecycle (draft → promoted)
 │   ├── experiments/         # Experiment, Trial, TrialResult, ExperimentCandidate, Priority
 │   ├── models/              # ModelSpec, ModelRegistry, capabilities
 │   ├── optimization/        # SearchSpace, ParameterSpec, OptimizationBudget
@@ -70,14 +72,18 @@ src/automl/
 │   ├── bus/                 # CommandBus, QueryBus implementation
 │   ├── commands/            # Typed mutation dataclasses (CreateExperiment, ExcludeFeature, etc.)
 │   ├── queries/             # Typed read-only dataclasses (GetLeaderboard, GetTaskPlan, etc.)
-│   ├── services/workspace.py# AutoMLWorkspace high-level facade
+│   ├── analysis/            # Explore study service & reporting
+│   ├── agents/              # Tool catalog, policies, specialists, orchestrators
+│   ├── services/            # Workspace facade + pipeline/inference/feature/recipe services
+│   ├── registries/          # Modular CQRS registration (core, experiment, analysis, recipe, …)
 │   └── bootstrap.py         # Application wiring, DI container, handler registrations
 │
 ├── engine/                  # Algorithmic and execution engines
 │   ├── planning/            # Task inference (task_planner) and experiment generation
 │   ├── priority/            # Priority scoring (explainable components) and priority queue
 │   ├── optimization/        # SearchSpaceBuilder, RandomSearch, EarlyStopping
-│   ├── training/            # Sklearn execution engine for trials
+│   ├── training/            # Sklearn execution engine for trials (incl. fit-in-fold transforms)
+│   ├── analysis/            # Statistical analyzer, associations, hypothesis tests, viz builder
 │   ├── profiling/           # Dataset profiling
 │   ├── pipeline/            # DAG validation and feature fusion
 │   └── vision/              # Image encoding
@@ -95,9 +101,12 @@ src/automl/
 │   └── runner.py            # Benchmark scenarios measuring Δ vs baseline
 │
 └── interfaces/              # Boundary entry points
-    ├── cli/                 # Terminal commands
-    └── web/                 # HTTP adapter and modular static frontend
+    ├── cli/                 # Terminal commands (`catml` / `automl`)
+    ├── web/                 # Workbench HTTP adapter + static frontend
+    └── mcp/                 # Model Context Protocol server (stdio / streamable-http)
 ```
+
+Explore / Recipes / Agents details: [`docs/features/catml-explore/`](docs/features/catml-explore/), [`docs/features/experiment-recipes/`](docs/features/experiment-recipes/), [`docs/features/agentic-system/`](docs/features/agentic-system/). Operational backlog: [`TASKS.md`](TASKS.md).
 
 ---
 

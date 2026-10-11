@@ -6,7 +6,7 @@ import { store } from "./store.js";
 import { bus } from "./bus.js";
 import { api } from "./api.js";
 import { JobsPanel } from "./views/jobs.js";
-import { isRunActive } from "./utils.js";
+import { isRunActive, isJobActive } from "./utils.js";
 
 import { OverviewView } from "./views/overview.js";
 import { StudioView } from "./views/studio.js";
@@ -86,43 +86,29 @@ class App {
         api.getDatasets().catch(() => []),
       ]);
 
-      let activeDatasetId = store.getState().activeDatasetId;
-      if (!activeDatasetId || !datasets.some(d => d.id === activeDatasetId)) {
-        if (datasets.length > 0) {
-          activeDatasetId = datasets[0].id;
-        } else if (runs.length > 0 && runs[0].dataset_id) {
-          activeDatasetId = runs[0].dataset_id;
-        }
-      }
-
-      const activeDataset = datasets.find(d => d.id === activeDatasetId) || null;
-      const matchingRun = runs.find(r => r.dataset_id === activeDatasetId);
-
-      store.setState({
-        overview,
-        runs,
-        datasets,
-        activeDatasetId,
-        activeDataset,
-        activeRunId: matchingRun ? matchingRun.id : (runs.length ? runs[0].id : null),
-      });
-
+      const { activeDataset, activeRun } = store.resolveContext({ datasets, runs, overview });
       this._updateSidebarActiveDataset(activeDataset);
 
-      if (overview && overview.workspace) {
-        const wsEl = document.getElementById("workspaceLabel");
-        if (wsEl) wsEl.textContent = overview.workspace;
+      if (overview) {
+        if (overview.workspace) {
+          const wsEl = document.getElementById("workspaceLabel");
+          if (wsEl) wsEl.textContent = overview.workspace;
+        }
+        if (overview.version) {
+          const vLabel = document.getElementById("sidebarVersionLabel");
+          if (vLabel) vLabel.textContent = `v${overview.version}`;
+          const aBadge = document.getElementById("sidebarAgentBadge");
+          if (aBadge) aBadge.textContent = `v${overview.version}`;
+        }
       }
 
       // Dynamic Project Name Label
       const projectEl = document.getElementById("projectNameLabel");
       if (projectEl) {
-        if (runs && runs.length && runs[0].dataset_name && runs[0].dataset_name !== "-") {
-          projectEl.textContent = `${runs[0].dataset_name} (${runs[0].id})`;
-        } else if (overview && overview.recent_datasets && overview.recent_datasets.length) {
-          projectEl.textContent = overview.recent_datasets[0].name;
+        if (activeDataset) {
+          projectEl.textContent = activeRun ? `${activeDataset.name} (${activeRun.id})` : activeDataset.name;
         } else {
-          projectEl.textContent = "AutoML Workspace";
+          projectEl.textContent = "Espacio AutoML";
         }
       }
 
@@ -130,31 +116,23 @@ class App {
       const kaggleLabel = document.getElementById("kaggleNavLabel");
       const kaggleBadge = document.getElementById("kaggleNavBadge");
       if (kaggleLabel) {
-        if (runs && runs.length && runs[0].dataset_name && runs[0].dataset_name !== "-") {
-          kaggleLabel.textContent = runs[0].dataset_name;
-        } else if (overview && overview.recent_datasets && overview.recent_datasets.length) {
-          kaggleLabel.textContent = overview.recent_datasets[0].name;
-        } else {
-          kaggleLabel.textContent = "Kaggle & Submissions";
-        }
+        kaggleLabel.textContent = activeDataset ? activeDataset.name : "Kaggle & Envíos";
       }
       if (kaggleBadge) {
-        if (runs && runs.length && runs[0].best_score != null) {
-          kaggleBadge.textContent = Number(runs[0].best_score).toFixed(4);
-        } else if (overview && overview.best_score) {
-          kaggleBadge.textContent = Number(overview.best_score).toFixed(4);
+        if (activeRun && activeRun.best_score != null) {
+          kaggleBadge.textContent = Number(activeRun.best_score).toFixed(4);
         } else {
           kaggleBadge.textContent = "—";
         }
       }
 
-      const isAnyRunning = (this.jobsPanel?.jobs || []).some(j => j.status === "running")
+      const isAnyRunning = (this.jobsPanel?.jobs || []).some(j => isJobActive(j))
         || (runs || []).some(r => isRunActive(r))
         || Boolean(overview && overview.is_active);
       const statusBadge = document.getElementById("globalStatusBadge");
       const sysHw = document.getElementById("sysHardwareHeader");
       if (sysHw) {
-        sysHw.textContent = isAnyRunning ? "AutoML Training Folds Active" : "AutoML Engine Ready";
+        sysHw.textContent = isAnyRunning ? "Entrenamiento AutoML en curso" : "Motor AutoML listo";
       }
 
       if (statusBadge) {
@@ -162,7 +140,8 @@ class App {
           statusBadge.className = "badge-warn px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
           statusBadge.innerHTML = `<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>ENTRENANDO</span>`;
         } else {
-          const lastStatus = runs && runs[0] && runs[0].status ? runs[0].status : "READY";
+          const rawStatus = runs && runs[0] && runs[0].status ? runs[0].status : "LISTO";
+          const lastStatus = rawStatus === "READY" ? "LISTO" : rawStatus;
           statusBadge.className = "badge-gain px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5";
           statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span>${lastStatus}</span>`;
         }
@@ -216,8 +195,8 @@ class App {
   }
 
   _bindGlobalEvents() {
-    bus.on("modal:new-experiment", () => {
-      this.newExperimentModal.mount(this.modalContainer);
+    bus.on("modal:new-experiment", (opts) => {
+      this.newExperimentModal.mount(this.modalContainer, opts);
     });
 
     bus.on("modal:switch-dataset", () => {
@@ -229,13 +208,18 @@ class App {
     });
 
     bus.on("dataset:switched", (datasetId) => {
-      const activeDataset = (store.getState().datasets || []).find(d => d.id === datasetId);
+      store.setActiveDataset(datasetId);
+      const activeDataset = store.getActiveDataset();
       this._updateSidebarActiveDataset(activeDataset);
+      if (this.agentDrawer) this.agentDrawer.refresh();
       this._routeTo(store.getState().currentNav);
     });
 
     bus.on("run:select", runId => {
-      store.setState({ activeRunId: runId });
+      store.setActiveRun(runId);
+      const activeDataset = store.getActiveDataset();
+      this._updateSidebarActiveDataset(activeDataset);
+      if (this.agentDrawer) this.agentDrawer.refresh();
       store.setNav("experiments");
     });
   }
@@ -251,10 +235,15 @@ class App {
   }
 
   _routeTo(navId) {
+    const canonicalNav = (navId === "datasets") ? "dataset"
+      : (navId === "studio") ? "experiments"
+      : (navId === "overview") ? "evidence"
+      : navId;
+
     // Update active class on sidebar items
     document.querySelectorAll(".nav-item").forEach(item => {
       const id = item.getAttribute("data-nav");
-      if (id === navId || (navId === "home" && id === "home") || (navId === "dataset" && id === "dataset") || (navId === "experiments" && id === "experiments") || (navId === "evidence" && id === "evidence")) {
+      if (id === canonicalNav) {
         item.classList.add("active");
       } else if (id !== "agent") {
         item.classList.remove("active");

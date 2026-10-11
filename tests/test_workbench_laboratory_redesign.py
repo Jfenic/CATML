@@ -65,12 +65,12 @@ def test_frontend_laboratory_modules_exist_and_integrate():
     assert "Cambiar dataset activo" in modal_content
     assert "btn-select-ds" in modal_content
 
-    # DatasetsView Resumen, Columnas and Exploracion tabs
+    # DatasetsView Resumen and Columnas tabs
     ds_content = datasets_js.read_text(encoding="utf-8")
     assert "_renderResumenTab" in ds_content
     assert "_renderColumnasTab" in ds_content
     assert "_renderHealthCard" in ds_content
-    assert "_renderExplorationTab" in ds_content
+    assert "btnOpenFullExploreCanvas" in ds_content or "btnOpenExploreFromDS" in ds_content
     assert "btnNewExperimentFromDS" in ds_content
     assert "Anti-Leakage Guardian" in ds_content
 
@@ -205,10 +205,11 @@ def test_file_browse_and_inspect_api_endpoints(tmp_path):
 
 def test_frontend_audit_remediations_honesty_and_accessibility():
     # 1. index.html checks
+    from automl import __version__
     index_content = Path("src/automl/interfaces/web/static/index.html").read_text(encoding="utf-8")
     assert "select-none" not in index_content, "F15: select-none must be removed from body"
     assert 'id="btnToggleMobileSidebar"' in index_content, "F12: mobile sidebar toggle button must exist"
-    assert "v0.8.2" in index_content, "F13: version badges should be consistent"
+    assert f"v{__version__}" in index_content, "F13: version badges should be consistent"
 
     # 2. knowledge.js checks (no fake benchmark mock fallback)
     knowledge_content = Path("src/automl/interfaces/web/static/js/views/knowledge.js").read_text(encoding="utf-8")
@@ -308,11 +309,15 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert "Searching space (72%)" not in overview_js
     assert "w-2/3" not in overview_js
 
-    # 3. Verify datasets.js implements real Explore module (Phase E1)
+    # 3. Verify datasets.js links to Explore, and explore.js implements dedicated Explore module
     datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
-    assert "_renderExplorationTab" in datasets_js
-    assert "btnOpenCreateStudyModal" in datasets_js
-    assert "Matriz de Correlación" in datasets_js
+    explore_js = Path("src/automl/interfaces/web/static/js/views/explore.js").read_text(encoding="utf-8")
+    assert "btnOpenExploreFromDS" in datasets_js
+    assert "_renderExplorationTab" not in datasets_js
+    assert "btnOpenNewStudyModal" in explore_js or "btnCreateInitialStudy" in explore_js
+    assert "Matriz de Correlación" in datasets_js or "Matriz de Correlación" in explore_js
+    assert "f.column_name" in explore_js
+    assert 'chart_type === "correlation_matrix"' in explore_js or 'viz_type === "correlation_matrix"' in explore_js
 
     # 4. Verify domain active status rules
     from automl.domain.runs.states import RunStatus, is_active_run_status
@@ -320,6 +325,66 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert is_active_run_status(RunStatus.PROFILING) is False
     assert is_active_run_status(RunStatus.EXPERIMENTING) is True
     assert is_active_run_status(RunStatus.OPTIMIZING) is True
+
+
+def test_workbench_clean_empty_workspace_defaults_and_zero_hardcoding(tmp_path: Path):
+    import argparse
+    import json
+    import threading
+    from http.server import ThreadingHTTPServer
+    from unittest.mock import patch
+    from urllib.request import urlopen
+    from automl.interfaces.cli.main import launch_ui_cli
+    from automl.interfaces.web.server import AutoMLWebHandler
+
+    # 1. Verify CLI default workspace resolves to clean .automl/default
+    dummy_args = argparse.Namespace(
+        workspace=None,
+        port=8080,
+        host="127.0.0.1",
+        auth_token=None,
+        insecure_no_auth=False,
+    )
+    with patch("automl.interfaces.web.server.run_web_dashboard") as mock_run:
+        launch_ui_cli(dummy_args)
+        assert mock_run.called
+        called_ws = mock_run.call_args[1]["workspace_dir"]
+        assert called_ws.endswith(".automl/default"), f"Default workspace should be .automl/default, got: {called_ws}"
+
+    # 2. Verify empty workspace returns zero datasets and clean empty overview
+    empty_ws = str(tmp_path / "empty_workspace")
+    AutoMLWebHandler.workspace_dir = empty_ws
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), AutoMLWebHandler)
+    host, port = server.server_address
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        base_url = f"http://{host}:{port}"
+
+        # /api/datasets
+        with urlopen(f"{base_url}/api/datasets") as resp:
+            datasets = json.loads(resp.read().decode())
+            assert datasets == [], f"Datasets must be empty list on fresh workspace, got: {datasets}"
+
+        # /api/runs
+        with urlopen(f"{base_url}/api/runs") as resp:
+            runs = json.loads(resp.read().decode())
+            assert runs == [], f"Runs must be empty list on fresh workspace, got: {runs}"
+
+        # /api/overview
+        with urlopen(f"{base_url}/api/overview") as resp:
+            ov = json.loads(resp.read().decode())
+            assert ov["total_runs"] == 0
+            assert ov["total_trials"] == 0
+            assert ov["is_active"] is False
+            assert ov["best_score"] is None
+            assert ov["best_model"] is None
+            assert ov["recent_datasets"] == []
+            assert ov["activity_feed"] == []
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 

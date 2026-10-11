@@ -55,6 +55,10 @@ class CreateExperimentCommand:
     validation_strategy: str | None = None
     group_column: str | None = None
     allow_leakage: bool = False
+    column_transforms: list[dict[str, Any]] | None = None
+    derived_features: list[dict[str, Any]] | None = None
+    recipe_id: str | None = None
+    time_budget_seconds: float | None = None
 
 
 @dataclass(frozen=True)

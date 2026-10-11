@@ -143,6 +143,8 @@ class QuestionnaireAdvisor:
             primary_metric_override=primary_metric,
             split_strategy_recommendation=split_strategy,
             auto_generated=True,
+            user_confirmed=False,
+            engine_source="heuristic",
             confidence=0.90,
             reasoning=" ".join(reasons),
         )
@@ -202,4 +204,6 @@ class QuestionnaireAdvisor:
         )
         data = resp.parsed or json.loads(resp.content)
         data["dataset_id"] = dataset_id
+        data.setdefault("engine_source", "jev" if getattr(self._llm_provider, "is_jev", False) else "llm")
+        data["user_confirmed"] = False
         return DatasetQuestionnaire.from_dict(data)

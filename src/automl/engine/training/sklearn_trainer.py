@@ -18,7 +18,13 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import (
+    KBinsDiscretizer,
+    OneHotEncoder,
+    PowerTransformer,
+    RobustScaler,
+    StandardScaler,
+)
 
 from automl.domain.experiments.trial import TrialResult, TrialStatus
 from automl.domain.runs.states import RunStatus
@@ -54,6 +60,22 @@ class SklearnTrainer(TrainerPort):
 
         try:
             df = load_dataframe(execution.dataset_path)
+            derived_features = getattr(execution, "derived_features", None) or []
+            if derived_features:
+                from automl.domain.features.derived_feature import (
+                    DerivedFeatureDefinition,
+                    DerivedFeatureType,
+                )
+                from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
+
+                derived_engine = DerivedFeatureEngine()
+                for df_spec in derived_features:
+                    defn = DerivedFeatureDefinition.from_dict(df_spec) if isinstance(df_spec, dict) else df_spec
+                    if defn.name not in df.columns:
+                        df, eval_res = derived_engine.apply(df, defn)
+                        if not eval_res.is_valid:
+                            raise ValueError(f"Failed to compute derived feature {defn.name}: {eval_res.error_message}")
+
             X = df[execution.feature_names]
 
             if execution.task_type == "clustering":
@@ -111,6 +133,7 @@ class SklearnTrainer(TrainerPort):
                 text_columns=text_cols,
                 image_columns=image_cols,
                 image_model=image_model,
+                column_transforms=getattr(execution, "column_transforms", None),
             )
 
             metric_name = execution.metric
@@ -379,12 +402,14 @@ class SklearnTrainer(TrainerPort):
         text_cols = parameters.get("text_columns") if parameters else None
         image_cols = parameters.get("image_columns") if parameters else None
         image_model = parameters.get("image_model") if parameters else None
+        column_transforms = parameters.get("column_transforms") if parameters else None
         pipeline = _build_pipeline(
             X_train,
             model,
             text_columns=text_cols,
             image_columns=image_cols,
             image_model=image_model,
+            column_transforms=column_transforms,
         )
         pipeline.fit(X_train, y_train_adapted)
         return pipeline, adapter
@@ -423,6 +448,7 @@ def _build_pipeline(
     text_columns: list[str] | None = None,
     image_columns: list[str] | None = None,
     image_model: str | None = None,
+    column_transforms: list[dict[str, Any]] | None = None,
 ) -> Pipeline:
     from automl.engine.features.text import LightweightTextExtractor, is_text_column
     from automl.plugins.modalities.image_plugin import is_image_column, ImageModalityPlugin
@@ -452,15 +478,52 @@ def _build_pipeline(
     numeric_cols = [c for c in non_transformed_cols if pd.api.types.is_numeric_dtype(X[c])]
     categorical_cols = [c for c in non_transformed_cols if c not in numeric_cols]
 
+    # Map custom column transforms
+    col_transform_map: dict[str, dict[str, Any]] = {}
+    if column_transforms:
+        for ct in column_transforms:
+            if isinstance(ct, dict) and "column" in ct:
+                col_transform_map[ct["column"]] = ct
+
     transformers = []
     if numeric_cols:
-        transformers.append(
-            (
-                "num",
-                Pipeline([("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]),
-                numeric_cols,
+        standard_num_cols = []
+        for col in numeric_cols:
+            if col in col_transform_map:
+                ct = col_transform_map[col]
+                kind = str(ct.get("kind", "")).lower()
+                params = dict(ct.get("params", {}))
+
+                if kind in ("robust_scaler", "robust"):
+                    scaler_step = ("scaler", RobustScaler(**params))
+                elif kind in ("yeo_johnson", "power_transform", "power", "yeojohnson"):
+                    scaler_step = ("power", PowerTransformer(method="yeo-johnson", **params))
+                elif kind in ("quantile_discretizer", "quantile", "kbins"):
+                    n_bins = int(params.get("n_bins", 5))
+                    scaler_step = ("discretize", KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy="quantile"))
+                elif kind in ("standard_scaler", "standard"):
+                    scaler_step = ("scaler", StandardScaler(**params))
+                else:
+                    scaler_step = ("scaler", StandardScaler(**params))
+
+                transformers.append(
+                    (
+                        f"num_{kind}_{col}",
+                        Pipeline([("imputer", SimpleImputer(strategy="median")), scaler_step]),
+                        [col],
+                    )
+                )
+            else:
+                standard_num_cols.append(col)
+
+        if standard_num_cols:
+            transformers.append(
+                (
+                    "num",
+                    Pipeline([("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]),
+                    standard_num_cols,
+                )
             )
-        )
     if categorical_cols:
         transformers.append(
             (

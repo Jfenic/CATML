@@ -359,6 +359,8 @@ class AnalysisStudyService:
             feature_names=candidate_spec.feature_names,
             model_ids=candidate_spec.model_ids,
             hypothesis=candidate_spec.hypothesis_text,
+            column_transforms=list(candidate_spec.column_transforms),
+            derived_features=list(candidate_spec.derived_features),
         )
 
         candidate_results = workspace.run_experiment(run, candidate_exp)

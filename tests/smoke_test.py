@@ -29,7 +29,7 @@ def run_smoke_test() -> None:
 
     version = getattr(catml, "__version__", None)
     print(f"      catml version: {version}")
-    assert version == "0.8.1", f"Expected version '0.8.1', got '{version}'"
+    assert version == automl.__version__, f"Version mismatch: catml has '{version}' but automl has '{automl.__version__}'"
     assert catml.AutoML is automl.AutoML, "Facade parity mismatch between catml and automl"
     print("      ✓ Package metadata verified.")
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from automl.domain.jobs.job import Job, JobStatus
@@ -39,6 +39,8 @@ class TrialExecution:
     cv_folds: int
     random_seed: int
     group_column: str | None = None
+    column_transforms: list[dict[str, Any]] = field(default_factory=list)
+    derived_features: list[dict[str, Any]] = field(default_factory=list)
 
 
 class TrainerPort(Protocol):
@@ -264,3 +266,12 @@ class JobRepositoryPort(Protocol):
     def finish(self, job_id: str, status: "JobStatus", **changes: Any) -> "Job": ...
     def claim(self) -> "Job | None": ...
     def recover(self) -> None: ...
+
+
+class ExperimentRecipeRepositoryPort(Protocol):
+    """Persistence port for ExperimentRecipe entities."""
+    def save(self, recipe: Any) -> None: ...
+    def get(self, recipe_id: str) -> Any | None: ...
+    def list(self, dataset_id: str | None = None, status: str | None = None) -> list[Any]: ...
+    def delete(self, recipe_id: str) -> None: ...
+

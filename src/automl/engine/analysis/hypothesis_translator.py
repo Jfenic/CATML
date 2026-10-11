@@ -15,6 +15,8 @@ class ExperimentCandidateSpec:
     model_ids: list[str]
     hypothesis_text: str
     action_type: str
+    column_transforms: tuple[dict[str, Any], ...] = ()
+    derived_features: tuple[dict[str, Any], ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -37,6 +39,13 @@ class HypothesisExperimentTranslator:
 
         candidate_name = f"hyp_{hypothesis.id[:8]}"
         metadata: dict[str, Any] = {"hypothesis_id": hypothesis.id, "action": action}
+        column_transforms: list[dict[str, Any]] = []
+        derived_features: list[dict[str, Any]] = []
+
+        if "derived_features" in delta and isinstance(delta["derived_features"], list):
+            derived_features.extend(delta["derived_features"])
+        if "column_transforms" in delta and isinstance(delta["column_transforms"], list):
+            column_transforms.extend(delta["column_transforms"])
 
         # 1. Custom / Explicit Delta Overrides
         if "features" in delta and isinstance(delta["features"], list) and delta["features"]:
@@ -80,19 +89,54 @@ class HypothesisExperimentTranslator:
 
         elif action == "power_transform":
             col = delta.get("column")
-            transform = delta.get("transform", "yeo_johnson")
-            candidate_name = f"power_transform_{col or 'var'}"
-            metadata["transform"] = transform
+            transform = str(delta.get("transform", "yeo_johnson")).lower()
+            if col and col in features:
+                if transform == "log1p":
+                    derived_col = f"{col}_log1p"
+                    features = [derived_col if f == col else f for f in features]
+                    derived_spec = {
+                        "name": derived_col,
+                        "expression_type": "formula",
+                        "expression": f"log1p({col})",
+                        "source_columns": [col],
+                    }
+                    derived_features.append(derived_spec)
+                    candidate_name = f"log1p_{col}"
+                    metadata["transform"] = "log1p"
+                    metadata["derived_features"] = [derived_spec]
+                else:
+                    ct_spec = {"column": col, "kind": "yeo_johnson", "params": {}}
+                    column_transforms.append(ct_spec)
+                    candidate_name = f"power_transform_{col}"
+                    metadata["transform"] = "yeo_johnson"
+                    metadata["column_transforms"] = [ct_spec]
+            else:
+                candidate_name = f"power_transform_{col or 'var'}"
+                metadata["transform"] = transform
 
         elif action == "robust_scaler":
             col = delta.get("column")
-            candidate_name = f"robust_scale_{col or 'var'}"
-            metadata["scaler"] = "robust"
+            if col and col in features:
+                ct_spec = {"column": col, "kind": "robust_scaler", "params": {}}
+                column_transforms.append(ct_spec)
+                candidate_name = f"robust_scale_{col}"
+                metadata["scaler"] = "robust"
+                metadata["column_transforms"] = [ct_spec]
+            else:
+                candidate_name = f"robust_scale_{col or 'var'}"
+                metadata["scaler"] = "robust"
 
         elif action == "discretize_or_cluster":
             col = delta.get("column")
-            candidate_name = f"discretize_{col or 'var'}"
-            metadata["discretize"] = True
+            if col and col in features:
+                ct_spec = {"column": col, "kind": "quantile_discretizer", "params": {"n_bins": 5}}
+                column_transforms.append(ct_spec)
+                candidate_name = f"discretize_{col}"
+                metadata["discretize"] = True
+                metadata["column_transforms"] = [ct_spec]
+            else:
+                candidate_name = f"discretize_{col or 'var'}"
+                metadata["discretize"] = True
 
         elif action == "categorical_interaction":
             pair = delta.get("interaction_pair")
@@ -114,6 +158,8 @@ class HypothesisExperimentTranslator:
             model_ids=models,
             hypothesis_text=hypothesis.description,
             action_type=action,
+            column_transforms=tuple(column_transforms),
+            derived_features=tuple(derived_features),
             metadata=metadata,
         )
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="es" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,7 +51,7 @@
   <!-- Top Mission Control Bar -->
   <header class="bg-[#0D1017] border-b border-[#242A36] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
     <div class="flex items-center space-x-6">
-      <button id="btnToggleMobileSidebar" class="md:hidden text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded-lg border border-[#242A36] hover:bg-[#161B26] transition-colors" aria-label="Abrir menú">
+      <button id="btnToggleMobileSidebar" class="md:hidden text-[#8B95A7] hover:text-[#F7F8FA] p-1.5 rounded-lg border border-[#242A36] hover:bg-[#161B26] transition-colors" aria-label="Abrir menú de navegación">
         <i data-lucide="menu" class="icon icon-sm"></i>
       </button>
 
@@ -61,34 +61,34 @@
       </div>
 
       <div class="hidden md:flex items-center space-x-2 text-xs border-l border-[#242A36] pl-6 font-sans">
-        <span class="text-[#8B95A7] text-[11px] uppercase tracking-wider font-mono">PROJECT:</span>
-        <span id="projectNameLabel" class="font-medium text-[#F7F8FA]">Active Workspace</span>
+        <span class="text-[#8B95A7] text-[11px] uppercase tracking-wider font-mono">PROYECTO:</span>
+        <span id="projectNameLabel" class="font-medium text-[#F7F8FA]">Espacio de Trabajo Activo</span>
       </div>
 
       <div class="hidden lg:flex items-center space-x-3 text-xs border-l border-[#242A36] pl-6">
         <span id="globalStatusBadge" class="badge-gain px-2.5 py-0.5 rounded-md font-mono text-[11px] font-medium flex items-center space-x-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-          <span>READY</span>
+          <span>LISTO</span>
         </span>
-        <span id="sysHardwareHeader" class="text-[11px] text-[#8B95A7] font-sans">Engine Online</span>
+        <span id="sysHardwareHeader" class="text-[11px] text-[#8B95A7] font-sans">Motor Activo</span>
       </div>
     </div>
 
     <!-- Actions & Agent Button -->
     <div class="flex items-center space-x-3 text-xs">
       <div class="hidden sm:flex items-center space-x-1.5 bg-[#11151E] px-3 py-1.5 rounded-lg border border-[#242A36] text-[#8B95A7] font-mono text-[11px]">
-        <span class="text-[#8B95A7]/70">WORKSPACE:</span>
-        <span id="workspaceLabel" class="text-[#4F67FF] font-semibold truncate max-w-xs">Connecting...</span>
+        <span class="text-[#8B95A7]/70">ESPACIO:</span>
+        <span id="workspaceLabel" class="text-[#4F67FF] font-semibold truncate max-w-xs">Conectando...</span>
       </div>
 
-      <button id="btnRefresh" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] px-3 py-1.5 rounded-lg border border-[#242A36] font-sans font-medium transition-colors text-xs flex items-center space-x-1.5">
+      <button id="btnRefresh" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] px-3 py-1.5 rounded-lg border border-[#242A36] font-sans font-medium transition-colors text-xs flex items-center space-x-1.5" aria-label="Sincronizar estado del laboratorio">
         <i data-lucide="refresh-cw" class="icon icon-sm"></i>
-        <span>Sync</span>
+        <span>Sincronizar</span>
       </button>
 
-      <button id="btnToggleAgent" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] hover:border-[#4F67FF]/50 px-3.5 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-2 transition-all text-xs">
+      <button id="btnToggleAgent" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] hover:border-[#4F67FF]/50 px-3.5 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-2 transition-all text-xs" aria-label="Abrir panel del asistente copiloto">
         <i data-lucide="bot" class="icon text-[#4F67FF]"></i>
-        <span>Agent</span>
+        <span>Agente</span>
         <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
       </button>
     </div>
@@ -97,7 +97,7 @@
   <!-- App Body: Sidebar + Main Canvas -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Navigation Sidebar -->
-    <aside id="sidebarNav" class="w-64 bg-[#0D1017] border-r border-[#242A36] p-3 flex flex-col justify-between hidden md:flex transition-all duration-200">
+    <aside id="sidebarNav" role="navigation" aria-label="Navegación principal" class="w-64 bg-[#0D1017] border-r border-[#242A36] p-3 flex flex-col justify-between hidden md:flex transition-all duration-200">
       <div class="space-y-2">
         <!-- Laboratorio Local Context Header -->
         <div class="px-2 pt-1 pb-2 border-b border-[#242A36]">
@@ -112,10 +112,10 @@
           <div class="bg-[#11151E] border border-[#242A36] rounded-xl p-3 space-y-1.5">
             <div class="text-[10px] font-mono text-[#8B95A7] uppercase tracking-wider flex items-center justify-between">
               <span>Dataset activo</span>
-              <span id="sidebarDatasetBadge" class="w-1.5 h-1.5 rounded-full bg-[#4F67FF]"></span>
+              <span id="sidebarDatasetBadge" class="w-1.5 h-1.5 rounded-full bg-[#8B95A7]"></span>
             </div>
-            <div id="sidebarActiveDatasetName" class="font-sans font-bold text-sm text-[#F7F8FA] truncate" title="Cargando dataset...">
-              Cargando dataset...
+            <div id="sidebarActiveDatasetName" class="font-sans font-bold text-sm text-[#F7F8FA] truncate" title="Sin dataset activo">
+              Sin dataset activo
             </div>
             <button id="btnSidebarSwitchDataset" class="w-full mt-1 bg-[#161B26] hover:bg-[#1E2536] text-[#4F67FF] hover:text-[#53C8FF] border border-[#242A36] hover:border-[#4F67FF]/40 rounded-lg py-1.5 px-2 text-[11px] font-sans font-medium transition-all flex items-center justify-center space-x-1.5">
               <i data-lucide="layers" class="icon icon-sm"></i>
@@ -125,32 +125,32 @@
         </div>
 
         <div class="text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 py-1">
-          Navegación
+          Flujo de Trabajo
         </div>
 
         <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="home">
-          <span class="nav-num">01</span>
+          <span class="nav-num">00</span>
           <span class="font-sans font-medium">Inicio</span>
         </a>
 
         <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="dataset">
-          <span class="nav-num">02</span>
-          <span class="font-sans font-medium">Dataset</span>
+          <span class="nav-num">01</span>
+          <span class="font-sans font-medium">Datos (Dataset)</span>
         </a>
 
         <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="explore">
-          <span class="nav-num">03</span>
+          <span class="nav-num">02</span>
           <span class="font-sans font-medium">Exploración</span>
         </a>
 
         <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="experiments">
-          <span class="nav-num">04</span>
+          <span class="nav-num">03</span>
           <span class="font-sans font-medium">Experimentos</span>
         </a>
 
         <a href="#" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all" data-nav="evidence">
-          <span class="nav-num">05</span>
-          <span class="font-sans font-medium">Evidencia</span>
+          <span class="nav-num">04</span>
+          <span class="font-sans font-medium">Resultados & Evidencia</span>
         </a>
 
         <div class="pt-3 pb-1 text-[11px] font-sans font-medium uppercase tracking-wider text-[#8B95A7] px-3 border-t border-[#242A36] mt-3">
@@ -162,7 +162,7 @@
             <i data-lucide="bot" class="icon text-[#4F67FF]"></i>
             <span class="font-sans font-medium">Asistente</span>
           </div>
-          <span class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">v0.8.2</span>
+          <span id="sidebarAgentBadge" class="badge-sys text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">v0.9.0-rc1</span>
         </a>
 
         <a href="#" class="nav-item flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all" data-nav="compare">
@@ -177,7 +177,7 @@
       <div class="pt-3 border-t border-[#242A36] text-[11px] text-[#8B95A7] space-y-1 font-mono">
         <div class="flex justify-between">
           <span class="font-sans text-[#8B95A7]">CATML Workbench</span>
-          <span class="text-[#F7F8FA] font-medium">v0.8.2</span>
+          <span id="sidebarVersionLabel" class="text-[#F7F8FA] font-medium">v0.9.0-rc1</span>
         </div>
         <div class="text-[10px] text-[#8B95A7]/60">LABORATORIO • HEXAGONAL CQRS</div>
       </div>

@@ -17,7 +17,7 @@ import { store } from "../store.js";
 import { bus } from "../bus.js";
 import { api } from "../api.js";
 import { icon } from "../icons.js";
-import { escapeHtml } from "../utils.js";
+import { escapeHtml, getTransformationStageInfo } from "../utils.js";
 
 export class ExploreView {
   constructor() {
@@ -30,6 +30,7 @@ export class ExploreView {
     this.visualizations = [];
     this.hypotheses = [];
     this.evidence = [];
+    this.recipes = [];
     this.verifyingHypothesisId = null;
     this.loading = true;
     this.runningStudy = false;
@@ -99,6 +100,8 @@ export class ExploreView {
         this.hypotheses = [];
         this.evidence = [];
       }
+
+      this.recipes = await api.getRecipes(this.activeDatasetId).catch(() => []);
     } catch (err) {
       console.error("ExploreView fetch error:", err);
     } finally {
@@ -107,10 +110,16 @@ export class ExploreView {
   }
 
   _getFilteredFindings() {
-    return this.findings.filter(f => {
+    const severityWeight = {
+      CRITICAL: 3,
+      WARNING: 2,
+      INFO: 1,
+    };
+
+    const list = this.findings.filter(f => {
       // Category filter
       if (this.filterCategory === "COLLINEARITY" && f.finding_type !== "high_collinearity") return false;
-      if (this.filterCategory === "DISTRIBUTION" && !["skewness", "normality_violation", "multimodal_distribution", "outlier_density"].includes(f.finding_type)) return false;
+      if (this.filterCategory === "DISTRIBUTION" && !["skewness", "normality_violation", "multimodal_distribution", "outlier_density", "multivariate_outliers"].includes(f.finding_type)) return false;
       if (this.filterCategory === "CATEGORICAL" && f.finding_type !== "categorical_association") return false;
       if (this.filterCategory === "TARGET" && !["target_class_separation", "target_correlation"].includes(f.finding_type)) return false;
 
@@ -126,11 +135,31 @@ export class ExploreView {
 
       return true;
     });
+
+    // Ordenar por importancia: Severidad (CRITICAL > WARNING > INFO), significancia FDR y magnitud del efecto
+    return list.sort((a, b) => {
+      const sevA = severityWeight[this._classifySeverity(a)] || 0;
+      const sevB = severityWeight[this._classifySeverity(b)] || 0;
+      if (sevA !== sevB) return sevB - sevA;
+
+      const fdrA = a.metrics?.fdr_significant ? 1 : 0;
+      const fdrB = b.metrics?.fdr_significant ? 1 : 0;
+      if (fdrA !== fdrB) return fdrB - fdrA;
+
+      const effA = Math.abs(Number(a.effect_size != null ? a.effect_size : (a.metrics?.pearson_r ?? a.metrics?.cramers_v ?? a.metrics?.cohens_d ?? 0)));
+      const effB = Math.abs(Number(b.effect_size != null ? b.effect_size : (b.metrics?.pearson_r ?? b.metrics?.cramers_v ?? b.metrics?.cohens_d ?? 0)));
+      return effB - effA;
+    });
   }
 
   _classifySeverity(f) {
-    if (["high_collinearity", "multivariate_outliers"].includes(f.finding_type)) return "CRITICAL";
-    if (["skewness", "outlier_density", "categorical_association"].includes(f.finding_type)) return "WARNING";
+    const type = f?.finding_type || "";
+    if (["high_collinearity", "multivariate_outliers", "high_cardinality_identifier"].includes(type)) {
+      return "CRITICAL";
+    }
+    if (["skewness", "outlier_density", "categorical_association", "multimodal_distribution", "target_class_separation"].includes(type)) {
+      return "WARNING";
+    }
     return "INFO";
   }
 
@@ -189,9 +218,9 @@ export class ExploreView {
             <div class="border-t border-[#242A36] pt-3 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center space-x-2">
                 <span class="text-xs font-sans text-[#8B95A7]">Estudio activo:</span>
-                <select id="selectActiveStudy" class="input-base text-xs font-mono py-1 px-2.5 max-w-xs">
+                <select id="selectActiveStudy" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none max-w-sm cursor-pointer shadow-sm">
                   ${this.studies.map(s => `
-                    <option value="${s.id}" ${s.id === this.selectedStudyId ? "selected" : ""}>
+                    <option value="${s.id}" class="bg-[#161B26] text-[#F7F8FA]" ${s.id === this.selectedStudyId ? "selected" : ""}>
                       ${escapeHtml(s.name)} [${s.status}]
                     </option>
                   `).join("")}
@@ -252,20 +281,20 @@ export class ExploreView {
               <!-- Filter chips -->
               <div class="flex flex-wrap items-center gap-2 text-xs font-sans">
                 <!-- Category select -->
-                <select id="filterCategorySelect" class="input-base text-xs py-1 px-2 font-mono">
-                  <option value="ALL" ${this.filterCategory === "ALL" ? "selected" : ""}>Todas las categorías</option>
-                  <option value="COLLINEARITY" ${this.filterCategory === "COLLINEARITY" ? "selected" : ""}>Colinealidad</option>
-                  <option value="DISTRIBUTION" ${this.filterCategory === "DISTRIBUTION" ? "selected" : ""}>Distribución / Outliers</option>
-                  <option value="CATEGORICAL" ${this.filterCategory === "CATEGORICAL" ? "selected" : ""}>Asociación Categórica</option>
-                  <option value="TARGET" ${this.filterCategory === "TARGET" ? "selected" : ""}>Separación Objetivo</option>
+                <select id="filterCategorySelect" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none cursor-pointer shadow-sm">
+                  <option value="ALL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "ALL" ? "selected" : ""}>Todas las categorías</option>
+                  <option value="COLLINEARITY" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "COLLINEARITY" ? "selected" : ""}>Colinealidad</option>
+                  <option value="DISTRIBUTION" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "DISTRIBUTION" ? "selected" : ""}>Distribución / Outliers</option>
+                  <option value="CATEGORICAL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "CATEGORICAL" ? "selected" : ""}>Asociación Categórica</option>
+                  <option value="TARGET" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterCategory === "TARGET" ? "selected" : ""}>Separación Objetivo</option>
                 </select>
 
                 <!-- Severity select -->
-                <select id="filterSeveritySelect" class="input-base text-xs py-1 px-2 font-mono">
-                  <option value="ALL" ${this.filterSeverity === "ALL" ? "selected" : ""}>Toda severidad</option>
-                  <option value="CRITICAL" ${this.filterSeverity === "CRITICAL" ? "selected" : ""}>Críticos</option>
-                  <option value="WARNING" ${this.filterSeverity === "WARNING" ? "selected" : ""}>Advertencias</option>
-                  <option value="INFO" ${this.filterSeverity === "INFO" ? "selected" : ""}>Informativos</option>
+                <select id="filterSeveritySelect" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none cursor-pointer shadow-sm">
+                  <option value="ALL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "ALL" ? "selected" : ""}>Toda severidad</option>
+                  <option value="CRITICAL" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "CRITICAL" ? "selected" : ""}>Críticos</option>
+                  <option value="WARNING" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "WARNING" ? "selected" : ""}>Advertencias</option>
+                  <option value="INFO" class="bg-[#161B26] text-[#F7F8FA]" ${this.filterSeverity === "INFO" ? "selected" : ""}>Informativos</option>
                 </select>
 
                 <!-- FDR toggle -->
@@ -290,6 +319,9 @@ export class ExploreView {
 
           <!-- Section 3: Hipótesis de ML y Evidencia Empírica (Hypothesis Engine) -->
           ${this._renderHypothesesAndEvidenceHtml()}
+
+          <!-- Section 4: Recetas de Experimentos Reproducibles (Experiment Recipes) -->
+          ${this._renderRecipesSectionHtml()}
         ` : ""}
 
         <!-- Create Study Modal -->
@@ -339,9 +371,10 @@ export class ExploreView {
   }
 
   _renderCorrelationMatrixHtml(viz) {
-    const cols = viz.data?.columns || [];
+    const series = viz.data_series || viz.data || {};
+    const cols = series.columns || [];
     const isSpearman = this.matrixMethod === "spearman";
-    const matrix = isSpearman ? (viz.data?.spearman_matrix || viz.data?.matrix || []) : (viz.data?.matrix || []);
+    const matrix = isSpearman ? (series.spearman_matrix || series.matrix || []) : (series.matrix || []);
 
     return `
       <div class="space-y-3">
@@ -389,8 +422,8 @@ export class ExploreView {
                     }
 
                     return `
-                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${val.toFixed(3)}">
-                        ${val.toFixed(2)}
+                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${Number(val).toFixed(3)}">
+                        ${Number(val).toFixed(2)}
                       </td>
                     `;
                   }).join("")}
@@ -404,8 +437,9 @@ export class ExploreView {
   }
 
   _renderCategoricalMatrixHtml(viz) {
-    const cols = viz.data?.columns || [];
-    const matrix = viz.data?.matrix || [];
+    const series = viz.data_series || viz.data || {};
+    const cols = series.columns || [];
+    const matrix = series.matrix || [];
 
     return `
       <div class="space-y-3">
@@ -438,8 +472,8 @@ export class ExploreView {
                     let textColor = val > 0.4 && !isDiag ? "#FFFFFF" : "#F7F8FA";
 
                     return `
-                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${val >= 0.40 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${val.toFixed(3)}">
-                        ${val.toFixed(2)}
+                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border-b border-r border-[#242A36] font-mono ${val >= 0.40 && !isDiag ? 'font-bold' : ''}" title="${escapeHtml(rowName)} vs ${escapeHtml(colName)}: ${Number(val).toFixed(3)}">
+                        ${Number(val).toFixed(2)}
                       </td>
                     `;
                   }).join("")}
@@ -453,21 +487,24 @@ export class ExploreView {
   }
 
   _renderHistogramSvgHtml(viz) {
-    const counts = viz.data?.counts || [];
-    const edges = viz.data?.bin_edges || [];
-    const maxCount = Math.max(...counts, 1);
+    const series = viz.data_series || viz.data || {};
+    const counts = series.counts || [];
+    const edges = series.bin_edges || [];
+    const maxCount = counts.length > 0 ? Math.max(...counts, 1) : 1;
     const svgWidth = 600;
     const svgHeight = 180;
     const padding = 30;
     const chartWidth = svgWidth - padding * 2;
     const chartHeight = svgHeight - padding * 2;
     const barWidth = counts.length > 0 ? chartWidth / counts.length : 10;
+    const mean = series.mean != null ? Number(series.mean).toFixed(2) : "-";
+    const std = series.std != null ? Number(series.std).toFixed(2) : "-";
 
     return `
       <div class="space-y-2 p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
         <div class="flex items-center justify-between text-xs font-mono">
           <span class="text-[#F7F8FA] font-medium">${viz.title || "Histograma"}</span>
-          <span class="text-[#8B95A7]">Media: ${viz.data?.mean || "-"} · Desv: ${viz.data?.std || "-"}</span>
+          <span class="text-[#8B95A7]">Media: ${mean} · Desv: ${std}</span>
         </div>
 
         <div class="w-full overflow-x-auto flex justify-center">
@@ -482,9 +519,11 @@ export class ExploreView {
               const barHeight = (c / maxCount) * chartHeight;
               const x = padding + i * barWidth;
               const y = padding + chartHeight - barHeight;
+              const edgeLow = edges[i] != null ? Number(edges[i]).toFixed(1) : "";
+              const edgeHigh = edges[i+1] != null ? Number(edges[i+1]).toFixed(1) : "";
               return `
                 <rect x="${x + 2}" y="${y}" width="${Math.max(1, barWidth - 4)}" height="${barHeight}" fill="#4F67FF" rx="2" opacity="0.85">
-                  <title>Bin [${edges[i]} - ${edges[i+1]}]: ${c} observaciones</title>
+                  <title>Bin [${edgeLow} - ${edgeHigh}]: ${c} observaciones</title>
                 </rect>
               `;
             }).join("")}
@@ -495,13 +534,12 @@ export class ExploreView {
   }
 
   _renderBoxplotSvgHtml(viz) {
-    const data = viz.data || {};
-    const q25 = data.q25 || 0;
-    const med = data.median || 0;
-    const q75 = data.q75 || 0;
-    const wLow = data.whisker_low || 0;
-    const wHigh = data.whisker_high || 0;
-    const range = Math.max(1e-6, wHigh - wLow);
+    const data = viz.data_series || viz.data || {};
+    const q25 = data.q25 != null ? Number(data.q25).toFixed(2) : 0;
+    const med = data.median != null ? Number(data.median).toFixed(2) : 0;
+    const q75 = data.q75 != null ? Number(data.q75).toFixed(2) : 0;
+    const wLow = data.whisker_low != null ? Number(data.whisker_low).toFixed(2) : 0;
+    const wHigh = data.whisker_high != null ? Number(data.whisker_high).toFixed(2) : 0;
 
     return `
       <div class="space-y-2 p-4 bg-[#090C12] rounded-lg border border-[#242A36]">
@@ -521,8 +559,9 @@ export class ExploreView {
   }
 
   _renderScatterSvgHtml(viz) {
-    const xPoints = viz.data?.x_points || [];
-    const yPoints = viz.data?.y_points || [];
+    const series = viz.data_series || viz.data || {};
+    const xPoints = series.x_points || [];
+    const yPoints = series.y_points || [];
     const n = Math.min(xPoints.length, yPoints.length);
     if (n === 0) return `<div class="text-xs text-[#8B95A7] p-4">Sin datos de dispersión.</div>`;
 
@@ -538,12 +577,13 @@ export class ExploreView {
     const padding = 30;
     const chartWidth = svgWidth - padding * 2;
     const chartHeight = svgHeight - padding * 2;
+    const pearsonR = series.pearson_r != null ? Number(series.pearson_r).toFixed(3) : "-";
 
     return `
       <div class="space-y-2 p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
         <div class="flex items-center justify-between text-xs font-mono">
           <span class="text-[#F7F8FA] font-medium">${viz.title || "Dispersión"}</span>
-          <span class="text-[#53C8FF]">Pearson r = ${viz.data?.pearson_r || "-"}</span>
+          <span class="text-[#53C8FF]">Pearson r = ${pearsonR}</span>
         </div>
 
         <div class="w-full overflow-x-auto flex justify-center">
@@ -567,7 +607,10 @@ export class ExploreView {
     const sev = this._classifySeverity(f);
     const sevBadge = sev === "CRITICAL" ? "badge-err" : sev === "WARNING" ? "badge-warn" : "badge-sys";
     const fdrSig = f.metrics && f.metrics.fdr_significant === true;
-    const fdrVal = f.metrics && f.metrics.p_value_fdr != null ? f.metrics.p_value_fdr : null;
+    const fdrVal = (f.metrics && f.metrics.p_value_fdr != null) ? Number(f.metrics.p_value_fdr) : null;
+    const effect = f.effect_size != null
+      ? Number(f.effect_size)
+      : (f.metrics && (f.metrics.pearson_r ?? f.metrics.cramers_v ?? f.metrics.cohens_d ?? f.metrics.bimodal_coefficient));
 
     return `
       <div class="p-4 rounded-xl bg-[#090C12] border border-[#242A36] space-y-3 hover:border-[#384355] transition-colors flex flex-col justify-between">
@@ -575,13 +618,13 @@ export class ExploreView {
           <div class="flex items-start justify-between gap-2">
             <span class="text-xs font-mono font-bold text-[#F7F8FA]">${escapeHtml(f.finding_type || "HALLAZGO")}</span>
             <div class="flex items-center space-x-1.5">
-              ${fdrVal != null ? `
+              ${fdrVal != null && Number.isFinite(fdrVal) ? `
                 <span class="${fdrSig ? 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30' : 'text-amber-400 bg-amber-400/10 border-amber-400/30'} border text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">
                   ${fdrSig ? 'FDR p < 0.05' : `FDR p=${fdrVal.toFixed(3)}`}
                 </span>
               ` : ""}
               <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                ${sev}
+                ${escapeHtml(sev)}
               </span>
             </div>
           </div>
@@ -603,11 +646,18 @@ export class ExploreView {
             ${f.secondary_column ? `<span class="text-[11px] font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded border border-[#242A36]">${escapeHtml(f.secondary_column)}</span>` : ""}
           </div>
 
-          ${f.effect_size != null ? `
-            <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20">
-              Efecto = ${Number(f.effect_size).toFixed(3)}
-            </span>
-          ` : ""}
+          <div class="flex items-center gap-1.5 ml-auto">
+            ${effect != null && Number.isFinite(Number(effect)) ? `
+              <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20">
+                Efecto = ${Number(effect).toFixed(3)}
+              </span>
+            ` : ""}
+            ${f.p_value != null && Number.isFinite(Number(f.p_value)) ? `
+              <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
+                p = ${Number(f.p_value) < 0.0001 ? Number(f.p_value).toExponential(2) : Number(f.p_value).toFixed(4)}
+              </span>
+            ` : ""}
+          </div>
         </div>
       </div>
     `;
@@ -665,6 +715,7 @@ export class ExploreView {
                     <th class="p-2.5 text-center">Métrica</th>
                     <th class="p-2.5 text-center">Veredicto</th>
                     <th class="p-2.5 text-left">Detalle / Notas</th>
+                    <th class="p-2.5 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -684,6 +735,15 @@ export class ExploreView {
                       <td class="p-2.5 text-left text-[11px] font-sans text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(ev.notes || "")}">
                         ${escapeHtml(ev.notes || "-")}
                       </td>
+                      <td class="p-2.5 text-center whitespace-nowrap">
+                        ${ev.accepted ? `
+                          <button class="btn-create-recipe px-2 py-1 rounded text-[10px] font-mono font-medium bg-[#4F67FF]/20 text-[#53C8FF] hover:bg-[#4F67FF]/30 border border-[#4F67FF]/40 inline-flex items-center gap-1 transition-colors" data-ev-id="${escapeHtml(ev.id)}">
+                            ${icon("plus", "icon-xs")} Crear Receta
+                          </button>
+                        ` : `
+                          <span class="text-[#8B95A7]/40 text-[10px]">—</span>
+                        `}
+                      </td>
                     </tr>
                   `).join("")}
                 </tbody>
@@ -691,6 +751,99 @@ export class ExploreView {
             </div>
           </div>
         ` : ""}
+      </div>
+    `;
+  }
+
+  _renderRecipesSectionHtml() {
+    return `
+      <div class="workbench-card p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#242A36] pb-3 gap-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-[#4F67FF]">${icon("recipe", "icon-sm")}</span>
+            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Recetas de Experimentos Reproducibles</h4>
+            <span class="badge-sys text-[10px] font-mono">${this.recipes.length} registradas • ${this.recipes.filter(r => r.status === 'promoted').length} promovidas</span>
+          </div>
+          <span class="text-[11px] font-mono text-[#8B95A7]">Transforms Fit-in-Fold sin Fuga</span>
+        </div>
+
+        <p class="text-xs text-[#8B95A7] font-sans">
+          Las <strong>Experiment Recipes</strong> formalizan hipótesis validadas empíricamente en pipelines de producción reproducibles. Incorporan transformaciones fit-in-fold (<code class="text-[#53C8FF]">RobustScaler</code>, <code class="text-[#53C8FF]">PowerTransformer (Yeo-Johnson)</code>, <code class="text-[#53C8FF]">log1p</code>) con trazabilidad estricta a sus evidencias.
+        </p>
+
+        ${this.recipes.length === 0 ? `
+          <div class="p-6 text-center text-[#8B95A7] font-sans text-xs bg-[#090C12] rounded-lg border border-[#242A36] space-y-2">
+            <div class="text-[#8B95A7]/40 flex justify-center">${icon("recipe", "icon-lg")}</div>
+            <p>No hay recetas creadas aún para este dataset.</p>
+            <p class="text-[11px] text-[#8B95A7]/80">Verifica una hipótesis empírica arriba y pulsa <strong>«Crear Receta»</strong> en los enlaces de evidencia aceptados para formalizar un pipeline reproducible.</p>
+          </div>
+        ` : `
+          <div class="overflow-x-auto border border-[#242A36] rounded-lg">
+            <table class="w-full text-xs font-mono border-collapse">
+              <thead>
+                <tr class="bg-[#090C12] text-[#8B95A7] border-b border-[#242A36]">
+                  <th class="p-2.5 text-left">Receta ID</th>
+                  <th class="p-2.5 text-left">Nombre</th>
+                  <th class="p-2.5 text-center">Estado</th>
+                  <th class="p-2.5 text-left">Transformaciones</th>
+                  <th class="p-2.5 text-left">Modelos</th>
+                  <th class="p-2.5 text-left">Evidencia Origen</th>
+                  <th class="p-2.5 text-left">Experimentos</th>
+                  <th class="p-2.5 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${this.recipes.map(r => {
+                  const stageInfo = getTransformationStageInfo(r.status);
+                  const transformsList = [
+                    ...(r.column_transforms || []).map(t => `${t.column}: ${t.kind}`),
+                    ...(r.derived_features || []).map(d => `${d.name || d.expression}`),
+                  ];
+                  const transformText = transformsList.length > 0 ? transformsList.join(", ") : "Ninguna (Base)";
+
+                  return `
+                    <tr class="border-b border-[#1C2230] hover:bg-[#11151E]">
+                      <td class="p-2.5 text-[#53C8FF] font-bold">${escapeHtml(r.id)}</td>
+                      <td class="p-2.5 text-[#F7F8FA] font-sans font-medium">${escapeHtml(r.name || "-")}</td>
+                      <td class="p-2.5 text-center">
+                        <span class="${stageInfo.badgeClass} border text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                          ${escapeHtml(stageInfo.label)}
+                        </span>
+                      </td>
+                      <td class="p-2.5 text-[#8B95A7] max-w-xs truncate" title="${escapeHtml(transformText)}">
+                        ${escapeHtml(transformText)}
+                      </td>
+                      <td class="p-2.5 text-[#F7F8FA]">${escapeHtml((r.model_ids || []).join(", ") || "default")}</td>
+                      <td class="p-2.5 text-[#8B95A7]">
+                        ${r.evidence_link_id ? `<span class="text-[#53C8FF]">${escapeHtml(r.evidence_link_id)}</span>` : "-"}
+                      </td>
+                      <td class="p-2.5 text-[#8B95A7]">
+                        ${(r.experiment_ids && r.experiment_ids.length > 0) ? r.experiment_ids.map(eid => `<span class="text-indigo-400 mr-1">${escapeHtml(eid)}</span>`).join("") : '<span class="text-[#8B95A7]/60">Sin ejecutar</span>'}
+                      </td>
+                      <td class="p-2.5 text-right whitespace-nowrap space-x-1">
+                        ${r.status === "draft" ? `
+                          <button class="btn-select-recipe px-2 py-1 rounded text-[11px] font-mono bg-[#6956E8]/20 text-[#6956E8] hover:bg-[#6956E8]/30 border border-[#6956E8]/40 transition-colors" data-recipe-id="${escapeHtml(r.id)}">Seleccionar</button>
+                        ` : ""}
+                        ${r.status !== "archived" && r.status !== "promoted" ? `
+                          <button class="btn-submit-recipe px-2.5 py-1 rounded text-[11px] font-mono bg-[#4F67FF] text-white hover:bg-[#4F67FF]/80 inline-flex items-center gap-1 transition-colors" data-recipe-id="${escapeHtml(r.id)}">${icon("play", "icon-xs")} Entrenar</button>
+                        ` : ""}
+                        ${r.status === "submitted" ? `
+                          <button class="btn-promote-recipe px-2 py-1 rounded text-[11px] font-mono bg-[#22C55E]/20 text-[#22C55E] hover:bg-[#22C55E]/30 border border-[#22C55E]/40 inline-flex items-center gap-1 transition-colors" data-recipe-id="${escapeHtml(r.id)}">${icon("shield-check", "icon-xs")} Promover</button>
+                        ` : ""}
+                        ${r.status === "promoted" ? `
+                          <span class="text-[11px] font-mono text-[#22C55E] inline-flex items-center gap-1 mr-1.5">${icon("check-circle-2", "icon-xs")} Producción</span>
+                        ` : ""}
+                        ${r.status !== "archived" ? `
+                          <button class="btn-archive-recipe p-1 rounded text-[#8B95A7] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" data-recipe-id="${escapeHtml(r.id)}" title="Archivar receta">${icon("x", "icon-xs")}</button>
+                        ` : ""}
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
       </div>
     `;
   }
@@ -748,12 +901,12 @@ export class ExploreView {
           <div class="space-y-4 text-xs font-sans">
             <div class="space-y-1.5">
               <label class="font-medium text-[#F7F8FA]">Nombre del Estudio</label>
-              <input id="inputStudyName" type="text" class="input-base w-full text-xs" value="Estudio de Diagnóstico Completo" />
+              <input id="inputStudyName" type="text" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] w-full text-xs rounded-lg px-3 py-2 outline-none focus:border-[#4F67FF]" value="Estudio de Diagnóstico Completo" />
             </div>
 
             <div class="space-y-1.5">
               <label class="font-medium text-[#F7F8FA]">Columna Objetivo (Opcional)</label>
-              <input id="inputTargetCol" type="text" class="input-base w-full text-xs font-mono" placeholder="Dejar vacío para modo no supervisado" />
+              <input id="inputTargetCol" type="text" class="input-base bg-[#161B26] border border-[#242A36] text-[#F7F8FA] w-full text-xs font-mono rounded-lg px-3 py-2 outline-none focus:border-[#4F67FF]" placeholder="Dejar vacío para modo no supervisado" />
               <p class="text-[11px] text-[#8B95A7]">Si se especifica, se ejecutarán pruebas inferenciales contra el target (ANOVA / Welch t-test).</p>
             </div>
           </div>
@@ -885,6 +1038,96 @@ export class ExploreView {
         } finally {
           this.verifyingHypothesisId = null;
           this.render();
+        }
+      });
+    });
+
+    // Recipe: Create from Evidence
+    document.querySelectorAll(".btn-create-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const evId = e.currentTarget.getAttribute("data-ev-id");
+        if (!evId) return;
+        const name = prompt("Nombre descriptivo para la receta:", `Receta desde ${evId}`);
+        if (!name) return;
+        try {
+          await api.createRecipeFromEvidence(evId, name);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error creating recipe:", err);
+          alert("Error creando receta: " + (err.message || err));
+        }
+      });
+    });
+
+    // Recipe: Select
+    document.querySelectorAll(".btn-select-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        try {
+          await api.selectRecipe(recipeId);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error selecting recipe:", err);
+          alert("Error seleccionando receta: " + (err.message || err));
+        }
+      });
+    });
+
+    // Recipe: Submit (Train)
+    document.querySelectorAll(".btn-submit-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        const btnEl = e.currentTarget;
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="animate-spin mr-1">${icon("refresh-cw", "icon-xs")}</span> Entrenando...`;
+        try {
+          const res = await api.submitRecipe(recipeId);
+          alert(`Experimento(s) ejecutados con éxito: ${(res.experiment_ids || []).join(", ")}`);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error submitting recipe:", err);
+          alert("Error ejecutando receta: " + (err.message || err));
+          btnEl.disabled = false;
+        }
+      });
+    });
+
+    // Recipe: Promote
+    document.querySelectorAll(".btn-promote-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        const reason = prompt("Justificación para promover a producción:", "Supera al baseline con significancia estadística");
+        if (!reason) return;
+        try {
+          await api.promoteRecipe(recipeId, reason);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error promoting recipe:", err);
+          alert("Error promoviendo receta: " + (err.message || err));
+        }
+      });
+    });
+
+    // Recipe: Archive
+    document.querySelectorAll(".btn-archive-recipe").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const recipeId = e.currentTarget.getAttribute("data-recipe-id");
+        if (!recipeId) return;
+        if (!confirm(`¿Desea archivar la receta ${recipeId}?`)) return;
+        try {
+          await api.archiveRecipe(recipeId);
+          await this.fetchData();
+          this.render();
+        } catch (err) {
+          console.error("Error archiving recipe:", err);
+          alert("Error archivando receta: " + (err.message || err));
         }
       });
     });

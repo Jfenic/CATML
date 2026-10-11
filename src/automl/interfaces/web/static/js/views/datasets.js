@@ -17,7 +17,7 @@ export class DatasetsView {
     this.activeDatasetId = null;
     this.showRegisterForm = false;
     this.selectedFeatures = new Set();
-    this.activeMainTab = "resumen"; // 'resumen' | 'columnas' | 'exploracion'
+    this.activeMainTab = "resumen"; // 'resumen' | 'columnas' | 'cuestionario'
     this.activeTab = "schema"; // 'schema' | 'stats' | 'preview' | 'categories' | 'correlation'
     this.filterType = "all"; // 'all' | 'numeric' | 'categorical' | 'selected' | 'excluded'
     this.searchQuery = "";
@@ -31,12 +31,10 @@ export class DatasetsView {
     this.calcEvaluating = false;
     this.calcApplying = false;
 
-    // CATML Explore state (Phase E1)
-    this.studies = [];
-    this.activeStudyId = null;
-    this.activeStudy = null;
-    this.runningStudy = false;
-    this.showCreateStudyModal = false;
+    // Framing Questionnaire state (Phase 2)
+    this.questionnaire = null;
+    this.questionnaireGenerating = false;
+    this.questionnaireSaving = false;
   }
 
   async mount(container) {
@@ -80,40 +78,18 @@ export class DatasetsView {
       const state = store.getState();
       this.datasets = await api.getDatasets().catch(() => []);
 
-      this.activeDatasetId = state.activeDatasetId
-        || (this.datasets.length ? this.datasets[0].id : null)
-        || (state.runs && state.runs[0] ? state.runs[0].dataset_id : null)
-        || (state.overview && state.overview.recent_datasets && state.overview.recent_datasets[0] ? state.overview.recent_datasets[0].id : null);
+      this.activeDatasetId = store.getActiveDatasetId()
+        || (this.datasets.length ? this.datasets[0].id : null);
+      if (this.activeDatasetId && !store.getActiveDatasetId()) {
+        store.setActiveDataset(this.activeDatasetId);
+      }
 
       if (this.activeDatasetId) {
         this.profile = await api.getDatasetProfile(this.activeDatasetId).catch(() => null);
-        await this.loadStudies();
+        this.questionnaire = await api.getDatasetQuestionnaire(this.activeDatasetId).catch(() => null);
       }
     } catch (e) {
       console.warn("Could not load dataset profile:", e);
-    }
-  }
-
-  async loadStudies() {
-    if (!this.activeDatasetId) {
-      this.studies = [];
-      this.activeStudyId = null;
-      this.activeStudy = null;
-      return;
-    }
-    try {
-      this.studies = await api.getAnalysisStudies(this.activeDatasetId).catch(() => []);
-      if (this.studies && this.studies.length > 0) {
-        if (!this.activeStudyId || !this.studies.find(s => s.id === this.activeStudyId)) {
-          this.activeStudyId = this.studies[0].id;
-        }
-        this.activeStudy = await api.getAnalysisStudy(this.activeStudyId).catch(() => null);
-      } else {
-        this.activeStudyId = null;
-        this.activeStudy = null;
-      }
-    } catch (e) {
-      console.warn("Could not load studies for dataset:", e);
     }
   }
 
@@ -131,7 +107,16 @@ export class DatasetsView {
     });
 
     // Save to store so NewExperimentModal immediately knows active selection
-    store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+    const feats = Array.from(this.selectedFeatures);
+    const dsFeats = store.getState().selectedFeaturesByDataset || {};
+    if (this.activeDatasetId) {
+      dsFeats[this.activeDatasetId] = feats;
+    }
+    store.setState({
+      selectedFeatures: feats,
+      customFeatures: feats,
+      selectedFeaturesByDataset: dsFeats,
+    });
   }
 
   render() {
@@ -188,6 +173,11 @@ export class DatasetsView {
                 ${this.showRegisterForm ? "Cerrar Registro" : "+ Registrar nuevo"}
               </button>
 
+              <button id="btnOpenFullExploreCanvas" class="bg-[#161B26] hover:bg-[#1E2536] text-[#53C8FF] border border-[#242A36] hover:border-[#53C8FF]/40 text-xs px-3 py-1.5 rounded-lg font-sans font-medium flex items-center space-x-1.5 transition-colors" title="Abrir análisis estadístico y visualizaciones en 03 Explore">
+                ${icon("compass", "icon-sm")}
+                <span>Lienzo Completo (Explore)</span>
+              </button>
+
               <button id="btnNewExperimentFromDS" class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20">
                 ${icon("play", "icon-sm")}
                 <span>Nuevo experimento</span>
@@ -195,7 +185,7 @@ export class DatasetsView {
             </div>
           </div>
 
-          <!-- Pestañas Principales: Resumen | Columnas | Exploración -->
+          <!-- Pestañas Principales: Resumen | Columnas | Encuadre & Cuestionario -->
           <div class="border-t border-[#242A36] pt-3 flex items-center space-x-2 text-xs font-sans">
             <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'resumen' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="resumen">
               ${icon("activity", "icon-sm")}
@@ -206,14 +196,16 @@ export class DatasetsView {
               <span>Columnas</span>
               <span class="text-[10px] font-mono text-[#8B95A7] bg-[#090C12] px-1.5 py-0.2 rounded">${columns.length}</span>
             </button>
-            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'exploracion' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="exploracion">
-              ${icon("compass", "icon-sm")}
-              <span>Exploración</span>
-              ${this.studies && this.studies.length > 0 ? `
-                <span class="text-[10px] font-mono text-[#53C8FF] bg-[#53C8FF]/15 px-1.5 py-0.2 rounded border border-[#53C8FF]/30 font-semibold">${this.studies.length}</span>
+            <button class="main-tab-btn px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${this.activeMainTab === 'cuestionario' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-main-tab="cuestionario">
+              ${icon("help-circle", "icon-sm")}
+              <span>Encuadre & Cuestionario</span>
+              ${this.questionnaire?.user_confirmed ? `
+                <span class="text-[10px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded border border-[#22C55E]/20 font-semibold">Confirmado</span>
+              ` : (this.questionnaire ? `
+                <span class="text-[10px] font-mono text-[#F59E0B] bg-[#F59E0B]/10 px-1.5 py-0.5 rounded border border-[#F59E0B]/20 font-semibold">Sugerencias</span>
               ` : `
-                <span class="text-[9px] font-mono text-[#4F67FF] bg-[#4F67FF]/10 px-1.5 py-0.2 rounded border border-[#4F67FF]/20 uppercase font-semibold">Core E1</span>
-              `}
+                <span class="text-[10px] font-mono text-[#8B95A7] bg-[#090C12] px-1.5 py-0.5 rounded">Pendiente</span>
+              `)}
             </button>
           </div>
         </div>
@@ -223,7 +215,7 @@ export class DatasetsView {
         <!-- Contenido según la pestaña activa -->
         ${this.activeMainTab === "resumen" ? this._renderResumenTab(p, featureCols, numCols, catCols, excludedCount, recommendations) : ""}
         ${this.activeMainTab === "columnas" ? this._renderColumnasTab(p, featureCols, numCols, catCols) : ""}
-        ${this.activeMainTab === "exploracion" ? this._renderExplorationTab() : ""}
+        ${this.activeMainTab === "cuestionario" ? this._renderQuestionnaireTab(p) : ""}
 
         <!-- Variable Visual Analytics Modal Container -->
         <div id="variableModalContainer"></div>
@@ -476,330 +468,363 @@ export class DatasetsView {
     `;
   }
 
-  _renderExplorationTab() {
-    const study = this.activeStudy;
-    const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
-    const datasetName = currentDs ? currentDs.name : (this.profile?.name || this.activeDatasetId);
-    const findings = study?.findings || [];
-    const visualizations = study?.visualizations || [];
-    const hypotheses = study?.hypotheses || [];
+  _renderOptionCard(field, val, currentVal, title, desc, tag = "") {
+    const isSelected = currentVal === val;
+    return `
+      <div class="q-option-card p-3 rounded-xl border cursor-pointer transition-all ${
+        isSelected
+          ? 'border-[#4F67FF] bg-[#161B26] ring-1 ring-[#4F67FF]/30'
+          : 'border-[#242A36] bg-[#0F131C] hover:border-[#384357] hover:bg-[#151B26]'
+      }" data-q-field="${field}" data-q-value="${val}">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+              isSelected ? 'border-[#4F67FF] bg-[#4F67FF]' : 'border-[#4B5563]'
+            }">
+              ${isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-white"></span>' : ''}
+            </span>
+            <span class="font-medium text-xs ${isSelected ? 'text-[#F7F8FA]' : 'text-[#8B95A7]'} font-sans">${title}</span>
+          </div>
+          ${tag ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1C2230] text-[#8B95A7] border border-[#242A36]">${tag}</span>` : ''}
+        </div>
+        <p class="text-[11px] text-[#8B95A7] mt-1.5 pl-5 font-sans leading-relaxed">${desc}</p>
+      </div>
+    `;
+  }
 
-    const corrViz = visualizations.find(v => v.viz_type === "correlation_matrix");
+  _getCompatibleToolsSummary(q, p) {
+    if (!q) return [];
+    const hints = [];
+    const taskType = p?.task_type || "classification";
+    const isRegression = taskType.includes("regression");
+
+    if (q.latency_constraint === "ultra_low_realtime") {
+      hints.push({
+        type: "recommended",
+        badge: "Recomendado",
+        badgeClass: "badge-gain",
+        title: "Modelos Rápidos (< 10 ms)",
+        desc: isRegression ? "Ridge Regression, Lasso, DecisionTreeRegressor." : "Logistic Regression, Shallow Decision Trees.",
+      });
+      hints.push({
+        type: "warning",
+        badge: "Desaconsejado",
+        badgeClass: "badge-err",
+        title: "Modelos Pesados en Inferencia",
+        desc: "Ensembles apilados (Voting/Blender) y Redes Neuronales exceden el SLA < 10ms.",
+      });
+    } else if (q.latency_constraint === "standard_interactive") {
+      hints.push({
+        type: "recommended",
+        badge: "Recomendado",
+        badgeClass: "badge-gain",
+        title: "GBDTs (< 200 ms)",
+        desc: "LightGBM, XGBoost, CatBoost ofrecen el balance óptimo de precisión y latencia interactiva.",
+      });
+    } else if (q.latency_constraint === "batch_offline") {
+      hints.push({
+        type: "recommended",
+        badge: "Recomendado",
+        badgeClass: "badge-gain",
+        title: "Ensembles y Modelos Complejos",
+        desc: "Voting Blenders, Stacking y MLPs habilitados para maximizar métrica sin límite de tiempo.",
+      });
+    }
+
+    if (q.explainability === "highly_regulated") {
+      hints.push({
+        type: "recommended",
+        badge: "Auditoría Estricta",
+        badgeClass: "badge-intel",
+        title: "Modelos Transparentes e Interpretabilidad",
+        desc: "Modelos lineales y árboles simples con TreeSHAP determinista para cumplimiento regulatorio.",
+      });
+      hints.push({
+        type: "warning",
+        badge: "Restringido",
+        badgeClass: "badge-warn",
+        title: "Modelos de Caja Negra",
+        desc: "Redes Neuronales profundas y Ensembles complejos no recomendados en entorno auditado.",
+      });
+    }
+
+    if (q.error_cost === "avoid_false_negatives") {
+      hints.push({
+        type: "info",
+        badge: "Prioridad Recall",
+        badgeClass: "badge-sys",
+        title: "Optimización de Umbral y PR-AUC",
+        desc: "Métrica primaria PR-AUC / Recall; optimizador de corte de decisión bayesiano activado.",
+      });
+    } else if (q.error_cost === "avoid_false_positives") {
+      hints.push({
+        type: "info",
+        badge: "Prioridad Precision",
+        badgeClass: "badge-sys",
+        title: "Filtrado Estricto de Falsas Alarmas",
+        desc: "Métrica primaria Precision; umbral conservador para evitar falsos positivos.",
+      });
+    }
+
+    if (q.temporal_structure === "sequential_time_series") {
+      hints.push({
+        type: "warning",
+        badge: "Validación Obligatoria",
+        badgeClass: "badge-warn",
+        title: "TimeSeriesSplit / Purged CV",
+        desc: "Partición temporal hacia el futuro requerida. K-Fold aleatorio descartado para prevenir fuga temporal.",
+      });
+    } else if (q.temporal_structure === "grouped_cohorts") {
+      hints.push({
+        type: "info",
+        badge: "Validación por Grupos",
+        badgeClass: "badge-sys",
+        title: "GroupKFold Requerido",
+        desc: "Partición asegurando que las observaciones de una misma entidad no se repartan entre train y test.",
+      });
+    }
+
+    return hints;
+  }
+
+  _renderQuestionnaireTab(p) {
+    const q = this.questionnaire || {
+      dataset_id: p.dataset_id,
+      error_cost: "balanced",
+      temporal_structure: "cross_sectional",
+      latency_constraint: "standard_interactive",
+      explainability: "moderate",
+      imbalance_strategy: "auto",
+      primary_metric_override: null,
+      split_strategy_recommendation: (p.task_type || "").includes("regression") ? "kfold" : "stratified_kfold",
+      user_confirmed: false,
+      engine_source: "heuristic",
+      confidence: 0.9,
+      reasoning: "Sin encuadre guardado todavía. Puedes ajustar las opciones interactivas o pulsar 'Generar sugerencias' para inferir el encuadre óptimo.",
+    };
+
+    const isConfirmed = Boolean(q.user_confirmed);
+    const engineSource = q.engine_source || "heuristic";
+    const engineLabel = engineSource === "jev"
+      ? "Generado mediante JEV"
+      : "Generado mediante reglas heurísticas";
+    const engineBadgeClass = engineSource === "jev"
+      ? "bg-[#53C8FF]/10 text-[#53C8FF] border-[#53C8FF]/25"
+      : "bg-[#151B26] text-[#8B95A7] border-[#242A36]";
+
+    const compatibleTools = this._getCompatibleToolsSummary(q, p);
+    const isRegression = (p.task_type || "").includes("regression");
 
     return `
       <div class="space-y-6">
-        <!-- Header del Núcleo de Exploración -->
+        <!-- Top Toolbar & Status Header -->
         <div class="workbench-card p-5 space-y-4">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="space-y-1">
-              <div class="flex items-center space-x-2">
-                <span class="text-[10px] font-mono text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/25 uppercase font-semibold">
-                  CATML Explore · Núcleo E1
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#242A36]">
+            <div>
+              <div class="flex items-center space-x-2.5">
+                <h3 class="text-base font-bold text-[#F7F8FA] font-sans">Encuadre del Problema & Cuestionario Operativo</h3>
+                <span class="text-xs px-2.5 py-0.5 rounded font-mono border ${engineBadgeClass}">
+                  ${engineLabel}
                 </span>
-                <span class="text-xs font-mono text-[#8B95A7]">ADR-008</span>
-                <span class="text-xs font-mono text-[#8B95A7]">·</span>
-                <span class="text-xs font-mono text-[#F7F8FA]">${escapeHtml(datasetName)}</span>
+                ${isConfirmed ? `
+                  <span class="badge-gain text-xs px-2.5 py-0.5 rounded font-mono font-medium flex items-center space-x-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+                    <span>Confirmado por el usuario</span>
+                  </span>
+                ` : `
+                  <span class="text-xs px-2.5 py-0.5 rounded font-mono font-medium bg-[#F59E0B]/10 border border-[#F59E0B]/25 text-[#F59E0B] flex items-center space-x-1.5" title="Sugerencias generadas pendientes de validación por el operador humano">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+                    <span>Sugerencias pendientes de confirmación</span>
+                  </span>
+                `}
               </div>
-              <h3 class="text-lg font-bold font-sans text-[#F7F8FA]">Estudios y Evidencia Estadística</h3>
-              <p class="text-xs text-[#8B95A7] font-sans">
-                Motor matemático determinista («La IA Interpreta, CATML Calcula»). Detección de colinealidad, ANOVA F-test y formulación de hipótesis.
+              <p class="text-xs text-[#8B95A7] mt-1 font-sans">
+                Define el contexto de negocio, los costes asimétricos de error y las restricciones de inferencia. La IA propone; el operador humano valida y decide.
               </p>
             </div>
 
             <div class="flex items-center space-x-3">
-              ${this.studies && this.studies.length > 1 ? `
-                <select id="studySelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-1.5 focus:border-[#4F67FF] font-mono outline-none">
-                  ${this.studies.map(s => `
-                    <option value="${s.id}" ${s.id === this.activeStudyId ? "selected" : ""}>
-                      ${escapeHtml(s.name || s.id)} (${s.status})
-                    </option>
-                  `).join("")}
-                </select>
-              ` : ""}
-
-              <button id="btnOpenCreateStudyModal" class="btn-technical text-xs flex items-center space-x-1.5">
-                ${icon("plus", "icon-sm")}
-                <span>Nuevo Estudio</span>
+              <button id="btnGenerateQuestionnaire" ${this.questionnaireGenerating ? "disabled" : ""} class="btn-technical text-xs flex items-center space-x-1.5 ${this.questionnaireGenerating ? 'opacity-60 cursor-not-allowed' : ''}" title="Inferir heurísticamente el contexto óptimo del dataset">
+                ${this.questionnaireGenerating
+                  ? `<svg class="animate-spin h-3.5 w-3.5 text-[#4F67FF]" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>Analizando metadatos...</span>`
+                  : `${icon("sparkles", "icon-sm")} <span>Generar sugerencias</span>`
+                }
               </button>
 
-              ${study ? `
-                <button id="btnRunActiveStudy" ${this.runningStudy ? "disabled" : ""} class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20 ${this.runningStudy ? 'opacity-60 cursor-not-allowed' : ''}">
-                  ${this.runningStudy ? `<span class="animate-spin">${icon("refresh-cw", "icon-sm")}</span>` : icon("play", "icon-sm")}
-                  <span>${this.runningStudy ? "Calculando..." : "Ejecutar Análisis"}</span>
-                </button>
-              ` : ""}
+              <button id="btnSaveQuestionnaire" ${this.questionnaireSaving ? "disabled" : ""} class="btn-signal text-xs flex items-center space-x-1.5 shadow-md shadow-[#4F67FF]/20 ${this.questionnaireSaving ? 'opacity-60 cursor-not-allowed' : ''}">
+                ${this.questionnaireSaving
+                  ? `<span>Guardando...</span>`
+                  : `${icon("check", "icon-sm")} <span>Guardar y Confirmar Encuadre</span>`
+                }
+              </button>
             </div>
           </div>
 
-          ${study ? `
-            <!-- Resumen de Métricas del Estudio Activo -->
-            <div class="border-t border-[#242A36] pt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-sans">
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">ID de Estudio</div>
-                <div class="font-mono font-bold text-[#53C8FF] truncate">${study.id}</div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Target Column</div>
-                <div class="font-mono font-semibold ${study.target_column ? 'text-[#F7F8FA]' : 'text-[#8B95A7]'}">
-                  ${study.target_column ? escapeHtml(study.target_column) : "Sin target (Descriptivo Puro)"}
-                </div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Estado</div>
-                <div class="font-mono font-bold flex items-center space-x-1.5 ${study.status === 'COMPLETED' ? 'text-[#22C55E]' : study.status === 'RUNNING' ? 'text-[#4F67FF]' : 'text-amber-400'}">
-                  <span class="w-1.5 h-1.5 rounded-full ${study.status === 'COMPLETED' ? 'bg-[#22C55E]' : study.status === 'RUNNING' ? 'bg-[#4F67FF] animate-pulse' : 'bg-amber-400'}"></span>
-                  <span>${study.status}</span>
-                </div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-[#090C12] border border-[#242A36] space-y-1">
-                <div class="text-[10px] text-[#8B95A7] uppercase font-mono">Hallazgos / Hipótesis</div>
-                <div class="font-mono font-bold text-[#F7F8FA]">
-                  <span class="${findings.length > 0 ? 'text-[#F59E0B]' : 'text-[#22C55E]'}">${findings.length}</span>
-                  <span class="text-[#8B95A7] font-normal"> hallazgos · </span>
-                  <span class="text-[#4F67FF]">${hypotheses.length}</span>
-                  <span class="text-[#8B95A7] font-normal"> hipótesis</span>
-                </div>
-              </div>
+          <!-- Section 1: Error Cost Priority -->
+          <div class="space-y-2 pt-1">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-[#F7F8FA] uppercase tracking-wider font-sans flex items-center space-x-1.5">
+                <span class="text-[#4F67FF]">${icon("shield-alert", "icon-sm")}</span>
+                <span>1. Prioridad de Costo de Error de Negocio</span>
+              </label>
+              <span class="text-[11px] text-[#8B95A7] font-mono">Función de Coste & Métrica Primaria</span>
             </div>
-          ` : ""}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              ${this._renderOptionCard("error_cost", "balanced", q.error_cost, "Equilibrado (Simétrico)", "Pérdida simétrica entre falsos positivos y negativos. Métrica estándar (F1 / Accuracy / RMSE).", "F1 / RMSE")}
+              ${this._renderOptionCard("error_cost", "avoid_false_negatives", q.error_cost, "Minimizar Falsos Negativos", "Crítico en Fraude, Churn o Diagnóstico Médico. El coste de omitir un positivo es crítico. Optimiza Recall y umbral.", "Recall / PR-AUC")}
+              ${this._renderOptionCard("error_cost", "avoid_false_positives", q.error_cost, "Minimizar Falsos Positivos", "Crítico en Spam o Bloqueos automáticos de usuarios. Evita falsas alarmas y costes reputacionales.", "Precision")}
+              ${this._renderOptionCard("error_cost", "custom_cost_matrix", q.error_cost, "Matriz de Costo Personalizada", "Ponderación asimétrica específica configurada en la función objetivo del negocio.", "Cost-Weighted")}
+            </div>
+          </div>
+
+          <!-- Section 2: Temporal Structure -->
+          <div class="space-y-2 pt-2 border-t border-[#242A36]">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-[#F7F8FA] uppercase tracking-wider font-sans flex items-center space-x-1.5">
+                <span class="text-[#6956E8]">${icon("clock", "icon-sm")}</span>
+                <span>2. Estructura Temporal & Dependencia Secuencial</span>
+              </label>
+              <span class="text-[11px] text-[#8B95A7] font-mono">Estrategia de Partición (Data Splitting)</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              ${this._renderOptionCard("temporal_structure", "cross_sectional", q.temporal_structure, "Corte Transversal (Independiente)", "Filas independientes i.i.d. Validación mediante K-Fold estándar o Stratified K-Fold.", "K-Fold")}
+              ${this._renderOptionCard("temporal_structure", "sequential_time_series", q.temporal_structure, "Serie Temporal Secuencial", "Dependencia temporal autorregresiva. Validación estricta con TimeSeriesSplit hacia el futuro.", "TimeSeriesSplit")}
+              ${this._renderOptionCard("temporal_structure", "grouped_cohorts", q.temporal_structure, "Grupos / Cohortes de Sujetos", "Observaciones agrupadas por entidad, cliente o máquina. Validación con GroupKFold.", "GroupKFold")}
+            </div>
+          </div>
+
+          <!-- Section 3: Latency Constraint -->
+          <div class="space-y-2 pt-2 border-t border-[#242A36]">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-[#F7F8FA] uppercase tracking-wider font-sans flex items-center space-x-1.5">
+                <span class="text-[#53C8FF]">${icon("zap", "icon-sm")}</span>
+                <span>3. Restricción de Latencia Operativa en Inferencia</span>
+              </label>
+              <span class="text-[11px] text-[#8B95A7] font-mono">Filtro de Catálogo Algorítmico</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              ${this._renderOptionCard("latency_constraint", "ultra_low_realtime", q.latency_constraint, "Ultra Baja (< 10 ms)", "Inferencia en streaming o SLA de alta concurrencia. Prioriza Modelos Lineales o Árboles poco profundos.", "< 10ms")}
+              ${this._renderOptionCard("latency_constraint", "standard_interactive", q.latency_constraint, "Interactiva Estándar (< 200 ms)", "Microservicios web y dashboards analíticos. Óptimo para GBDTs (LightGBM, XGBoost, CatBoost).", "< 200ms")}
+              ${this._renderOptionCard("latency_constraint", "batch_offline", q.latency_constraint, "Batch / Offline (Sin límite estricto)", "Scoring por lotes o pipelines nocturnos. Permite Ensembles, Stacking y redes profundas.", "Batch")}
+            </div>
+          </div>
+
+          <!-- Section 4: Explainability Level -->
+          <div class="space-y-2 pt-2 border-t border-[#242A36]">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-[#F7F8FA] uppercase tracking-wider font-sans flex items-center space-x-1.5">
+                <span class="text-[#22C55E]">${icon("file-text", "icon-sm")}</span>
+                <span>4. Nivel de Explicabilidad & Regulación</span>
+              </label>
+              <span class="text-[11px] text-[#8B95A7] font-mono">Auditoría & Interpretabilidad</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              ${this._renderOptionCard("explainability", "highly_regulated", q.explainability, "Altamente Regulado (Auditoría Estricta)", "Banca, crédito o salud. Requiere modelos transparentes (Lineales, Árboles) o SHAP exacto.", "Interpretable")}
+              ${this._renderOptionCard("explainability", "moderate", q.explainability, "Moderado", "Auditoría estándar de explicabilidad mediante TreeSHAP e importancia de características.", "TreeSHAP")}
+              ${this._renderOptionCard("explainability", "performance_first", q.explainability, "Máximo Rendimiento (Caja Negra)", "Competiciones Kaggle y entornos donde prima la máxima capacidad predictiva.", "Black-box OK")}
+            </div>
+          </div>
+
+          <!-- Section 5: Imbalance Strategy -->
+          <div class="space-y-2 pt-2 border-t border-[#242A36]">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-[#F7F8FA] uppercase tracking-wider font-sans flex items-center space-x-1.5">
+                <span class="text-[#F59E0B]">${icon("pie-chart", "icon-sm")}</span>
+                <span>5. Estrategia para Desbalanceo de Clases</span>
+              </label>
+              <span class="text-[11px] text-[#8B95A7] font-mono">Tratamiento de Clases Minoritarias</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+              ${this._renderOptionCard("imbalance_strategy", "auto", q.imbalance_strategy, "Automático", "Determinado automáticamente según el ratio de clases del target.", "Auto")}
+              ${this._renderOptionCard("imbalance_strategy", "balanced_weights", q.imbalance_strategy, "Ponderación de Clases", "Pondera la función de pérdida con class_weight='balanced'.", "Balanced Weights")}
+              ${this._renderOptionCard("imbalance_strategy", "resampling", q.imbalance_strategy, "Re-muestreo (SMOTE)", "Genera muestras sintéticas in-fold de la clase minoritaria.", "SMOTE")}
+              ${this._renderOptionCard("imbalance_strategy", "none", q.imbalance_strategy, "Distribución Natural", "Entrena con la distribución original sin ponderación.", "None")}
+            </div>
+          </div>
+
+          <!-- Section 6: Technical Overrides -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-[#242A36] text-xs font-sans">
+            <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">
+              <label class="block font-medium text-[#F7F8FA]">Métrica Primaria de Optimización:</label>
+              <select id="qMetricSelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-2 w-full font-mono outline-none focus:border-[#4F67FF]">
+                <option value="" ${!q.primary_metric_override ? "selected" : ""}>Automática según problema (${isRegression ? "RMSE" : "ROC-AUC"})</option>
+                ${isRegression ? `
+                  <option value="rmse" ${q.primary_metric_override === "rmse" ? "selected" : ""}>RMSE (Root Mean Squared Error)</option>
+                  <option value="mae" ${q.primary_metric_override === "mae" ? "selected" : ""}>MAE (Mean Absolute Error)</option>
+                  <option value="r2" ${q.primary_metric_override === "r2" ? "selected" : ""}>R² (Coeficiente de Determinación)</option>
+                ` : `
+                  <option value="roc_auc" ${q.primary_metric_override === "roc_auc" ? "selected" : ""}>ROC-AUC (Área bajo la curva ROC)</option>
+                  <option value="pr_auc" ${q.primary_metric_override === "pr_auc" ? "selected" : ""}>PR-AUC (Precision-Recall AUC)</option>
+                  <option value="f1" ${q.primary_metric_override === "f1" ? "selected" : ""}>F1-Score (Media armónica Precision/Recall)</option>
+                  <option value="accuracy" ${q.primary_metric_override === "accuracy" ? "selected" : ""}>Accuracy (Exactitud global)</option>
+                `}
+              </select>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">
+              <label class="block font-medium text-[#F7F8FA]">Estrategia de Partición (Cross-Validation):</label>
+              <select id="qSplitSelect" class="bg-[#161B26] border border-[#242A36] text-[#F7F8FA] text-xs rounded-lg px-3 py-2 w-full font-mono outline-none focus:border-[#4F67FF]">
+                ${!isRegression ? `
+                  <option value="stratified_kfold" ${q.split_strategy_recommendation === "stratified_kfold" ? "selected" : ""}>Stratified K-Fold (Estratificado por clases)</option>
+                ` : ""}
+                <option value="kfold" ${q.split_strategy_recommendation === "kfold" ? "selected" : ""}>Standard K-Fold (Aleatorio)</option>
+                <option value="time_series" ${q.split_strategy_recommendation === "time_series" ? "selected" : ""}>Time-Series Split (Progresión Temporal)</option>
+                <option value="group_kfold" ${q.split_strategy_recommendation === "group_kfold" ? "selected" : ""}>Group K-Fold (Agrupamiento por Entidad)</option>
+                <option value="holdout" ${q.split_strategy_recommendation === "holdout" ? "selected" : ""}>Holdout Simple (80/20)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        ${!study ? `
-          <!-- Estado Vacío cuando no hay estudios -->
-          <div class="workbench-card p-10 text-center space-y-4">
-            <div class="text-[#53C8FF] inline-flex p-3 rounded-2xl bg-[#53C8FF]/10 border border-[#53C8FF]/20">
-              ${icon("compass", "icon-lg")}
-            </div>
-            <div class="max-w-md mx-auto space-y-1.5">
-              <h4 class="text-base font-bold font-sans text-[#F7F8FA]">Sin estudios para este dataset</h4>
-              <p class="text-xs text-[#8B95A7] font-sans">
-                Registra un estudio exploratorio para calcular correlaciones de Pearson exactas con p-valores, separación univariante de clases (ANOVA) y detección de anomalías.
-              </p>
-            </div>
-            <button id="btnCreateFirstStudy" class="btn-signal text-xs px-4 py-2 shadow-md shadow-[#4F67FF]/20 inline-flex items-center space-x-2">
-              ${icon("plus", "icon-sm")}
-              <span>Crear Estudio Exploratorio</span>
-            </button>
-          </div>
-        ` : `
-          <!-- Sección de Hallazgos Estadísticos Reales -->
-          <div class="workbench-card p-5 space-y-4">
+        <!-- Advisor Intelligence & Compatible Tools Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Reasoning Card (2 cols) -->
+          <div class="lg:col-span-2 workbench-card p-5 space-y-3">
             <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
               <div class="flex items-center space-x-2">
-                <span class="text-[#F59E0B]">${icon("alert-circle", "icon-sm")}</span>
-                <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hallazgos Estadísticos Deterministas</h4>
+                <span class="text-[#53C8FF]">${icon("sparkles", "icon-sm")}</span>
+                <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Razonamiento & Justificación del Asesor</h4>
               </div>
-              <span class="text-xs font-mono text-[#8B95A7]">
-                ${findings.length} detectado${findings.length === 1 ? '' : 's'}
+              <span class="badge-intel text-xs px-2 py-0.5 rounded font-mono font-bold">
+                Confianza: ${(q.confidence * 100).toFixed(0)}%
               </span>
             </div>
+            <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] text-xs font-sans text-[#F7F8FA] leading-relaxed">
+              ${escapeHtml(q.reasoning || "Configuración inicial. Pulsa 'Generar sugerencias' para obtener la justificación analítica basada en los metadatos.")}
+            </div>
 
-            ${findings.length === 0 ? `
-              <div class="p-6 text-center text-[#8B95A7] font-sans text-xs space-y-2">
-                ${study.status === 'CREATED' ? `
-                  <p>Este estudio está configurado pero aún no se ha ejecutado.</p>
-                  <button id="btnRunStudyInline" class="btn-signal text-xs mt-2 inline-flex items-center space-x-1.5">
-                    ${icon("play", "icon-sm")}
-                    <span>Ejecutar Análisis Ahora</span>
-                  </button>
-                ` : `
-                  <div class="text-[#22C55E] flex items-center justify-center space-x-1.5">
-                    <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
-                    <span class="font-medium">No se detectaron colinealidades severas (r ≥ 0.70) ni outliers críticos en las variables calculadas.</span>
-                  </div>
-                `}
+            <!-- Launch CTA button -->
+            <div class="pt-2 flex items-center justify-between">
+              <div class="text-[11px] text-[#8B95A7] font-sans">
+                El encuadre se inyecta en el planificador y restringe el catálogo de modelos candidatos.
               </div>
-            ` : `
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                ${findings.map(f => {
-                  const isCrit = f.severity === "CRITICAL";
-                  const isWarn = f.severity === "WARNING";
-                  const sevBadge = isCrit ? "badge-err" : isWarn ? "badge-warn" : "badge-sys";
-
-                  return `
-                    <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] space-y-2.5 hover:border-[#384355] transition-colors">
-                      <div class="flex items-start justify-between gap-2">
-                        <div class="flex items-center space-x-2">
-                          <span class="text-xs font-mono font-bold text-[#F7F8FA]">${escapeHtml(f.finding_type || "FINDING")}</span>
-                        </div>
-                        <span class="${sevBadge} text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                          ${f.severity}
-                        </span>
-                      </div>
-
-                      <p class="text-xs text-[#F7F8FA] font-sans leading-relaxed">
-                        ${escapeHtml(f.summary)}
-                      </p>
-
-                      <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                        ${(f.columns || []).map(col => `
-                          <span class="text-[11px] font-mono text-[#8B95A7] bg-[#161B26] px-2 py-0.5 rounded border border-[#242A36]">
-                            ${escapeHtml(col)}
-                          </span>
-                        `).join("")}
-
-                        ${f.metric_value != null ? `
-                          <span class="text-[11px] font-mono font-semibold text-[#53C8FF] bg-[#53C8FF]/10 px-2 py-0.5 rounded border border-[#53C8FF]/20 ml-auto">
-                            stat = ${Number(f.metric_value).toFixed(3)}
-                          </span>
-                        ` : ""}
-                        ${f.p_value != null ? `
-                          <span class="text-[11px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded border border-[#22C55E]/20">
-                            p = ${f.p_value < 0.0001 ? f.p_value.toExponential(2) : f.p_value.toFixed(4)}
-                          </span>
-                        ` : ""}
-                      </div>
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            `}
+              <button id="btnLaunchWithFraming" class="btn-signal text-xs flex items-center space-x-1.5 shadow-lg shadow-[#4F67FF]/25">
+                <span>Lanzar experimento con este encuadre →</span>
+              </button>
+            </div>
           </div>
 
-          <!-- Sección de Matriz de Correlación Bivariada Real -->
-          ${corrViz && corrViz.data && corrViz.data.columns && corrViz.data.columns.length > 0 ? this._renderCorrelationMatrixViz(corrViz) : ""}
+          <!-- Compatible Tools Panel (1 col) -->
+          <div class="workbench-card p-5 space-y-3">
+            <div class="flex items-center space-x-2 border-b border-[#242A36] pb-3">
+              <span class="text-[#4F67FF]">${icon("cpu", "icon-sm")}</span>
+              <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Herramientas Compatibles</h4>
+            </div>
 
-          <!-- Sección de Hipótesis Inferidas para Agentes -->
-          ${hypotheses.length > 0 ? `
-            <div class="workbench-card p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-                <div class="flex items-center space-x-2">
-                  <span class="text-[#6956E8]">${icon("zap", "icon-sm")}</span>
-                  <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">Hipótesis Acciónales Formuladas</h4>
+            <div class="space-y-2.5">
+              ${compatibleTools.length > 0 ? compatibleTools.map(t => `
+                <div class="p-2.5 rounded-lg bg-[#11151E] border border-[#242A36] space-y-1">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-[#F7F8FA] font-sans">${t.title}</span>
+                    <span class="${t.badgeClass} text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">${t.badge}</span>
+                  </div>
+                  <p class="text-[11px] text-[#8B95A7] font-sans">${t.desc}</p>
                 </div>
-                <span class="text-xs font-mono text-[#8B95A7]">${hypotheses.length} propuestas</span>
-              </div>
-
-              <div class="space-y-3">
-                ${hypotheses.map(h => `
-                  <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#242A36] flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div class="space-y-1">
-                      <div class="flex items-center space-x-2">
-                        <span class="badge-sys text-[10px] px-2 py-0.5 rounded font-mono font-semibold uppercase">
-                          ${escapeHtml(h.proposed_action || "ACTION")}
-                        </span>
-                        <span class="text-xs font-mono text-[#8B95A7]">ID: ${h.id}</span>
-                      </div>
-                      <p class="text-xs text-[#F7F8FA] font-sans">
-                        ${escapeHtml(h.description)}
-                      </p>
-                    </div>
-
-                    <button class="btn-hypothesis-exp btn-technical text-xs flex items-center space-x-1.5 whitespace-nowrap self-start md:self-auto" data-hyp="${h.id}" data-action="${escapeHtml(h.proposed_action || '')}">
-                      ${icon("play", "icon-sm")}
-                      <span>Probar en Experimento</span>
-                    </button>
-                  </div>
-                `).join("")}
-              </div>
+              `).join("") : `
+                <div class="text-xs text-[#8B95A7] p-4 text-center">Configura el encuadre para ver las herramientas y modelos compatibles.</div>
+              `}
             </div>
-          ` : ""}
-        `}
-
-        <!-- Modal para Crear Nuevo Estudio -->
-        ${this.showCreateStudyModal ? this._renderCreateStudyModalHtml() : ""}
-      </div>
-    `;
-  }
-
-  _renderCorrelationMatrixViz(viz) {
-    const cols = viz.data?.columns || [];
-    const matrix = viz.data?.matrix || [];
-
-    return `
-      <div class="workbench-card p-5 space-y-4">
-        <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-          <div class="flex items-center space-x-2">
-            <span class="text-[#53C8FF]">${icon("grid", "icon-sm")}</span>
-            <h4 class="text-sm font-semibold font-sans text-[#F7F8FA]">${escapeHtml(viz.title || "Matriz de Correlación Bivariada")}</h4>
           </div>
-          <span class="text-xs font-mono text-[#8B95A7]">Pearson r [-1.0, +1.0]</span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs font-mono border-collapse">
-            <thead>
-              <tr>
-                <th class="p-2 text-left text-[#8B95A7] bg-[#090C12] border border-[#242A36]">Variable</th>
-                ${cols.map(c => `
-                  <th class="p-2 text-center text-[#8B95A7] bg-[#090C12] border border-[#242A36] truncate max-w-[100px]" title="${escapeHtml(c)}">
-                    ${escapeHtml(c)}
-                  </th>
-                `).join("")}
-              </tr>
-            </thead>
-            <tbody>
-              ${cols.map((rowName, rIdx) => `
-                <tr>
-                  <td class="p-2 font-medium text-[#F7F8FA] bg-[#090C12] border border-[#242A36] truncate max-w-[140px]" title="${escapeHtml(rowName)}">
-                    ${escapeHtml(rowName)}
-                  </td>
-                  ${cols.map((colName, cIdx) => {
-                    const val = (matrix[rIdx] && matrix[rIdx][cIdx] != null) ? matrix[rIdx][cIdx] : 0.0;
-                    const absVal = Math.abs(val);
-                    const isDiag = rIdx === cIdx;
-                    let bgColor = "rgba(22, 27, 38, 0.4)";
-                    let textColor = "#8B95A7";
-
-                    if (!isDiag) {
-                      if (val > 0) {
-                        bgColor = `rgba(79, 103, 255, ${Math.min(0.85, absVal * 0.9)})`;
-                        textColor = absVal > 0.4 ? "#FFFFFF" : "#F7F8FA";
-                      } else {
-                        bgColor = `rgba(239, 68, 68, ${Math.min(0.85, absVal * 0.9)})`;
-                        textColor = absVal > 0.4 ? "#FFFFFF" : "#F7F8FA";
-                      }
-                    }
-
-                    return `
-                      <td style="background-color: ${bgColor}; color: ${textColor};" class="p-2 text-center border border-[#242A36] font-mono ${absVal >= 0.70 && !isDiag ? 'font-bold' : ''}">
-                        ${val.toFixed(2)}
-                      </td>
-                    `;
-                  }).join("")}
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderCreateStudyModalHtml() {
-    const currentDs = this.datasets.find(d => d.id === this.activeDatasetId);
-    const targetCol = this.profile?.target_column || "";
-
-    return `
-      <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="workbench-card max-w-md w-full p-6 space-y-5 border border-[#4F67FF]/30 shadow-2xl">
-          <div class="flex items-center justify-between border-b border-[#242A36] pb-3">
-            <div class="flex items-center space-x-2">
-              <span class="text-[#4F67FF]">${icon("compass", "icon-sm")}</span>
-              <h3 class="text-sm font-bold font-sans text-[#F7F8FA]">Nuevo Estudio Exploratorio</h3>
-            </div>
-            <button id="btnCloseCreateStudyModal" class="text-[#8B95A7] hover:text-[#F7F8FA]">${icon("x", "icon-sm")}</button>
-          </div>
-
-          <form id="formCreateStudy" class="space-y-4">
-            <div class="space-y-1.5">
-              <label class="text-xs font-sans text-[#8B95A7]">Nombre del Estudio</label>
-              <input id="inputStudyName" type="text" value="Estudio Exploratorio ${escapeHtml(currentDs?.name || 'Dataset')}" class="w-full bg-[#090C12] border border-[#242A36] rounded-lg px-3 py-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF] outline-none" required />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-xs font-sans text-[#8B95A7]">Columna Objetivo (Opcional)</label>
-              <input id="inputStudyTarget" type="text" value="${escapeHtml(targetCol)}" placeholder="Dejar en blanco para análisis no supervisado" class="w-full bg-[#090C12] border border-[#242A36] rounded-lg px-3 py-2 text-xs font-mono text-[#F7F8FA] focus:border-[#4F67FF] outline-none" />
-              <p class="text-[10px] text-[#8B95A7] font-sans">
-                Si se omite, el motor evaluará únicamente asociaciones entre variables y densidades de outliers.
-              </p>
-            </div>
-
-            <div class="pt-3 border-t border-[#242A36] flex items-center justify-end space-x-2">
-              <button type="button" id="btnCancelCreateStudy" class="btn-ghost text-xs px-3 py-1.5">Cancelar</button>
-              <button type="submit" id="btnSubmitCreateStudy" class="btn-signal text-xs px-4 py-1.5">Crear Estudio</button>
-            </div>
-          </form>
         </div>
       </div>
     `;
@@ -855,14 +880,14 @@ export class DatasetsView {
               <th class="w-10 text-center">
                 <input type="checkbox" id="checkSelectAllRows" class="rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36]" ${this.selectedFeatures.size > 0 ? "checked" : ""}>
               </th>
-              <th>Feature</th>
-              <th>Type</th>
-              <th>Missing %</th>
-              <th>Unique Values</th>
-              <th>Target Correlation (r)</th>
-              <th>Engine Action</th>
-              <th>Rationale</th>
-              <th class="text-center">Visuals</th>
+              <th>Característica</th>
+              <th>Tipo</th>
+              <th>Nulos %</th>
+              <th>Valores Únicos</th>
+              <th>Correlación con Target (r)</th>
+              <th>Acción del Motor</th>
+              <th>Justificación</th>
+              <th class="text-center">Visualización</th>
             </tr>
           </thead>
           <tbody>
@@ -874,7 +899,7 @@ export class DatasetsView {
               return `
                 <tr class="${isChecked ? 'bg-[#161B26]/40' : 'opacity-70'}">
                   <td class="text-center">
-                    ${isTarget ? `<span class="text-[#4F67FF] flex justify-center" title="Target Column">${icon("target", "icon-sm")}</span>` : `
+                    ${isTarget ? `<span class="text-[#4F67FF] flex justify-center" title="Variable Objetivo (Target)">${icon("target", "icon-sm")}</span>` : `
                       <input type="checkbox" data-col="${c.name}" class="col-toggle-checkbox rounded text-[#4F67FF] bg-[#161B26] border border-[#242A36] cursor-pointer" ${isChecked ? "checked" : ""}>
                     `}
                   </td>
@@ -884,7 +909,7 @@ export class DatasetsView {
                   </td>
                   <td>
                     <span class="text-xs ${c.is_image ? 'text-[#53C8FF] inline-flex items-center gap-1' : c.is_text ? 'text-[#6956E8] inline-flex items-center gap-1' : c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'text-[#4F67FF]' : 'text-[#6956E8]'} font-mono">
-                      ${c.is_image ? `${icon("image", "icon-sm")} Image` : c.is_text ? `${icon("message-square-text", "icon-sm")} Text` : c.is_identifier ? 'Identifier' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numerical' : 'Categorical')}
+                      ${c.is_image ? `${icon("image", "icon-sm")} Imagen` : c.is_text ? `${icon("message-square-text", "icon-sm")} Texto` : c.is_identifier ? 'Identificador' : (c.dtype && (c.dtype.includes('float') || c.dtype.includes('int')) ? 'Numérica' : 'Categórica')}
                     </span>
                   </td>
                   <td class="font-mono text-xs ${c.null_count > 0 ? 'text-[#F59E0B] font-semibold' : 'text-[#8B95A7]'}">
@@ -905,18 +930,18 @@ export class DatasetsView {
                       isTarget
                         ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium">Target</span>`
                         : c.catml_action === "Exclude" || c.is_identifier
-                        ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-medium">Exclude</span>`
+                        ? `<span class="badge-err text-[11px] px-2 py-0.5 rounded font-mono font-medium">Excluir</span>`
                         : c.is_image || c.catml_action === "Vision Embedding"
-                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium border border-[#53C8FF]/30 text-[#53C8FF]">Vision</span>`
+                        ? `<span class="badge-sys text-[11px] px-2 py-0.5 rounded font-mono font-medium border border-[#53C8FF]/30 text-[#53C8FF]">Visión</span>`
                         : c.catml_action === "Encode"
-                        ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-medium">Encode</span>`
-                        : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-medium">Keep</span>`
+                        ? `<span class="badge-intel text-[11px] px-2 py-0.5 rounded font-mono font-medium">Codificar</span>`
+                        : `<span class="badge-gain text-[11px] px-2 py-0.5 rounded font-mono font-medium">Conservar</span>`
                     }
                   </td>
-                  <td class="text-xs text-[#8B95A7] font-sans">${c.action_reason || (isTarget ? "Target prediction objective" : "Predictive feature")}</td>
+                  <td class="text-xs text-[#8B95A7] font-sans">${c.action_reason || (isTarget ? "Objetivo de predicción" : "Variable predictora")}</td>
                   <td class="text-center">
                     <button class="btn-visualize-var btn-technical text-[11px] py-0.5 px-2 ${c.is_image ? 'border-[#53C8FF]/40 text-[#53C8FF] hover:bg-[#53C8FF]/10' : ''}" data-var="${c.name}">
-                      ${c.is_image ? `${icon("image", "icon-sm mr-1")} Gallery` : 'View'}
+                      ${c.is_image ? `${icon("image", "icon-sm mr-1")} Galería` : 'Ver'}
                     </button>
                   </td>
                 </tr>
@@ -936,20 +961,20 @@ export class DatasetsView {
         <table class="w-full wb-table text-left">
           <thead>
             <tr>
-              <th>Feature</th>
-              <th>Type</th>
-              <th>Count</th>
-              <th>Missing %</th>
-              <th>Mean</th>
+              <th>Característica</th>
+              <th>Tipo</th>
+              <th>Recuento</th>
+              <th>Nulos %</th>
+              <th>Media</th>
               <th>Std</th>
-              <th>Min</th>
+              <th>Mín</th>
               <th>25%</th>
-              <th>Median (50%)</th>
+              <th>Mediana (50%)</th>
               <th>75%</th>
-              <th>Max</th>
-              <th>Skewness</th>
-              <th>Target r</th>
-              <th class="text-center">Visuals</th>
+              <th>Máx</th>
+              <th>Asimetría (Skew)</th>
+              <th>Correlación r</th>
+              <th class="text-center">Visualización</th>
             </tr>
           </thead>
           <tbody>
@@ -1704,7 +1729,7 @@ export class DatasetsView {
             </button>
             <button id="btnCalcSuggest" class="btn-technical text-xs text-[#6956E8] border-[#6956E8]/30 hover:border-[#6956E8] flex items-center space-x-1.5">
               <span>${icon("sparkles", "icon-sm")}</span>
-              <span>Suggest with AI</span>
+              <span>Sugerir con IA</span>
             </button>
           </div>
         </div>
@@ -1714,26 +1739,26 @@ export class DatasetsView {
           <!-- Left Column: Name & Expression Editor -->
           <div class="lg:col-span-2 space-y-4">
             <div class="space-y-1.5">
-              <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">Derived Feature Name:</label>
-              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="e.g. debt_to_income_ratio" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono px-3 py-2 rounded-lg focus:border-[#4F67FF] outline-none">
+              <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">Nombre de Característica Derivada:</label>
+              <input type="text" id="calcFeatureName" value="${this.calcFeatureName || ''}" placeholder="ej: debt_to_income_ratio" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono px-3 py-2 rounded-lg focus:border-[#4F67FF] outline-none">
             </div>
 
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
                 <label class="text-xs font-sans text-[#8B95A7] uppercase font-semibold tracking-wider">
-                  ${this.calcMode === 'formula' ? 'Mathematical Formula:' : 'Sandboxed Python Function (df):'}
+                  ${this.calcMode === 'formula' ? 'Fórmula Matemática:' : 'Función Python Aislada (df):'}
                 </label>
                 <span class="text-[10px] text-[#8B95A7] font-mono">
-                  ${this.calcMode === 'formula' ? 'Zero-division guard active' : 'Restricted to numpy & pandas'}
+                  ${this.calcMode === 'formula' ? 'Protección contra división por cero activa' : 'Restringido a numpy y pandas'}
                 </span>
               </div>
-              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'e.g. debt / (income + 1e-5)'}" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono p-3 rounded-lg focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
+              <textarea id="calcExpression" rows="${this.calcMode === 'python_code' ? 7 : 4}" placeholder="${this.calcMode === 'python_code' ? 'def compute_feature(df):\n    ratio = df[\'col_a\'] / (df[\'col_b\'] + 1e-5)\n    return np.log1p(ratio)' : 'ej: debt / (income + 1e-5)'}" class="w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono p-3 rounded-lg focus:border-[#4F67FF] outline-none">${this.calcExpression || ''}</textarea>
             </div>
 
             <!-- Quick Operators Toolbar (Formula Mode) -->
             ${this.calcMode === 'formula' ? `
               <div class="space-y-2">
-                <span class="text-[11px] font-sans text-[#8B95A7] font-semibold uppercase">Quick Operators & Transforms:</span>
+                <span class="text-[11px] font-sans text-[#8B95A7] font-semibold uppercase">Operadores Rápidos y Transformaciones:</span>
                 <div class="flex flex-wrap gap-1.5 text-xs font-mono">
                   <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" + ">+</button>
                   <button class="calc-op-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#8B95A7] hover:text-[#F7F8FA] hover:border-[#4F67FF]" data-op=" - ">-</button>
@@ -1753,10 +1778,10 @@ export class DatasetsView {
             <!-- Action CTAs -->
             <div class="flex items-center space-x-3 pt-2">
               <button id="btnCalcValidate" class="btn-technical text-xs font-semibold">
-                <span>Test & Preview</span>
+                <span>Probar y Previsualizar</span>
               </button>
               <button id="btnCalcApply" class="btn-signal text-xs ${evalRes && evalRes.is_valid ? '' : 'opacity-50 cursor-not-allowed'}" ${evalRes && evalRes.is_valid ? '' : 'disabled'}>
-                <span>Apply to Dataset & Save</span>
+                <span>Aplicar al Dataset y Guardar</span>
               </button>
             </div>
           </div>
@@ -1764,11 +1789,11 @@ export class DatasetsView {
           <!-- Right Column: Available Column Chips -->
           <div class="space-y-3 p-4 rounded-xl border border-[#252C38] bg-[#090C12]">
             <div class="flex items-center justify-between border-b border-[#252C38] pb-2">
-              <span class="text-xs font-sans text-[#F7F8FA] font-semibold uppercase tracking-wider">Available Features</span>
-              <span class="text-[10px] font-mono text-[#8B95A7]">Click to insert</span>
+              <span class="text-xs font-sans text-[#F7F8FA] font-semibold uppercase tracking-wider">Características Disponibles</span>
+              <span class="text-[10px] font-mono text-[#8B95A7]">Clic para insertar</span>
             </div>
             <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
-              <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase">Numeric:</div>
+              <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase">Numéricas:</div>
               <div class="flex flex-wrap gap-1.5">
                 ${numCols.map(c => `
                   <button class="calc-col-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#4F67FF] font-mono text-xs hover:border-[#4F67FF] hover:text-white transition-colors" data-col="${c.name}">
@@ -1778,7 +1803,7 @@ export class DatasetsView {
               </div>
 
               ${catCols.length > 0 ? `
-                <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase pt-2">Categorical / Other:</div>
+                <div class="text-[10px] font-sans text-[#8B95A7] font-semibold uppercase pt-2">Categóricas / Otras:</div>
                 <div class="flex flex-wrap gap-1.5">
                   ${catCols.map(c => `
                     <button class="calc-col-chip px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#6956E8] font-mono text-xs hover:border-[#4F67FF] hover:text-white transition-colors" data-col="${c.name}">
@@ -1797,7 +1822,7 @@ export class DatasetsView {
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252C38] pb-3">
               <div class="flex items-center space-x-3">
                 <span class="text-xs px-2.5 py-1 rounded-md font-mono font-bold uppercase inline-flex items-center space-x-1.5 ${evalRes.is_valid ? 'badge-gain' : 'badge-err'}">
-                  ${evalRes.is_valid ? `${icon("check", "icon-sm")}<span>VALID FORMULA</span>` : `${icon("x", "icon-sm")}<span>VALIDATION ERROR</span>`}
+                  ${evalRes.is_valid ? `${icon("check", "icon-sm")}<span>FÓRMULA VÁLIDA</span>` : `${icon("x", "icon-sm")}<span>ERROR DE VALIDACIÓN</span>`}
                 </span>
                 <span class="text-sm font-bold font-mono text-[#F7F8FA]">${evalRes.feature_name}</span>
                 <span class="text-xs font-mono text-[#8B95A7]">(${evalRes.dtype || 'unknown'})</span>
@@ -1805,20 +1830,20 @@ export class DatasetsView {
 
               <div class="flex items-center space-x-2 text-xs font-mono">
                 <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] text-[#8B95A7]">
-                  Rows: <strong class="text-[#F7F8FA]">${evalRes.row_count}</strong>
+                  Filas: <strong class="text-[#F7F8FA]">${evalRes.row_count}</strong>
                 </span>
                 <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] ${evalRes.null_percentage > 0.2 ? 'text-amber-400' : 'text-[#8B95A7]'}">
-                  Nulls: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
+                  Nulos: <strong>${evalRes.null_count} (${(evalRes.null_percentage * 100).toFixed(1)}%)</strong>
                 </span>
                 <span class="px-2 py-0.5 rounded-md bg-[#090C12] border border-[#252C38] ${evalRes.zero_division_occurred ? 'text-[#22C55E] font-bold' : 'text-[#8B95A7]'}">
-                  Zero-div: ${evalRes.zero_division_occurred ? 'Guarded (0.0/eps)' : 'None'}
+                  División por cero: ${evalRes.zero_division_occurred ? 'Protegida (0.0/eps)' : 'Ninguna'}
                 </span>
               </div>
             </div>
 
             ${evalRes.error_message ? `
               <div class="p-3 rounded-lg bg-rose-950/30 border border-rose-800/60 text-rose-300 font-mono text-xs space-y-1">
-                <div class="font-bold">Validation Failure Details:</div>
+                <div class="font-bold">Detalles del Fallo de Validación:</div>
                 <div>${evalRes.error_message}</div>
               </div>
             ` : ""}
@@ -1838,14 +1863,14 @@ export class DatasetsView {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono pt-1">
                 <!-- Summary Stats -->
                 <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
-                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Descriptive Statistics:</div>
+                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Estadísticas Descriptivas:</div>
                   <div class="grid grid-cols-4 gap-2 text-center">
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
-                      <div class="text-[10px] text-[#8B95A7]">Min</div>
+                      <div class="text-[10px] text-[#8B95A7]">Mín</div>
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.min != null ? evalRes.summary_stats.min.toFixed(3) : '-'}</div>
                     </div>
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
-                      <div class="text-[10px] text-[#8B95A7]">Mean</div>
+                      <div class="text-[10px] text-[#8B95A7]">Media</div>
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.mean != null ? evalRes.summary_stats.mean.toFixed(3) : '-'}</div>
                     </div>
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
@@ -1853,7 +1878,7 @@ export class DatasetsView {
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.std != null ? evalRes.summary_stats.std.toFixed(3) : '-'}</div>
                     </div>
                     <div class="p-1.5 rounded-lg bg-[#151B26]">
-                      <div class="text-[10px] text-[#8B95A7]">Max</div>
+                      <div class="text-[10px] text-[#8B95A7]">Máx</div>
                       <div class="font-bold text-[#F7F8FA]">${evalRes.summary_stats?.max != null ? evalRes.summary_stats.max.toFixed(3) : '-'}</div>
                     </div>
                   </div>
@@ -1861,7 +1886,7 @@ export class DatasetsView {
 
                 <!-- Sample Preview -->
                 <div class="p-3.5 rounded-xl bg-[#090C12] border border-[#252C38] space-y-2">
-                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Sample Computed Values (First 5 Rows):</div>
+                  <div class="text-[10px] text-[#8B95A7] uppercase font-sans font-semibold tracking-wider">Valores Calculados de Muestra (Primeras 5 Filas):</div>
                   <div class="flex items-center space-x-2">
                     ${(evalRes.sample_values || []).map((val, idx) => `
                       <span class="px-2 py-1 rounded-md bg-[#151B26] border border-[#252C38] text-[#F7F8FA] font-bold">
@@ -1879,8 +1904,8 @@ export class DatasetsView {
         ${this.calcSuggestions && this.calcSuggestions.length > 0 ? `
           <div class="p-4 rounded-xl border border-indigo-900/40 bg-indigo-950/15 space-y-3">
             <div class="flex items-center justify-between border-b border-indigo-900/30 pb-2">
-              <span class="text-xs font-sans font-semibold text-indigo-300 uppercase tracking-wider">Feature Hypotheses Proposed by AI</span>
-              <span class="text-[10px] font-mono text-[#8B95A7]">${this.calcSuggestions.length} validated proposals</span>
+              <span class="text-xs font-sans font-semibold text-indigo-300 uppercase tracking-wider">Hipótesis de Características Propuestas por IA</span>
+              <span class="text-[10px] font-mono text-[#8B95A7]">${this.calcSuggestions.length} propuestas validadas</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               ${this.calcSuggestions.map(sugg => `
@@ -1888,7 +1913,7 @@ export class DatasetsView {
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-mono font-bold text-indigo-300">${sugg.definition.name}</span>
                     <button class="btn-load-suggestion px-2.5 py-0.5 rounded-md bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 text-[11px] font-sans font-medium inline-flex items-center space-x-1" data-name="${sugg.definition.name}" data-expr="${encodeURIComponent(sugg.definition.expression)}" data-type="${sugg.definition.expression_type}">
-                      <span>Load in Calculator</span>
+                      <span>Cargar en Calculadora</span>
                       <span>${icon("arrow-right", "icon-sm")}</span>
                     </button>
                   </div>
@@ -2055,7 +2080,13 @@ export class DatasetsView {
     const featureCols = (p.columns || []).filter(c => c.name !== p.target_column);
 
     // Save to store so NewExperimentModal immediately knows active selection
-    store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+    const feats = Array.from(this.selectedFeatures);
+    const currentMap = store.getState().selectedFeaturesByDataset || {};
+    store.setState({
+      selectedFeatures: feats,
+      customFeatures: feats,
+      selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats },
+    });
 
     const liveCount = this.container.querySelector("#selectionLiveCount");
     if (liveCount) {
@@ -2167,12 +2198,24 @@ export class DatasetsView {
     });
 
     this.container.querySelector("#btnNewExperimentFromDS")?.addEventListener("click", () => {
-      store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+      const feats = Array.from(this.selectedFeatures);
+      const currentMap = store.getState().selectedFeaturesByDataset || {};
+      store.setState({
+        customFeatures: feats,
+        selectedFeatures: feats,
+        selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats },
+      });
       bus.emit("modal:new-experiment");
     });
 
     this.container.querySelector("#btnLaunchWithSelection")?.addEventListener("click", () => {
-      store.setState({ customFeatures: Array.from(this.selectedFeatures) });
+      const feats = Array.from(this.selectedFeatures);
+      const currentMap = store.getState().selectedFeaturesByDataset || {};
+      store.setState({
+        customFeatures: feats,
+        selectedFeatures: feats,
+        selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats },
+      });
       bus.emit("modal:new-experiment");
     });
 
@@ -2187,6 +2230,7 @@ export class DatasetsView {
         store.setActiveDataset(newId);
         this.renderLoading();
         this.profile = await api.getDatasetProfile(newId).catch(() => null);
+        this.questionnaire = await api.getDatasetQuestionnaire(newId).catch(() => null);
         this._initSelectedFeatures();
         this.render();
       }
@@ -2308,102 +2352,15 @@ export class DatasetsView {
     this._bindRegisterFormEvents();
     this._bindTabSpecificEvents();
     this._bindCalculatorEvents();
-    this._bindExplorationEvents();
-  }
 
-  _bindExplorationEvents() {
-    // Open create study modal
-    this.container.querySelector("#btnOpenCreateStudyModal")?.addEventListener("click", () => {
-      this.showCreateStudyModal = true;
-      this.render();
-    });
-
-    this.container.querySelector("#btnCreateFirstStudy")?.addEventListener("click", () => {
-      this.showCreateStudyModal = true;
-      this.render();
-    });
-
-    // Close create study modal
-    this.container.querySelector("#btnCloseCreateStudyModal")?.addEventListener("click", () => {
-      this.showCreateStudyModal = false;
-      this.render();
-    });
-
-    this.container.querySelector("#btnCancelCreateStudy")?.addEventListener("click", () => {
-      this.showCreateStudyModal = false;
-      this.render();
-    });
-
-    // Submit create study form
-    this.container.querySelector("#formCreateStudy")?.addEventListener("submit", async e => {
-      e.preventDefault();
-      const btn = this.container.querySelector("#btnSubmitCreateStudy");
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Creando...";
+    const openExploreHandler = () => {
+      if (this.activeDatasetId) {
+        store.setState({ activeDatasetId: this.activeDatasetId });
       }
-
-      const name = this.container.querySelector("#inputStudyName")?.value.trim() || "";
-      const target = this.container.querySelector("#inputStudyTarget")?.value.trim() || null;
-
-      try {
-        const res = await api.createAnalysisStudy({
-          dataset_id: this.activeDatasetId,
-          name: name,
-          target_column: target,
-        });
-        this.showCreateStudyModal = false;
-        await this.loadStudies();
-        if (res.study_id) {
-          this.activeStudyId = res.study_id;
-          this.activeStudy = await api.getAnalysisStudy(res.study_id).catch(() => null);
-        }
-        this.render();
-      } catch (err) {
-        alert("Error al crear estudio: " + err.message);
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Crear Estudio";
-        }
-      }
-    });
-
-    // Study select dropdown change
-    this.container.querySelector("#studySelect")?.addEventListener("change", async e => {
-      const sId = e.target.value;
-      if (sId && sId !== this.activeStudyId) {
-        this.activeStudyId = sId;
-        this.activeStudy = await api.getAnalysisStudy(sId).catch(() => null);
-        this.render();
-      }
-    });
-
-    // Run active study
-    const runStudyHandler = async () => {
-      if (!this.activeStudyId || this.runningStudy) return;
-      this.runningStudy = true;
-      this.render();
-      try {
-        await api.runAnalysisStudy(this.activeStudyId);
-        await this.loadStudies();
-      } catch (err) {
-        alert("Error al ejecutar estudio: " + err.message);
-      } finally {
-        this.runningStudy = false;
-        this.render();
-      }
+      store.setNav("explore");
     };
-
-    this.container.querySelector("#btnRunActiveStudy")?.addEventListener("click", runStudyHandler);
-    this.container.querySelector("#btnRunStudyInline")?.addEventListener("click", runStudyHandler);
-
-    // Hypothesis -> Launch Experiment
-    this.container.querySelectorAll(".btn-hypothesis-exp").forEach(btn => {
-      btn.addEventListener("click", () => {
-        store.setState({ customFeatures: Array.from(this.selectedFeatures) });
-        bus.emit("modal:new-experiment");
-      });
-    });
+    this.container.querySelector("#btnOpenFullExploreCanvas")?.addEventListener("click", openExploreHandler);
+    this.container.querySelector("#btnOpenExploreFromDS")?.addEventListener("click", openExploreHandler);
   }
 
   _bindTabSpecificEvents() {
@@ -2427,6 +2384,126 @@ export class DatasetsView {
         this.activeModalTab = col && col.is_image ? "gallery" : "boxplot";
         this._renderAndMountModal();
       });
+    });
+
+    this._bindQuestionnaireEvents();
+  }
+
+  _bindQuestionnaireEvents() {
+    // Option Cards click
+    this.container.querySelectorAll(".q-option-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const field = card.getAttribute("data-q-field");
+        const val = card.getAttribute("data-q-value");
+        if (!this.questionnaire) {
+          this.questionnaire = {
+            dataset_id: this.activeDatasetId,
+            error_cost: "balanced",
+            temporal_structure: "cross_sectional",
+            latency_constraint: "standard_interactive",
+            explainability: "moderate",
+            imbalance_strategy: "auto",
+            primary_metric_override: null,
+            split_strategy_recommendation: (this.profile?.task_type || "").includes("regression") ? "kfold" : "stratified_kfold",
+            user_confirmed: false,
+            engine_source: "heuristic",
+            confidence: 0.9,
+            reasoning: "Ajuste manual del operador humano.",
+          };
+        }
+        this.questionnaire[field] = val;
+        this.questionnaire.user_confirmed = false;
+        this.render();
+      });
+    });
+
+    // Metric override select
+    this.container.querySelector("#qMetricSelect")?.addEventListener("change", e => {
+      if (!this.questionnaire) {
+        this.questionnaire = { dataset_id: this.activeDatasetId, user_confirmed: false };
+      }
+      this.questionnaire.primary_metric_override = e.target.value || null;
+      this.questionnaire.user_confirmed = false;
+      this.render();
+    });
+
+    // Split strategy select
+    this.container.querySelector("#qSplitSelect")?.addEventListener("change", e => {
+      if (!this.questionnaire) {
+        this.questionnaire = { dataset_id: this.activeDatasetId, user_confirmed: false };
+      }
+      this.questionnaire.split_strategy_recommendation = e.target.value;
+      this.questionnaire.user_confirmed = false;
+      this.render();
+    });
+
+    // Generate Suggestions button
+    this.container.querySelector("#btnGenerateQuestionnaire")?.addEventListener("click", async () => {
+      if (this.questionnaireGenerating || !this.activeDatasetId) return;
+      this.questionnaireGenerating = true;
+      this.render();
+      try {
+        const res = await api.generateDatasetQuestionnaire(this.activeDatasetId);
+        if (res && res.questionnaire) {
+          this.questionnaire = res.questionnaire;
+        }
+      } catch (err) {
+        alert("Error generando sugerencias del cuestionario: " + err.message);
+      } finally {
+        this.questionnaireGenerating = false;
+        this.render();
+      }
+    });
+
+    // Save and Confirm button
+    this.container.querySelector("#btnSaveQuestionnaire")?.addEventListener("click", async () => {
+      if (this.questionnaireSaving || !this.activeDatasetId) return;
+      if (!this.questionnaire) {
+        this.questionnaire = {
+          dataset_id: this.activeDatasetId,
+          error_cost: "balanced",
+          temporal_structure: "cross_sectional",
+          latency_constraint: "standard_interactive",
+          explainability: "moderate",
+          imbalance_strategy: "auto",
+          primary_metric_override: null,
+          split_strategy_recommendation: (this.profile?.task_type || "").includes("regression") ? "kfold" : "stratified_kfold",
+          user_confirmed: true,
+          engine_source: "heuristic",
+          confidence: 1.0,
+          reasoning: "Encuadre confirmado por el usuario.",
+        };
+      }
+      this.questionnaire.user_confirmed = true;
+      this.questionnaireSaving = true;
+      this.render();
+      try {
+        const res = await api.saveDatasetQuestionnaire(this.questionnaire);
+        if (res && res.questionnaire) {
+          this.questionnaire = res.questionnaire;
+        }
+      } catch (err) {
+        alert("Error guardando el encuadre: " + err.message);
+      } finally {
+        this.questionnaireSaving = false;
+        this.render();
+      }
+    });
+
+    // Launch experiment with framing
+    this.container.querySelector("#btnLaunchWithFraming")?.addEventListener("click", async () => {
+      if (this.questionnaire) {
+        this.questionnaire.user_confirmed = true;
+        await api.saveDatasetQuestionnaire(this.questionnaire).catch(() => null);
+      }
+      const feats = Array.from(this.selectedFeatures);
+      const currentMap = store.getState().selectedFeaturesByDataset || {};
+      store.setState({
+        customFeatures: feats,
+        selectedFeatures: feats,
+        selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats },
+      });
+      bus.emit("modal:new-experiment");
     });
   }
 
