@@ -36,7 +36,7 @@ Comunica tu elección al otro colaborador y acordad **una persona por rol**. Si 
 4. **[ARCHITECTURE.md](../../../ARCHITECTURE.md):** límites entre dominio, aplicación, motor e interfaces.
 5. **[plan.md](plan.md), completo:** alcance, contratos, reglas de ejecución, recuperación y aceptación técnica. Es la referencia de qué construir.
 6. **[two-person-plan.md](two-person-plan.md), completo:** reparto A0–A5/B0–B5, dependencias, archivos propios, revisiones e integración. Es la referencia de quién construye cada parte y cuándo.
-7. **[DEVELOPER_GUIDE.md](../../../DEVELOPER_GUIDE.md):** patrones aplicables al paquete que empiezas. Consultar **[AutoML_Arquitectura_Tecnica.md](../../../AutoML_Arquitectura_Tecnica.md)** solo como contexto histórico; el estado shipped está en `TASKS.md`.
+7. **[DEVELOPER_GUIDE.md](../../../DEVELOPER_GUIDE.md):** patrones aplicables al paquete que empiezas. Consultar **[AutoML_Arquitectura_Tecnica.md](../../AutoML_Arquitectura_Tecnica.md)** solo como contexto histórico; el estado shipped está en `TASKS.md`.
 
 Para escoger rol basta esta guía y la comparación de responsabilidades. Para programar, completa las lecturas 2–6 y los patrones pertinentes de la guía. H0–H5 ya están cerrados: úsalos como referencia de contratos, no como backlog activo.
 

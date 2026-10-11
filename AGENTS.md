@@ -11,7 +11,7 @@
 
 ## Navigation
 
-- **System Architecture:** See [`ARCHITECTURE.md`](ARCHITECTURE.md). For strategic product, architecture and market roadmap, see [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) and [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md).
+- **System Architecture:** See [`ARCHITECTURE.md`](ARCHITECTURE.md). For strategic product, architecture and market roadmap, see [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md) and [`docs/AutoML_Arquitectura_Tecnica.md`](docs/AutoML_Arquitectura_Tecnica.md).
 - **Docs index (capabilities & evidence):** See [`docs/README.md`](docs/README.md).
 - **Current Work & Backlog:** See [`TASKS.md`](TASKS.md).
 - **Short-Term Memory & Progress:** See [`.agent/progress.md`](.agent/progress.md).
@@ -20,7 +20,7 @@
 - **Shipped — Experiment Recipes (Explore → reusable configs, interface parity; R0–R4):** [`docs/features/experiment-recipes/spec.md`](docs/features/experiment-recipes/spec.md), [`plan.md`](docs/features/experiment-recipes/plan.md), [ADR-009](docs/decisions/009-experiment-recipes-and-interface-parity.md).
 - **UI Design System (Tech Minimalista Premium):** See [`docs/design/tech-minimalist-brand-system.md`](docs/design/tech-minimalist-brand-system.md), [`docs/decisions/006-tech-minimalist-premium-brand-system.md`](docs/decisions/006-tech-minimalist-premium-brand-system.md) and historical spec [`docs/design/neo-industrial-ui-spec.md`](docs/design/neo-industrial-ui-spec.md).
 - **Architectural Decisions (ADRs):** See [`docs/decisions/`](docs/decisions/).
-- **Original Architectural Notes:** See [`planning.txt`](planning.txt).
+- **Original Architectural Notes:** See [`docs/planning.txt`](docs/planning.txt).
 
 ---
 

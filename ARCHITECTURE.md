@@ -1,7 +1,18 @@
 # Architecture — CATML
 
 > System organization, module boundaries, dependency rules, and architectural constraints.
-> For full technical specification and multi-phase roadmap, see [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md). For developer patterns, see [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
+> For full technical specification and multi-phase roadmap, see [`docs/AutoML_Arquitectura_Tecnica.md`](docs/AutoML_Arquitectura_Tecnica.md). For developer patterns, see [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
+
+### Public package vs internal package
+
+| Surface | Name | Role |
+| --- | --- | --- |
+| PyPI / `pip install` | `catml` | Distribution name |
+| Stable public import | `catml` (`src/catml/`) | Re-exports `AutoML`, `ModelArtifact`, `__version__` |
+| Internal implementation | `automl` (`src/automl/`) | Hexagonal layers, CQRS, engines, interfaces |
+| CLI entry points | `catml` (primary), `automl` (alias) | Both call `automl.interfaces.cli.main:main` |
+
+Prefer `from catml import AutoML` in user code. Application/CQRS extensions import from `automl.*`.
 
 ---
 
@@ -89,7 +100,7 @@ src/automl/
 │   └── vision/              # Image encoding
 │
 ├── plugins/                 # Adapters for concrete external libraries
-│   ├── models/              # Scikit-learn model adapters (logistic_regression, random_forest, svc)
+│   ├── models/              # Sklearn + GBDT plugins (LightGBM/XGBoost/CatBoost extras), ensembles, vision head
 │   ├── metrics/             # Business metric adapters
 │   ├── modalities/          # Image loading adapter
 │   └── optimizers/          # Optuna adapter (OptunaOptimizer with TPESampler)
@@ -136,23 +147,26 @@ Explore / Recipes / Agents details: [`docs/features/catml-explore/`](docs/featur
 
 ## 4. Key Architectural Constraints
 
-- **No Monolithic `AutoML.fit()`:** CATML decomposes AutoML into explicit, auditable stages (registration, profiling, problem definition, feature configuration, experiment planning, trial execution, evaluation, optimization).
-- **Propose ≠ Accept:** Planners, optimizers, and feature selectors only propose candidates. Candidates must run through the execution engine and yield recorded metrics before being promoted.
-- **Human-Agent Parity:** Every operation accessible to a human via CLI or UI must be exposed through the exact same application command/query buses for future LLM agents.
-- **Auditability & Event Logging:** Application mutations record events in SQLite. Full environment and backend provenance is a design goal; current limitations are documented in [backends.md](docs/backends.md).
+- **Ergonomic facade ≠ monolithic core:** `AutoML.fit()` is a thin public facade over the same auditable stages (registration, profiling, planning, trial execution, evaluation). Internals stay CQRS/hexagonal; the facade does not bypass buses for agent/CLI parity paths.
+- **Propose ≠ Accept:** Planners, optimizers, feature selectors, and agents only propose candidates. Promotion requires measured experiments / explicit promote commands.
+- **Human-Agent Parity:** CLI, Workbench, MCP, and Python application clients use the same `CommandBus` / `QueryBus` / workspace services. Architecture guards forbid private repository leaks in interfaces (`tests/test_cqrs_architecture_guard.py`).
+- **Auditability & Event Logging:** Mutations record events in SQLite. Artifact provenance captures dependency versions and checksums; remaining per-trial backend limits are documented in [backends.md](docs/backends.md).
 
 ---
 
 ## 5. Current scope
 
-The directory tree is a summary; [docs/README.md](docs/README.md) maps current capabilities to implementation and tests. The Workbench uses the application buses and workspace, with some read routes accessing repositories directly. Knowledge and agent responses include illustrative previews. [TASKS.md](TASKS.md) owns implementation status; the technical specification describes the target architecture.
+The directory tree is a summary; [docs/README.md](docs/README.md) maps capabilities to implementation and tests. Operational status lives in [TASKS.md](TASKS.md). Explore, Experiment Recipes, and agent milestones H0–H5 are shipped in `0.9.0-rc1` (see feature plans under `docs/features/`).
+
+**Known debt (tracked in TASKS):** `workspace.py` remains a large facade (~1.8k LOC) that already delegates to application services; further handler extraction is backlog. Advanced meta-learning policies and OOF holdout promotion validation remain open.
 
 ## 6. Deeper References
 
-- **Formal Technical Architecture & Roadmap (V0.1–V1.0):** [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md)
+- **Formal Technical Architecture & Roadmap (historical):** [`docs/AutoML_Arquitectura_Tecnica.md`](docs/AutoML_Arquitectura_Tecnica.md)
 - **Developer Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
-- **Architectural Rationale & Historical Design:** [`planning.txt`](planning.txt)
+- **Architectural Rationale & Historical Design:** [`docs/planning.txt`](docs/planning.txt)
 - **Architectural Decision Records:** [`docs/decisions/`](docs/decisions/)
+- **Security & trusted deployment:** [`SECURITY.md`](SECURITY.md), [`docs/trusted-deployment.md`](docs/trusted-deployment.md)
 
 
 ## Persistent local execution

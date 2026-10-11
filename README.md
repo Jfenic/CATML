@@ -6,8 +6,9 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Version](https://img.shields.io/badge/Version-0.9.0--rc1-blue.svg)](src/automl/__init__.py)
-[![Tests](https://img.shields.io/badge/Tests-788%20Collected-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/Coverage-%E2%89%A585%25-brightgreen.svg)](tests/)
+[![CI](https://github.com/Jfenic/CATML/actions/workflows/ci.yml/badge.svg)](https://github.com/Jfenic/CATML/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-788%20Collected-brightgreen.svg)](https://github.com/Jfenic/CATML/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-%E2%89%A585%25%20(CI%20gate)-brightgreen.svg)](https://github.com/Jfenic/CATML/actions/workflows/ci.yml)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
 
@@ -17,13 +18,13 @@
 
 Most AutoML platforms (AutoGluon, H2O, FLAML, PyCaret) are monolithic libraries or proprietary cloud silos designed before the rise of autonomous AI coding agents. 
 
-CATML is engineered from the ground up with **distinct advantages**:
+CATML is engineered from the ground up with **five distinct advantages**:
 
-1. **🛡️ Fail-Safe Anti-Leakage Guardian:** Automatically detects target leakage, group leakage, and pseudo-identifiers before training. Contaminated columns are automatically excluded by default.
-2. **🤖 Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within budget-aware leases and cooperative cancellation controls.
-3. **⚡ 3-Line Ergonomics & Reproducibility:** Simple, scikit-learn compatible interface (`AutoML(random_state=42).fit(df, target="churn")`) with deterministic cross-validation seeds and strict reproducibility.
-4. **📦 Standalone, Database-Free Deployment:** Winning models serialize into portable `model.pkl` artifacts with streaming SHA-256 integrity checksums for database-free, workspace-independent production inference.
-5. **🔒 100% Local-First & Private:** Localhost-only web interface (`127.0.0.1`), workspace-confined media access, and SQLite ledger; zero external cloud data transmission.
+1. **Fail-Safe Anti-Leakage Guardian:** Automatically detects target leakage, group leakage, and pseudo-identifiers before training. Contaminated columns are automatically excluded by default.
+2. **Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within budget-aware leases and cooperative cancellation controls.
+3. **3-Line Ergonomics & Reproducibility:** Simple, scikit-learn compatible facade (`AutoML(random_state=42).fit(df, target="churn")`) over the same CQRS/hexagonal stages used by CLI and agents—not a separate monolithic engine.
+4. **Portable Artifacts (Database-Free Inference Runtime):** Winning models serialize into `model.pkl` + `.sha256` sidecars for workspace-independent inference. Runtime still needs compatible scientific Python stacks (see security note below)—not a zero-dependency binary.
+5. **100% Local-First & Private:** Workbench and MCP bind to `127.0.0.1` by default, confine filesystem access to the workspace, and keep an SQLite ledger locally. CATML does not phone home or transmit dataset rows.
 
 ---
 
@@ -48,14 +49,16 @@ print(result.leaderboard())
 # 4. Save standalone winning model for production
 result.save_model("model.pkl")
 
-# 5. Load and predict anywhere (database-free and workspace-independent)
+# 5. Load and predict (workspace-independent; requires matching deps)
 model = ModelArtifact.load("model.pkl")
 predictions = model.predict(df.head(5))
 probabilities = model.predict_proba(df.head(5))
 ```
 
+> **Public API note:** Install/import the distribution as `catml`. The implementation package remains `automl` for CQRS modules (`from automl.application...`). See [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 > [!WARNING]
-> **Model Artifact Deserialization Security:** Never load `.pkl` / `joblib` artifacts received from untrusted third parties. Standard Python object deserialization can execute arbitrary code. Companion `.sha256` checksums verify storage integrity against accidental corruption, **not** cryptographic authenticity or provenance. For multi-tenant, LAN, or VPS deployments, see [`docs/trusted-deployment.md`](docs/trusted-deployment.md) and [`SECURITY.md`](SECURITY.md).
+> **Model Artifact Deserialization Security:** Never load `.pkl` / `joblib` artifacts received from untrusted third parties. Deserialization can execute arbitrary code. Companion `.sha256` checksums detect accidental corruption only—not authenticity. Artifacts embed dependency version manifests; keep scikit-learn/numpy/pandas aligned with training. HMAC/PKI signatures and ONNX export are on the hardening roadmap ([`SECURITY.md`](SECURITY.md), [`docs/trusted-deployment.md`](docs/trusted-deployment.md)).
 
 ---
 
@@ -71,7 +74,7 @@ catml fit examples/data/customers_churn.csv --target churn
 catml fit data.csv --target churn --models logistic_regression,random_forest --json
 ```
 
-Output:
+Example output (illustrative scores; `lightgbm` requires the optional `catml[models]` extra):
 ```text
 =================================================================
   CATML Automated Machine Learning (Platform 0.9.0-rc1)
@@ -104,10 +107,10 @@ Output:
 CATML includes a built-in interactive Tech Minimalista Premium visual dashboard for monitoring runs, inspecting datasets, and managing experiments:
 
 ```bash
-catml ui --port 8080 --workspace .automl/demo
+catml ui --port 8080 --workspace .automl/default
 ```
 
-Open **[http://localhost:8080](http://localhost:8080)** in your browser to access:
+Defaults to **`127.0.0.1`**. Binding a non-loopback host requires an auth token (fail-closed). Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)** to access:
 - **Mission Control Overview:** Live experiment status and resource telemetry.
 - **Dataset Inspector:** Deep statistical profiling, cardinality detection, and feature recommendations.
 - **Visual Experiment Studio:** Interactive comparison diffs, HPO trial history, and model explainability.
@@ -115,9 +118,13 @@ Open **[http://localhost:8080](http://localhost:8080)** in your browser to acces
 
 ---
 
-## 🤖 Agentic Protocol: Model Context Protocol (MCP)
+## Agentic Protocol: Model Context Protocol (MCP)
 
-CATML exposes its entire AutoML capability directly to LLMs via the Model Context Protocol (MCP).
+CATML exposes AutoML capabilities to LLMs via MCP. Install the extra first:
+
+```bash
+pip install -e ".[mcp]"   # or: pip install "catml[mcp]"
+```
 
 ### Connect to Claude Desktop or Cursor
 
@@ -134,10 +141,10 @@ Add CATML to your `claude_desktop_config.json`:
 }
 ```
 
-Or start the streamable HTTP transport server:
+Or start the streamable HTTP transport (loopback by default; remote bind requires a token):
 
 ```bash
-catml mcp --transport streamable-http --port 8000
+catml mcp --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 
 Available tools exposed to AI agents:
@@ -160,13 +167,14 @@ cd CATML
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install in editable mode
+# Install in editable mode (tests + parquet helpers)
 pip install -e ".[dev]"
+
+# MCP / agent extras are optional — install when you need those surfaces:
+pip install -e ".[mcp,agents]"
 ```
 
 ### Optional Modality & Agentic Extensions
-
-Install optional capability packages as needed for your workload:
 
 ```bash
 # Gradient boosting backends (LightGBM, XGBoost, CatBoost)
@@ -175,8 +183,9 @@ pip install "catml[models]"
 # Deep learning vision representations (PyTorch, torchvision, timm, Pillow)
 pip install "catml[vision]"
 
-# Agentic orchestration & MCP server (LangGraph, MCP)
-pip install "catml[mcp,agents]"
+# MCP server SDK and LangGraph agent orchestration
+pip install "catml[mcp]"
+pip install "catml[agents]"
 
 # Full stack with all extensions
 pip install "catml[all]"
@@ -250,7 +259,7 @@ pytest --cov=src/automl --cov-fail-under=85
 ## Documentation Navigation
 
 - **System Architecture & Hexagonal Rules:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- **Technical Specification & Roadmap:** [`AutoML_Arquitectura_Tecnica.md`](AutoML_Arquitectura_Tecnica.md)
+- **Technical Specification & Roadmap (historical):** [`docs/AutoML_Arquitectura_Tecnica.md`](docs/AutoML_Arquitectura_Tecnica.md)
 - **Active Tasks & Operational Backlog:** [`TASKS.md`](TASKS.md)
 - **Agent Rules & Development Guidelines:** [`AGENTS.md`](AGENTS.md)
 - **Developer Extension Guide:** [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)
@@ -258,6 +267,8 @@ pytest --cov=src/automl --cov-fail-under=85
 - **Architectural Decision Records (ADRs):** [`docs/decisions/`](docs/decisions/)
 - **Trusted Deployment & Threat Model:** [`docs/trusted-deployment.md`](docs/trusted-deployment.md)
 - **Security Policy & Reporting:** [`SECURITY.md`](SECURITY.md)
+- **Code of Conduct:** [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+- **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
 
 ---
 

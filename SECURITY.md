@@ -51,6 +51,9 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - **Loopback Default:** Both Workbench (`127.0.0.1:8080`) and MCP server (`127.0.0.1:8000`) bind exclusively to loopback interfaces by default.
 - **Fail-Closed Remote Binding:** Binding to external network interfaces (`0.0.0.0` or non-loopback IP) strictly requires authentication. Any attempt to use `--insecure-no-auth` remotely without explicitly setting the environment variable `CATML_ALLOW_INSECURE=1` is rejected with `PermissionError`.
 - **Fragment-Only URLs:** Access tokens are provided using client-side fragments (`/#token=...`), ensuring tokens are never transmitted across HTTP requests or leaked in server access logs.
+- **CORS:** Workbench reflects `Access-Control-Allow-Origin` only for `http://localhost:*` / `http://127.0.0.1:*` origins; it is not a wildcard public API.
+- **CSRF posture:** The Workbench is a same-origin static SPA talking to its own loopback HTTP handler with Bearer tokens for remote binds. It is not a cookie-session multi-site app; deploy behind TLS + reverse-proxy auth for any non-loopback exposure.
+- **Path confinement:** Dataset browse/upload/download and media preview endpoints reject path traversal and stay within workspace / registered dataset roots (see Workbench file-confinement tests).
 - **Production Deployments:** When deployed on LAN or cloud VPS, CATML services must be placed behind an authenticated TLS reverse proxy (Nginx, Caddy, Envoy). See [`docs/trusted-deployment.md`](docs/trusted-deployment.md) for reference configurations.
 
 ### 4. Agentic & MCP Governance ("Propose ≠ Accept")
