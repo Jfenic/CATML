@@ -278,13 +278,18 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
   - [x] Distinguir derivadas sin estado (`derived_features`) vs transforms con estado (`column_transforms`, fit-in-fold en pipeline de entrenamiento).
   - [x] Persistencia en SQLite (`column_transforms_json`, `derived_features_json`), soporte en `TrialExecution` y `Experiment`.
   - [x] Suite de pruebas dedicada en `tests/test_recipe_phase_r0_verify_transforms.py` (6 pruebas pasando al 100%).
-- [ ] **Fase R1 — Dominio `ExperimentRecipe` + CQRS** [P0]:
-  - [ ] Entidad reproducible: transforms, columnas, dataset/hash, modelo/params, validación, métrica, semilla, `evidence_link_id`.
-  - [ ] Comandos: `CreateExperimentRecipeFromEvidence`, `SubmitExperimentFromRecipe`, `PromoteExperimentRecipe`.
-  - [ ] Consultas: `ListVerifiedImprovements`, `GetExperimentRecipe`, `ListExperimentRecipes`.
-- [ ] **Fase R2 — Trainer fit-in-fold** [P0]:
-  - [ ] `RobustScaler` / `PowerTransformer` ajustados dentro de cada fold de CV en `SklearnTrainer`.
-  - [ ] Tests de no-leakage.
+- [x] **Fase R1 — Dominio `ExperimentRecipe` + CQRS** [P0]:
+  - [x] Entidad reproducible en `domain/recipes/`: `ExperimentRecipe` con transforms, columnas, dataset/hash, modelo/params, validación, métrica, semilla, `evidence_link_id`, status (`draft`/`selected`/`submitted`/`promoted`/`archived`).
+  - [x] Persistencia relacional aditiva SQLite en `sqlite_recipes.py` (`SQLiteRecipeRepository`).
+  - [x] Comandos CQRS: `CreateExperimentRecipeFromEvidenceCommand`, `SubmitExperimentFromRecipeCommand`, `SelectExperimentRecipeCommand`, `PromoteExperimentRecipeCommand`, `ArchiveExperimentRecipeCommand`.
+  - [x] Consultas CQRS: `ListVerifiedImprovementsQuery`, `GetExperimentRecipeQuery`, `ListExperimentRecipesQuery`.
+  - [x] Servicio de aplicación `RecipeService` orquestando ciclo de vida sin auto-promoción ("EvidenceLink.accepted ≠ Promoted").
+  - [x] Registro modular en `recipe_registry.py` y `bootstrap.py`.
+  - [x] Suite de tests dedicada en `tests/test_recipe_phase_r1_domain_and_cqrs.py` (5 pruebas pasando al 100%).
+- [x] **Fase R2 — Trainer fit-in-fold** [P0]:
+  - [x] `RobustScaler` / `PowerTransformer` (yeo-johnson) ajustados dentro de cada fold de CV o split de train en `SklearnTrainer` (`_build_pipeline`).
+  - [x] Preprocesamiento de derivadas en memoria previo a partición sin leakage.
+  - [x] Tests de fit-in-fold y no-leakage en `tests/test_recipe_phase_r0_verify_transforms.py`.
 - [ ] **Fase R3 — Paridad Python / CLI / MCP / REST** [P0]:
   - [ ] CLI (`catml recipe …`), tools MCP con política de aprobación, endpoints REST.
   - [ ] Crear draft ≠ ejecutar; promover = operación explícita auditable.

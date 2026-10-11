@@ -415,6 +415,20 @@ class AutoMLWorkspace:
             statistical_engine=StatisticalAnalyzer(),
         )
 
+    def get_recipe_repository(self):
+        """Retrieve SQLiteRecipeRepository for this workspace."""
+        from automl.infrastructure.database.sqlite_recipes import SQLiteRecipeRepository
+        return SQLiteRecipeRepository(self.root_dir / "automl.db")
+
+    def get_recipe_service(self):
+        """Retrieve RecipeService for this workspace."""
+        from automl.application.recipes.recipe_service import RecipeService
+        return RecipeService(
+            recipe_repository=self.get_recipe_repository(),
+            study_repository=self.get_study_repository(),
+            workspace=self,
+        )
+
     def get_feature_registry(self, dataset_id: str) -> FeatureRegistry:
         if dataset_id not in self._feature_registries:
             self._hydrate_feature_registry(dataset_id)

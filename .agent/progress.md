@@ -1,5 +1,27 @@
 # Progress
 
+### Track Experiment Recipes — Fase R1 & R2: Dominio Recipe, CQRS y Trainer Fit-in-Fold (2026-10-11)
+
+- **Implementación de Experiment Recipes (Fase R1 & R2):**
+  - **Entidad Pura de Dominio (`src/automl/domain/recipes/`):**
+    - `ExperimentRecipe`: Representación reproducible de configuraciones de experimentos con especificación §6 completa: `id`, `name`, `status` (`DRAFT`, `SELECTED`, `SUBMITTED`, `PROMOTED`, `ARCHIVED`), `dataset_id`, `dataset_content_hash`, `feature_names`, `derived_features`, `column_transforms`, `drop_features`, `model_ids`, `model_params`, `validation_strategy`, `cv_folds`, `metric`, `random_seed`, `evidence_link_id`, `hypothesis_id`, `study_id`, `lineage`, `experiment_ids`.
+    - Métodos de ciclo de vida con auditoría y serialización: `select()`, `submit()`, `promote()`, `archive()`, `to_dict()`, `from_dict()`.
+    - Puerto de persistencia `ExperimentRecipeRepositoryPort` en dominio (`domain/recipes/ports.py` y `domain/ports.py`).
+  - **Persistencia Relacional SQLite Aditiva (`SQLiteRecipeRepository`):**
+    - Implementación en `src/automl/infrastructure/database/sqlite_recipes.py`.
+    - Tabla `experiment_recipes` con índices en `dataset_id` y `status`, transacciones WAL y soporte en disco y memoria.
+  - **Servicio de Aplicación y CQRS (`RecipeService`):**
+    - Comandos: `CreateExperimentRecipeFromEvidenceCommand` (crea draft desde `EvidenceLink` respetando Propose ≠ Accept), `SubmitExperimentFromRecipeCommand` (ejecuta entrenamiento sin alterar la receta base), `SelectExperimentRecipeCommand`, `PromoteExperimentRecipeCommand` (promoción explícita y auditable), `ArchiveExperimentRecipeCommand`.
+    - Consultas DTO: `GetExperimentRecipeQuery`, `ListExperimentRecipesQuery`, `ListVerifiedImprovementsQuery` (conecta evidencias estadísticas con aprendizaje acumulado).
+    - Registro modular desacoplado en `recipe_registry.py` y ensamblado en `bootstrap.py`.
+  - **Trainer Fit-in-Fold sin Fuga de Datos (`SklearnTrainer`):**
+    - Aplicación in-fold de `RobustScaler` y `PowerTransformer` (Yeo-Johnson) en pipeline de CV sin fugas pre-split.
+  - **Pruebas y Verificación:**
+    - Suite de Fase R1 en `tests/test_recipe_phase_r1_domain_and_cqrs.py` (5 pruebas pasando al 100%).
+    - Suite de Fase R0 en `tests/test_recipe_phase_r0_verify_transforms.py` (6 pruebas pasando al 100%).
+    - Guard arquitectónico CQRS verificado en `tests/test_cqrs_architecture_guard.py` (3 pruebas pasando).
+    - Suite global completa: **744 pruebas pasando**, 0 fallos, **86.95% de cobertura total**.
+
 ### Track Experiment Recipes — Fase R0: Verificación Real de Transforms (2026-10-11)
 
 - **Cierre del Gap de Verificación Real en Hipótesis de Explore (Fase R0):**

@@ -11,6 +11,7 @@ from automl.application.registries import (
     register_feature_handlers,
     register_inference_handlers,
     register_job_handlers,
+    register_recipe_handlers,
 )
 from automl.application.services.workspace import AutoMLWorkspace
 
@@ -34,6 +35,7 @@ def register_handlers(
       - Feature registry: feature discovery, selection, ablation, metadata lineages
       - Inference registry: predictions, submissions, ensembles, OOF, and pipelines
       - Analysis registry: exploratory statistical studies, runs, findings, visualizations
+      - Recipe registry: reproducible experiment recipes from verified evidence
     """
     register_job_handlers(workspace, command_bus, query_bus, job_service=job_service)
     register_core_handlers(workspace, command_bus, query_bus)
@@ -41,6 +43,7 @@ def register_handlers(
     register_feature_handlers(workspace, command_bus, query_bus)
     register_inference_handlers(workspace, command_bus, query_bus)
     register_analysis_handlers(workspace, command_bus, query_bus)
+    register_recipe_handlers(workspace, command_bus, query_bus)
 
 
 def build_application(
