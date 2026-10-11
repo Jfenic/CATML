@@ -1,5 +1,15 @@
 # Progress
 
+### Track PyPI Pre-Publish — Wheel Workbench static (`fix/pypi-wheel-workbench-static`, 2026-10-11)
+
+- Confirmed audit P0: existing `dist/catml-0.9.0rc1-py3-none-any.whl` had **0** `interfaces/web/static` members.
+- Added `tool.setuptools.package-data` for Workbench HTML/CSS/JS under `automl.interfaces.web`.
+- Extended `tests/smoke_test.py` to assert packaged static files + loopback HTTP 200 for `/`, CSS, and JS.
+- CI: wheel content assertion before install; matrix 3.10–3.13; non-blocking `pip-audit` job.
+- Added `.github/workflows/release.yml` (Trusted Publishing skeleton; tags / manual dispatch only).
+- README: sklearn quickstart for PyPI users; CDN honesty; SECURITY pip-audit wording corrected.
+- **Not done / needs human:** configure PyPI Trusted Publisher + TestPyPI dry-run; do not upload without approval.
+
 ### Track Public Surface Audit — Coherence (`fix/audit-public-surface-coherence`, 2026-10-11)
 
 - Branched from `main` after PR #90 merge to address an external audit that mixed outdated claims with real gaps.

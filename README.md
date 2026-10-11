@@ -24,36 +24,38 @@ CATML is engineered from the ground up with **five distinct advantages**:
 2. **Agent-Native by Design (MCP Server):** Native Model Context Protocol (MCP) dual transport (stdio/HTTP) enables external AI agents (Claude, Cursor, OpenAI) to discover features, run trials, and explore hypotheses within budget-aware leases and cooperative cancellation controls.
 3. **3-Line Ergonomics & Reproducibility:** Simple, scikit-learn compatible facade (`AutoML(random_state=42).fit(df, target="churn")`) over the same CQRS/hexagonal stages used by CLI and agents—not a separate monolithic engine.
 4. **Portable Artifacts (Database-Free Inference Runtime):** Winning models serialize into `model.pkl` + `.sha256` sidecars for workspace-independent inference. Runtime still needs compatible scientific Python stacks (see security note below)—not a zero-dependency binary.
-5. **100% Local-First & Private:** Workbench and MCP bind to `127.0.0.1` by default, confine filesystem access to the workspace, and keep an SQLite ledger locally. CATML does not phone home or transmit dataset rows.
+5. **Local-First by Default:** Workbench and MCP bind to `127.0.0.1` by default, confine filesystem access to the workspace, and keep an SQLite ledger locally. CATML does not phone home or upload dataset rows. Optional extras (vision weight downloads, remote LLM endpoints, browser CDNs for UI chrome) may use the network when you enable them.
 
 ---
 
 ## Quickstart (Python API)
 
-Train multiple candidate models, compare the leaderboard, and export a production-ready model in seconds:
+Works after `pip install catml` with no repository checkout (uses a built-in scikit-learn dataset):
 
 ```python
-import pandas as pd
+from sklearn.datasets import load_breast_cancer
 from catml import AutoML, ModelArtifact
 
-# 1. Load any tabular dataset
-df = pd.read_csv("examples/data/customers_churn.csv")
+# 1. Any tabular DataFrame with a target column
+df = load_breast_cancer(as_frame=True).frame
 
 # 2. Fit candidate models with automatic leakage protection & reproducible seed
 automl = AutoML(metric="roc_auc", random_state=42)
-result = automl.fit(df, target="churn")
+result = automl.fit(df, target="target")
 
 # 3. View the experiment leaderboard
 print(result.leaderboard())
 
-# 4. Save standalone winning model for production
+# 4. Save portable winning model for production inference
 result.save_model("model.pkl")
 
-# 5. Load and predict (workspace-independent; requires matching deps)
+# 5. Load and predict (workspace-independent; requires matching scientific deps)
 model = ModelArtifact.load("model.pkl")
 predictions = model.predict(df.head(5))
 probabilities = model.predict_proba(df.head(5))
 ```
+
+CSV examples under `examples/data/` ship with the **Git repository**, not the PyPI wheel.
 
 > **Public API note:** Install/import the distribution as `catml`. The implementation package remains `automl` for CQRS modules (`from automl.application...`). See [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -64,13 +66,11 @@ probabilities = model.predict_proba(df.head(5))
 
 ## Quickstart (Command Line)
 
-Train directly from your terminal with automated leaderboard output and artifact generation:
-
 ```bash
-# Fit models on a dataset and export winning artifact
+# After cloning the repo (examples/ is not inside the wheel):
 catml fit examples/data/customers_churn.csv --target churn
 
-# Output results as structured JSON
+# Or point at any local CSV after pip install:
 catml fit data.csv --target churn --models logistic_regression,random_forest --json
 ```
 
@@ -115,6 +115,8 @@ Defaults to **`127.0.0.1`**. Binding a non-loopback host requires an auth token 
 - **Dataset Inspector:** Deep statistical profiling, cardinality detection, and feature recommendations.
 - **Visual Experiment Studio:** Interactive comparison diffs, HPO trial history, and model explainability.
 - **Persistent Job Queue:** Resilient SQLite worker with pause, resume, and cooperative cancellation.
+
+> **Network note:** Training and dataset rows stay local. The Workbench HTML currently loads Tailwind/Chart.js/Lucide and web fonts from public CDNs for UI chrome, so a browser with outbound HTTPS is required for full styling. That is not dataset egress. Fully offline UI assets are a follow-up packaging task.
 
 ---
 

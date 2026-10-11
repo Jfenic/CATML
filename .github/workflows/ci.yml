@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +22,24 @@ jobs:
         run: python -m pip install -e ".[dev,mcp,agents,parquet]"
       - name: Run tests with coverage
         run: pytest --cov=automl --cov-report=term-missing --cov-fail-under=85
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    needs: test
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip install pip-audit
+      - name: Audit installed dependencies
+        run: python -m pip-audit
 
   package-smoke:
     runs-on: ubuntu-latest
@@ -36,6 +54,26 @@ jobs:
         run: python -m pip install --upgrade pip build wheel
       - name: Build distribution packages (wheel + sdist)
         run: python -m build
+      - name: Assert Workbench static assets are inside the wheel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          required = [
+              "automl/interfaces/web/static/index.html",
+              "automl/interfaces/web/static/css/workbench.css",
+              "automl/interfaces/web/static/js/app.js",
+              "automl/interfaces/web/static/js/views/home.js",
+          ]
+          wheels = list(Path("dist").glob("*.whl"))
+          assert len(wheels) == 1, f"Expected exactly one wheel, found {wheels}"
+          with ZipFile(wheels[0]) as wheel:
+              files = set(wheel.namelist())
+          missing = [f for f in required if f not in files]
+          assert not missing, f"Workbench static assets missing from wheel: {missing}"
+          print(f"OK: {wheels[0].name} includes Workbench static assets")
+          PY
       - name: Test installation in clean virtual environment
         run: |
           python -m venv test_env
@@ -45,4 +83,3 @@ jobs:
       - name: Run E2E release smoke test
         run: |
           ./test_env/bin/python tests/smoke_test.py
-
