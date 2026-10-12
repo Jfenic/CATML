@@ -8,7 +8,7 @@
 - Removed dead HPO/trainer imports from `workspace.py` (~1998 → ~1669 LOC).
 - Tests: `tests/test_clean_arch_pr2_execution_services.py` (6): facade delegation, binary smoke, MAE regression smoke, HPO shape, unknown optimizer fail-closed.
 - Validation: **872 passed**, coverage **87.11 %**, CLI help/task list OK.
-- Next: open PR for merge; then PR3 (web controllers + `datasets.js` split).
+- PR: [#109](https://github.com/Jfenic/CATML/pull/109). Next after merge: PR3 (web controllers + `datasets.js` split).
 
 ### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
 
