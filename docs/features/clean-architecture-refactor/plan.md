@@ -111,6 +111,15 @@ Implementación código: PR **#102** (`refactor/clean-arch-pr1-metric-execution-
 
 **No hacer:** reescribir planner/queue en el mismo PR salvo lo mínimo para compilar.
 
+### PR2 acceptance checklist
+
+- [x] `ExperimentExecutionService` con lógica de `run_experiment` (`application/services/experiment_execution_service.py`)
+- [x] `OptimizationService` con lógica de `optimize_experiment` (`application/services/optimization_service.py`)
+- [x] `AutoMLWorkspace` expone propiedades lazy + métodos thin (firmas públicas intactas)
+- [x] Tests: `tests/test_clean_arch_pr2_execution_services.py` (binary smoke, MAE regression, HPO facade, fail-closed optimizer)
+- [x] Imports HPO/trainer muertos eliminados de `workspace.py`
+- [ ] Merge PR [#109](https://github.com/Jfenic/CATML/pull/109) (cobertura ≥ 85 %, suite completa verde)
+
 ---
 
 ## PR 3 — Separar API y frontend

@@ -12,7 +12,7 @@
 - Canonical `domain/experiments/budgets.py` (quick=60 / balanced=300 / thorough=1200); `api.js` forwards `time_budget_seconds`; JobExecutor prefers explicit seconds.
 - XSS: escape dataset/target/recipes in `new_experiment.js`; Manual mode shows model checkboxes; plugin native/fallback labels.
 - Trainer: multiclass `roc_auc` → `roc_auc_ovr` + holdout OvR; trial `artifacts` record `estimator_class` / `backend` / `fallback_backend`; Studio badge.
-- `/api/optimize` no longer returns fabricated importances (Optuna when available); `/api/predict` checklist is evidence-only.
+- `/api/optimize` no longer returns fabricated importances (Optuna when available via OptimizationService); `/api/predict` checklist is evidence-only.
 - Tests: `tests/test_audit5_workbench_honesty.py`.
 
 ### Track Workbench — framing/CV coherence + job error clarity (2026-10-12)
@@ -29,6 +29,16 @@
 - Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + `workbench_static_sources.py` for package-aware static guards.
 - Follow-up fix: `JobService` allowlist accepts Workbench `budget` / `mode` / `validation_strategy` (was "Unknown experiment job arguments").
 - PR: [#110](https://github.com/Jfenic/CATML/pull/110). Next after merge: PR4 (SQLite repos / state machine / UoW).
+
+### Track Clean Architecture PR2 — execution/optimization services (`refactor/clean-arch-pr2-execution-optimization-services`, 2026-10-12)
+
+- Extracted `run_experiment` → `ExperimentExecutionService`.
+- Extracted `optimize_experiment` → `OptimizationService`.
+- `AutoMLWorkspace` keeps public signatures; lazy properties + 1:1 delegates (CLI/MCP/Web unchanged).
+- Removed dead HPO/trainer imports from `workspace.py` (~1998 → ~1669 LOC).
+- Tests: `tests/test_clean_arch_pr2_execution_services.py` (6): facade delegation, binary smoke, MAE regression smoke, HPO shape, unknown optimizer fail-closed.
+- Validation: **872 passed**, coverage **87.11 %**, CLI help/task list OK.
+- PR: [#109](https://github.com/Jfenic/CATML/pull/109). Merged into tabular publish branch with Audit-5 param_importance on OptimizationService.
 
 ### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
 
