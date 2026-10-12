@@ -1,5 +1,15 @@
 # Progress
 
+### Track Clean Architecture PR2 — execution/optimization services (`refactor/clean-arch-pr2-execution-optimization-services`, 2026-10-12)
+
+- Extracted `run_experiment` → `ExperimentExecutionService`.
+- Extracted `optimize_experiment` → `OptimizationService`.
+- `AutoMLWorkspace` keeps public signatures; lazy properties + 1:1 delegates (CLI/MCP/Web unchanged).
+- Removed dead HPO/trainer imports from `workspace.py` (~1998 → ~1669 LOC).
+- Tests: `tests/test_clean_arch_pr2_execution_services.py` (6): facade delegation, binary smoke, MAE regression smoke, HPO shape, unknown optimizer fail-closed.
+- Validation: **872 passed**, coverage **87.11 %**, CLI help/task list OK.
+- Next: open PR for merge; then PR3 (web controllers + `datasets.js` split).
+
 ### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
 
 - #9/#10: `verify_hypothesis` always runs a paired baseline; distinguish `improved_in_experiment` vs `validated` / `accepted`; hyp status may be `improved_unvalidated`.
