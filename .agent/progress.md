@@ -1,5 +1,12 @@
 # Progress
 
+### Track Clean Architecture PR3 — web API + datasets.js split (`refactor/clean-arch-pr3-web-api-datasets-split`, 2026-10-12)
+
+- Backend: `server.py` reduced to HTTP glue (~300 LOC); routes in `interfaces/web/api/{jobs,datasets,experiments,analysis}.py` + `_helpers.py`.
+- Frontend: `views/datasets.js` barrel; `DatasetsView` orchestrator + panels under `views/datasets/` (summary, columns, health, selector, correlations, questionnaire, derived).
+- Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + `workbench_static_sources.py` for package-aware static guards.
+- Next: open PR; after merge PR4 (SQLite repos / state machine / UoW).
+
 ### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
 
 - #9/#10: `verify_hypothesis` always runs a paired baseline; distinguish `improved_in_experiment` vs `validated` / `accepted`; hyp status may be `improved_unvalidated`.

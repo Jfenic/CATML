@@ -72,15 +72,15 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
-> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 in this PR (`#102`).
+> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 `#102`; PR2 `#109`; PR3 on `refactor/clean-arch-pr3-web-api-datasets-split`.
 
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done (`#101`) |
 | P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
-| P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Open (after PR1) |
-| P1 | PR3: Web controllers + split `datasets.js` components | Open |
-| P2 | PR4: SQLite repos + state machine + Unit of Work | Open |
+| P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Done (`#109`) |
+| P1 | PR3: Web controllers + split `datasets.js` components | Done (branch; PR pending) |
+| P2 | PR4: SQLite repos + state machine + Unit of Work | Open (after PR3) |
 | P2 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open |
 
 ### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)

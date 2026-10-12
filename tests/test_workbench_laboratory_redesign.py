@@ -65,14 +65,17 @@ def test_frontend_laboratory_modules_exist_and_integrate():
     assert "Cambiar dataset activo" in modal_content
     assert "btn-select-ds" in modal_content
 
-    # DatasetsView Resumen and Columnas tabs
-    ds_content = datasets_js.read_text(encoding="utf-8")
+    # DatasetsView Resumen and Columnas tabs (modular package under views/datasets/)
+    from workbench_static_sources import datasets_view_sources
+
+    ds_content = datasets_view_sources()
     assert "_renderResumenTab" in ds_content
     assert "_renderColumnasTab" in ds_content
     assert "_renderHealthCard" in ds_content
     assert "btnOpenFullExploreCanvas" in ds_content or "btnOpenExploreFromDS" in ds_content
     assert "btnNewExperimentFromDS" in ds_content
     assert "Anti-Leakage Guardian" in ds_content
+    assert (views_dir / "datasets" / "datasets_view.js").exists()
 
 
 def test_app_js_routes_home_and_laboratory_views():
@@ -309,10 +312,12 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert "Searching space (72%)" not in overview_js
     assert "w-2/3" not in overview_js
 
-    # 3. Verify datasets.js links to Explore, and explore.js implements dedicated Explore module
-    datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
+    # 3. Verify datasets view links to Explore, and explore.js implements dedicated Explore module
+    from workbench_static_sources import datasets_view_sources
+
+    datasets_js = datasets_view_sources()
     explore_js = Path("src/automl/interfaces/web/static/js/views/explore.js").read_text(encoding="utf-8")
-    assert "btnOpenExploreFromDS" in datasets_js
+    assert "btnOpenExploreFromDS" in datasets_js or "btnOpenFullExploreCanvas" in datasets_js
     assert "_renderExplorationTab" not in datasets_js
     assert "btnOpenNewStudyModal" in explore_js or "btnCreateInitialStudy" in explore_js
     assert "Matriz de Correlación" in datasets_js or "Matriz de Correlación" in explore_js

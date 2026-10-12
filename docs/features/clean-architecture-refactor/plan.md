@@ -137,6 +137,14 @@ views/datasets/
 
 - Preferir `textContent` / nodos DOM para datos de usuario; `escapeHtml` donde quede `innerHTML`.
 
+### PR3 acceptance checklist
+
+- [x] `server.py` thin glue + dispatch to `api/{jobs,datasets,experiments,analysis}.py`
+- [x] Shared helpers in `api/_helpers.py` (re-exported from `server` for tests)
+- [x] `views/datasets.js` re-exports `DatasetsView`; modules under `views/datasets/`
+- [x] Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + updated static source helpers
+- [ ] Merge PR (cobertura ≥ 85 %, suite completa verde)
+
 ---
 
 ## PR 4 — Persistencia y estados transaccionales

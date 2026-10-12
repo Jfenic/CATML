@@ -56,9 +56,11 @@ def test_workbench_css_has_wcag_and_responsive_rules():
 
 
 def test_datasets_js_has_spanish_schema_and_calculator():
+    from workbench_static_sources import datasets_view_sources
+
     datasets_path = STATIC_DIR / "js" / "views" / "datasets.js"
     assert datasets_path.exists()
-    content = datasets_path.read_text(encoding="utf-8")
+    content = datasets_view_sources()
 
     # Schema table headers in Spanish
     assert "<th>Característica</th>" in content
