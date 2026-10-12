@@ -1,5 +1,11 @@
 # Progress
 
+### Tabular ship stack merged to main (`#111`, 2026-10-12)
+
+- Merged https://github.com/Jfenic/CATML/pull/111 into `main` (`1aa009f`): PR2+PR3+UX+Audit-5+Labs-deferred docs.
+- Local validation: **889 passed**, coverage **87.11%**; facade breast_cancer fit→export→predict OK; job worker experiment OK.
+- Remaining for publish: human TestPyPI/PyPI Trusted Publisher; optional Sprint 3 demo export; manual Workbench click-through.
+
 ### Decision — Workbench Labs deferred; tabular first (2026-10-12)
 
 - Accepted future direction: App Shell + modality Labs, single AutoML/CQRS engine ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md), [plan](docs/features/workbench-labs/plan.md)).

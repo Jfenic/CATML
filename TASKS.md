@@ -76,9 +76,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Merge Clean Arch PR2/PR3 + UX #111 (`#109` → `#110` → `#111`) | Open (PRs open) |
-| P0 | Land Audit-5 honesty on same train (budget contract, XSS, Manual models, multiclass ROC-AUC, fallback badges, no fake HPO importances) | Done (on #111 branch) |
-| P0 | End-to-end tabular: register → frame → experiment job → leaderboard → export | In progress (stack #109+#110+#111) |
+| P0 | Merge Clean Arch PR2/PR3 + UX #111 (`#109` → `#110` → `#111`) | Done (`#111` → `main`) |
+| P0 | Land Audit-5 honesty on same train (budget contract, XSS, Manual models, multiclass ROC-AUC, fallback badges, no fake HPO importances) | Done (in `#111`) |
+| P0 | End-to-end tabular: register → frame → experiment job → leaderboard → export | Done (facade + job smoke; Workbench manual spot-check recommended) |
 | P1 | Demo project + executive results export (Sprint 3) | Open |
 | P1 | PyPI / TestPyPI `0.9.0rc1` human Trusted Publisher | Open (human) |
 | P2 | Workbench Labs Phase 1 (registry + router adapters only) | **Deferred** until tabular gate |
