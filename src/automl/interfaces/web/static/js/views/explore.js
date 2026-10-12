@@ -49,6 +49,7 @@ export class ExploreView {
     this.activeVizType = "correlation_matrix";
     this.matrixMethod = "pearson"; // "pearson" | "spearman"
     this.matrixColumnFilter = "";
+    this.guidedCorrExpanded = false;
   }
 
   async mount(container) {
@@ -430,16 +431,15 @@ export class ExploreView {
     pairs.sort((x, y) => y.abs - x.abs);
     const top = pairs.slice(0, 5);
 
-    if (top.length === 0) {
-      return `
-        <div class="text-xs text-[#8B95A7] font-sans p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
-          No hay pares con |r| ≥ 0.70. Cambia a <strong class="text-[#F7F8FA]">Avanzado</strong> para ver la matriz completa.
-        </div>`;
-    }
+    const corrViz = this.visualizations.find(v => v.chart_type === "correlation_matrix") || viz;
+    const catViz = this.visualizations.find(v => v.chart_type === "categorical_association_matrix");
 
-    return `
-      <div class="space-y-3">
-        <p class="text-xs text-[#8B95A7] font-sans">Pares más correlacionados (|r| ≥ 0.70). La matriz completa está en modo Avanzado.</p>
+    const pairsBlock = top.length === 0
+      ? `
+        <div class="text-xs text-[#8B95A7] font-sans p-3 bg-[#090C12] rounded-lg border border-[#242A36]">
+          No hay pares con |r| ≥ 0.70. Amplía abajo para ver la matriz completa (Pearson / Spearman) y, si aplica, Cramér's V.
+        </div>`
+      : `
         <div class="overflow-x-auto border border-[#242A36] rounded-lg">
           <table class="w-full text-xs font-mono border-collapse">
             <thead>
@@ -459,7 +459,37 @@ export class ExploreView {
               `).join("")}
             </tbody>
           </table>
-        </div>
+        </div>`;
+
+    return `
+      <div class="space-y-3">
+        <p class="text-xs text-[#8B95A7] font-sans">Pares más correlacionados (|r| ≥ 0.70). Amplía para matrices Pearson, Spearman y Cramér's V.</p>
+        ${pairsBlock}
+        <details id="guidedCorrExpand" class="rounded-xl border border-[#242A36] bg-[#090C12] open:border-[#4F67FF]/35" ${this.guidedCorrExpanded ? "open" : ""}>
+          <summary class="cursor-pointer select-none px-4 py-3 text-xs font-sans font-medium text-[#F7F8FA] flex items-center justify-between gap-2 list-none">
+            <span class="inline-flex items-center gap-2">
+              ${icon("layers", "icon-sm")}
+              <span>Ampliar matrices de correlación</span>
+            </span>
+            <span class="text-[10px] font-mono text-[#8B95A7]">Pearson · Spearman · Cramér's V</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-5 border-t border-[#242A36] pt-4">
+            <div class="space-y-2">
+              <h5 class="text-xs font-semibold font-sans text-[#F7F8FA]">Correlación numérica (Pearson / Spearman)</h5>
+              ${corrViz ? this._renderCorrelationMatrixHtml(corrViz) : `<p class="text-xs text-[#8B95A7]">Sin matriz de correlación numérica en este estudio.</p>`}
+            </div>
+            ${catViz ? `
+              <div class="space-y-2 pt-2 border-t border-[#242A36]">
+                <h5 class="text-xs font-semibold font-sans text-[#F7F8FA]">Asociación categórica (Cramér's V)</h5>
+                ${this._renderCategoricalMatrixHtml(catViz)}
+              </div>
+            ` : `
+              <p class="text-[11px] text-[#8B95A7] font-sans pt-1 border-t border-[#242A36]">
+                Cramér's V aparece cuando el estudio incluye variables categóricas con matriz de asociación.
+              </p>
+            `}
+          </div>
+        </details>
       </div>`;
   }
 
@@ -1145,8 +1175,13 @@ export class ExploreView {
     document.querySelectorAll(".btn-matrix-toggle").forEach(btn => {
       btn.addEventListener("click", (e) => {
         this.matrixMethod = e.currentTarget.getAttribute("data-method");
+        const expand = document.getElementById("guidedCorrExpand");
+        this.guidedCorrExpanded = Boolean(expand?.open);
         this.render();
       });
+    });
+    document.getElementById("guidedCorrExpand")?.addEventListener("toggle", (e) => {
+      this.guidedCorrExpanded = Boolean(e.currentTarget.open);
     });
 
     // Export report

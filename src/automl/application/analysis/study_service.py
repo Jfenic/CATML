@@ -331,39 +331,7 @@ class AnalysisStudyService:
         else:
             safe_features = [c for c in dataset.feature_names if c != target_col]
 
-        # Determine baseline score
-        experiments = workspace.repository.list_experiments(run.id)
-        baseline_score: float | None = None
-
-        if experiments:
-            leaderboard = workspace.repository.get_leaderboard(run.id)
-            if leaderboard:
-                baseline_row = leaderboard[0]
-                if hasattr(baseline_row, "primary_score"):
-                    baseline_score = float(baseline_row.primary_score)
-                elif isinstance(baseline_row, dict):
-                    baseline_score = float(baseline_row.get("score") or baseline_row.get("primary_score", 0.0))
-
-        if baseline_score is None:
-            # Run baseline experiment
-            default_models = ["ridge", "random_forest"] if dataset.task_type == "regression" else ["logistic_regression", "random_forest"]
-            baseline_exp = workspace.create_experiment(
-                run=run,
-                name="baseline_pre_hypothesis",
-                feature_names=safe_features,
-                model_ids=default_models,
-                hypothesis="Baseline configuration prior to hypothesis verification",
-            )
-            baseline_results = workspace.run_experiment(run, baseline_exp)
-            succeeded_baseline = [r for r in baseline_results if r.succeeded]
-            if not succeeded_baseline:
-                raise RuntimeError("Failed to establish baseline experiment.")
-            if is_minimizing_metric(metric, ws=workspace):
-                baseline_score = min(r.primary_score for r in succeeded_baseline)
-            else:
-                baseline_score = max(r.primary_score for r in succeeded_baseline)
-
-        # Translate hypothesis to candidate experiment
+        # Translate first so the paired baseline shares models / metric / CV with the candidate.
         default_candidate_models = list(cmd.models) if cmd.models else None
         candidate_spec = HypothesisExperimentTranslator.translate(
             hypothesis=hyp,
@@ -371,6 +339,46 @@ class AnalysisStudyService:
             task_type=dataset.task_type,
             default_models=default_candidate_models,
         )
+
+        action = str(hyp.proposed_action or "").lower()
+        delta_keys = set((hyp.experiment_delta or {}).keys())
+        model_changing = action in {
+            "nonlinear_transform_or_trees",
+            "nonlinear_models",
+        } or "models" in delta_keys or "suggested_models" in delta_keys
+        default_models = (
+            ["ridge", "random_forest"]
+            if dataset.task_type == "regression"
+            else ["logistic_regression", "random_forest"]
+        )
+        # Feature/transform hyps: hold models fixed to the candidate. Model hyps: use task defaults.
+        baseline_models = list(default_models) if model_changing else list(candidate_spec.model_ids)
+
+        paired_baseline_exp = workspace.create_experiment(
+            run=run,
+            name=f"baseline_paired_{candidate_spec.name}",
+            feature_names=safe_features,
+            model_ids=baseline_models,
+            hypothesis=(
+                "Paired baseline for hypothesis verification "
+                "(same run metric/CV/seed; control features; no hypothesis delta)"
+            ),
+            column_transforms=[],
+            derived_features=[],
+            validation_strategy=run.config.validation_strategy,
+        )
+        baseline_results = workspace.run_experiment(run, paired_baseline_exp)
+        succeeded_baseline = [r for r in baseline_results if r.succeeded]
+        if not succeeded_baseline:
+            raise RuntimeError("Failed to establish paired baseline experiment.")
+
+        is_minimizing = is_minimizing_metric(metric, ws=workspace)
+        if is_minimizing:
+            baseline_score = min(r.primary_score for r in succeeded_baseline)
+            baseline_best = min(succeeded_baseline, key=lambda r: r.primary_score)
+        else:
+            baseline_score = max(r.primary_score for r in succeeded_baseline)
+            baseline_best = max(succeeded_baseline, key=lambda r: r.primary_score)
 
         candidate_exp = workspace.create_experiment(
             run=run,
@@ -380,51 +388,95 @@ class AnalysisStudyService:
             hypothesis=candidate_spec.hypothesis_text,
             column_transforms=list(candidate_spec.column_transforms),
             derived_features=list(candidate_spec.derived_features),
+            validation_strategy=run.config.validation_strategy,
         )
 
         candidate_results = workspace.run_experiment(run, candidate_exp)
         succeeded_candidate = [r for r in candidate_results if r.succeeded]
 
-        is_minimizing = is_minimizing_metric(metric, ws=workspace)
+        improved_in_experiment = False
+        validated = False
         if not succeeded_candidate:
             candidate_score = float("inf") if is_minimizing else -float("inf")
             delta = -float("inf")
-            accepted = False
             notes = "Candidate experiment failed to produce any valid trial."
         else:
             if is_minimizing:
                 candidate_score = min(r.primary_score for r in succeeded_candidate)
+                candidate_best = min(succeeded_candidate, key=lambda r: r.primary_score)
                 delta = baseline_score - candidate_score
             else:
                 candidate_score = max(r.primary_score for r in succeeded_candidate)
+                candidate_best = max(succeeded_candidate, key=lambda r: r.primary_score)
                 delta = candidate_score - baseline_score
 
-            accepted = delta > cmd.min_improvement
-            if accepted:
+            improved_in_experiment = delta > cmd.min_improvement
+            # Require observable fold uncertainty when available; otherwise do not auto-validate.
+            cand_std = None
+            base_std = None
+            for key in ("cv_std", "std", "score_std"):
+                if candidate_best.secondary_metrics and key in candidate_best.secondary_metrics:
+                    cand_std = float(candidate_best.secondary_metrics[key])
+                    break
+            for key in ("cv_std", "std", "score_std"):
+                if baseline_best.secondary_metrics and key in baseline_best.secondary_metrics:
+                    base_std = float(baseline_best.secondary_metrics[key])
+                    break
+            uncertainty = max(
+                abs(cand_std) if cand_std is not None else 0.0,
+                abs(base_std) if base_std is not None else 0.0,
+            )
+            if improved_in_experiment and (cand_std is not None or base_std is not None):
+                validated = delta > max(float(cmd.min_improvement), 2.0 * uncertainty)
+            else:
+                validated = False
+
+            if validated:
                 notes = (
-                    f"Accepted: Candidate improved {metric} by +{delta:.4f} "
-                    f"over baseline ({baseline_score:.4f} -> {candidate_score:.4f})."
+                    f"Validated: Candidate improved {metric} by +{delta:.4f} "
+                    f"over paired baseline ({baseline_score:.4f} -> {candidate_score:.4f}) "
+                    f"with fold uncertainty {uncertainty:.4f}."
+                )
+            elif improved_in_experiment:
+                notes = (
+                    f"Improved in experiment but not validated: delta={delta:.4f} on {metric} "
+                    f"(paired baseline {baseline_score:.4f} -> {candidate_score:.4f}). "
+                    f"Missing or insufficient fold uncertainty for promotion."
                 )
             else:
                 notes = (
                     f"Rejected: Candidate delta was {delta:.4f} <= {cmd.min_improvement} "
-                    f"on {metric} (baseline: {baseline_score:.4f}, candidate: {candidate_score:.4f})."
+                    f"on {metric} (paired baseline: {baseline_score:.4f}, candidate: {candidate_score:.4f})."
                 )
 
-        # Update hypothesis state
-        hyp.status = "accepted" if accepted else "rejected"
+        # accepted => statistically validated promotion; improved_unvalidated keeps Propose ≠ Accept honest.
+        if validated:
+            hyp.status = "accepted"
+        elif improved_in_experiment:
+            hyp.status = "improved_unvalidated"
+        else:
+            hyp.status = "rejected"
         self.repository.save_hypothesis(hyp)
 
-        # Create and save EvidenceLink
         link = EvidenceLink.create(
             hypothesis_id=hyp.id,
             experiment_id=candidate_exp.id,
             baseline_score=baseline_score,
             candidate_score=candidate_score if abs(candidate_score) != float("inf") else 0.0,
             metric=metric,
-            accepted=accepted,
+            accepted=validated,
             notes=notes,
+        )
+        # Extra honesty fields for API consumers (backward-compatible via to_dict merge below).
+        link_dict = link.to_dict()
+        link_dict.update(
+            {
+                "improved_in_experiment": improved_in_experiment,
+                "validated": validated,
+                "paired_baseline_experiment_id": paired_baseline_exp.id,
+                "baseline_experiment_id": paired_baseline_exp.id,
+            }
         )
         self.repository.save_evidence_link(link)
 
-        return link.to_dict()
+        return link_dict

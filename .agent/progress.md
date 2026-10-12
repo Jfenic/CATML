@@ -1,10 +1,85 @@
 # Progress
 
-### Track License compliance (`docs/third-party-license-compliance`, 2026-10-11)
+### Track License compliance (`docs/third-party-license-compliance`, 2026-10-12)
 
 - Audit: Chart.js MIT, Lucide ISC(+Feather MIT), Tailwind MIT, Geist/IBM Plex OFL-1.1 — commercial-OK with notices; CATML stays Apache-2.0.
 - Added `THIRD_PARTY_LICENSES.md`, vendor license texts under `static/vendor/licenses/`, `license-files` in `pyproject.toml`, NOTICE/README pointers.
-- Tests: `tests/test_third_party_license_compliance.py` (repo + wheel + sdist). No UI redesign; PR not auto-merged.
+- Tests: `tests/test_third_party_license_compliance.py` (repo + wheel + sdist). Merged onto main after #111 for PyPI gate.
+
+### Tabular ship stack merged to main (`#111`, 2026-10-12)
+
+- Merged https://github.com/Jfenic/CATML/pull/111 into `main` (`1aa009f`): PR2+PR3+UX+Audit-5+Labs-deferred docs.
+- Local validation: **889 passed**, coverage **87.11%**; facade breast_cancer fit→export→predict OK; job worker experiment OK.
+- Remaining for publish: human TestPyPI/PyPI Trusted Publisher; optional Sprint 3 demo export; manual Workbench click-through.
+
+### Decision — Workbench Labs deferred; tabular first (2026-10-12)
+
+- Accepted future direction: App Shell + modality Labs, single AutoML/CQRS engine ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md), [plan](docs/features/workbench-labs/plan.md)).
+- **Active focus:** finish tabular Workbench (merge #109/#110/#111, land Audit-5, E2E CSV→export). No Vision/NLP/Clustering lab scaffolding yet.
+- MASTER_PLAN / TASKS / AGENTS / docs index updated accordingly.
+
+### Track Audit-5 — Workbench honesty / launch / metrics (2026-10-12)
+
+- Verified external audit vs `main` @ `b238fb690`; #3 allowlist already fixed on branch; residual budget skew + #1/#2/#4/#5/#6 addressed.
+- Canonical `domain/experiments/budgets.py` (quick=60 / balanced=300 / thorough=1200); `api.js` forwards `time_budget_seconds`; JobExecutor prefers explicit seconds.
+- XSS: escape dataset/target/recipes in `new_experiment.js`; Manual mode shows model checkboxes; plugin native/fallback labels.
+- Trainer: multiclass `roc_auc` → `roc_auc_ovr` + holdout OvR; trial `artifacts` record `estimator_class` / `backend` / `fallback_backend`; Studio badge.
+- `/api/optimize` no longer returns fabricated importances (Optuna when available via OptimizationService); `/api/predict` checklist is evidence-only.
+- Tests: `tests/test_audit5_workbench_honesty.py`.
+
+### Track Workbench — framing/CV coherence + job error clarity (2026-10-12)
+
+- Root cause of `All experiment trials failed` on airline satisfaction: advisor matched «Departure/Arrival time convenient» as temporal → `time_series_split` without `time_column`.
+- Fix: tighter `_is_temporal_column` heuristics; `coerce_split_strategy` in domain + `from_dict`; UI sync in questionnaire / `new_experiment.js`; JobExecutor appends trial `failure_reason`.
+- Tests: airline cross-sectional case + coerce + job error surface in `test_dataset_questionnaire.py` / `test_workbench_laboratory_redesign.py`.
+- Operator action: re-generate or re-save Encuadre (Independiente + Stratified K-Fold), then relaunch experiment.
+
+### Track Clean Architecture PR3 — web API + datasets.js split (`refactor/clean-arch-pr3-web-api-datasets-split`, 2026-10-12)
+
+- Backend: `server.py` reduced to HTTP glue (~300 LOC); routes in `interfaces/web/api/{jobs,datasets,experiments,analysis}.py` + `_helpers.py`.
+- Frontend: `views/datasets.js` barrel; `DatasetsView` orchestrator + panels under `views/datasets/` (summary, columns, health, selector, correlations, questionnaire, derived).
+- Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + `workbench_static_sources.py` for package-aware static guards.
+- Follow-up fix: `JobService` allowlist accepts Workbench `budget` / `mode` / `validation_strategy` (was "Unknown experiment job arguments").
+- PR: [#110](https://github.com/Jfenic/CATML/pull/110). Next after merge: PR4 (SQLite repos / state machine / UoW).
+
+### Track Clean Architecture PR2 — execution/optimization services (`refactor/clean-arch-pr2-execution-optimization-services`, 2026-10-12)
+
+- Extracted `run_experiment` → `ExperimentExecutionService`.
+- Extracted `optimize_experiment` → `OptimizationService`.
+- `AutoMLWorkspace` keeps public signatures; lazy properties + 1:1 delegates (CLI/MCP/Web unchanged).
+- Removed dead HPO/trainer imports from `workspace.py` (~1998 → ~1669 LOC).
+- Tests: `tests/test_clean_arch_pr2_execution_services.py` (6): facade delegation, binary smoke, MAE regression smoke, HPO shape, unknown optimizer fail-closed.
+- Validation: **872 passed**, coverage **87.11 %**, CLI help/task list OK.
+- PR: [#109](https://github.com/Jfenic/CATML/pull/109). Merged into tabular publish branch with Audit-5 param_importance on OptimizationService.
+
+### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
+
+- #9/#10: `verify_hypothesis` always runs a paired baseline; distinguish `improved_in_experiment` vs `validated` / `accepted`; hyp status may be `improved_unvalidated`.
+- #16: budget exhaustion with partial successes → `ExperimentStatus.PARTIAL` + `completion_reason=BUDGET_EXHAUSTED`.
+- #12: PCA candidates keep source columns + reduction recipe; reject `PC*` names; trainer supports `kind=pca` column='*'.
+- #14: image embedding cache key includes file size + mtime_ns.
+- Tests: `tests/test_audit4_hypothesis_budget_pca_cache.py`.
+
+### Track Audit-4 mediums — features / simplex (`fix/audit4-features-simplex-honesty`, 2026-10-12)
+
+- **Merged via #106** (`f040891`).
+- #7/#8: `prepare_feature_matrix` drops invalid targets (no `fillna(0)`, no `"nan"` class).
+- #11: `simplex` OOF blend scores via nested fold weight-fit; production weights still fit on full OOF for test.
+- #13: tree selector → `FeatureEvidence.tree_importance` (+ SQLite column); `shap_importance` reserved; confidence from evidence count.
+- #6 (partial): selected feature sets tagged `evaluation_mode=exploratory_full_dataset` + `supervised_selection_leakage_risk`.
+- Tests: `tests/test_audit4_features_simplex_honesty.py`.
+
+### Track Audit-4 — Security / inference / ensemble (`fix/audit4-security-inference-ensemble`, 2026-10-12)
+
+- **Merged via #104** (`67a60e4`):
+  - `infrastructure/security/workspace_paths.py`: shared path confinement; web `/api/dataset/register` uses it (parity with inspect).
+  - Upload writes `stem_{uuid10}.ext` so same client filename cannot overwrite prior uploads.
+  - `InferenceService.predict`: materializes derived features + passes `column_transforms` into `fit_and_predict`.
+  - `build_ensemble`: persists MAE/RMSE on natural scale (flip sklearn `neg_*`).
+  - `stack_predictions`: nested `cross_val_predict` OOF for metamodel (not in-sample fit).
+  - Unknown optimizer → `ValueError` (no silent Random Search).
+- Tests: `tests/test_audit4_security_inference_ensemble.py`.
+- Next: findings #6–#14, #16. License compliance remains PR #103.
 
 ### Track Clean Architecture Refactor (PR1 contracts, 2026-10-11)
 

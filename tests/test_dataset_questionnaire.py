@@ -17,6 +17,7 @@ from automl.domain.tasks.questionnaire import (
     ExplainabilityLevel,
     LatencyConstraint,
     TemporalStructure,
+    coerce_split_strategy,
 )
 from automl.engine.planning.questionnaire_advisor import QuestionnaireAdvisor
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
@@ -142,6 +143,61 @@ def test_advisor_heuristics_temporal_time_series():
     assert q.temporal_structure == TemporalStructure.SEQUENTIAL_TIME_SERIES
     assert q.split_strategy_recommendation == "time_series_split"
     assert "sequential" in q.reasoning.lower() or "time" in q.reasoning.lower()
+
+
+def test_advisor_ignores_survey_time_phrases_as_cross_sectional():
+    """Airline-style Likert columns mentioning 'time' must not force TimeSeriesSplit."""
+    advisor = QuestionnaireAdvisor()
+    q = advisor.infer(
+        dataset_id="ds_airline",
+        dataset_name="airline_passenger_satisfaction",
+        column_names=[
+            "Gender",
+            "Customer Type",
+            "Age",
+            "Type of Travel",
+            "Class",
+            "Flight Distance",
+            "Inflight wifi service",
+            "Departure/Arrival time convenient",
+            "Ease of Online booking",
+            "Gate location",
+            "Food and drink",
+            "Online boarding",
+            "Seat comfort",
+            "Inflight entertainment",
+            "On-board service",
+            "Leg room service",
+            "Baggage handling",
+            "Checkin service",
+            "Inflight service",
+            "Cleanliness",
+            "Departure Delay in Minutes",
+            "Arrival Delay in Minutes",
+            "satisfaction",
+        ],
+        target_column="satisfaction",
+    )
+    assert q.temporal_structure == TemporalStructure.CROSS_SECTIONAL
+    assert q.split_strategy_recommendation == "stratified_kfold"
+    assert q.split_strategy_recommendation not in {"time_series", "time_series_split"}
+
+
+def test_coerce_split_strategy_drops_time_series_on_cross_sectional():
+    assert (
+        coerce_split_strategy(TemporalStructure.CROSS_SECTIONAL, "time_series_split")
+        == "stratified_kfold"
+    )
+    assert (
+        coerce_split_strategy(TemporalStructure.SEQUENTIAL_TIME_SERIES, "kfold")
+        == "time_series_split"
+    )
+    restored = DatasetQuestionnaire.from_dict({
+        "dataset_id": "ds_x",
+        "temporal_structure": "cross_sectional",
+        "split_strategy_recommendation": "time_series_split",
+    })
+    assert restored.split_strategy_recommendation == "stratified_kfold"
 
 
 def test_advisor_heuristics_grouped_cohort():

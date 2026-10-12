@@ -126,12 +126,17 @@ class SklearnTrainer(TrainerPort):
                 if k not in ("text_columns", "image_columns", "image_model", "time_budget")
             }
 
+            model_plugin = None
+            used_fallback = False
             if self.plugin_registry and self.plugin_registry.has(execution.trial.model_id):
                 model_plugin = self.plugin_registry.get_model_plugin(execution.trial.model_id)
                 if model_plugin:
                     self.plugin_registry.validate_plugin_for_task(
                         execution.trial.model_id,
                         execution.task_type,
+                    )
+                    used_fallback = not bool(
+                        getattr(model_plugin, "is_available", getattr(model_plugin, "is_native", True))
                     )
                     model = model_plugin.build_estimator(
                         parameters=model_params,
@@ -323,7 +328,14 @@ class SklearnTrainer(TrainerPort):
 
             elapsed = time.perf_counter() - started
             trial.status = TrialStatus.COMPLETED
-            artifacts = {}
+            artifacts = {
+                "estimator_class": type(model).__name__,
+                "backend": "fallback" if used_fallback else "native",
+            }
+            if used_fallback and model_plugin is not None:
+                fb = getattr(model_plugin, "fallback_backend", None)
+                if fb:
+                    artifacts["fallback_backend"] = str(fb)
             if execution.group_column:
                 artifacts["group_column"] = execution.group_column
             if "cv_scores" in secondary:
@@ -619,7 +631,33 @@ def _build_pipeline(
             )
 
     preprocessor = ColumnTransformer(transformers=transformers, sparse_threshold=0.0)
-    return Pipeline([("preprocessor", preprocessor), ("model", model)])
+    steps: list[tuple[str, Any]] = [("preprocessor", preprocessor)]
+
+    # Optional fold-safe PCA reduction (declared as column_transforms kind=pca, column='*').
+    pca_spec = None
+    if column_transforms:
+        for ct in column_transforms:
+            if not isinstance(ct, dict):
+                continue
+            kind = str(ct.get("kind", "")).lower()
+            col = str(ct.get("column", ""))
+            if kind == "pca" and col in {"*", "__all__", "__dataset__"}:
+                pca_spec = ct
+                break
+    if pca_spec is not None:
+        from sklearn.decomposition import PCA
+
+        params = dict(pca_spec.get("params") or {})
+        n_components = params.get("n_components", 0.95)
+        steps.append(
+            (
+                "pca",
+                PCA(n_components=n_components, random_state=params.get("random_state")),
+            )
+        )
+
+    steps.append(("model", model))
+    return Pipeline(steps)
 
 
 def _is_minimizing_metric(metric_name: str, plugin_registry: Any = None) -> bool:
@@ -638,6 +676,9 @@ def _is_minimizing_metric(metric_name: str, plugin_registry: Any = None) -> bool
 
 
 def _sklearn_scoring(metric_name: str, task_type: str, plugin_registry: Any = None) -> Any:
+    # Binary ROC-AUC vs multiclass OvR (macro) — sklearn's plain "roc_auc" is binary-only.
+    if metric_name == "roc_auc" and task_type == "multiclass_classification":
+        return "roc_auc_ovr"
     mapping = {
         "accuracy": "accuracy",
         "f1": "f1_weighted",
@@ -705,6 +746,20 @@ def _compute_metrics(
         try:
             proba = pipeline.predict_proba(X_test)[:, 1]
             metrics["roc_auc"] = float(roc_auc_score(y_true, proba))
+        except Exception:
+            pass
+        try:
+            from sklearn.metrics import log_loss
+            proba_all = pipeline.predict_proba(X_test)
+            metrics["log_loss"] = float(log_loss(y_true, proba_all))
+        except Exception:
+            pass
+    elif task_type == "multiclass_classification":
+        try:
+            proba_all = pipeline.predict_proba(X_test)
+            metrics["roc_auc"] = float(
+                roc_auc_score(y_true, proba_all, multi_class="ovr", average="weighted")
+            )
         except Exception:
             pass
         try:

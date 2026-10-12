@@ -65,14 +65,17 @@ def test_frontend_laboratory_modules_exist_and_integrate():
     assert "Cambiar dataset activo" in modal_content
     assert "btn-select-ds" in modal_content
 
-    # DatasetsView Resumen and Columnas tabs
-    ds_content = datasets_js.read_text(encoding="utf-8")
+    # DatasetsView Resumen and Columnas tabs (modular package under views/datasets/)
+    from workbench_static_sources import datasets_view_sources
+
+    ds_content = datasets_view_sources()
     assert "_renderResumenTab" in ds_content
     assert "_renderColumnasTab" in ds_content
     assert "_renderHealthCard" in ds_content
     assert "btnOpenFullExploreCanvas" in ds_content or "btnOpenExploreFromDS" in ds_content
     assert "btnNewExperimentFromDS" in ds_content
     assert "Anti-Leakage Guardian" in ds_content
+    assert (views_dir / "datasets" / "datasets_view.js").exists()
 
 
 def test_app_js_routes_home_and_laboratory_views():
@@ -233,6 +236,7 @@ def test_frontend_audit_remediations_honesty_and_accessibility():
     assert "jobPayload.validation_strategy = payload.validation_strategy" in api_content, "F06: validation_strategy must be forwarded"
     assert "jobPayload.budget = payload.budget" in api_content, "F06: budget must be forwarded"
     assert "jobPayload.mode = payload.mode" in api_content, "F06: mode must be forwarded"
+    assert "jobPayload.time_budget_seconds" in api_content, "Audit-5: time_budget_seconds must be forwarded"
 
 
 def test_job_executor_budget_propagation(tmp_path):
@@ -297,6 +301,65 @@ def test_job_executor_budget_propagation(tmp_path):
     assert dispatched_cmd.run_id == "run-1"
 
 
+def test_job_executor_surfaces_trial_failure_reason(tmp_path):
+    from unittest.mock import MagicMock
+    import pytest
+    from automl.application.services.job_executor import JobExecutor
+    from automl.domain.jobs.job import Job, JobStatus
+    from automl.domain.runs.run import AutoMLRun, RunConfig
+
+    workspace = MagicMock()
+    commands = MagicMock()
+    repo = MagicMock()
+
+    mock_run = AutoMLRun(
+        id="run-1",
+        workspace_id="ws-1",
+        dataset_id="ds-1",
+        config=RunConfig(task_type="classification", target="target"),
+    )
+    mock_dataset = MagicMock()
+    mock_dataset.id = "ds-1"
+    mock_dataset.target_column = "target"
+    profile = MagicMock()
+    profile.columns = []
+    repo.get_dataset_profile.return_value = profile
+
+    workspace._get_run.return_value = mock_run
+    workspace._get_dataset.return_value = mock_dataset
+    workspace.repository = repo
+
+    mock_experiment = MagicMock()
+    mock_experiment.id = "exp-1"
+    mock_experiment.run_id = "run-1"
+    mock_experiment.status = MagicMock()
+    commands.dispatch.return_value = mock_experiment
+
+    executor = JobExecutor(
+        workspace=workspace, command_bus=commands, query_bus=MagicMock(), repository=repo
+    )
+    job = Job(
+        id="job-fail",
+        run_id="run-1",
+        operation="experiment",
+        status=JobStatus.RUNNING,
+        payload={"name": "Failing TS", "validation_strategy": "time_series_split"},
+    )
+    executor.workspace.execution_check = MagicMock()
+    executor.workspace.run_experiment = MagicMock()
+    repo.get.return_value = job
+    repo.get_checkpoint.return_value = None
+    failed = MagicMock(succeeded=False)
+    failed.failure_reason = (
+        "validation_strategy 'time_series' requires run.config.extra['time_column'] "
+        "pointing to a column present in the dataset"
+    )
+    repo.list_trial_results.return_value = [failed, failed]
+
+    with pytest.raises(RuntimeError, match="time_column"):
+        executor.execute(job)
+
+
 def test_workbench_truthful_state_and_explore_pending_indicators():
     # 1. Verify home.js has truthful state rendering and no fake progress bars
     home_js = Path("src/automl/interfaces/web/static/js/views/home.js").read_text(encoding="utf-8")
@@ -309,10 +372,12 @@ def test_workbench_truthful_state_and_explore_pending_indicators():
     assert "Searching space (72%)" not in overview_js
     assert "w-2/3" not in overview_js
 
-    # 3. Verify datasets.js links to Explore, and explore.js implements dedicated Explore module
-    datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
+    # 3. Verify datasets view links to Explore, and explore.js implements dedicated Explore module
+    from workbench_static_sources import datasets_view_sources
+
+    datasets_js = datasets_view_sources()
     explore_js = Path("src/automl/interfaces/web/static/js/views/explore.js").read_text(encoding="utf-8")
-    assert "btnOpenExploreFromDS" in datasets_js
+    assert "btnOpenExploreFromDS" in datasets_js or "btnOpenFullExploreCanvas" in datasets_js
     assert "_renderExplorationTab" not in datasets_js
     assert "btnOpenNewStudyModal" in explore_js or "btnCreateInitialStudy" in explore_js
     assert "Matriz de Correlación" in datasets_js or "Matriz de Correlación" in explore_js

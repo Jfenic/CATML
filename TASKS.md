@@ -70,26 +70,59 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
+### Focus — Publish tabular `0.9.0rc1`
+
+> Labs UI deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Active work = packaging + TestPyPI/PyPI.
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Merge Clean Arch PR2/PR3 + UX #111 | Done (`#111` → `main`) |
+| P0 | Audit-5 honesty (budget/XSS/Manual/multiclass/fallback/HPO) | Done (in `#111`) |
+| P0 | Third-party license compliance (`THIRD_PARTY_LICENSES.md` + wheel/sdist tests) | In progress (this branch) |
+| P0 | Build/twine/smoke wheel locally | In progress |
+| P0 | Human: GitHub Environments `testpypi`/`pypi` + Trusted Publisher + publish | Open (maintainers) |
+| P1 | Demo project + executive results export (Sprint 3) | Open |
+| P2 | Workbench Labs Phase 1 | **Deferred** |
+
 ### Track License compliance (documentation / packaging only)
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Audit Workbench + Python licenses; keep Apache-2.0; no UI redesign | Done (PR pending review) |
-| P0 | `THIRD_PARTY_LICENSES.md` + vendor license texts in wheel/sdist | Done (PR pending review) |
+| P0 | Audit Workbench + Python licenses; keep Apache-2.0; no UI redesign | Done |
+| P0 | `THIRD_PARTY_LICENSES.md` + vendor license texts in wheel/sdist | Done |
 | P0 | Automated packaging compliance tests | Done (`tests/test_third_party_license_compliance.py`) |
 
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
-> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 in this PR (`#102`).
+> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 `#102`; PR2 `#109`; PR3 `#110`.
 
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done (`#101`) |
 | P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
-| P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Open (after PR1) |
-| P1 | PR3: Web controllers + split `datasets.js` components | Open |
-| P2 | PR4: SQLite repos + state machine + Unit of Work | Open |
+| P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Done (`#109`) |
+| P1 | PR3: Web controllers + split `datasets.js` components | Done (`#110`) |
+| P2 | PR4: SQLite repos + state machine + Unit of Work | Open (after PR3) |
 | P2 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open |
+
+### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Web `register` path confinement (same roots as inspect/browse) | Done (`#104`) |
+| P0 | Upload unique internal filenames (no silent overwrite) | Done (`#104`) |
+| P0 | Inference replays `column_transforms` + derived features | Done (`#104`) |
+| P0 | Ensemble regression scores: flip sklearn `neg_*` before persist | Done (`#104`) |
+| P0 | Stacking nested CV OOF for metamodel (no in-sample `stacked_oof`) | Done (`#104`) |
+| P1 | Unknown optimizer fail-closed (`optuna` / `random` only) | Done (`#104`) |
+| P1 | #7/#8 invalid targets not fabricated in feature prep | Done (`#106`) |
+| P1 | #11 simplex nested weight evaluation | Done (`#106`) |
+| P1 | #13 tree_importance vs shap_importance labeling | Done (`#106`) |
+| P2 | #6 exploratory labeling for supervised selection (full nested-in-fold deferred) | Done (`#106`) |
+| P1 | #9/#10 paired hypothesis baseline + improved vs validated | Done (`#107`) |
+| P1 | #12 PCA source features + fold-safe reduction transform | Done (`#107`) |
+| P1 | #14 image cache invalidate on mtime/size | Done (`#107`) |
+| P1 | #16 budget stop → ExperimentStatus.PARTIAL | Done (`#107`) |
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
 
@@ -102,7 +135,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | FDR preserves `p=0.0`; recipe `dataset_content_hash` via SHA-256 | Done (`#100`) |
 | P1 | Workbench XSS escapes for column/feature/model interpolations | Done (`#100`) |
 | P1 | Recipe status guards (no submit/promote from archived; promote needs experiments) | Done (`#100`) |
-| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Deferred |
+| P2 | Stacking holdout / shap_importance naming / pip-audit hard-fail | Partially addressed (#1 stacking in Audit-4; remainder deferred) |
 
 ### Track Workbench UX — Demo confidence (Sprint 1 → 3)
 
@@ -114,6 +147,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | Guided vs Advanced Explore (top findings first) | Done (`#99`) |
 | P1 | Correlation matrix UX + p-value/severity formatting | Done (`#99`) |
 | P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done (`#99`) |
+| P1 | Framing/CV coherence: no TimeSeriesSplit on cross-sectional; advisor ignores survey «time» phrases; job errors surface `failure_reason` | Done (local) |
+| P0 | Audit-5: unify budget UI↔JobExecutor; XSS new_experiment; no fake param_importance / predict checklist; Manual model picker; multiclass ROC-AUC; fallback badges | Done (local) |
 | P2 | Demo project + executive results export | Open (Sprint 3) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)

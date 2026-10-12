@@ -117,6 +117,30 @@ def test_invalid_submissions_leave_no_jobs(app, operation, payload, key):
     assert queries.dispatch(ListJobsQuery()) == []
 
 
+def test_workbench_experiment_job_payload_is_accepted(app):
+    """Workbench createAndRunExperiment forwards budget/mode/validation_strategy."""
+    _, commands, queries, run, _ = app
+    job_id = commands.dispatch(
+        SubmitJobCommand(
+            "experiment",
+            run.id,
+            {
+                "name": "Workbench experiment",
+                "model_ids": ["logistic_regression"],
+                "feature_names": ["x"],
+                "validation_strategy": "kfold",
+                "budget": "balanced",
+                "mode": "auto",
+            },
+            "workbench-launch",
+        )
+    )
+    job = queries.dispatch(GetJobQuery(job_id))
+    assert job["payload"]["budget"] == "balanced"
+    assert job["payload"]["mode"] == "auto"
+    assert job["payload"]["validation_strategy"] == "kfold"
+
+
 def test_foreign_experiment_is_rejected_for_all_operations(app):
     workspace, commands, _, run, test_path = app
     foreign_run = workspace.create_run(workspace._get_dataset(run.dataset_id))

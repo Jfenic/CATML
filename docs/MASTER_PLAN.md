@@ -223,11 +223,13 @@ External network access        DENY
 | **v0.8 (Core & Agentic Release)** | AutoML facade + `ModelArtifact` (.sha256) + CLI + Workbench + Servidor MCP + Anti-Leakage Guardian (Group/Entity) + `ProblemSpec` inmutable + NLP ligero + Vision Feature Head Spike + LangGraph Durable Agents (H0–H5) | **IMPLEMENTADO (SHIPPED IN 0.8 / agents in 0.9 track)** | Publicación en PyPI y adopción real por 5–10 usuarios independientes |
 | **v0.9.0-rc1 (Explore + Recipes)** | CATML Explore E0–E6, Experiment Recipes R0–R4, hardening remoto fail-closed, CQRS estricto, Workbench laboratorio | **IMPLEMENTADO EN CÓDIGO (`0.9.0-rc1`)** — ver [`TASKS.md`](../TASKS.md) | Release estable 0.9.0 + evidencia de uso externo |
 | **v0.8.x / post-rc (Hardening & Feedback)** | Criptografía en artefactos (firmas HMAC/Ed25519), control plane de políticas remotas, optimizaciones de extras, PyPI | **PRÓXIMO** | Cero incidentes de seguridad y retroalimentación positiva de la comunidad |
+| **v0.9.x (Tabular Workbench ship-ready)** | Flujo tabular completo y honesto en Workbench (jobs, métricas, fallbacks, Explore/Recipes); Clean Arch PR2–PR3 mergeados | **ENFOQUE ACTIVO** | Usuario externo: CSV → experimento → leaderboard → export sin asistencia |
+| **post-tabular (Workbench Labs)** | App Shell + Labs por modalidad (Tabular → Clustering → Vision → NLP); `capabilities` CQRS; mismo motor | **FUTURO (tras tabular estable)** | Tabular Lab publicable; registry sin romper rutas; ver [ADR-011](decisions/011-workbench-labs-modular-frontend.md) |
 | **v1.0 (Native Multimodal Core)** | Fine-tuning end-to-end de redes neuronales de visión, pipelines mixtos tabular-visión optimizados conjuntamente | **FUTURO (v1.0)** | Demanda validada de visión activa en datasets multimodales empresariales |
 | **v1.x (Specialized Tasks)** | Detección de objetos y segmentación guiada por agentes locales | **FUTURO (v1.x)** | Casos de uso estructurados donde el paradigma tabular no aplique |
 | **Posterior (Medical & Industrial)** | Extensiones DICOM/NIfTI (`catml[medical]`), validación estricta por paciente/cohorte, zero data egress estricto | **INVESTIGACIÓN FUTURA** | Validación clínica demostrable con hospitales o centros de investigación |
 
-> **Nota de sincronización (2026-10-11):** El backlog operativo y los `[ ]` abiertos viven solo en [`TASKS.md`](../TASKS.md). Este plan no duplica checklists de features.
+> **Nota de sincronización (2026-10-12):** El backlog operativo y los `[ ]` abiertos viven solo en [`TASKS.md`](../TASKS.md). Workbench Labs es planificación futura ([plan](features/workbench-labs/plan.md)); **no** abre trabajo de Vision/NLP UI mientras el flujo tabular no esté cerrado.
 
 ---
 
@@ -332,6 +334,19 @@ CATML no compite creando redes neuronales; gobierna y orquesta las mejores libre
 * **Visión:** `timm`, `torch`, `torchvision`, `MONAI` (médico).
 
 Cada plugin de backend declara formalmente sus capacidades (`BackendCapabilities`): tareas soportadas, aceleración hardware (CPU/CUDA/MPS), soporte de probabilidades y proveniencia.
+
+---
+
+## 13b. Workbench Labs (UI modular — futuro, tras tabular)
+
+Misma lógica que los extras de dependencia: el usuario tabular no debe cargar UX de visión/NLP.
+
+* **App Shell** compartido: proyecto, dataset/run activos, jobs, agente, notificaciones.
+* **Labs** especializados (Tabular, Clustering, Vision, NLP; Temporal = forecasting, no solo CV temporal tabular).
+* **Motor único** hexagonal/CQRS; labs no inventan comandos propios.
+* **Gate:** no scaffold de Labs hasta que Tabular Workbench cumpla el objetivo de validación de la §8 (instalar → entrenar → comprender → exportar).
+
+Detalle: [`features/workbench-labs/plan.md`](features/workbench-labs/plan.md) y [ADR-011](decisions/011-workbench-labs-modular-frontend.md).
 
 ---
 

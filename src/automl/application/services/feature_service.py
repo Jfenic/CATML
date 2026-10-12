@@ -291,11 +291,22 @@ class FeatureEngineeringService:
                 for r in all_ranks["mutual_information"]:
                     if r.feature_name == feature_name:
                         evidence.mutual_information = r.score
+            # Tree selectors report native impurity/gain importance — not SHAP.
             if "importance" in all_ranks:
                 for r in all_ranks["importance"]:
                     if r.feature_name == feature_name:
-                        evidence.shap_importance = r.score
-            evidence.confidence = 0.8
+                        evidence.tree_importance = r.score
+            sources = sum(
+                1
+                for v in (
+                    evidence.mutual_information,
+                    evidence.tree_importance,
+                    evidence.shap_importance,
+                    evidence.permutation_importance,
+                )
+                if v is not None
+            )
+            evidence.confidence = min(0.9, 0.35 + 0.2 * sources)
             self.workspace.repository.save_feature_evidence(run.id, evidence)
 
         if len(selectors) > 1:
@@ -324,24 +335,49 @@ class FeatureEngineeringService:
                         metadata={
                             "strategy": strat.to_dict(),
                             "features": selected_names,
+                            # Supervised selectors fit on the full labeled dataset; treating
+                            # CV scores on the same rows as unbiased estimates is optimistic.
+                            "evaluation_mode": "exploratory_full_dataset",
+                            "supervised_selection_leakage_risk": True,
                         },
                     )
                 )
 
         if strat.include_reduction:
             pca = PCAReducer()
+            source_features = list(context.active_feature_names)
             for var in strat.reduction_variances:
                 try:
                     pca.fit(context, n_components=var)
+                    n_comp = pca.n_components()
+                    # Keep materializable source columns; attach PCA as a fold-fit reduction
+                    # recipe (never invent PC1/PC2 pseudo-columns that break create_experiment).
                     candidates.append(
                         FeatureSetCandidate.create(
                             name=f"pca_var_{int(var*100)}",
-                            feature_names=[f"PC{i+1}" for i in range(pca.n_components())],
+                            feature_names=source_features,
                             method="pca",
-                            k=pca.n_components(),
+                            k=n_comp,
                             metadata={
                                 "variance_threshold": var,
                                 "explained_variance": pca.explained_variance_ratio(),
+                                "evaluation_mode": "exploratory_reduction_proposal",
+                                "reduction": {
+                                    "kind": "pca",
+                                    "n_components": n_comp,
+                                    "variance_threshold": var,
+                                    "source_features": source_features,
+                                },
+                                "column_transforms": [
+                                    {
+                                        "column": "*",
+                                        "kind": "pca",
+                                        "params": {
+                                            "n_components": n_comp,
+                                            "source_columns": source_features,
+                                        },
+                                    }
+                                ],
                             },
                         )
                     )
