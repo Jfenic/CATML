@@ -83,9 +83,15 @@ export class NewExperimentModal {
     const taskTypeRaw = (this.datasetProfile?.task_type || activeDs?.task_type || "binary_classification").toLowerCase();
     const isRegression = taskTypeRaw.includes("regression");
     const hasImages = Boolean(this.datasetProfile?.columns?.some(c => c.is_image));
-    const hasTemporal = Boolean(
-      this.questionnaire?.temporal_structure === "sequential_time_series"
-      || this.datasetProfile?.columns?.some(c => c.dtype?.includes("datetime") || c.name.toLowerCase().includes("date") || c.name.toLowerCase().includes("timestamp"))
+    // Only surface Time-Series CV when the framing questionnaire says so (avoids mixing i.i.d. vs temporal).
+    const isTimeSeries = this.questionnaire?.temporal_structure === "sequential_time_series";
+    const isGrouped = this.questionnaire?.temporal_structure === "grouped_cohorts";
+    const hasDatetimeHint = Boolean(
+      this.datasetProfile?.columns?.some(c =>
+        c.dtype?.includes("datetime")
+        || c.name.toLowerCase().includes("date")
+        || c.name.toLowerCase().includes("timestamp")
+      )
     );
 
     const datasetName = activeDs ? (activeDs.name || activeDs.id) : "No Dataset Registered";
@@ -259,23 +265,30 @@ export class NewExperimentModal {
                 <div class="text-[10px] text-[#8B95A7] font-sans">5 pliegues aleatorios</div>
               </div>
 
-              ${hasTemporal ? `
+              ${isTimeSeries ? `
                 <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'time_series' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="time_series">
                   <div class="font-bold text-[#F7F8FA] font-sans">Time-Series</div>
-                  <div class="text-[10px] text-[#22C55E] font-sans">Particiones temporales ✓</div>
+                  <div class="text-[10px] text-[#22C55E] font-sans">Según encuadre temporal</div>
                 </div>
-              ` : `
-                <div class="val-strategy-card p-2.5 rounded-xl border text-center text-xs opacity-50 cursor-not-allowed border-[#252C38] bg-[#090C12]" data-strategy="time_series" data-disabled="true" title="Requiere columnas de fecha o estructura temporal en el encuadre">
-                  <div class="font-bold text-[#8B95A7] font-sans">Time-Series</div>
-                  <div class="text-[10px] text-[#8B95A7] font-sans">Sin orden temporal</div>
+              ` : ""}
+
+              ${isGrouped ? `
+                <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'group_kfold' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="group_kfold">
+                  <div class="font-bold text-[#F7F8FA] font-sans">Group K-Fold</div>
+                  <div class="text-[10px] text-[#22C55E] font-sans">Según encuadre por grupos</div>
                 </div>
-              `}
+              ` : ""}
 
               <div class="val-strategy-card p-2.5 rounded-xl border text-center cursor-pointer text-xs ${this.validationStrategy === 'holdout' ? 'border-[#4F67FF] bg-[#151B26]' : 'border-[#252C38] bg-[#090C12]'}" data-strategy="holdout">
                 <div class="font-bold text-[#F7F8FA] font-sans">Holdout (80/20)</div>
                 <div class="text-[10px] text-[#8B95A7] font-sans">División simple rápida</div>
               </div>
             </div>
+            ${!isTimeSeries && hasDatetimeHint ? `
+              <p class="text-[11px] text-[#F59E0B] font-sans">
+                Hay columnas con aspecto de fecha, pero el encuadre es independiente. Si el orden temporal importa, abre <strong class="text-[#F7F8FA]">01 Datos → Encuadre</strong> y elige «Serie temporal».
+              </p>
+            ` : ""}
           </div>
 
           <!-- Footer Actions -->

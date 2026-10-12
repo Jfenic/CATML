@@ -116,6 +116,28 @@ export class DatasetsView {
       if (this.activeDatasetId) {
         this.profile = await api.getDatasetProfile(this.activeDatasetId).catch(() => null);
         this.questionnaire = await api.getDatasetQuestionnaire(this.activeDatasetId).catch(() => null);
+
+        // Guided path: auto-suggest framing and open questionnaire when still unconfirmed.
+        if (this.profile && (!this.questionnaire || !this.questionnaire.user_confirmed)) {
+          if (!this.questionnaire) {
+            this.questionnaireGenerating = true;
+            try {
+              const res = await api.generateDatasetQuestionnaire(this.activeDatasetId);
+              if (res && res.questionnaire) {
+                this.questionnaire = res.questionnaire;
+              }
+            } catch (genErr) {
+              console.warn("Could not auto-generate questionnaire:", genErr);
+            } finally {
+              this.questionnaireGenerating = false;
+            }
+          }
+          this._questionnaireGuidedSeen = this._questionnaireGuidedSeen || {};
+          if (!this._questionnaireGuidedSeen[this.activeDatasetId]) {
+            this.activeMainTab = "cuestionario";
+            this._questionnaireGuidedSeen[this.activeDatasetId] = true;
+          }
+        }
       }
     } catch (e) {
       console.warn("Could not load dataset profile:", e);

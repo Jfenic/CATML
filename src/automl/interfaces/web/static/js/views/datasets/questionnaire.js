@@ -214,19 +214,22 @@ export function _renderQuestionnaireTab(view, p) {
           </div>
         </div>
 
-        <!-- Section 2: Temporal Structure -->
+        <!-- Section 2: Data regime — drives which CV options appear in the experiment launcher -->
         <div class="space-y-2 pt-2 border-t border-[#242A36]">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
             <label class="text-xs font-semibold text-[#F7F8FA] uppercase tracking-wider font-sans flex items-center space-x-1.5">
               <span class="text-[#6956E8]">${icon("clock", "icon-sm")}</span>
-              <span>2. Estructura Temporal & Dependencia Secuencial</span>
+              <span>2. Tipo de datos (elige uno)</span>
             </label>
-            <span class="text-[11px] text-[#8B95A7] font-mono">Estrategia de Partición (Data Splitting)</span>
+            <p class="text-[11px] text-[#8B95A7] font-sans">
+              Decide la validación del experimento: independiente → K-Fold; serie temporal → TimeSeriesSplit; grupos → GroupKFold.
+              En el lanzador, Time-Series solo aparece si eliges serie temporal aquí.
+            </p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            ${view._renderOptionCard("temporal_structure", "cross_sectional", q.temporal_structure, "Corte Transversal (Independiente)", "Filas independientes i.i.d. Validación mediante K-Fold estándar o Stratified K-Fold.", "K-Fold")}
-            ${view._renderOptionCard("temporal_structure", "sequential_time_series", q.temporal_structure, "Serie Temporal Secuencial", "Dependencia temporal autorregresiva. Validación estricta con TimeSeriesSplit hacia el futuro.", "TimeSeriesSplit")}
-            ${view._renderOptionCard("temporal_structure", "grouped_cohorts", q.temporal_structure, "Grupos / Cohortes de Sujetos", "Observaciones agrupadas por entidad, cliente o máquina. Validación con GroupKFold.", "GroupKFold")}
+            ${view._renderOptionCard("temporal_structure", "cross_sectional", q.temporal_structure, "Independiente (corte transversal)", "Cada fila es una observación i.i.d. Validación K-Fold / Stratified K-Fold. Caso tabular más habitual.", "K-Fold")}
+            ${view._renderOptionCard("temporal_structure", "sequential_time_series", q.temporal_structure, "Serie temporal", "El orden en el tiempo importa. No mezclar pasado/futuro: TimeSeriesSplit. Requiere columna temporal en el run.", "TimeSeriesSplit")}
+            ${view._renderOptionCard("temporal_structure", "grouped_cohorts", q.temporal_structure, "Grupos / cohortes", "Varias filas por entidad (cliente, máquina…). GroupKFold evita fugas entre train y test.", "GroupKFold")}
           </div>
         </div>
 
