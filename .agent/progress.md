@@ -11,7 +11,7 @@
 - Third-party licenses + `docs/publishing.md` on `main`.
 - GitHub Environments `testpypi` / `pypi` created with required reviewers (Jfenic, tvarmar).
 - Local wheel `catml-0.9.0rc1` builds; twine check PASS.
-- **Human remaining:** register Trusted Publisher on TestPyPI then PyPI; run Release workflow → `testpypi`.
+- **Human remaining:** Trusted Publisher done (`Repository: catml`); run Release workflow → `testpypi`.
 
 ### Track License compliance (`docs/third-party-license-compliance`, 2026-10-12)
 
