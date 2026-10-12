@@ -22,7 +22,21 @@ class JobService:
         payload = json.loads(json.dumps(command.payload, allow_nan=False))
         run = self.workspace._get_run(command.run_id)
         if command.operation == "experiment":
-            allowed = {"experiment_id", "name", "model_ids", "feature_names", "hypothesis"}
+            # Keep in sync with JobExecutor.create path (budget/mode + CreateExperimentCommand keys).
+            allowed = {
+                "experiment_id",
+                "name",
+                "model_ids",
+                "feature_names",
+                "feature_set_id",
+                "hypothesis",
+                "priority",
+                "validation_strategy",
+                "group_column",
+                "allow_leakage",
+                "budget",
+                "mode",
+            }
             if set(payload) - allowed:
                 raise ValueError("Unknown experiment job arguments")
             if payload.get("experiment_id"):
@@ -37,6 +51,12 @@ class JobService:
                     raise ValueError("model_ids must be a nonempty list")
                 dataset = self.workspace._get_dataset(run.dataset_id)
                 self.workspace.model_registry.validate_for_task(models, dataset.task_type)
+                budget = payload.get("budget")
+                if budget is not None and not isinstance(budget, (str, int, float)):
+                    raise ValueError("budget must be a label or numeric seconds")
+                mode = payload.get("mode")
+                if mode is not None and not isinstance(mode, str):
+                    raise ValueError("mode must be a string")
         elif command.operation in {"oof", "submission"}:
             cls = GenerateOOFSubmissionCommand if command.operation == "oof" else GenerateSubmissionCommand
             if "run_id" in payload:
