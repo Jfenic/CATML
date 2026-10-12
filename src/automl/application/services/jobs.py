@@ -36,6 +36,7 @@ class JobService:
                 "allow_leakage",
                 "budget",
                 "mode",
+                "time_budget_seconds",
             }
             if set(payload) - allowed:
                 raise ValueError("Unknown experiment job arguments")
@@ -57,6 +58,9 @@ class JobService:
                 mode = payload.get("mode")
                 if mode is not None and not isinstance(mode, str):
                     raise ValueError("mode must be a string")
+                tbs = payload.get("time_budget_seconds")
+                if tbs is not None and not isinstance(tbs, (int, float)):
+                    raise ValueError("time_budget_seconds must be numeric")
         elif command.operation in {"oof", "submission"}:
             cls = GenerateOOFSubmissionCommand if command.operation == "oof" else GenerateSubmissionCommand
             if "run_id" in payload:

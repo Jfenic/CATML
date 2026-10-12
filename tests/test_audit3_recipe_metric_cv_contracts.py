@@ -340,6 +340,8 @@ def test_escape_html_utils_present_in_views():
     datasets = datasets_view_sources()
     compare = (root / "src/automl/interfaces/web/static/js/views/compare.js").read_text()
     assert "escapeHtml(f)" in new_exp
+    assert "escapeHtml(activeDs" in new_exp
+    assert "escapeHtml(r.name || r.id)" in new_exp
     assert "escapeHtml(r.column)" in datasets
     assert "escapeHtml(c)" in datasets
     assert "escapeHtml((selectedExps[0].model_ids" in compare

@@ -236,6 +236,7 @@ def test_frontend_audit_remediations_honesty_and_accessibility():
     assert "jobPayload.validation_strategy = payload.validation_strategy" in api_content, "F06: validation_strategy must be forwarded"
     assert "jobPayload.budget = payload.budget" in api_content, "F06: budget must be forwarded"
     assert "jobPayload.mode = payload.mode" in api_content, "F06: mode must be forwarded"
+    assert "jobPayload.time_budget_seconds" in api_content, "Audit-5: time_budget_seconds must be forwarded"
 
 
 def test_job_executor_budget_propagation(tmp_path):
@@ -298,6 +299,65 @@ def test_job_executor_budget_propagation(tmp_path):
     dispatched_cmd = commands.dispatch.call_args[0][0]
     assert dispatched_cmd.name == "Quick Test"
     assert dispatched_cmd.run_id == "run-1"
+
+
+def test_job_executor_surfaces_trial_failure_reason(tmp_path):
+    from unittest.mock import MagicMock
+    import pytest
+    from automl.application.services.job_executor import JobExecutor
+    from automl.domain.jobs.job import Job, JobStatus
+    from automl.domain.runs.run import AutoMLRun, RunConfig
+
+    workspace = MagicMock()
+    commands = MagicMock()
+    repo = MagicMock()
+
+    mock_run = AutoMLRun(
+        id="run-1",
+        workspace_id="ws-1",
+        dataset_id="ds-1",
+        config=RunConfig(task_type="classification", target="target"),
+    )
+    mock_dataset = MagicMock()
+    mock_dataset.id = "ds-1"
+    mock_dataset.target_column = "target"
+    profile = MagicMock()
+    profile.columns = []
+    repo.get_dataset_profile.return_value = profile
+
+    workspace._get_run.return_value = mock_run
+    workspace._get_dataset.return_value = mock_dataset
+    workspace.repository = repo
+
+    mock_experiment = MagicMock()
+    mock_experiment.id = "exp-1"
+    mock_experiment.run_id = "run-1"
+    mock_experiment.status = MagicMock()
+    commands.dispatch.return_value = mock_experiment
+
+    executor = JobExecutor(
+        workspace=workspace, command_bus=commands, query_bus=MagicMock(), repository=repo
+    )
+    job = Job(
+        id="job-fail",
+        run_id="run-1",
+        operation="experiment",
+        status=JobStatus.RUNNING,
+        payload={"name": "Failing TS", "validation_strategy": "time_series_split"},
+    )
+    executor.workspace.execution_check = MagicMock()
+    executor.workspace.run_experiment = MagicMock()
+    repo.get.return_value = job
+    repo.get_checkpoint.return_value = None
+    failed = MagicMock(succeeded=False)
+    failed.failure_reason = (
+        "validation_strategy 'time_series' requires run.config.extra['time_column'] "
+        "pointing to a column present in the dataset"
+    )
+    repo.list_trial_results.return_value = [failed, failed]
+
+    with pytest.raises(RuntimeError, match="time_column"):
+        executor.execute(job)
 
 
 def test_workbench_truthful_state_and_explore_pending_indicators():

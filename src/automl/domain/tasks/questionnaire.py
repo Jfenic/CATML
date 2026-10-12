@@ -36,6 +36,48 @@ class ExplainabilityLevel(str, Enum):
     PERFORMANCE_FIRST = "performance_first"        # Kaggle, competitive, black-box allowed
 
 
+_TIME_SERIES_SPLITS = frozenset({"time_series", "time_series_split"})
+_GROUP_SPLITS = frozenset({"group_kfold", "group_cv", "grouped_kfold"})
+
+
+def default_split_for_temporal(
+    temporal: TemporalStructure,
+    *,
+    classification: bool = True,
+) -> str:
+    """Default validation strategy aligned with temporal framing."""
+    if temporal == TemporalStructure.SEQUENTIAL_TIME_SERIES:
+        return "time_series_split"
+    if temporal == TemporalStructure.GROUPED_COHORTS:
+        return "group_kfold"
+    return "stratified_kfold" if classification else "kfold"
+
+
+def coerce_split_strategy(
+    temporal: TemporalStructure,
+    split: str | None,
+    *,
+    classification: bool = True,
+) -> str:
+    """Keep split_strategy_recommendation coherent with temporal_structure.
+
+    Cross-sectional datasets must not keep a leftover TimeSeriesSplit / GroupKFold
+    recommendation (that combination made airline-style launches fail without time_column).
+    """
+    raw = (split or "").strip().lower()
+    if not raw:
+        return default_split_for_temporal(temporal, classification=classification)
+    if temporal == TemporalStructure.CROSS_SECTIONAL:
+        if raw in _TIME_SERIES_SPLITS or raw in _GROUP_SPLITS:
+            return default_split_for_temporal(temporal, classification=classification)
+        return raw
+    if temporal == TemporalStructure.SEQUENTIAL_TIME_SERIES:
+        return raw if raw in _TIME_SERIES_SPLITS else "time_series_split"
+    if temporal == TemporalStructure.GROUPED_COHORTS:
+        return raw if raw in _GROUP_SPLITS else "group_kfold"
+    return raw
+
+
 @dataclass
 class DatasetQuestionnaire:
     """Problem context questionnaire guiding AutoML task planning and model selection."""
@@ -66,16 +108,23 @@ class DatasetQuestionnaire:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DatasetQuestionnaire:
         """Construct questionnaire from dictionary."""
+        temporal = TemporalStructure(
+            data.get("temporal_structure", TemporalStructure.CROSS_SECTIONAL.value)
+        )
+        split = coerce_split_strategy(
+            temporal,
+            data.get("split_strategy_recommendation", "stratified_kfold"),
+        )
         return cls(
             dataset_id=data["dataset_id"],
             domain_hint=data.get("domain_hint", "general_tabular"),
             error_cost=ErrorCostPriority(data.get("error_cost", ErrorCostPriority.BALANCED.value)),
-            temporal_structure=TemporalStructure(data.get("temporal_structure", TemporalStructure.CROSS_SECTIONAL.value)),
+            temporal_structure=temporal,
             latency_constraint=LatencyConstraint(data.get("latency_constraint", LatencyConstraint.STANDARD_INTERACTIVE.value)),
             explainability=ExplainabilityLevel(data.get("explainability", ExplainabilityLevel.MODERATE.value)),
             imbalance_strategy=data.get("imbalance_strategy", "auto"),
             primary_metric_override=data.get("primary_metric_override"),
-            split_strategy_recommendation=data.get("split_strategy_recommendation", "stratified_kfold"),
+            split_strategy_recommendation=split,
             auto_generated=bool(data.get("auto_generated", True)),
             user_confirmed=bool(data.get("user_confirmed", False)),
             engine_source=str(data.get("engine_source", "heuristic")),

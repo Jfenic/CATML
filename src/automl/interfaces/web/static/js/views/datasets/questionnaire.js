@@ -308,7 +308,7 @@ export function _renderQuestionnaireTab(view, p) {
                 <option value="stratified_kfold" ${q.split_strategy_recommendation === "stratified_kfold" ? "selected" : ""}>Stratified K-Fold (Estratificado por clases)</option>
               ` : ""}
               <option value="kfold" ${q.split_strategy_recommendation === "kfold" ? "selected" : ""}>Standard K-Fold (Aleatorio)</option>
-              <option value="time_series" ${q.split_strategy_recommendation === "time_series" ? "selected" : ""}>Time-Series Split (Progresión Temporal)</option>
+              <option value="time_series" ${q.split_strategy_recommendation === "time_series" || q.split_strategy_recommendation === "time_series_split" ? "selected" : ""}>Time-Series Split (Progresión Temporal)</option>
               <option value="group_kfold" ${q.split_strategy_recommendation === "group_kfold" ? "selected" : ""}>Group K-Fold (Agrupamiento por Entidad)</option>
               <option value="holdout" ${q.split_strategy_recommendation === "holdout" ? "selected" : ""}>Holdout Simple (80/20)</option>
             </select>
@@ -394,6 +394,18 @@ export function _bindQuestionnaireEvents(view) {
       }
       view.questionnaire[field] = val;
       view.questionnaire.user_confirmed = false;
+      // Keep split recommendation aligned with temporal framing so New Experiment
+      // does not inherit a leftover TimeSeriesSplit on cross-sectional data.
+      if (field === "temporal_structure") {
+        const isReg = (view.profile?.task_type || "").includes("regression");
+        if (val === "sequential_time_series") {
+          view.questionnaire.split_strategy_recommendation = "time_series";
+        } else if (val === "grouped_cohorts") {
+          view.questionnaire.split_strategy_recommendation = "group_kfold";
+        } else {
+          view.questionnaire.split_strategy_recommendation = isReg ? "kfold" : "stratified_kfold";
+        }
+      }
       view.render();
     });
   });
@@ -413,7 +425,20 @@ export function _bindQuestionnaireEvents(view) {
     if (!view.questionnaire) {
       view.questionnaire = { dataset_id: view.activeDatasetId, user_confirmed: false };
     }
-    view.questionnaire.split_strategy_recommendation = e.target.value;
+    let split = e.target.value;
+    const temporal = view.questionnaire.temporal_structure || "cross_sectional";
+    // Guard: selecting Time-Series while framing is cross-sectional upgrades framing.
+    if ((split === "time_series" || split === "time_series_split") && temporal !== "sequential_time_series") {
+      view.questionnaire.temporal_structure = "sequential_time_series";
+    } else if ((split === "group_kfold") && temporal !== "grouped_cohorts") {
+      view.questionnaire.temporal_structure = "grouped_cohorts";
+    } else if (
+      (split === "stratified_kfold" || split === "kfold" || split === "holdout")
+      && (temporal === "sequential_time_series" || temporal === "grouped_cohorts")
+    ) {
+      view.questionnaire.temporal_structure = "cross_sectional";
+    }
+    view.questionnaire.split_strategy_recommendation = split;
     view.questionnaire.user_confirmed = false;
     view.render();
   });

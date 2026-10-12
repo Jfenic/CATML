@@ -20,6 +20,18 @@ export class NewExperimentModal {
     this.preselectedModel = null;
     this.questionnaire = null;
     this.datasetProfile = null;
+    this.modelPlugins = {};
+  }
+
+  _modelLabel(id, displayName) {
+    const p = this.modelPlugins[id];
+    const label = displayName || id;
+    if (!p) return escapeHtml(label);
+    if (p.is_native) return `${escapeHtml(label)} <span class="text-[9px] text-[#22C55E] font-mono">nativo</span>`;
+    if (p.fallback_backend) {
+      return `${escapeHtml(label)} <span class="text-[9px] text-[#F59E0B] font-mono">fallback: ${escapeHtml(p.fallback_backend)}</span>`;
+    }
+    return `${escapeHtml(label)} <span class="text-[9px] text-[#EF4444] font-mono">no disponible</span>`;
   }
 
   async mount(container, options = {}) {
@@ -39,15 +51,29 @@ export class NewExperimentModal {
       this.selectedRecipeId = options.preselectedRecipeId;
     }
 
+    const pluginsPromise = api.getPlugins().catch(() => []);
     if (targetDatasetId) {
-      const [recipes, q, profile] = await Promise.all([
+      const [recipes, q, profile, plugins] = await Promise.all([
         api.getRecipes(targetDatasetId).catch(() => []),
         api.getDatasetQuestionnaire(targetDatasetId).catch(() => null),
         api.getDatasetProfile(targetDatasetId).catch(() => null),
+        pluginsPromise,
       ]);
       this.recipes = recipes || [];
       this.questionnaire = q;
       this.datasetProfile = profile;
+      this.modelPlugins = Object.fromEntries(
+        (plugins || [])
+          .filter(p => (p.plugin_type || "") === "model" || (p.plugin_type || "").endsWith("MODEL"))
+          .map(p => [p.plugin_id, p])
+      );
+    } else {
+      const plugins = await pluginsPromise;
+      this.modelPlugins = Object.fromEntries(
+        (plugins || [])
+          .filter(p => (p.plugin_type || "") === "model" || (p.plugin_type || "").endsWith("MODEL"))
+          .map(p => [p.plugin_id, p])
+      );
     }
 
     const activeDs = state.activeDataset
@@ -61,6 +87,22 @@ export class NewExperimentModal {
       this.validationStrategy = "kfold";
     } else {
       this.validationStrategy = "stratified_kfold";
+    }
+
+    // Coerce CV to framing: never launch TimeSeriesSplit without sequential framing
+    // (and never leave a hidden time_series_split selected when the card is hidden).
+    const temporal = this.questionnaire?.temporal_structure;
+    const isTsSplit = this.validationStrategy === "time_series"
+      || this.validationStrategy === "time_series_split";
+    const isGroupSplit = this.validationStrategy === "group_kfold"
+      || this.validationStrategy === "group_cv"
+      || this.validationStrategy === "grouped_kfold";
+    if (temporal === "sequential_time_series") {
+      this.validationStrategy = "time_series";
+    } else if (temporal === "grouped_cohorts") {
+      this.validationStrategy = "group_kfold";
+    } else if (isTsSplit || isGroupSplit) {
+      this.validationStrategy = isRegression ? "kfold" : "stratified_kfold";
     }
 
     this.render();
@@ -94,12 +136,13 @@ export class NewExperimentModal {
       )
     );
 
-    const datasetName = activeDs ? (activeDs.name || activeDs.id) : "No Dataset Registered";
-    const targetCol = activeDs ? (activeDs.target_column || activeDs.target || "Target") : "None";
-    const metricName = activeRun ? (activeRun.metric || (isRegression ? "RMSE" : "ROC-AUC")) : (isRegression ? "RMSE" : "ROC-AUC");
-    const taskType = (activeDs?.task_type || "binary_classification").replace("_", " ");
+    const datasetName = escapeHtml(activeDs ? (activeDs.name || activeDs.id) : "No Dataset Registered");
+    const targetCol = escapeHtml(activeDs ? (activeDs.target_column || activeDs.target || "Target") : "None");
+    const metricName = escapeHtml(activeRun ? (activeRun.metric || (isRegression ? "RMSE" : "ROC-AUC")) : (isRegression ? "RMSE" : "ROC-AUC"));
+    const taskType = escapeHtml((activeDs?.task_type || "binary_classification").replace("_", " "));
 
     const hasTarget = Boolean(activeDs || activeRun);
+    const showModelPicker = this.mode === "guided" || this.mode === "manual";
 
     this.container.innerHTML = `
       <div class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -147,16 +190,16 @@ export class NewExperimentModal {
             </div>
           </div>
 
-          <!-- Guided Constraints (Only visible in Guided mode) -->
+          <!-- Model picker (Guided + Manual — Manual previously hid checkboxes and silently defaulted to lightgbm) -->
           ${
-            this.mode === "guided"
+            showModelPicker
               ? `
             <div class="p-3.5 rounded-xl bg-[#151B26] border border-[#252C38] space-y-3 text-xs font-sans">
               <div class="font-semibold text-[#F7F8FA]">Familias de Modelos Algorítmicos:</div>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[#8B95A7]">
-                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'lightgbm') ? 'checked' : ''} value="lightgbm" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">LightGBM</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'xgboost') ? 'checked' : ''} value="xgboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">XGBoost</span></label>
-                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'catboost') ? 'checked' : ''} value="catboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">CatBoost</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'lightgbm') ? 'checked' : ''} value="lightgbm" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">${this._modelLabel("lightgbm", "LightGBM")}</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'xgboost') ? 'checked' : ''} value="xgboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">${this._modelLabel("xgboost", "XGBoost")}</span></label>
+                <label class="flex items-center space-x-1.5"><input type="checkbox" ${(!this.preselectedModel || this.preselectedModel === 'catboost') ? 'checked' : ''} value="catboost" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">${this._modelLabel("catboost", "CatBoost")}</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'extra_trees' ? 'checked' : ''} value="extra_trees" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Extra Trees</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'mlp' ? 'checked' : ''} value="mlp" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">MLP Neural</span></label>
                 <label class="flex items-center space-x-1.5"><input type="checkbox" ${this.preselectedModel === 'random_forest' ? 'checked' : ''} value="random_forest" class="model-check rounded text-[#4F67FF] bg-[#090C12] border-[#252C38]"> <span class="text-[#F7F8FA]">Random Forest</span></label>
@@ -214,7 +257,7 @@ export class NewExperimentModal {
               <select id="selectExperimentRecipe" class="input-base w-full bg-[#090C12] border border-[#252C38] text-[#F7F8FA] text-xs font-mono py-1.5 px-3 rounded-lg focus:border-[#4F67FF] outline-none">
                 <option value="">Ninguna — Configuración estándar</option>
                 ${this.recipes.map(r => `
-                  <option value="${r.id}" ${this.selectedRecipeId === r.id ? 'selected' : ''}>${r.name || r.id} [${r.status.toUpperCase()}]</option>
+                  <option value="${escapeHtml(r.id)}" ${this.selectedRecipeId === r.id ? 'selected' : ''}>${escapeHtml(r.name || r.id)} [${escapeHtml(String(r.status || "").toUpperCase())}]</option>
                 `).join("")}
               </select>
             </div>
@@ -226,17 +269,17 @@ export class NewExperimentModal {
             <div class="grid grid-cols-3 gap-3">
               <div class="budget-card p-2.5 rounded-lg border text-center cursor-pointer text-xs ${this.budget === 'quick' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-budget="quick">
                 <div class="font-bold text-slate-200">Rápido</div>
-                <div class="text-[10px] text-slate-400">~10s • Baselines</div>
+                <div class="text-[10px] text-slate-400">~60s • Baselines</div>
               </div>
 
               <div class="budget-card p-2.5 rounded-lg border text-center cursor-pointer text-xs ${this.budget === 'balanced' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-budget="balanced">
                 <div class="font-bold text-slate-200">Equilibrado</div>
-                <div class="text-[10px] text-slate-400">~1m • LightGBM + HPO</div>
+                <div class="text-[10px] text-slate-400">~5m • LightGBM + HPO</div>
               </div>
 
               <div class="budget-card p-2.5 rounded-lg border text-center cursor-pointer text-xs ${this.budget === 'thorough' ? 'border-indigo-500 bg-indigo-950/30' : 'border-slate-800 bg-slate-900/50'}" data-budget="thorough">
                 <div class="font-bold text-slate-200">Exhaustivo</div>
-                <div class="text-[10px] text-slate-400">~5m • Ensamble Completo</div>
+                <div class="text-[10px] text-slate-400">~20m • Ensamble Completo</div>
               </div>
             </div>
           </div>
@@ -407,7 +450,7 @@ export class NewExperimentModal {
             </div>
 
             <div class="text-[11px] text-slate-400 font-mono bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              Models: <span class="text-slate-200 font-bold">${selectedModels.join(", ")}</span> • Budget: <span class="text-indigo-400 font-bold">${this.budget}</span> • Strategy: <span class="text-[#4F67FF] font-bold">${this.validationStrategy}</span>
+              Models: <span class="text-slate-200 font-bold">${escapeHtml(selectedModels.join(", "))}</span> • Budget: <span class="text-indigo-400 font-bold">${escapeHtml(this.budget)}</span> • Strategy: <span class="text-[#4F67FF] font-bold">${escapeHtml(this.validationStrategy)}</span>
             </div>
           </div>
         `;
@@ -432,12 +475,13 @@ export class NewExperimentModal {
           return;
         }
 
+        // Keep in sync with automl.domain.experiments.budgets.EXPERIMENT_BUDGET_SECONDS
         const budgetSecondsMap = {
-          quick: 10,
-          balanced: 60,
-          thorough: 300,
+          quick: 60,
+          balanced: 300,
+          thorough: 1200,
         };
-        const timeBudgetSeconds = budgetSecondsMap[this.budget] || 60;
+        const timeBudgetSeconds = budgetSecondsMap[this.budget] || 300;
 
         const res = await api.createAndRunExperiment({
           run_id: activeRun.id,

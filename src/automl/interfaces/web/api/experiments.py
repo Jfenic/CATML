@@ -584,14 +584,14 @@ def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any
         dataset = ws._get_dataset(run.dataset_id)
         profile = ws.get_dataset_profile(dataset.id)
 
-        # Time budget enforcement
-        raw_time_budget = payload.get("time_budget_seconds")
-        if not raw_time_budget:
-            budget_map = {"quick": 10.0, "balanced": 60.0, "thorough": 300.0}
-            time_budget_seconds = budget_map.get(budget, 60.0)
-        else:
-            time_budget_seconds = float(raw_time_budget)
+        # Time budget enforcement — same labels as JobExecutor / NewExperimentModal
+        from automl.domain.experiments.budgets import resolve_time_budget_seconds
 
+        time_budget_seconds = resolve_time_budget_seconds(
+            budget,
+            payload.get("time_budget_seconds"),
+            default=300.0,
+        )
         run.config.time_budget_seconds = time_budget_seconds
         ws.save_run(run)
 
@@ -683,13 +683,10 @@ def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any
             )
         )
 
-        # Compute parameter importance percentages
-        param_importance = [
-            {"param": "learning_rate", "importance": 0.34},
-            {"param": "max_depth", "importance": 0.28},
-            {"param": "n_estimators", "importance": 0.21},
-            {"param": "subsample", "importance": 0.17},
-        ]
+        # Only return importances computed from real HPO trials (never fabricated).
+        param_importance = opt_result.get("param_importance")
+        if param_importance is None:
+            param_importance = []
 
         handler._send_json({
             "status": "success",
@@ -700,6 +697,7 @@ def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any
             "trials_count": opt_result.get("trials_executed"),
             "trials": opt_result.get("trials", []),
             "param_importance": param_importance,
+            "param_importance_available": bool(param_importance),
         })
         return True
 
@@ -737,19 +735,21 @@ def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any
                 )
             )
 
+        # Checklist only reports facts we actually know — no hardcoded True claims.
+        id_col = sub_res.get("id_column")
+        row_count = sub_res.get("row_count")
         handler._send_json({
             "status": "success",
             "output_path": sub_res.get("output_path"),
-            "row_count": sub_res.get("row_count"),
-            "id_column": sub_res.get("id_column"),
+            "row_count": row_count,
+            "id_column": id_col,
             "target_column": sub_res.get("target_column"),
             "oof": sub_res if payload.get("folds") is not None else None,
             "checklist": {
-                "id_column_valid": True,
-                "row_count": sub_res.get("row_count"),
-                "probabilities_bounded": predict_proba,
-                "zero_missing_values": True,
-                "schema_aligned": bool(template_path or sub_res.get("template_used")),
+                "id_column_present": id_col is not None and str(id_col).strip() != "",
+                "row_count": row_count,
+                "predict_proba_requested": bool(predict_proba),
+                "template_used": bool(template_path or sub_res.get("template_used")),
             },
         })
         return True

@@ -795,8 +795,10 @@ class AutoMLWorkspace:
 
     def leaderboard(self, run: AutoMLRun, include_failed: bool = False) -> list[dict]:
         rows = self.repository.get_leaderboard(run.id, include_failed=include_failed)
-        return [
-            {
+        out = []
+        for r in rows:
+            arts = r.artifacts or {}
+            out.append({
                 "trial_id": r.trial_id,
                 "experiment_id": r.experiment_id,
                 "model_id": r.model_id,
@@ -804,9 +806,11 @@ class AutoMLWorkspace:
                 "score": round(r.primary_score, 4),
                 "training_time_s": round(r.training_time_seconds, 3),
                 "failed": not r.succeeded,
-            }
-            for r in rows
-        ]
+                "estimator_class": arts.get("estimator_class"),
+                "backend": arts.get("backend"),
+                "fallback_backend": arts.get("fallback_backend"),
+            })
+        return out
 
     def get_leaderboard(self, run_or_id: str | AutoMLRun, include_failed: bool = False) -> list[dict]:
         run = run_or_id if isinstance(run_or_id, AutoMLRun) else self._get_run(run_or_id)
@@ -1451,6 +1455,21 @@ class AutoMLWorkspace:
             best_idx = metric_spec.select_best_index([r.primary_score for r in succeeded])
             best_trial_id = succeeded[best_idx].trial_id
 
+        param_importance: list[dict] = []
+        study = getattr(opt, "study", None)
+        if study is not None and len(succeeded) >= 2:
+            try:
+                import optuna
+
+                raw = optuna.importance.get_param_importances(study)
+                total = float(sum(raw.values())) or 1.0
+                param_importance = [
+                    {"param": name, "importance": round(float(val) / total, 4)}
+                    for name, val in sorted(raw.items(), key=lambda kv: kv[1], reverse=True)
+                ]
+            except Exception:
+                param_importance = []
+
         self._emit(
             "ExperimentOptimized",
             {
@@ -1475,6 +1494,7 @@ class AutoMLWorkspace:
             "best_score": None if best_score is None else round(best_score, 4),
             "best_params": best_params,
             "best_trial_id": best_trial_id,
+            "param_importance": param_importance,
             "trials": [
                 {
                     "trial_id": r.trial_id,

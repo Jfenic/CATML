@@ -11,7 +11,21 @@ from automl.domain.tasks.questionnaire import (
     ExplainabilityLevel,
     LatencyConstraint,
     TemporalStructure,
+    coerce_split_strategy,
 )
+
+
+def _is_temporal_column(name: str) -> bool:
+    """True for real time-index columns; false for survey text like '… time convenient'."""
+    n = name.lower().strip()
+    if n in {"date", "time", "timestamp", "datetime", "ts", "year", "month", "day", "hour"}:
+        return True
+    # Token boundaries only — avoids matching "Departure/Arrival time convenient".
+    if re.search(r"(^|_)(date|datetime|timestamp|ts|year|month|day|hour|sensor|step)(_|$)", n):
+        return True
+    if re.search(r"(^|_)(created_at|updated_at|event_date|event_time|obs_time|obs_date)(_|$)", n):
+        return True
+    return False
 
 
 class QuestionnaireAdvisor:
@@ -107,11 +121,19 @@ class QuestionnaireAdvisor:
             reasons.append("Credit lending context: Monotonic, explainable risk models required for regulatory compliance.")
 
         # 5. Temporal / Sequential Structure Detection
-        temporal_cols = [c for c in cols_lower if re.search(r"(date|time|timestamp|year|month|day|hour|sensor|step)", c)]
-        if temporal_cols or any(term in name_lower for term in ("time", "temporal", "sensor", "rainfall", "weather")):
+        temporal_cols = [c for c in cols_lower if _is_temporal_column(c)]
+        name_looks_temporal = any(
+            term in name_lower
+            for term in ("time_series", "timeseries", "temporal", "sensor", "rainfall", "weather")
+        )
+        if temporal_cols or name_looks_temporal:
             temporal = TemporalStructure.SEQUENTIAL_TIME_SERIES
             split_strategy = "time_series_split"
-            reasons.append(f"Sequential ordering detected in features ({temporal_cols[:2]}). TimeSeriesSplit recommended to avoid look-ahead leakage.")
+            hint = temporal_cols[:2] if temporal_cols else [dataset_name]
+            reasons.append(
+                f"Sequential ordering detected in features ({hint}). "
+                "TimeSeriesSplit recommended to avoid look-ahead leakage."
+            )
 
         # 6. Grouped Cohort Detection
         group_cols = [c for c in cols_lower if re.search(r"(customer_id|client_id|patient_id|user_id|session_id|group_id)", c)]
@@ -131,6 +153,8 @@ class QuestionnaireAdvisor:
 
         if not reasons:
             reasons.append("Standard tabular classification/regression with balanced default trade-offs.")
+
+        split_strategy = coerce_split_strategy(temporal, split_strategy)
 
         return DatasetQuestionnaire(
             dataset_id=dataset_id,
