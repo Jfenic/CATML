@@ -93,11 +93,14 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Ensemble regression scores: flip sklearn `neg_*` before persist | Done (`#104`) |
 | P0 | Stacking nested CV OOF for metamodel (no in-sample `stacked_oof`) | Done (`#104`) |
 | P1 | Unknown optimizer fail-closed (`optuna` / `random` only) | Done (`#104`) |
-| P1 | #7/#8 invalid targets not fabricated in feature prep | In progress (`fix/audit4-features-simplex-honesty`) |
-| P1 | #11 simplex nested weight evaluation | In progress (`fix/audit4-features-simplex-honesty`) |
-| P1 | #13 tree_importance vs shap_importance labeling | In progress (`fix/audit4-features-simplex-honesty`) |
-| P2 | #6 exploratory labeling for supervised selection (full nested-in-fold deferred) | In progress (`fix/audit4-features-simplex-honesty`) |
-| P2 | Findings 9–10, 12, 14, 16 (hypothesis stats, PCA recipe, image cache, budget status) | Open |
+| P1 | #7/#8 invalid targets not fabricated in feature prep | Done (`#106`) |
+| P1 | #11 simplex nested weight evaluation | Done (`#106`) |
+| P1 | #13 tree_importance vs shap_importance labeling | Done (`#106`) |
+| P2 | #6 exploratory labeling for supervised selection (full nested-in-fold deferred) | Done (`#106`) |
+| P1 | #9/#10 paired hypothesis baseline + improved vs validated | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
+| P1 | #12 PCA source features + fold-safe reduction transform | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
+| P1 | #14 image cache invalidate on mtime/size | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
+| P1 | #16 budget stop → ExperimentStatus.PARTIAL | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
 

@@ -35,6 +35,7 @@ export const EXPERIMENT_STATUS_LABELS = {
   RUNNING: "En ejecución",
   EVALUATING: "Evaluando",
   COMPLETED: "Completado",
+  PARTIAL: "Parcial (presupuesto)",
   FAILED: "Fallido",
   CANCELLED: "Cancelado",
   PAUSED: "Pausado",

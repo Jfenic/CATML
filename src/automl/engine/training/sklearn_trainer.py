@@ -619,7 +619,33 @@ def _build_pipeline(
             )
 
     preprocessor = ColumnTransformer(transformers=transformers, sparse_threshold=0.0)
-    return Pipeline([("preprocessor", preprocessor), ("model", model)])
+    steps: list[tuple[str, Any]] = [("preprocessor", preprocessor)]
+
+    # Optional fold-safe PCA reduction (declared as column_transforms kind=pca, column='*').
+    pca_spec = None
+    if column_transforms:
+        for ct in column_transforms:
+            if not isinstance(ct, dict):
+                continue
+            kind = str(ct.get("kind", "")).lower()
+            col = str(ct.get("column", ""))
+            if kind == "pca" and col in {"*", "__all__", "__dataset__"}:
+                pca_spec = ct
+                break
+    if pca_spec is not None:
+        from sklearn.decomposition import PCA
+
+        params = dict(pca_spec.get("params") or {})
+        n_components = params.get("n_components", 0.95)
+        steps.append(
+            (
+                "pca",
+                PCA(n_components=n_components, random_state=params.get("random_state")),
+            )
+        )
+
+    steps.append(("model", model))
+    return Pipeline(steps)
 
 
 def _is_minimizing_metric(metric_name: str, plugin_registry: Any = None) -> bool:

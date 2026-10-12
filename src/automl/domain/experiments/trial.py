@@ -11,6 +11,7 @@ class ExperimentStatus(str, Enum):
     RUNNING = "RUNNING"
     EVALUATING = "EVALUATING"
     COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"  # Valid trials kept; stopped early (e.g. time budget exhausted)
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     PAUSED = "PAUSED"

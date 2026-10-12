@@ -330,7 +330,7 @@ class AnalysisHypothesis:
     description: str
     proposed_action: str
     experiment_delta: dict[str, Any] = field(default_factory=dict)
-    status: str = "proposed"  # "proposed", "accepted", "rejected"
+    status: str = "proposed"  # proposed | accepted | improved_unvalidated | rejected
     created_at: str = field(default_factory=_now_iso)
 
     @classmethod

@@ -274,14 +274,29 @@ class ImageEncoderNode(BaseEstimator, TransformerMixin):
         return np.vstack(encoded_chunks)
 
     def _get_cache_key(self, item: str | Path | bytes | Any) -> str:
-        """Generates a unique cache key for an image item."""
+        """Generates a unique cache key for an image item.
+
+        File keys include size + mtime so replacing an image at the same path
+        invalidates stale embeddings without hashing the full file each time.
+        """
         if isinstance(item, (bytes, bytearray)):
             digest = hashlib.sha256(item).hexdigest()[:16]
             return f"raw:{digest}:{self.output_dim}:{self.model_name}:{self.random_seed}"
         p = self._resolve_path(item)
         if str(p) == "":
             return f"missing:{self.output_dim}:{self.model_name}:{self.random_seed}"
-        return f"file:{p.resolve()}:{self.output_dim}:{self.model_name}:{self.random_seed}"
+        resolved = p.resolve()
+        fingerprint = "missing"
+        try:
+            if resolved.is_file():
+                st = resolved.stat()
+                fingerprint = f"{st.st_size}:{st.st_mtime_ns}"
+        except OSError:
+            fingerprint = "stat_error"
+        return (
+            f"file:{resolved}:{fingerprint}:{self.output_dim}:"
+            f"{self.model_name}:{self.random_seed}"
+        )
 
     def _encode_single_with_cache(self, item: str | Path | bytes | Any) -> np.ndarray:
         """Retrieves or computes an embedding vector using the multi-level cache."""
