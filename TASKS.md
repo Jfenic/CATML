@@ -97,10 +97,10 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | #11 simplex nested weight evaluation | Done (`#106`) |
 | P1 | #13 tree_importance vs shap_importance labeling | Done (`#106`) |
 | P2 | #6 exploratory labeling for supervised selection (full nested-in-fold deferred) | Done (`#106`) |
-| P1 | #9/#10 paired hypothesis baseline + improved vs validated | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
-| P1 | #12 PCA source features + fold-safe reduction transform | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
-| P1 | #14 image cache invalidate on mtime/size | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
-| P1 | #16 budget stop → ExperimentStatus.PARTIAL | In progress (`fix/audit4-hypothesis-budget-pca-cache`) |
+| P1 | #9/#10 paired hypothesis baseline + improved vs validated | Done (`#107`) |
+| P1 | #12 PCA source features + fold-safe reduction transform | Done (`#107`) |
+| P1 | #14 image cache invalidate on mtime/size | Done (`#107`) |
+| P1 | #16 budget stop → ExperimentStatus.PARTIAL | Done (`#107`) |
 
 ### Track Audit-3 — Recipe / metric / CV contracts (`fix/audit3-recipe-metric-cv-contracts`)
 
