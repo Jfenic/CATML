@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.0-rc1] - 2026-10-11 — CATML Explore & Security Hardening
+## [0.9.0-rc1] - 2026-10-12 — CATML Explore, Tabular Workbench & Security Hardening
 
 ### Added
 - **CATML Explore (Phases E1–E6):**
@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fragment Token Delivery:** Stopped printing unencrypted URL query parameters (`?token=`). Workbench remote URLs exclusively provide client-side fragment identifiers (`/#token=`), preventing token transmission across HTTP requests and leakage in server logs.
 - **Model Artifact Security Guidance:** Added prominent warnings in `README.md` and `SECURITY.md` against loading untrusted third-party `.pkl` files (deserialization risks), clarifying that SHA-256 checksums ensure file integrity, not cryptographic authenticity.
 - **Agent Surface Privacy Guardrails:** Enforced `compact=True` default in MCP analysis tools, returning zero raw dataset rows to LLM contexts by default.
+- **Workbench tabular ship stack:** Clean Architecture PR2/PR3 (execution/HPO services + web API / DatasetsView split); Explore questionnaire + temporal CV gating; Audit-5 honesty (budget contract, XSS escapes, Manual model picker, multiclass ROC-AUC OvR, native/fallback badges, no fabricated HPO importances).
+- **Third-party license inventory:** `THIRD_PARTY_LICENSES.md` and vendored UI license texts packaged in wheel/sdist (Apache-2.0 project license unchanged).
+- **Publishing runbook:** [`docs/publishing.md`](docs/publishing.md) for TestPyPI/PyPI Trusted Publishing.
+
+### Changed
+- Workbench Labs (Vision/NLP modular UI) deferred until after tabular publish ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)).
 
 ---
 

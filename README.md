@@ -277,3 +277,5 @@ pytest --cov=src/automl --cov-fail-under=85
 ## License
  
 Starting with version 0.8.0, CATML is licensed under the Apache License, Version 2.0 - see the [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) files for details. Earlier releases (<= 0.7.0) remain available under the MIT License.
+
+Third-party Workbench libraries and fonts (Chart.js, Lucide, Tailwind CSS output, Geist, IBM Plex Mono) and Python dependencies are documented in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md). Full texts for vendored UI assets ship in the package under `automl/interfaces/web/static/vendor/licenses/`.

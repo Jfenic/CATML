@@ -1,5 +1,11 @@
 # Progress
 
+### Track License compliance (`docs/third-party-license-compliance`, 2026-10-12)
+
+- Audit: Chart.js MIT, Lucide ISC(+Feather MIT), Tailwind MIT, Geist/IBM Plex OFL-1.1 — commercial-OK with notices; CATML stays Apache-2.0.
+- Added `THIRD_PARTY_LICENSES.md`, vendor license texts under `static/vendor/licenses/`, `license-files` in `pyproject.toml`, NOTICE/README pointers.
+- Tests: `tests/test_third_party_license_compliance.py` (repo + wheel + sdist). Merged onto main after #111 for PyPI gate.
+
 ### Tabular ship stack merged to main (`#111`, 2026-10-12)
 
 - Merged https://github.com/Jfenic/CATML/pull/111 into `main` (`1aa009f`): PR2+PR3+UX+Audit-5+Labs-deferred docs.

@@ -70,18 +70,27 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-### Focus — Finish Tabular Workbench (before Labs)
+### Focus — Publish tabular `0.9.0rc1`
 
-> **Decision (2026-10-12):** modular Labs UI is **future** ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md), [plan](docs/features/workbench-labs/plan.md)). Active work = ship a complete, honest **tabular** Workbench. Do not scaffold Vision/NLP/Clustering labs yet.
+> Labs UI deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Active work = packaging + TestPyPI/PyPI.
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Merge Clean Arch PR2/PR3 + UX #111 (`#109` → `#110` → `#111`) | Done (`#111` → `main`) |
-| P0 | Land Audit-5 honesty on same train (budget contract, XSS, Manual models, multiclass ROC-AUC, fallback badges, no fake HPO importances) | Done (in `#111`) |
-| P0 | End-to-end tabular: register → frame → experiment job → leaderboard → export | Done (facade + job smoke; Workbench manual spot-check recommended) |
+| P0 | Merge Clean Arch PR2/PR3 + UX #111 | Done (`#111` → `main`) |
+| P0 | Audit-5 honesty (budget/XSS/Manual/multiclass/fallback/HPO) | Done (in `#111`) |
+| P0 | Third-party license compliance (`THIRD_PARTY_LICENSES.md` + wheel/sdist tests) | Done (this PR) |
+| P0 | Build/twine check wheel locally (`catml-0.9.0rc1`) | Done |
+| P0 | Human: GitHub Environments `testpypi`/`pypi` + Trusted Publisher + publish | Open — see [`docs/publishing.md`](docs/publishing.md) |
 | P1 | Demo project + executive results export (Sprint 3) | Open |
-| P1 | PyPI / TestPyPI `0.9.0rc1` human Trusted Publisher | Open (human) |
-| P2 | Workbench Labs Phase 1 (registry + router adapters only) | **Deferred** until tabular gate |
+| P2 | Workbench Labs Phase 1 | **Deferred** |
+
+### Track License compliance (documentation / packaging only)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Audit Workbench + Python licenses; keep Apache-2.0; no UI redesign | Done |
+| P0 | `THIRD_PARTY_LICENSES.md` + vendor license texts in wheel/sdist | Done |
+| P0 | Automated packaging compliance tests | Done (`tests/test_third_party_license_compliance.py`) |
 
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
