@@ -591,7 +591,7 @@ export class StudioView {
                   <td class="font-mono font-bold ${idx === 0 ? 'text-amber-400' : 'text-slate-400'}">
                     ${idx === 0 ? '🏆 #1' : `#${idx + 1}`}
                   </td>
-                  <td class="font-medium text-slate-200 capitalize font-mono">${escapeHtml(row.model_id)}</td>
+                  <td class="font-medium text-slate-200 capitalize font-mono">${escapeHtml(row.model_id)}${row.backend === "fallback" ? ` <span class="text-[9px] text-amber-400 font-mono normal-case" title="${escapeHtml(row.estimator_class || row.fallback_backend || "sklearn fallback")}">fallback${row.fallback_backend ? `: ${escapeHtml(row.fallback_backend)}` : ""}</span>` : (row.backend === "native" ? ` <span class="text-[9px] text-emerald-400 font-mono normal-case">nativo</span>` : "")}</td>
                   <td class="font-mono text-xs text-[#4F67FF]">${escapeHtml(trialIdDisplay)}</td>
                   <td class="font-mono font-bold ${idx === 0 ? 'text-emerald-400' : 'text-slate-200'}">${Number(row.score).toFixed(5)}</td>
                   <td class="font-mono text-xs ${deltaBadgeClass}">${escapeHtml(deltaText)}</td>

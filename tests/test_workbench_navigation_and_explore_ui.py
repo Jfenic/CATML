@@ -54,9 +54,11 @@ def test_workbench_index_html_version_and_navigation():
 
 
 def test_workbench_datasets_view_explore_linkage():
+    from workbench_static_sources import datasets_view_sources
+
     datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js")
     assert datasets_js.exists()
-    content = datasets_js.read_text(encoding="utf-8")
+    content = datasets_view_sources()
 
     # Has full canvas exploration shortcut button
     assert 'id="btnOpenFullExploreCanvas"' in content
@@ -86,10 +88,16 @@ def test_workbench_static_assets_serving(running_web_server):
         body = resp.read().decode("utf-8")
         assert "ExploreView" in body
 
-    # Verify static datasets view is served
+    # Verify static datasets view barrel + orchestrator module are served
     with urlopen(f"{base}/static/js/views/datasets.js") as resp:
         assert resp.status == 200
         assert "javascript" in resp.headers.get("Content-Type", "")
+        body = resp.read().decode("utf-8")
+        assert "DatasetsView" in body
+        assert "./datasets/datasets_view.js" in body
+
+    with urlopen(f"{base}/static/js/views/datasets/datasets_view.js") as resp:
+        assert resp.status == 200
         body = resp.read().decode("utf-8")
         assert "btnOpenFullExploreCanvas" in body
 

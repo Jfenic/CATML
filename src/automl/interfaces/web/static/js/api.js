@@ -247,6 +247,9 @@ export class CATMLApiClient {
     if (payload.validation_strategy) jobPayload.validation_strategy = payload.validation_strategy;
     if (payload.budget) jobPayload.budget = payload.budget;
     if (payload.mode) jobPayload.mode = payload.mode;
+    if (payload.time_budget_seconds != null && payload.time_budget_seconds !== "") {
+      jobPayload.time_budget_seconds = Number(payload.time_budget_seconds);
+    }
     return this._runJob("experiment", payload.run_id, jobPayload, onProgress);
   }
 

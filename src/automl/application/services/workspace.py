@@ -13,10 +13,6 @@ from automl.domain.datasets.profile import Dataset
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
 from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult, TrialStatus
-from automl.domain.experiments.execution_spec import (
-    build_execution_spec,
-    trial_execution_from_spec,
-)
 from automl.domain.experiments.validation import require_known_validation_strategy
 from automl.domain.metrics.exceptions import InvalidMetric
 from automl.domain.metrics.spec import MetricSpec, resolve_metric_spec
@@ -30,29 +26,21 @@ from automl.domain.features.selection_strategy import (
     FeatureSetCandidate,
 )
 from automl.domain.models.registry import ModelRegistry
-from automl.domain.optimization.budget import OptimizationBudget
-from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.policies.budget import BudgetPolicy
 from automl.domain.ports import (
     ExperimentPlannerPort,
-    OptimizerPort,
     PriorityScorerPort,
 )
 from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.domain.tasks.problem_definition import ProblemDefinition
 from automl.domain.tasks.task_type import TASK_CATALOG, TaskType, default_metric_for
-from automl.engine.optimization.early_stopping import EarlyStoppingPolicy
-from automl.engine.optimization.random_search import RandomSearchOptimizer
-from automl.engine.optimization.search_space_builder import SearchSpaceBuilder
-from automl.engine.optimization.trial_factory import TrialFactory
 from automl.engine.planning.experiment_planner import RuleBasedExperimentPlanner
 from automl.engine.planning.task_planner import plan_from_dataframe
 from automl.engine.priority.scheduler import ExperimentQueue, Scheduler
 from automl.application.plugins.registry import PluginRegistry
 from automl.engine.priority.scorer import RuleBasedPriorityScorer
 from automl.engine.profiling.dataset_profiler import infer_task_type, load_dataframe, profile_dataset
-from automl.engine.training.sklearn_trainer import SklearnTrainer
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
 from automl.domain.modalities.modality import Modality
 from automl.domain.pipelines.graph import NodeType, PipelineGraph, PipelineNode
@@ -64,7 +52,6 @@ from automl.plugins.models.gradient_boosting import LightGBMPlugin, XGBoostPlugi
 from automl.plugins.models.sklearn_models import ExtraTreesPlugin, MLPPlugin, default_model_specs
 from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
 from automl.plugins.models.vision_plugin import TimmVisionPlugin
-from automl.plugins.optimizers.optuna_optimizer import OptunaOptimizer
 
 PLATFORM_VERSION = __version__
 
@@ -106,6 +93,8 @@ class AutoMLWorkspace:
     _pipeline_service: Any = field(default=None, repr=False)
     _inference_service: Any = field(default=None, repr=False)
     _feature_service: Any = field(default=None, repr=False)
+    _experiment_execution_service: Any = field(default=None, repr=False)
+    _optimization_service: Any = field(default=None, repr=False)
 
     @property
     def pipeline_service(self):
@@ -127,6 +116,22 @@ class AutoMLWorkspace:
             from automl.application.services.feature_service import FeatureEngineeringService
             self._feature_service = FeatureEngineeringService(self)
         return self._feature_service
+
+    @property
+    def experiment_execution_service(self):
+        if self._experiment_execution_service is None:
+            from automl.application.services.experiment_execution_service import (
+                ExperimentExecutionService,
+            )
+            self._experiment_execution_service = ExperimentExecutionService(self)
+        return self._experiment_execution_service
+
+    @property
+    def optimization_service(self):
+        if self._optimization_service is None:
+            from automl.application.services.optimization_service import OptimizationService
+            self._optimization_service = OptimizationService(self)
+        return self._optimization_service
 
     def _get_or_create_run_deadline(self, run: AutoMLRun) -> float | None:
         budget = run.config.effective_time_budget
@@ -587,156 +592,13 @@ class AutoMLWorkspace:
         start_index: int = 0,
         skip_model_ids: set[str] | None = None,
     ) -> list[TrialResult]:
-        if run.status == RunStatus.CANCELLED:
-            raise RuntimeError(f"Run {run.id} is cancelled")
-        if experiment.run_id != run.id:
-            raise ValueError(f"Experiment {experiment.id} does not belong to run {run.id}")
-
-        dataset = self._get_dataset(run.dataset_id)
-        experiment.status = ExperimentStatus.RUNNING
-        self.repository.save_experiment(experiment)
-        run.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
-        self.repository.save_run(run)
-
-        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
-        results: list[TrialResult] = []
-        model_ids = experiment.model_ids
-        if self.execution_progress:
-            self.execution_progress(start_index, len(model_ids), "Training models")
-
-        for index, model_id in enumerate(model_ids):
-            if index < start_index:
-                continue
-
-            if skip_model_ids and model_id in skip_model_ids:
-                if self.execution_progress:
-                    self.execution_progress(index + 1, len(model_ids), f"Reused {model_id}")
-                continue
-            if self.execution_check:
-                self.execution_check()
-            refreshed = self.repository.get_run(run.id)
-            if refreshed.status == RunStatus.PAUSED:
-                self.repository.save_checkpoint(run.id, experiment.id, index)
-                experiment.status = ExperimentStatus.PAUSED
-                self.repository.save_experiment(experiment)
-                self._emit("RunPaused", {"experiment_id": experiment.id, "next_index": index}, run_id=run.id)
-                return results
-
-            if refreshed.status == RunStatus.CANCELLED:
-                experiment.status = ExperimentStatus.CANCELLED
-                self.repository.save_experiment(experiment)
-                self._emit("RunCancelled", {"experiment_id": experiment.id}, run_id=run.id)
-                return results
-
-            if self._is_run_budget_exhausted(refreshed):
-                run.config.extra["time_budget_exhausted"] = True
-                refreshed.config.extra["time_budget_exhausted"] = True
-                self.repository.save_run(refreshed)
-                self._emit(
-                    "TimeBudgetExhausted",
-                    {
-                        "run_id": run.id,
-                        "experiment_id": experiment.id,
-                        "model_id": model_id,
-                        "completed_models": len(results),
-                        "total_models": len(model_ids),
-                    },
-                    run_id=run.id,
-                )
-                break
-
-            trial = Trial(
-                id=f"trial_{uuid.uuid4().hex[:8]}",
-                experiment_id=experiment.id,
-                model_id=model_id,
-                seed=run.config.random_seed,
-            )
-            self.repository.save_trial(trial)
-            spec = build_execution_spec(
-                run,
-                experiment,
-                dataset,
-                model_id=model_id,
-                greater_is_better=self._metric_greater_is_better(experiment.metric),
-            )
-            execution = trial_execution_from_spec(
-                trial=trial,
-                experiment=experiment,
-                run=run,
-                dataset=dataset,
-                spec=spec,
-            )
-            result = trainer.run(execution)
-            self.repository.save_trial(trial)
-            self.repository.save_trial_result(result)
-            results.append(result)
-            if self.execution_progress:
-                self.repository.save_checkpoint(run.id, experiment.id, index + 1)
-                self.execution_progress(index + 1, len(model_ids), f"Finished {model_id}")
-            self._emit(
-                "TrialCompleted" if result.succeeded else "TrialFailed",
-                {"trial_id": trial.id, "model_id": model_id, "score": result.primary_score},
-                run_id=run.id,
-            )
-
-        if self.execution_check:
-            self.execution_check()
-        self.repository.clear_checkpoint(run.id)
-
-        succeeded = [r for r in results if getattr(r, "succeeded", False)]
-        if not results or not succeeded:
-            experiment.status = ExperimentStatus.FAILED
-            self.repository.save_experiment(experiment)
-            run.transition_to(RunStatus.FAILED, RunPhase.EVALUATION)
-            self.repository.save_run(run)
-            self._emit(
-                "ExperimentFailed",
-                {
-                    "experiment_id": experiment.id,
-                    "completed_trials": len(results),
-                    "successful_trials": 0,
-                },
-                run_id=run.id,
-            )
-            return results
-
-        latest_run = self.repository.get_run(run.id) or run
-        budget_exhausted = bool((latest_run.config.extra or {}).get("time_budget_exhausted"))
-        # Preserve valid trials but do not present a budget stop as a full completion.
-        if budget_exhausted and len(succeeded) < len(model_ids):
-            experiment.status = ExperimentStatus.PARTIAL
-            latest_run.config.extra["completion_reason"] = "BUDGET_EXHAUSTED"
-            self.repository.save_experiment(experiment)
-            latest_run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
-            self.repository.save_run(latest_run)
-            run = latest_run
-            self._emit(
-                "ExperimentPartial",
-                {
-                    "experiment_id": experiment.id,
-                    "completed_trials": len(results),
-                    "successful_trials": len(succeeded),
-                    "total_models": len(model_ids),
-                    "completion_reason": "BUDGET_EXHAUSTED",
-                },
-                run_id=run.id,
-            )
-            return results
-
-        experiment.status = ExperimentStatus.COMPLETED
-        self.repository.save_experiment(experiment)
-        run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
-        self.repository.save_run(run)
-        self._emit(
-            "ExperimentCompleted",
-            {
-                "experiment_id": experiment.id,
-                "completed_trials": len(results),
-                "successful_trials": len(succeeded),
-            },
-            run_id=run.id,
+        """Facade: delegates to ExperimentExecutionService (Clean Architecture PR2)."""
+        return self.experiment_execution_service.run_experiment(
+            run,
+            experiment,
+            start_index=start_index,
+            skip_model_ids=skip_model_ids,
         )
-        return results
 
     def resume_run(self, run_id: str) -> list[TrialResult]:
         run = self._get_run(run_id)
@@ -795,8 +657,10 @@ class AutoMLWorkspace:
 
     def leaderboard(self, run: AutoMLRun, include_failed: bool = False) -> list[dict]:
         rows = self.repository.get_leaderboard(run.id, include_failed=include_failed)
-        return [
-            {
+        out = []
+        for r in rows:
+            arts = r.artifacts or {}
+            out.append({
                 "trial_id": r.trial_id,
                 "experiment_id": r.experiment_id,
                 "model_id": r.model_id,
@@ -804,9 +668,11 @@ class AutoMLWorkspace:
                 "score": round(r.primary_score, 4),
                 "training_time_s": round(r.training_time_seconds, 3),
                 "failed": not r.succeeded,
-            }
-            for r in rows
-        ]
+                "estimator_class": arts.get("estimator_class"),
+                "backend": arts.get("backend"),
+                "fallback_backend": arts.get("fallback_backend"),
+            })
+        return out
 
     def get_leaderboard(self, run_or_id: str | AutoMLRun, include_failed: bool = False) -> list[dict]:
         run = run_or_id if isinstance(run_or_id, AutoMLRun) else self._get_run(run_or_id)
@@ -1283,208 +1149,17 @@ class AutoMLWorkspace:
         patience: int = 5,
         min_delta: float = 0.0001,
     ) -> dict:
-        import time
-
-        run = self._get_run(run_id)
-        if run.status in {RunStatus.PAUSED, RunStatus.CANCELLED}:
-            raise RuntimeError(f"Cannot optimize experiment: Run {run_id} is {run.status.value}")
-
-        experiment = self.repository.get_experiment(experiment_id)
-        if experiment is None:
-            raise KeyError(f"Experiment not found: {experiment_id}")
-        if experiment.run_id != run.id:
-            raise ValueError(f"Experiment {experiment_id} does not belong to run {run_id}")
-
-        dataset = self._get_dataset(run.dataset_id)
-        target_model = model_id or experiment.model_ids[0]
-        if target_model not in experiment.model_ids:
-            raise ValueError(f"Model {target_model} is not part of experiment {experiment_id}")
-
-        experiment.status = ExperimentStatus.RUNNING
-        self.repository.save_experiment(experiment)
-        run.transition_to(RunStatus.OPTIMIZING, RunPhase.OPTIMIZATION)
-        self.repository.save_run(run)
-
-        space = SearchSpaceBuilder.build(target_model, run.config.task_type)
-        metric_spec = self._resolve_metric_spec(run.config.metric)
-        direction = metric_spec.direction.value
-
-        # Check meta-learning warm start priors
-        warm_params: dict[str, Any] | None = None
-        try:
-            meta = self.get_meta_knowledge(run.dataset_id, run_id=run.id)
-            if meta.warm_start and meta.warm_start.params:
-                valid_warm = {
-                    spec.name: meta.warm_start.params[spec.name]
-                    for spec in space.list()
-                    if spec.name in meta.warm_start.params
-                }
-                if valid_warm:
-                    warm_params = valid_warm
-        except Exception:
-            pass
-
-        opt: OptimizerPort
-        optimizer_key = str(optimizer or "random").lower().strip()
-        if optimizer_key == "optuna":
-            opt = OptunaOptimizer(
-                seed=run.config.random_seed,
-                direction=direction,
-                patience=patience,
-                min_delta=min_delta,
-                warm_start_params=warm_params,
-            )
-        elif optimizer_key in {"random", "random_search", "randomsearch"}:
-            opt = RandomSearchOptimizer(
-                seed=run.config.random_seed,
-                patience=patience,
-                min_delta=min_delta,
-                mode="max" if direction == "maximize" else "min",
-                warm_start_params=warm_params,
-            )
-        else:
-            raise ValueError(
-                f"Unknown optimizer {optimizer!r}. Supported: 'optuna', 'random' "
-                f"(aliases: random_search, randomsearch)."
-            )
-
-        trainer = SklearnTrainer(plugin_registry=self.plugin_registry)
-        results: list[TrialResult] = []
-        started_at = time.time()
-        is_cancelled = False
-        is_paused = False
-
-        for trial_idx in range(n_trials):
-            if timeout_seconds and (time.time() - started_at) > timeout_seconds:
-                break
-            if opt.should_stop():
-                break
-
-            if self.execution_check:
-                self.execution_check()
-
-            refreshed = self.repository.get_run(run.id)
-            if refreshed and refreshed.status == RunStatus.PAUSED:
-                is_paused = True
-                experiment.status = ExperimentStatus.PAUSED
-                self.repository.save_experiment(experiment)
-                self._emit("RunPaused", {"experiment_id": experiment.id, "trial_idx": trial_idx}, run_id=run.id)
-                break
-
-            if refreshed and refreshed.status == RunStatus.CANCELLED:
-                is_cancelled = True
-                experiment.status = ExperimentStatus.CANCELLED
-                self.repository.save_experiment(experiment)
-                self._emit("RunCancelled", {"experiment_id": experiment.id, "trial_idx": trial_idx}, run_id=run.id)
-                break
-
-            params = opt.suggest(trial_idx, space)
-            # Estimator seed may vary per trial; CV fold seed stays fixed for fair HPO comparison.
-            trial = TrialFactory.create(
-                experiment_id=experiment.id,
-                model_id=target_model,
-                parameters=params,
-                seed=run.config.random_seed + trial_idx,
-            )
-            self.repository.save_trial(trial)
-
-            # ExecutionSpec.random_seed = run fold seed (fixed); trial.seed may still vary.
-            spec = build_execution_spec(
-                run,
-                experiment,
-                dataset,
-                model_id=target_model,
-                params=params,
-                greater_is_better=metric_spec.greater_is_better,
-            )
-            execution = trial_execution_from_spec(
-                trial=trial,
-                experiment=experiment,
-                run=run,
-                dataset=dataset,
-                spec=spec,
-            )
-            result = trainer.run(execution)
-            self.repository.save_trial(trial)
-            self.repository.save_trial_result(result)
-            opt.observe(trial_idx, params, result.primary_score, result.succeeded)
-            results.append(result)
-
-            self._emit(
-                "TrialCompleted" if result.succeeded else "TrialFailed",
-                {
-                    "trial_id": trial.id,
-                    "model_id": target_model,
-                    "score": result.primary_score,
-                    "parameters": params,
-                },
-                run_id=run.id,
-            )
-
-        succeeded = [r for r in results if getattr(r, "succeeded", False)]
-        if not is_cancelled and not is_paused:
-            if not results or not succeeded:
-                experiment.status = ExperimentStatus.FAILED
-                self.repository.save_experiment(experiment)
-                run.transition_to(RunStatus.FAILED, RunPhase.OPTIMIZATION)
-                self.repository.save_run(run)
-                self._emit(
-                    "ExperimentFailed",
-                    {
-                        "experiment_id": experiment.id,
-                        "completed_trials": len(results),
-                        "successful_trials": 0,
-                        "phase": "optimization",
-                    },
-                    run_id=run.id,
-                )
-            else:
-                experiment.status = ExperimentStatus.COMPLETED
-                self.repository.save_experiment(experiment)
-                run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
-                self.repository.save_run(run)
-
-        best_score = opt.best_score() if succeeded else None
-        best_params = opt.best_parameters() if succeeded else {}
-        best_trial_id = ""
-        if succeeded:
-            best_idx = metric_spec.select_best_index([r.primary_score for r in succeeded])
-            best_trial_id = succeeded[best_idx].trial_id
-
-        self._emit(
-            "ExperimentOptimized",
-            {
-                "experiment_id": experiment.id,
-                "model_id": target_model,
-                "trials_executed": len(results),
-                "successful_trials": len(succeeded),
-                "best_score": None if best_score is None else round(best_score, 4),
-                "best_params": best_params,
-                "best_trial_id": best_trial_id,
-                "optimizer": optimizer,
-            },
-            run_id=run.id,
+        """Facade: delegates to OptimizationService (Clean Architecture PR2)."""
+        return self.optimization_service.optimize_experiment(
+            run_id=run_id,
+            experiment_id=experiment_id,
+            model_id=model_id,
+            optimizer=optimizer,
+            n_trials=n_trials,
+            timeout_seconds=timeout_seconds,
+            patience=patience,
+            min_delta=min_delta,
         )
-
-        return {
-            "experiment_id": experiment.id,
-            "model_id": target_model,
-            "optimizer": optimizer,
-            "trials_executed": len(results),
-            "successful_trials": len(succeeded),
-            "best_score": None if best_score is None else round(best_score, 4),
-            "best_params": best_params,
-            "best_trial_id": best_trial_id,
-            "trials": [
-                {
-                    "trial_id": r.trial_id,
-                    "score": round(r.primary_score, 4),
-                    "training_time_s": round(r.training_time_seconds, 3),
-                    "succeeded": r.succeeded,
-                }
-                for r in results
-            ],
-        }
 
     def _metric_greater_is_better(self, metric_name: str) -> bool | None:
         """Plugin override for metric direction, or None to use builtin registry."""

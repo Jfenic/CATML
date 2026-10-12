@@ -45,10 +45,12 @@ class JobExecutor:
             if experiment_id is None:
                 args = dict(job.payload)
                 budget = args.pop("budget", None)
+                time_budget_seconds = args.pop("time_budget_seconds", None)
                 args.pop("mode", None)
-                if budget:
-                    budget_map = {"quick": 60.0, "balanced": 300.0, "thorough": 1200.0}
-                    time_sec = budget_map.get(budget, 300.0) if isinstance(budget, str) else float(budget)
+                if budget is not None or time_budget_seconds is not None:
+                    from automl.domain.experiments.budgets import resolve_time_budget_seconds
+
+                    time_sec = resolve_time_budget_seconds(budget, time_budget_seconds)
                     r = self.workspace._get_run(job.run_id)
                     r.config.time_budget_seconds = time_sec
                     self.workspace.repository.save_run(r)
@@ -98,6 +100,16 @@ class JobExecutor:
             check()
             all_results = self.workspace.repository.list_trial_results(experiment_id)
             if not all_results or not any(r.succeeded for r in all_results):
+                reasons = [
+                    (getattr(r, "failure_reason", None) or "").strip()
+                    for r in (all_results or [])
+                ]
+                reasons = [r for r in reasons if r]
+                if reasons:
+                    # Prefer the most common reason so operators see the real blocker
+                    # (e.g. missing time_column under time_series validation).
+                    top = max(set(reasons), key=reasons.count)
+                    raise RuntimeError(f"All experiment trials failed: {top}")
                 raise RuntimeError("All experiment trials failed")
             best = self.workspace.get_best_trial(experiment_id)
             return {"status": "success", "experiment_id": experiment_id, "succeeded": True,

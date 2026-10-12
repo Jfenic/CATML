@@ -335,9 +335,13 @@ def test_escape_html_utils_present_in_views():
     """Static guard: audited XSS hotspots import/use escapeHtml."""
     root = Path(__file__).resolve().parents[1]
     new_exp = (root / "src/automl/interfaces/web/static/js/views/new_experiment.js").read_text()
-    datasets = (root / "src/automl/interfaces/web/static/js/views/datasets.js").read_text()
+    from workbench_static_sources import datasets_view_sources
+
+    datasets = datasets_view_sources()
     compare = (root / "src/automl/interfaces/web/static/js/views/compare.js").read_text()
     assert "escapeHtml(f)" in new_exp
+    assert "escapeHtml(activeDs" in new_exp
+    assert "escapeHtml(r.name || r.id)" in new_exp
     assert "escapeHtml(r.column)" in datasets
     assert "escapeHtml(c)" in datasets
     assert "escapeHtml((selectedExps[0].model_ids" in compare

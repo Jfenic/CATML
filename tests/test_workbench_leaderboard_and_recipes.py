@@ -109,11 +109,16 @@ def test_transformation_lifecycle_stages_definition_and_explicability():
 
 
 def test_feature_selection_contract_unification():
-    datasets_js = Path("src/automl/interfaces/web/static/js/views/datasets.js").read_text(encoding="utf-8")
+    from workbench_static_sources import datasets_view_sources
+
+    datasets_js = datasets_view_sources()
     new_exp_js = Path("src/automl/interfaces/web/static/js/views/new_experiment.js").read_text(encoding="utf-8")
 
-    # datasets.js synchronizes both customFeatures and selectedFeaturesByDataset (Section 8.3)
-    assert "selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats }" in datasets_js
+    # Feature selector synchronizes both customFeatures and selectedFeaturesByDataset (Section 8.3)
+    assert (
+        "selectedFeaturesByDataset: { ...currentMap, [this.activeDatasetId]: feats }" in datasets_js
+        or "selectedFeaturesByDataset: { ...currentMap, [view.activeDatasetId]: feats }" in datasets_js
+    )
     assert "customFeatures: feats" in datasets_js
     assert "selectedFeatures: feats" in datasets_js
 

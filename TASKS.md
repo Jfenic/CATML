@@ -70,17 +70,30 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
+### Focus — Finish Tabular Workbench (before Labs)
+
+> **Decision (2026-10-12):** modular Labs UI is **future** ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md), [plan](docs/features/workbench-labs/plan.md)). Active work = ship a complete, honest **tabular** Workbench. Do not scaffold Vision/NLP/Clustering labs yet.
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Merge Clean Arch PR2/PR3 + UX #111 (`#109` → `#110` → `#111`) | Open (PRs open) |
+| P0 | Land Audit-5 honesty on same train (budget contract, XSS, Manual models, multiclass ROC-AUC, fallback badges, no fake HPO importances) | Done (on #111 branch) |
+| P0 | End-to-end tabular: register → frame → experiment job → leaderboard → export | In progress (stack #109+#110+#111) |
+| P1 | Demo project + executive results export (Sprint 3) | Open |
+| P1 | PyPI / TestPyPI `0.9.0rc1` human Trusted Publisher | Open (human) |
+| P2 | Workbench Labs Phase 1 (registry + router adapters only) | **Deferred** until tabular gate |
+
 ### Track Clean Architecture Refactor (progressive, ADR-010)
 
-> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 in this PR (`#102`).
+> Spec/plan: [`docs/features/clean-architecture-refactor/`](docs/features/clean-architecture-refactor/). Gate: #99/#100/#101 merged; PR1 `#102`; PR2 `#109`; PR3 `#110`.
 
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 | Docs: spec + plan + ADR-010 + agent brief PR1 | Done (`#101`) |
 | P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
-| P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Open (after PR1) |
-| P1 | PR3: Web controllers + split `datasets.js` components | Open |
-| P2 | PR4: SQLite repos + state machine + Unit of Work | Open |
+| P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Done (`#109`) |
+| P1 | PR3: Web controllers + split `datasets.js` components | Done (`#110`) |
+| P2 | PR4: SQLite repos + state machine + Unit of Work | Open (after PR3) |
 | P2 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open |
 
 ### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)
@@ -125,6 +138,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | Guided vs Advanced Explore (top findings first) | Done (`#99`) |
 | P1 | Correlation matrix UX + p-value/severity formatting | Done (`#99`) |
 | P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done (`#99`) |
+| P1 | Framing/CV coherence: no TimeSeriesSplit on cross-sectional; advisor ignores survey «time» phrases; job errors surface `failure_reason` | Done (local) |
+| P0 | Audit-5: unify budget UI↔JobExecutor; XSS new_experiment; no fake param_importance / predict checklist; Manual model picker; multiclass ROC-AUC; fallback badges | Done (local) |
 | P2 | Demo project + executive results export | Open (Sprint 3) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)
