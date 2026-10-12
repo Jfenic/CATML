@@ -78,9 +78,9 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | --- | --- | --- |
 | P0 | Merge Clean Arch PR2/PR3 + UX #111 | Done (`#111` → `main`) |
 | P0 | Audit-5 honesty (budget/XSS/Manual/multiclass/fallback/HPO) | Done (in `#111`) |
-| P0 | Third-party license compliance (`THIRD_PARTY_LICENSES.md` + wheel/sdist tests) | In progress (this branch) |
-| P0 | Build/twine/smoke wheel locally | In progress |
-| P0 | Human: GitHub Environments `testpypi`/`pypi` + Trusted Publisher + publish | Open (maintainers) |
+| P0 | Third-party license compliance (`THIRD_PARTY_LICENSES.md` + wheel/sdist tests) | Done (this PR) |
+| P0 | Build/twine check wheel locally (`catml-0.9.0rc1`) | Done |
+| P0 | Human: GitHub Environments `testpypi`/`pypi` + Trusted Publisher + publish | Open — see [`docs/publishing.md`](docs/publishing.md) |
 | P1 | Demo project + executive results export (Sprint 3) | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
