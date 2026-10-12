@@ -143,7 +143,7 @@ views/datasets/
 - [x] Shared helpers in `api/_helpers.py` (re-exported from `server` for tests)
 - [x] `views/datasets.js` re-exports `DatasetsView`; modules under `views/datasets/`
 - [x] Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + updated static source helpers
-- [ ] Merge PR (cobertura ≥ 85 %, suite completa verde)
+- [ ] Merge PR [#110](https://github.com/Jfenic/CATML/pull/110) (cobertura ≥ 85 %, suite completa verde)
 
 ---
 

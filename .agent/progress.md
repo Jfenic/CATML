@@ -5,7 +5,7 @@
 - Backend: `server.py` reduced to HTTP glue (~300 LOC); routes in `interfaces/web/api/{jobs,datasets,experiments,analysis}.py` + `_helpers.py`.
 - Frontend: `views/datasets.js` barrel; `DatasetsView` orchestrator + panels under `views/datasets/` (summary, columns, health, selector, correlations, questionnaire, derived).
 - Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + `workbench_static_sources.py` for package-aware static guards.
-- Next: open PR; after merge PR4 (SQLite repos / state machine / UoW).
+- PR: [#110](https://github.com/Jfenic/CATML/pull/110). Next after merge: PR4 (SQLite repos / state machine / UoW).
 
 ### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
 
