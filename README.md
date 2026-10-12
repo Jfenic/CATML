@@ -6,9 +6,9 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Version](https://img.shields.io/badge/Version-0.9.0--rc1-blue.svg)](src/automl/__init__.py)
-[![CI](https://github.com/Jfenic/CATML/actions/workflows/ci.yml/badge.svg)](https://github.com/Jfenic/CATML/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-788%20Collected-brightgreen.svg)](https://github.com/Jfenic/CATML/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/Coverage-%E2%89%A585%25%20(CI%20gate)-brightgreen.svg)](https://github.com/Jfenic/CATML/actions/workflows/ci.yml)
+[![CI](https://github.com/Jfenic/catml/actions/workflows/ci.yml/badge.svg)](https://github.com/Jfenic/catml/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-788%20Collected-brightgreen.svg)](https://github.com/Jfenic/catml/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-%E2%89%A585%25%20(CI%20gate)-brightgreen.svg)](https://github.com/Jfenic/catml/actions/workflows/ci.yml)
 [![Architecture](https://img.shields.io/badge/Architecture-Hexagonal%20%2B%20CQRS-orange.svg)](ARCHITECTURE.md)
 [![MCP](https://img.shields.io/badge/MCP-Ready-purple.svg)](src/automl/interfaces/mcp/)
 
@@ -162,7 +162,7 @@ Available tools exposed to AI agents:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Jfenic/CATML.git
+git clone https://github.com/Jfenic/catml.git
 cd CATML
 
 # Create and activate virtual environment

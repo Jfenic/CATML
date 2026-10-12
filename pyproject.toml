@@ -39,9 +39,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://catml.vercel.app"
-Repository = "https://github.com/Jfenic/CATML"
-Issues = "https://github.com/Jfenic/CATML/issues"
-Documentation = "https://github.com/Jfenic/CATML#readme"
+Repository = "https://github.com/Jfenic/catml"
+Issues = "https://github.com/Jfenic/catml/issues"
+Documentation = "https://github.com/Jfenic/catml#readme"
 
 [project.optional-dependencies]
 dev = [

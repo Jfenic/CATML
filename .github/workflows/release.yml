@@ -1,7 +1,7 @@
 name: Release
 
 # Trusted Publishing to PyPI / TestPyPI.
-# Configure pending publishers on PyPI for repository Jfenic/CATML, workflow
+# Configure pending publishers on PyPI for repository Jfenic/catml, workflow
 # release.yml, and protected GitHub Environments "pypi" / "testpypi"
 # (required reviewers recommended before enabling production publish).
 #

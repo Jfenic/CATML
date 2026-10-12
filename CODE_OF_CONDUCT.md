@@ -47,7 +47,7 @@ is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported via [GitHub Security Advisories](https://github.com/Jfenic/CATML/security/advisories/new)
+reported via [GitHub Security Advisories](https://github.com/Jfenic/catml/security/advisories/new)
 or by contacting the repository maintainers. All complaints will be reviewed and
 investigated promptly and fairly.
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-const repo = 'https://github.com/Jfenic/CATML';
+const repo = 'https://github.com/Jfenic/catml';
 const docs = `${repo}/blob/main/docs/README.md`;
 const quickstart = `from catml import AutoML
 import pandas as pd
@@ -20,7 +20,7 @@ from catml import ModelArtifact
 
 model = ModelArtifact.load("model.pkl")
 predictions = model.predict(new_data)`;
-const installation = `git clone https://github.com/Jfenic/CATML.git
+const installation = `git clone https://github.com/Jfenic/catml.git
 cd CATML
 python3 -m venv .venv
 source .venv/bin/activate

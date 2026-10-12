@@ -8,9 +8,9 @@ Antes de publicar, `main` debe tener:
 
 - [x] Stack tabular ship (#111): Workbench jobs, Audit-5 honesty, Clean Arch PR2/PR3
 - [x] `license = "Apache-2.0"` + `setuptools>=77` en `pyproject.toml`
-- [ ] Cumplimiento third-party (`THIRD_PARTY_LICENSES.md` + textos en wheel) — PR de licencias
-- [ ] `python -m build` + `twine check` + `tests/smoke_test.py` en el wheel limpio
-- [ ] Suite `pytest --cov=automl --cov-fail-under=85`
+- [x] Cumplimiento third-party (`THIRD_PARTY_LICENSES.md` + textos en wheel) — `#112`
+- [x] `python -m build` + `twine check` del wheel `0.9.0rc1`
+- [x] Suite local reciente `pytest --cov-fail-under=85` (revalidar en CI del Release)
 
 ## Lo que solo pueden hacer los mantenedores (humano)
 
@@ -18,11 +18,9 @@ Acuerdo de [@Jfenic](https://github.com/Jfenic) y [@tvarmar](https://github.com/
 
 ### 1. GitHub Environments
 
-En el repo → **Settings → Environments**:
+Ya creados: `testpypi` y `pypi`, con required reviewers (Jfenic, tvarmar).
 
-1. Crear `testpypi` y `pypi`.
-2. En ambos: **Required reviewers** (ambos mantenedores recomendado).
-3. Opcional: restringir a la rama `main` / tags `v*`.
+Comprobar en: https://github.com/Jfenic/catml/settings/environments
 
 ### 2. Trusted Publisher en TestPyPI
 
@@ -30,7 +28,7 @@ En el repo → **Settings → Environments**:
 2. Crear proyecto **`catml`** (o “pending publisher” si aún no existe).
 3. **Publishing → Trusted Publishers → Add**:
    - Owner: `Jfenic`
-   - Repository: `CATML`
+   - Repository: `catml`
    - Workflow: `release.yml`
    - Environment: `testpypi`
 

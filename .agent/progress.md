@@ -1,5 +1,11 @@
 # Progress
 
+### Repo rename GitHub `CATML` → `catml` (2026-10-12)
+
+- GitHub nameWithOwner is now `Jfenic/catml`; `origin` remote + README/pyproject/SECURITY/website/publishing/release.yml URLs updated.
+- Product brand text “CATML” kept in prose; package/PyPI/CLI remain `catml`.
+- Trusted Publisher must use Repository **`catml`** (user configured).
+
 ### Publish prep merged (`#112`, 2026-10-12)
 
 - Third-party licenses + `docs/publishing.md` on `main`.
@@ -15,7 +21,7 @@
 
 ### Tabular ship stack merged to main (`#111`, 2026-10-12)
 
-- Merged https://github.com/Jfenic/CATML/pull/111 into `main` (`1aa009f`): PR2+PR3+UX+Audit-5+Labs-deferred docs.
+- Merged https://github.com/Jfenic/catml/pull/111 into `main` (`1aa009f`): PR2+PR3+UX+Audit-5+Labs-deferred docs.
 - Local validation: **889 passed**, coverage **87.11%**; facade breast_cancer fit→export→predict OK; job worker experiment OK.
 - Remaining for publish: human TestPyPI/PyPI Trusted Publisher; optional Sprint 3 demo export; manual Workbench click-through.
 
@@ -47,7 +53,7 @@
 - Frontend: `views/datasets.js` barrel; `DatasetsView` orchestrator + panels under `views/datasets/` (summary, columns, health, selector, correlations, questionnaire, derived).
 - Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + `workbench_static_sources.py` for package-aware static guards.
 - Follow-up fix: `JobService` allowlist accepts Workbench `budget` / `mode` / `validation_strategy` (was "Unknown experiment job arguments").
-- PR: [#110](https://github.com/Jfenic/CATML/pull/110). Next after merge: PR4 (SQLite repos / state machine / UoW).
+- PR: [#110](https://github.com/Jfenic/catml/pull/110). Next after merge: PR4 (SQLite repos / state machine / UoW).
 
 ### Track Clean Architecture PR2 — execution/optimization services (`refactor/clean-arch-pr2-execution-optimization-services`, 2026-10-12)
 
@@ -57,7 +63,7 @@
 - Removed dead HPO/trainer imports from `workspace.py` (~1998 → ~1669 LOC).
 - Tests: `tests/test_clean_arch_pr2_execution_services.py` (6): facade delegation, binary smoke, MAE regression smoke, HPO shape, unknown optimizer fail-closed.
 - Validation: **872 passed**, coverage **87.11 %**, CLI help/task list OK.
-- PR: [#109](https://github.com/Jfenic/CATML/pull/109). Merged into tabular publish branch with Audit-5 param_importance on OptimizationService.
+- PR: [#109](https://github.com/Jfenic/catml/pull/109). Merged into tabular publish branch with Audit-5 param_importance on OptimizationService.
 
 ### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
 
@@ -152,7 +158,7 @@
 - **P0 HPO all-fail:** zero successful trials → experiment/run `FAILED`; `best_score`/`best_trial_id` absent (not invented from failed scores).
 - Tests: `tests/test_hpo_recipe_fidelity.py`.
 - **P0 release.yml:** jobs `build` → `verify` (wheel smoke + full pytest) → `publish-testpypi` / `publish-pypi`; tag must match `__version__`; publish only downloads artifact; environments `testpypi`/`pypi`.
-- **P1 SQLite:** `SQLiteExperimentRepository._connect` closes connections (sqlite3 context manager does not); bounded FD stress test; soak debt → blackboard [#94](https://github.com/Jfenic/CATML/issues/94).
+- **P1 SQLite:** `SQLiteExperimentRepository._connect` closes connections (sqlite3 context manager does not); bounded FD stress test; soak debt → blackboard [#94](https://github.com/Jfenic/catml/issues/94).
 - **Benchmark v1 scaffold:** `benchmarks/` protocol + Study C harness; `_best_result()` returns `None` when all trials fail (not `0.0`).
 
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`, 2026-10-11)
@@ -1277,7 +1283,7 @@
 - Cambios de producto limitados a `website/`: homepage React/TypeScript/Vite clara, tokens de marca, fuentes locales, snippets, ejemplos etiquetados, Community de código abierto. No se modificó Workbench ni núcleo Python.
 - Captura real del Dataset Inspector de main con dataset sintético en workspace temporal; scripts reproducibles para screenshot y tarjeta OpenGraph.
 - Build y comprobaciones Chromium/axe pasan en 320, 390, 768, 1024 y 1440 px; teclado, menú, portapapeles y movimiento reducido comprobados.
-- Primera suite completa: 460 passed, 1 timeout MCP, 87.53% coverage. Hallazgo ajeno a la landing registrado en [blackboard #52](https://github.com/Jfenic/CATML/issues/52); handshake pasa aislado. Segunda suite completa: 461 passed, 87.53% coverage (237.66 s). No se cambió Python; el timeout inicial permanece documentado como hallazgo de estabilidad.
+- Primera suite completa: 460 passed, 1 timeout MCP, 87.53% coverage. Hallazgo ajeno a la landing registrado en [blackboard #52](https://github.com/Jfenic/catml/issues/52); handshake pasa aislado. Segunda suite completa: 461 passed, 87.53% coverage (237.66 s). No se cambió Python; el timeout inicial permanece documentado como hallazgo de estabilidad.
 - Despliegue/dominio pendientes; configuración Vercel y guía incluidas.
 
 
@@ -1614,7 +1620,7 @@ Active Track: **Sistema Agéntico V0.9/V1.0 — Persona A (Paquete A3 / Hito H3 
 - Integrated CLI `predict --folds` and Workbench submission checkbox/HTTP path. Standard predictions remain supported; OOF artifact queries reject different test data and changed predictions.
 - Candidates remain unpromoted; no Kaggle gain claimed. Independent holdout/benchmark remains pending. Fold models are not serialized; rerun for new test data. Budget and pause/cancel are checked between fits.
 - Validation: 196 tests passed, 86.01% coverage, one existing sklearn deprecation warning. CLI/help/task catalog, JavaScript syntax, Markdown links/anchors and diff checks passed.
-- Confirmed pre-existing ordinary prediction ownership bug and reported [blackboard issue #14](https://github.com/Jfenic/CATML/issues/14); OOF paths validate ownership.
+- Confirmed pre-existing ordinary prediction ownership bug and reported [blackboard issue #14](https://github.com/Jfenic/catml/issues/14); OOF paths validate ownership.
 - Preparing a separate draft PR against `fix/docs-and-plugin-registration`; no merges performed. After human merge of #13, retarget the OOF PR to main.
 
 

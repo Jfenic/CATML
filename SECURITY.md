@@ -18,7 +18,7 @@ We take the security and integrity of CATML and its users seriously.
 
 If you discover a security vulnerability or sensitive defect, **please do not disclose it publicly** via GitHub Issues or discussions. Instead, follow responsible disclosure:
 
-1. **GitHub Security Advisory:** Submit a private vulnerability report via [GitHub Security Advisories](https://github.com/Jfenic/CATML/security/advisories/new).
+1. **GitHub Security Advisory:** Submit a private vulnerability report via [GitHub Security Advisories](https://github.com/Jfenic/catml/security/advisories/new).
 2. **Direct Contact:** If GitHub Advisories is unavailable, contact the project maintainers ([@Jfenic](https://github.com/Jfenic), [@tvarmar](https://github.com/tvarmar)) via repository owner contact channels.
 
 Please provide:

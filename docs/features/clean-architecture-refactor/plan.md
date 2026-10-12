@@ -118,7 +118,7 @@ Implementación código: PR **#102** (`refactor/clean-arch-pr1-metric-execution-
 - [x] `AutoMLWorkspace` expone propiedades lazy + métodos thin (firmas públicas intactas)
 - [x] Tests: `tests/test_clean_arch_pr2_execution_services.py` (binary smoke, MAE regression, HPO facade, fail-closed optimizer)
 - [x] Imports HPO/trainer muertos eliminados de `workspace.py`
-- [ ] Merge PR [#109](https://github.com/Jfenic/CATML/pull/109) (cobertura ≥ 85 %, suite completa verde)
+- [ ] Merge PR [#109](https://github.com/Jfenic/catml/pull/109) (cobertura ≥ 85 %, suite completa verde)
 
 ---
 
@@ -152,7 +152,7 @@ views/datasets/
 - [x] Shared helpers in `api/_helpers.py` (re-exported from `server` for tests)
 - [x] `views/datasets.js` re-exports `DatasetsView`; modules under `views/datasets/`
 - [x] Tests: `tests/test_clean_arch_pr3_web_api_datasets_split.py` + updated static source helpers
-- [ ] Merge PR [#110](https://github.com/Jfenic/CATML/pull/110) (cobertura ≥ 85 %, suite completa verde)
+- [ ] Merge PR [#110](https://github.com/Jfenic/catml/pull/110) (cobertura ≥ 85 %, suite completa verde)
 
 ---
 

@@ -186,7 +186,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | HPO passes `column_transforms` + `derived_features` (recipe fidelity) | Done |
 | P0 | HPO all-fail → `FAILED`; best only from succeeded trials | Done |
 | P0 | `release.yml` build → verify → publish; tag↔version; env approval | Done |
-| P1 | SQLite connections close-on-exit + bounded FD stress test | Done (soak: [#94](https://github.com/Jfenic/CATML/issues/94)) |
+| P1 | SQLite connections close-on-exit + bounded FD stress test | Done (soak: [#94](https://github.com/Jfenic/catml/issues/94)) |
 | P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Not started (ambos mantenedores) |
 | P1 | CATML Benchmark v1 (external/AMLB campaigns) | Next — scaffold under `benchmarks/` |
 
@@ -597,7 +597,7 @@ Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF ho
   - Validación completa en `tests/test_v09_vision_spike.py` (11 tests nuevos pasando, 570 tests globales en verde, 87.69% cobertura de código). Decision Gate de Fase 4 superado.
 ## Completed Phase: v0.8 Hardening & Strategic Governance
 
-- [x] Hardening Blackboard Issue #52: resolución de timeout en `test_mcp_cli_subprocess_stdio_handshake` con terminación limpia de proceso (`proc.kill()`) y timeout calibrado a 25s; [issue #52](https://github.com/Jfenic/CATML/issues/52) cerrado.
+- [x] Hardening Blackboard Issue #52: resolución de timeout en `test_mcp_cli_subprocess_stdio_handshake` con terminación limpia de proceso (`proc.kill()`) y timeout calibrado a 25s; [issue #52](https://github.com/Jfenic/catml/issues/52) cerrado.
 - [x] Proveniencia Completa en `ModelArtifact`: persistencia automática de versiones de dependencias, Python, hashes SHA-256 del dataset, estimador y semilla aleatoria; método `artifact.describe()` e informe en `docs/backends.md` (547 tests pasando, 87.59% cobertura).
 - [x] Spec: Complete Tech Minimalista Premium Brand System specification saved in `docs/design/tech-minimalist-brand-system.md` (Electric Blue `#4F67FF`, Graphite, 80/20 rule, Geist typography, light docs/dark product).
 - [x] ADR: Formalize architectural decision in `docs/decisions/006-tech-minimalist-premium-brand-system.md` (and mirrored in `catml-platform/docs/decisions/002-tech-minimalist-premium-brand-system.md`).
@@ -754,7 +754,7 @@ Los hitos describen el núcleo implementado; consultar [alcance y limitaciones](
 
 ## Workbench persisted trials — 2026-09-30
 
-- [x] Fix experiments HTTP listing for saved TrialResults: query parameters from their Trial through the application DTO instead of accessing a nonexistent result field ([issue #18](https://github.com/Jfenic/CATML/issues/18)).
+- [x] Fix experiments HTTP listing for saved TrialResults: query parameters from their Trial through the application DTO instead of accessing a nonexistent result field ([issue #18](https://github.com/Jfenic/catml/issues/18)).
 - [x] Add HTTP/query regressions for nonempty parameters, missing legacy Trial records and detached DTO mutation; 198 tests passed, coverage 86.22%.
 - [x] Launch S6E9 visual preview at port 8080 with background jobs from PR #17 and this isolated fix; existing data and unrelated local edits preserved.
 
