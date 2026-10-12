@@ -1,5 +1,27 @@
 # Progress
 
+### Decision — Workbench Labs deferred; tabular first (2026-10-12)
+
+- Accepted future direction: App Shell + modality Labs, single AutoML/CQRS engine ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md), [plan](docs/features/workbench-labs/plan.md)).
+- **Active focus:** finish tabular Workbench (merge #109/#110/#111, land Audit-5, E2E CSV→export). No Vision/NLP/Clustering lab scaffolding yet.
+- MASTER_PLAN / TASKS / AGENTS / docs index updated accordingly.
+
+### Track Audit-5 — Workbench honesty / launch / metrics (2026-10-12)
+
+- Verified external audit vs `main` @ `b238fb690`; #3 allowlist already fixed on branch; residual budget skew + #1/#2/#4/#5/#6 addressed.
+- Canonical `domain/experiments/budgets.py` (quick=60 / balanced=300 / thorough=1200); `api.js` forwards `time_budget_seconds`; JobExecutor prefers explicit seconds.
+- XSS: escape dataset/target/recipes in `new_experiment.js`; Manual mode shows model checkboxes; plugin native/fallback labels.
+- Trainer: multiclass `roc_auc` → `roc_auc_ovr` + holdout OvR; trial `artifacts` record `estimator_class` / `backend` / `fallback_backend`; Studio badge.
+- `/api/optimize` no longer returns fabricated importances (Optuna when available); `/api/predict` checklist is evidence-only.
+- Tests: `tests/test_audit5_workbench_honesty.py`.
+
+### Track Workbench — framing/CV coherence + job error clarity (2026-10-12)
+
+- Root cause of `All experiment trials failed` on airline satisfaction: advisor matched «Departure/Arrival time convenient» as temporal → `time_series_split` without `time_column`.
+- Fix: tighter `_is_temporal_column` heuristics; `coerce_split_strategy` in domain + `from_dict`; UI sync in questionnaire / `new_experiment.js`; JobExecutor appends trial `failure_reason`.
+- Tests: airline cross-sectional case + coerce + job error surface in `test_dataset_questionnaire.py` / `test_workbench_laboratory_redesign.py`.
+- Operator action: re-generate or re-save Encuadre (Independiente + Stratified K-Fold), then relaunch experiment.
+
 ### Track Clean Architecture PR3 — web API + datasets.js split (`refactor/clean-arch-pr3-web-api-datasets-split`, 2026-10-12)
 
 - Backend: `server.py` reduced to HTTP glue (~300 LOC); routes in `interfaces/web/api/{jobs,datasets,experiments,analysis}.py` + `_helpers.py`.
