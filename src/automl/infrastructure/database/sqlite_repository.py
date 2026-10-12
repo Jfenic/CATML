@@ -158,6 +158,7 @@ class SQLiteExperimentRepository:
                     feature_id TEXT NOT NULL,
                     mutual_information REAL,
                     shap_importance REAL,
+                    tree_importance REAL,
                     permutation_importance REAL,
                     linear_coefficient REAL,
                     ablation_impact REAL,
@@ -248,6 +249,12 @@ class SQLiteExperimentRepository:
             conn.execute("ALTER TABLE experiments ADD COLUMN derived_features_json TEXT")
         if "recipe_id" not in experiment_cols:
             conn.execute("ALTER TABLE experiments ADD COLUMN recipe_id TEXT")
+
+        evidence_cols = {
+            row[1] for row in conn.execute("PRAGMA table_info(feature_evidence)").fetchall()
+        }
+        if "tree_importance" not in evidence_cols:
+            conn.execute("ALTER TABLE feature_evidence ADD COLUMN tree_importance REAL")
 
         feature_cols = {row[1] for row in conn.execute("PRAGMA table_info(features)").fetchall()}
         if "semantic_type" not in feature_cols:
@@ -864,12 +871,13 @@ class SQLiteExperimentRepository:
                 """
                 INSERT INTO feature_evidence (
                     run_id, feature_id, mutual_information, shap_importance,
-                    permutation_importance, linear_coefficient, ablation_impact,
-                    experiment_count, confidence
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tree_importance, permutation_importance, linear_coefficient,
+                    ablation_impact, experiment_count, confidence
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id, feature_id) DO UPDATE SET
                     mutual_information = COALESCE(excluded.mutual_information, feature_evidence.mutual_information),
                     shap_importance = COALESCE(excluded.shap_importance, feature_evidence.shap_importance),
+                    tree_importance = COALESCE(excluded.tree_importance, feature_evidence.tree_importance),
                     permutation_importance = COALESCE(excluded.permutation_importance, feature_evidence.permutation_importance),
                     linear_coefficient = COALESCE(excluded.linear_coefficient, feature_evidence.linear_coefficient),
                     ablation_impact = COALESCE(excluded.ablation_impact, feature_evidence.ablation_impact),
@@ -881,6 +889,7 @@ class SQLiteExperimentRepository:
                     evidence.feature_id,
                     evidence.mutual_information,
                     evidence.shap_importance,
+                    evidence.tree_importance,
                     evidence.permutation_importance,
                     evidence.linear_coefficient,
                     evidence.ablation_impact,
@@ -901,6 +910,7 @@ class SQLiteExperimentRepository:
             feature_id=row["feature_id"],
             mutual_information=row["mutual_information"],
             shap_importance=row["shap_importance"],
+            tree_importance=row["tree_importance"] if "tree_importance" in row.keys() else None,
             permutation_importance=row["permutation_importance"],
             linear_coefficient=row["linear_coefficient"],
             ablation_impact=row["ablation_impact"],
@@ -919,6 +929,7 @@ class SQLiteExperimentRepository:
                 feature_id=row["feature_id"],
                 mutual_information=row["mutual_information"],
                 shap_importance=row["shap_importance"],
+                tree_importance=row["tree_importance"] if "tree_importance" in row.keys() else None,
                 permutation_importance=row["permutation_importance"],
                 linear_coefficient=row["linear_coefficient"],
                 ablation_impact=row["ablation_impact"],

@@ -9,6 +9,7 @@ class FeatureEvidence:
     feature_id: str
     mutual_information: float | None = None
     shap_importance: float | None = None
+    tree_importance: float | None = None
     permutation_importance: float | None = None
     linear_coefficient: float | None = None
     ablation_impact: float | None = None
@@ -20,6 +21,7 @@ class FeatureEvidence:
             "feature_id": self.feature_id,
             "mutual_information": self.mutual_information,
             "shap_importance": self.shap_importance,
+            "tree_importance": self.tree_importance,
             "permutation_importance": self.permutation_importance,
             "linear_coefficient": self.linear_coefficient,
             "ablation_impact": self.ablation_impact,
@@ -33,6 +35,7 @@ class FeatureEvidence:
             feature_id=data["feature_id"],
             mutual_information=data.get("mutual_information"),
             shap_importance=data.get("shap_importance"),
+            tree_importance=data.get("tree_importance"),
             permutation_importance=data.get("permutation_importance"),
             linear_coefficient=data.get("linear_coefficient"),
             ablation_impact=data.get("ablation_impact"),

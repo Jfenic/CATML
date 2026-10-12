@@ -152,10 +152,31 @@ def evaluate_oof(
         equal_w = 1.0 / len(model_names)
         weights = {name: equal_w for name in model_names}
     elif canonical_method == "simplex":
+        # Nested weight fit: optimize on all folds except f, score fold f.
+        # Avoids reporting an in-sample score for weights tuned on the same OOF labels.
+        nested_blend = np.zeros(len(target), dtype=float)
+        for fold in range(folds):
+            train_mask = fold_ids != fold
+            hold_mask = fold_ids == fold
+            if not np.any(train_mask) or not np.any(hold_mask):
+                continue
+            fold_weights, _ = optimize_ensemble_weights(
+                [p[train_mask] for p in oof_list],
+                target[train_mask],
+                metric="roc_auc",
+                task_type="binary_classification",
+                method="average",
+            )
+            nested_blend[hold_mask] = blend_predictions(
+                [p[hold_mask] for p in oof_list],
+                weights=fold_weights,
+                method="average",
+            )
+        blended_oof = nested_blend
+        # Production weights for test blending still use the full OOF matrix.
         opt_weights, _ = optimize_ensemble_weights(
             oof_list, target, metric="roc_auc", task_type="binary_classification", method="average"
         )
-        blended_oof = blend_predictions(oof_list, weights=opt_weights, method="average")
         blended_test = blend_predictions(test_list, weights=opt_weights, method="average")
         weights = {name: float(w) for name, w in zip(model_names, opt_weights)}
     elif canonical_method == "stacked":
