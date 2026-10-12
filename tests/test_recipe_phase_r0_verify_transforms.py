@@ -179,7 +179,9 @@ def test_verify_hypothesis_applies_log1p_real_transform(synthetic_r0_skewed_data
     assert link_data["hypothesis_id"] == hyp.id
     assert link_data["baseline_score"] > 0
     assert link_data["candidate_score"] > 0
-    assert link_data["accepted"] is True
+    # Point-estimate improvement is recorded; fold-validated acceptance is separate.
+    assert link_data["improved_in_experiment"] is True
+    assert "paired_baseline_experiment_id" in link_data
 
     # Candidate experiment inspection
     cand_exp = ws.repository.get_experiment(link_data["experiment_id"])

@@ -345,18 +345,39 @@ class FeatureEngineeringService:
 
         if strat.include_reduction:
             pca = PCAReducer()
+            source_features = list(context.active_feature_names)
             for var in strat.reduction_variances:
                 try:
                     pca.fit(context, n_components=var)
+                    n_comp = pca.n_components()
+                    # Keep materializable source columns; attach PCA as a fold-fit reduction
+                    # recipe (never invent PC1/PC2 pseudo-columns that break create_experiment).
                     candidates.append(
                         FeatureSetCandidate.create(
                             name=f"pca_var_{int(var*100)}",
-                            feature_names=[f"PC{i+1}" for i in range(pca.n_components())],
+                            feature_names=source_features,
                             method="pca",
-                            k=pca.n_components(),
+                            k=n_comp,
                             metadata={
                                 "variance_threshold": var,
                                 "explained_variance": pca.explained_variance_ratio(),
+                                "evaluation_mode": "exploratory_reduction_proposal",
+                                "reduction": {
+                                    "kind": "pca",
+                                    "n_components": n_comp,
+                                    "variance_threshold": var,
+                                    "source_features": source_features,
+                                },
+                                "column_transforms": [
+                                    {
+                                        "column": "*",
+                                        "kind": "pca",
+                                        "params": {
+                                            "n_components": n_comp,
+                                            "source_columns": source_features,
+                                        },
+                                    }
+                                ],
                             },
                         )
                     )

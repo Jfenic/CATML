@@ -526,6 +526,16 @@ class AutoMLWorkspace:
             known_features = known_features | derived_names
         unknown_features = sorted(set(resolved_features) - known_features)
         if unknown_features:
+            import re
+
+            pc_like = [f for f in unknown_features if re.fullmatch(r"PC\d+", str(f))]
+            if pc_like and set(pc_like) == set(unknown_features):
+                raise ValueError(
+                    "PCA component names "
+                    f"({', '.join(pc_like)}) are not materializable dataset columns. "
+                    "Use source features with a PCA reduction transform "
+                    "(column='*', kind='pca') instead."
+                )
             raise ValueError(f"Unknown features for dataset {run.dataset_id}: {', '.join(unknown_features)}")
 
         if model_ids:
@@ -685,6 +695,29 @@ class AutoMLWorkspace:
                     "experiment_id": experiment.id,
                     "completed_trials": len(results),
                     "successful_trials": 0,
+                },
+                run_id=run.id,
+            )
+            return results
+
+        latest_run = self.repository.get_run(run.id) or run
+        budget_exhausted = bool((latest_run.config.extra or {}).get("time_budget_exhausted"))
+        # Preserve valid trials but do not present a budget stop as a full completion.
+        if budget_exhausted and len(succeeded) < len(model_ids):
+            experiment.status = ExperimentStatus.PARTIAL
+            latest_run.config.extra["completion_reason"] = "BUDGET_EXHAUSTED"
+            self.repository.save_experiment(experiment)
+            latest_run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
+            self.repository.save_run(latest_run)
+            run = latest_run
+            self._emit(
+                "ExperimentPartial",
+                {
+                    "experiment_id": experiment.id,
+                    "completed_trials": len(results),
+                    "successful_trials": len(succeeded),
+                    "total_models": len(model_ids),
+                    "completion_reason": "BUDGET_EXHAUSTED",
                 },
                 run_id=run.id,
             )

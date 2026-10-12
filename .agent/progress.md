@@ -1,12 +1,21 @@
 # Progress
 
+### Track Audit-4 remainder — hypothesis / budget / PCA / cache (`fix/audit4-hypothesis-budget-pca-cache`, 2026-10-12)
+
+- #9/#10: `verify_hypothesis` always runs a paired baseline; distinguish `improved_in_experiment` vs `validated` / `accepted`; hyp status may be `improved_unvalidated`.
+- #16: budget exhaustion with partial successes → `ExperimentStatus.PARTIAL` + `completion_reason=BUDGET_EXHAUSTED`.
+- #12: PCA candidates keep source columns + reduction recipe; reject `PC*` names; trainer supports `kind=pca` column='*'.
+- #14: image embedding cache key includes file size + mtime_ns.
+- Tests: `tests/test_audit4_hypothesis_budget_pca_cache.py`.
+
 ### Track Audit-4 mediums — features / simplex (`fix/audit4-features-simplex-honesty`, 2026-10-12)
 
+- **Merged via #106** (`f040891`).
 - #7/#8: `prepare_feature_matrix` drops invalid targets (no `fillna(0)`, no `"nan"` class).
 - #11: `simplex` OOF blend scores via nested fold weight-fit; production weights still fit on full OOF for test.
 - #13: tree selector → `FeatureEvidence.tree_importance` (+ SQLite column); `shap_importance` reserved; confidence from evidence count.
 - #6 (partial): selected feature sets tagged `evaluation_mode=exploratory_full_dataset` + `supervised_selection_leakage_risk`.
-- Tests: `tests/test_audit4_features_simplex_honesty.py`. Still open: #9–#10, #12, #14, #16.
+- Tests: `tests/test_audit4_features_simplex_honesty.py`.
 
 ### Track Audit-4 — Security / inference / ensemble (`fix/audit4-security-inference-ensemble`, 2026-10-12)
 
