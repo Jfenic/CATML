@@ -1,5 +1,12 @@
 # Progress
 
+### Study B smoke + #119 merge (2026-10-13)
+
+- [#118](https://github.com/Jfenic/catml/pull/118) merged (Study B minimal runner).
+- Smoke failed on wine Explore (`Unknown task type: multiclass`) → [#119](https://github.com/Jfenic/catml/pull/119) maps `multiclass` → `multiclass_classification`.
+- Re-smoke: 18 ok / 6 skipped / 0 failed; report updated; #119 merged (`d7982bb`); `main` synced.
+- Next: Study B lift (apply Explore recipes into fit; wire `catml_agent`).
+
 ### Study B minimal runner + #117 merged (2026-10-13)
 
 - [#117](https://github.com/Jfenic/catml/pull/117) merged (MCP `--allow-mutations` + text LSA).
