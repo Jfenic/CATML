@@ -661,7 +661,7 @@ Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF ho
 - [x] **Study B minimal runner** (sklearn / catml_base / catml_explore; agent skipped) → [`docs/experiments/study-b-report.md`](docs/experiments/study-b-report.md).
 - [ ] **Study B lift phase** — apply verified Explore recipes into fit; wire `catml_agent` (FakeLLM/Ollama).
 - [x] **Data Preparation direction documented** — [spec](docs/features/data-preparation/spec.md), [plan](docs/features/data-preparation/plan.md), [ADR-012](docs/decisions/012-data-preparation-subsystem.md); implement post-rc1 (not blocking load→train).
-- [ ] **Data Preparation P1** — `PreparationPlan` / service / dataset versions (CLI+CQRS first).
+- [x] **Data Preparation P1 (core)** — domain + `PreparationService` + CQRS + versions (`feat/data-preparation-p1`); CLI/facade = P2.
 - [x] **MCP `--allow-mutations` / autonomous local mode** — blackboard [#114](https://github.com/Jfenic/catml/issues/114) (PR `fix/mcp-allow-mutations-text-svd`; default stays require-approval).
 - [x] **Text LSA (TruncatedSVD) after TF-IDF** — part of [#115](https://github.com/Jfenic/catml/issues/115) (MLP max_iter still open if needed).
 - [x] Sincronizar el índice y los planes con las capacidades actuales (revisión 2026-10-11): H0–H5, Explore E0–E6, Experiment Recipes R0–R4, stacking/OOF multi-modelo y release `0.9.0-rc1` alineados en `AGENTS.md`, `docs/README.md`, feature plans/specs, ADR-009 y `MASTER_PLAN.md`.
