@@ -43,6 +43,9 @@ class LightweightTextExtractor(BaseEstimator, TransformerMixin):
     """
     Scikit-learn compatible transformer that extracts n-gram TF-IDF representations
     from single or multiple text columns without heavy deep learning dependencies.
+
+    Optionally projects TF-IDF through TruncatedSVD (LSA) so tree models receive a
+    compact dense matrix instead of a wide sparse bag-of-ngrams.
     """
 
     def __init__(
@@ -51,15 +54,21 @@ class LightweightTextExtractor(BaseEstimator, TransformerMixin):
         ngram_range: tuple[int, int] = (1, 2),
         min_df: int = 2,
         column_prefix: str = "text",
+        svd_components: int | None = 24,
     ) -> None:
         self.max_features = max_features
         self.ngram_range = ngram_range
         self.min_df = min_df
         self.column_prefix = column_prefix
+        # None disables SVD; default 24 keeps tabular trees fast on text columns.
+        self.svd_components = svd_components
         self.vectorizer_: TfidfVectorizer | None = None
+        self.svd_: Any | None = None
         self.feature_names_out_: list[str] = []
 
     def fit(self, X: Any, y: Any = None) -> LightweightTextExtractor:
+        from sklearn.decomposition import TruncatedSVD
+
         texts = self._to_text_series(X)
         effective_min_df = 1 if len(texts) < 10 else self.min_df
 
@@ -69,10 +78,30 @@ class LightweightTextExtractor(BaseEstimator, TransformerMixin):
             min_df=effective_min_df,
             sublinear_tf=True,
         )
-        self.vectorizer_.fit(texts)
+        sparse_mat = self.vectorizer_.fit_transform(texts)
 
-        words = self.vectorizer_.get_feature_names_out()
-        self.feature_names_out_ = [f"{self.column_prefix}_tfidf_{w.replace(' ', '_')}" for w in words]
+        n_vocab = sparse_mat.shape[1]
+        n_comp = self.svd_components
+        self.svd_ = None
+        if n_comp is not None and n_comp > 0 and n_vocab > 1:
+            # TruncatedSVD needs n_components < n_features.
+            k = int(min(n_comp, max(1, n_vocab - 1), max(1, sparse_mat.shape[0] - 1)))
+            if k >= 1 and k < n_vocab:
+                self.svd_ = TruncatedSVD(n_components=k, random_state=42)
+                self.svd_.fit(sparse_mat)
+                self.feature_names_out_ = [
+                    f"{self.column_prefix}_lsa_{i}" for i in range(k)
+                ]
+            else:
+                words = self.vectorizer_.get_feature_names_out()
+                self.feature_names_out_ = [
+                    f"{self.column_prefix}_tfidf_{w.replace(' ', '_')}" for w in words
+                ]
+        else:
+            words = self.vectorizer_.get_feature_names_out()
+            self.feature_names_out_ = [
+                f"{self.column_prefix}_tfidf_{w.replace(' ', '_')}" for w in words
+            ]
         return self
 
     def transform(self, X: Any) -> np.ndarray:
@@ -80,6 +109,8 @@ class LightweightTextExtractor(BaseEstimator, TransformerMixin):
             raise RuntimeError("LightweightTextExtractor is not fitted.")
         texts = self._to_text_series(X)
         sparse_mat = self.vectorizer_.transform(texts)
+        if self.svd_ is not None:
+            return self.svd_.transform(sparse_mat).astype(np.float32)
         return sparse_mat.toarray().astype(np.float32)
 
     def get_feature_names_out(self, input_features: Sequence[str] | None = None) -> np.ndarray:

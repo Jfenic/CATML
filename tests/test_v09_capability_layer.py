@@ -112,7 +112,12 @@ def test_is_text_column_heuristic():
 
 
 def test_lightweight_text_extractor_transform():
-    extractor = LightweightTextExtractor(max_features=10, ngram_range=(1, 2), column_prefix="feedback")
+    extractor = LightweightTextExtractor(
+        max_features=10,
+        ngram_range=(1, 2),
+        column_prefix="feedback",
+        svd_components=None,
+    )
     df_text = pd.DataFrame({
         "feedback": [
             "Great customer service and fast delivery",
@@ -131,6 +136,26 @@ def test_lightweight_text_extractor_transform():
     feature_names = extractor.get_feature_names_out()
     assert len(feature_names) == out.shape[1]
     assert all(fn.startswith("feedback_tfidf_") for fn in feature_names)
+
+
+def test_lightweight_text_extractor_svd_lsa():
+    extractor = LightweightTextExtractor(
+        max_features=40,
+        ngram_range=(1, 2),
+        column_prefix="notes",
+        svd_components=8,
+    )
+    df_text = pd.DataFrame({
+        "notes": [
+            f"Customer {i} reported delivery delay and asked for refund support ticket"
+            for i in range(40)
+        ]
+    })
+    extractor.fit(df_text)
+    out = extractor.transform(df_text)
+    assert out.shape == (40, 8)
+    names = extractor.get_feature_names_out()
+    assert all(fn.startswith("notes_lsa_") for fn in names)
 
 
 def test_profiler_detects_text_feature():
