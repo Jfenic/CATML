@@ -467,6 +467,7 @@ def test_mcp_cli_transport_args():
             host="0.0.0.0",
             port=9000,
             path="/api/mcp",
+            allow_mutations=False,
         )
         ret = run_mcp_cli(args)
         assert ret == 0
@@ -476,6 +477,7 @@ def test_mcp_cli_transport_args():
             host="0.0.0.0",
             port=9000,
             streamable_http_path="/api/mcp",
+            allow_mutations=False,
         )
 
 
@@ -490,6 +492,7 @@ def test_mcp_cli_transport_args_with_auth():
             path="/api/mcp",
             token="secret_token",
             insecure_no_auth=True,
+            allow_mutations=False,
         )
         ret = run_mcp_cli(args)
         assert ret == 0
@@ -499,6 +502,7 @@ def test_mcp_cli_transport_args_with_auth():
             host="0.0.0.0",
             port=9000,
             streamable_http_path="/api/mcp",
+            allow_mutations=False,
             auth_token="secret_token",
             insecure_no_auth=True,
         )
