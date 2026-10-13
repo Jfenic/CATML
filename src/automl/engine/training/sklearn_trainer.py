@@ -16,7 +16,7 @@ from sklearn.metrics import (
     roc_auc_score,
     silhouette_score,
 )
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import (
     KBinsDiscretizer,
@@ -221,24 +221,38 @@ class SklearnTrainer(TrainerPort):
                     cv_splitter = KFold(n_splits=n_splits, shuffle=True, random_state=execution.random_seed)
 
                 scoring = _sklearn_scoring(metric_name, execution.task_type, self.plugin_registry)
-                scores = cross_val_score(
+                fold_scores, pruned_at = _cross_val_scores_with_callback(
                     pipeline,
                     X,
                     y_adapted,
-                    cv=cv_splitter,
+                    cv_splitter=cv_splitter,
                     groups=groups,
                     scoring=scoring,
-                    n_jobs=1,
-                    error_score="raise",
+                    metric_name=metric_name,
+                    plugin_registry=self.plugin_registry,
+                    fold_callback=getattr(execution, "fold_callback", None),
                 )
-                is_neg = (
-                    (isinstance(scoring, str) and scoring.startswith("neg_"))
-                    or _is_minimizing_metric(metric_name, self.plugin_registry)
-                    or getattr(scoring, "_sign", 1) == -1
-                )
-                if is_neg:
-                    scores = -scores
+                if pruned_at is not None:
+                    elapsed = time.perf_counter() - started
+                    trial.status = TrialStatus.FAILED
+                    partial = float(np.mean(fold_scores)) if fold_scores else 0.0
+                    return TrialResult(
+                        trial_id=trial.id,
+                        experiment_id=execution.experiment.id,
+                        model_id=trial.model_id,
+                        primary_metric=metric_name,
+                        primary_score=partial,
+                        secondary_metrics={
+                            "cv_scores": [float(s) for s in fold_scores],
+                            "pruned_at_fold": int(pruned_at),
+                            "validation_strategy": strategy,
+                            "pruned": True,
+                        },
+                        training_time_seconds=elapsed,
+                        failure_reason="pruned",
+                    )
 
+                scores = np.asarray(fold_scores, dtype=float)
                 primary_score = float(np.mean(scores))
                 if np.isnan(primary_score):
                     raise ValueError(f"Cross-validation returned NaN scores: {scores}")
@@ -673,6 +687,55 @@ def _is_minimizing_metric(metric_name: str, plugin_registry: Any = None) -> bool
         return resolve_metric_spec(metric_name, greater_is_better=greater).is_minimizing
     except InvalidMetric:
         return False
+
+
+def _cross_val_scores_with_callback(
+    pipeline: Pipeline,
+    X: Any,
+    y: Any,
+    *,
+    cv_splitter: Any,
+    groups: Any,
+    scoring: Any,
+    metric_name: str,
+    plugin_registry: Any,
+    fold_callback: Any | None,
+) -> tuple[list[float], int | None]:
+    """Run CV fold-by-fold so Optuna MedianPruner can receive intermediate scores.
+
+    Returns (fold_scores, pruned_at_fold_index). pruned_at is None when the trial
+    completed all folds.
+    """
+    from sklearn.base import clone
+    from sklearn.metrics import check_scoring
+
+    scorer = check_scoring(pipeline, scoring=scoring)
+    is_neg = (
+        (isinstance(scoring, str) and scoring.startswith("neg_"))
+        or _is_minimizing_metric(metric_name, plugin_registry)
+        or getattr(scoring, "_sign", 1) == -1
+    )
+
+    split_kwargs = {"groups": groups} if groups is not None else {}
+    fold_scores: list[float] = []
+    for fold_idx, (train_idx, test_idx) in enumerate(cv_splitter.split(X, y, **split_kwargs)):
+        X_train = X.iloc[train_idx] if hasattr(X, "iloc") else X[train_idx]
+        X_test = X.iloc[test_idx] if hasattr(X, "iloc") else X[test_idx]
+        y_train = y.iloc[train_idx] if hasattr(y, "iloc") else y[train_idx]
+        y_test = y.iloc[test_idx] if hasattr(y, "iloc") else y[test_idx]
+
+        est = clone(pipeline)
+        est.fit(X_train, y_train)
+        raw = float(scorer(est, X_test, y_test))
+        score = -raw if is_neg else raw
+        fold_scores.append(score)
+
+        if fold_callback is not None:
+            should_prune = bool(fold_callback(fold_idx, score))
+            if should_prune:
+                return fold_scores, fold_idx
+
+    return fold_scores, None
 
 
 def _sklearn_scoring(metric_name: str, task_type: str, plugin_registry: Any = None) -> Any:

@@ -82,7 +82,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Build/twine check wheel locally (`catml-0.9.0rc1`) | Done |
 | P0 | GitHub Environments `testpypi`/`pypi` + required reviewers | Done |
 | P0 | Human: PyPI/TestPyPI Trusted Publisher + first TestPyPI upload | Done (`0.9.0rc1` on PyPI) |
-| P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (local; board [#114](https://github.com/Jfenic/catml/issues/114) [#115](https://github.com/Jfenic/catml/issues/115)) |
+| P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
+| P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | In PR `fix/hpo-fold-pruning-time-budget` |
 | P1 | Demo project + executive results export (Sprint 3) | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 

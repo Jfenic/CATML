@@ -75,8 +75,9 @@ class RandomSearchOptimizer(OptimizerPort):
         parameters: dict[str, Any],
         score: float,
         succeeded: bool = True,
+        pruned: bool = False,
     ) -> None:
-        if not succeeded:
+        if pruned or not succeeded:
             return
 
         is_better = (

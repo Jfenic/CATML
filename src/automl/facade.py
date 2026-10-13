@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,6 +12,7 @@ import pandas as pd
 from automl.application.bootstrap import build_application
 from automl.application.commands.workspace_commands import (
     CreateExperimentCommand,
+    OptimizeExperimentCommand,
     RunExperimentCommand,
 )
 from automl.artifacts.model_artifact import ModelArtifact
@@ -180,6 +182,7 @@ class AutoML:
         Returns:
             AutoMLResult containing the winning model, leaderboard, and predictions.
         """
+        fit_started = time.perf_counter()
         df, target_col = self._standardize_input(data, target)
 
         resolved_task_type = self._resolve_task_type(df[target_col])
@@ -297,6 +300,33 @@ class AutoML:
                     f"Time budget of {self.time_budget}s expired before any candidate model completed training."
                 )
             raise RuntimeError("No models were successfully evaluated during fit().")
+
+        # Spend remaining time_budget on Optuna HPO for the current best model
+        # (warm-start priors are applied inside OptimizationService when available).
+        if self.time_budget:
+            elapsed = time.perf_counter() - fit_started
+            remaining = float(self.time_budget) - elapsed
+            if remaining >= 20.0:
+                best_so_far = valid_leaderboard[0]
+                trial_obj = ws.get_trial(best_so_far.trial_id)
+                if trial_obj is not None:
+                    n_trials = max(3, min(40, int(remaining // 8)))
+                    try:
+                        cmd.dispatch(
+                            OptimizeExperimentCommand(
+                                run_id=run.id,
+                                experiment_id=trial_obj.experiment_id,
+                                model_id=best_so_far.model_id,
+                                optimizer="optuna",
+                                n_trials=n_trials,
+                                timeout_seconds=remaining,
+                            )
+                        )
+                    except Exception:
+                        # Baseline fit already succeeded; HPO is best-effort under budget.
+                        pass
+                    raw_leaderboard = ws.get_leaderboard_results(run.id, include_failed=False)
+                    valid_leaderboard = [r for r in raw_leaderboard if r.succeeded] or valid_leaderboard
 
         leaderboard_rows = []
         for rank, res in enumerate(valid_leaderboard, start=1):

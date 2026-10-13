@@ -159,19 +159,42 @@ class OptimizationService:
                 dataset=dataset,
                 spec=spec,
             )
+            # Feed MedianPruner via per-fold scores (no-op for optimizers without report_step).
+            report_step = getattr(opt, "report_step", None)
+            if callable(report_step):
+
+                def _fold_callback(step: int, score: float, _idx: int = trial_idx) -> bool:
+                    try:
+                        return bool(report_step(_idx, step, float(score)))
+                    except Exception:
+                        return False
+
+                execution.fold_callback = _fold_callback
+
             result = trainer.run(execution)
             ws.repository.save_trial(trial)
             ws.repository.save_trial_result(result)
-            opt.observe(trial_idx, params, result.primary_score, result.succeeded)
+            was_pruned = bool(
+                (result.failure_reason or "").lower() == "pruned"
+                or (result.secondary_metrics or {}).get("pruned")
+            )
+            opt.observe(
+                trial_idx,
+                params,
+                result.primary_score,
+                succeeded=result.succeeded and not was_pruned,
+                pruned=was_pruned,
+            )
             results.append(result)
 
             ws._emit(
-                "TrialCompleted" if result.succeeded else "TrialFailed",
+                "TrialPruned" if was_pruned else ("TrialCompleted" if result.succeeded else "TrialFailed"),
                 {
                     "trial_id": trial.id,
                     "model_id": target_model,
                     "score": result.primary_score,
                     "parameters": params,
+                    "pruned": was_pruned,
                 },
                 run_id=run.id,
             )

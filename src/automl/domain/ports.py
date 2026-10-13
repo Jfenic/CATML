@@ -41,6 +41,9 @@ class TrialExecution:
     group_column: str | None = None
     column_transforms: list[dict[str, Any]] = field(default_factory=list)
     derived_features: list[dict[str, Any]] = field(default_factory=list)
+    # Optional HPO hook: (fold_index, fold_score) -> True to prune early (MedianPruner telemetry).
+    # Kept as Any so domain stays free of Optuna/sklearn imports.
+    fold_callback: Any | None = None
 
 
 class TrainerPort(Protocol):
@@ -137,6 +140,7 @@ class OptimizerPort(Protocol):
         parameters: dict[str, Any],
         score: float,
         succeeded: bool = True,
+        pruned: bool = False,
     ) -> None:
         ...
 
