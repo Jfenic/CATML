@@ -1,5 +1,10 @@
 # Progress
 
+### PR: HPO fold pruning + fit time_budget (2026-10-13)
+
+- Branch `fix/hpo-fold-pruning-time-budget`: CV fold_callback → Optuna `report_step` / MedianPruner; `AutoML.fit(time_budget=…)` runs OptimizeExperiment on best model with remaining seconds (warm-start already in OptimizationService).
+- Tests: `tests/test_hpo_fold_pruning.py`.
+
 ### Commit + GitHub Release 0.9.0rc1 (2026-10-13)
 
 - Pushed `2b22db5` to `main` (Study A, CLI fixes, Data Prep docs, fire tests).
