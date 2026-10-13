@@ -9,7 +9,7 @@
 | Agente | Rol | Estado | Rama |
 | --- | --- | --- | --- |
 | **A** | Study B lift | **PR** [#122](https://github.com/Jfenic/catml/pull/122) (smoke 24/0/0) | `feat/study-b-lift` |
-| **B** | Demo export + SQLite #94 | **DONE** | `feat/demo-export-and-sqlite-94` |
+| **B** | Demo export + SQLite #94 | **PR** [#125](https://github.com/Jfenic/catml/pull/125) (246 passed) | `feat/demo-export-and-sqlite-94` |
 
 ---
 
@@ -109,7 +109,7 @@ Hallazgos fuera de alcance → `gh issue create --label blackboard` (no arreglar
   - `TASKS.md` (Track Workbench UX Sprint 3)
   - `.agent/progress.md` (Track Agente B)
 - **Orden:** B2 primero (#94 soak + dispose lifecycle), luego B1 (demo project + export ejecutivo)
-- **PR(s):** (completado y verificado en rama local)
+- **PR(s):** [#125](https://github.com/Jfenic/catml/pull/125)
 
 ### Criterio de hecho B
 
