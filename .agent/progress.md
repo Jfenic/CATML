@@ -1,5 +1,11 @@
 # Progress
 
+### Data Preparation P1 started (2026-10-14)
+
+- Branch `feat/data-preparation-p1`: domain `PreparationPlan`/`PreparationStep`/scopes, `PreparationService` (analyze→suggest→preview→validate→apply), JSON version store, CQRS registration.
+- Tests: `tests/test_data_preparation_p1.py` (5 passed). CLI/MCP/UI = P2/P3.
+- Note: Agent B SQLite WIP was stashed as `stash@{0}: agent-b-wip-preserve` — restore on their branch with `git stash pop` (merge-only).
+
 ### Study B minimal runner + #117 merged (2026-10-13)
 
 - [#117](https://github.com/Jfenic/catml/pull/117) merged (MCP `--allow-mutations` + text LSA).

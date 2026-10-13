@@ -6,6 +6,7 @@ from automl.application.registries.experiment_registry import register_experimen
 from automl.application.registries.feature_registry import register_feature_handlers
 from automl.application.registries.inference_registry import register_inference_handlers
 from automl.application.registries.job_registry import register_job_handlers
+from automl.application.registries.preparation_registry import register_preparation_handlers
 from automl.application.registries.recipe_registry import register_recipe_handlers
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "register_feature_handlers",
     "register_inference_handlers",
     "register_job_handlers",
+    "register_preparation_handlers",
     "register_recipe_handlers",
 ]
