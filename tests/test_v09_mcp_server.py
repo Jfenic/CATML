@@ -198,6 +198,28 @@ def test_mcp_resources(temp_workspace):
 
 
 @pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
+def test_mcp_allow_mutations_skips_approval_gate(temp_workspace):
+    """Local --allow-mutations disables PENDING_APPROVAL for mutating tools."""
+    ws, cb, qb, dataset, run = temp_workspace
+    server = create_mcp_server(
+        workspace=ws,
+        command_bus=cb,
+        query_bus=qb,
+        require_approval_for_mutations=False,
+    )
+    res = asyncio.run(
+        server.call_tool(
+            "create_experiment",
+            {"run_id": run.id, "model_name": "logistic_regression"},
+        )
+    )
+    assert res.is_error is False
+    data = json.loads(res.content[0].text)
+    assert data.get("status") != "PENDING_APPROVAL"
+    assert "experiment_id" in data
+
+
+@pytest.mark.skipif(not HAS_MCP, reason="mcp extra required")
 def test_mcp_mutating_tools_and_governance(temp_workspace):
     """Verify MCP mutating tools require approval, don't block terminal, and execute once authorized."""
     ws, cb, qb, dataset, run = temp_workspace

@@ -53,8 +53,18 @@ def create_mcp_server(
     root_dir: str | None = None,
     ledger: AgentLedgerPort | None = None,
     policy_evaluator: PolicyEvaluator | None = None,
+    *,
+    require_approval_for_mutations: bool = True,
 ) -> Any:
-    """Create and configure the CATML MCP server instance."""
+    """Create and configure the CATML MCP server instance.
+
+    Parameters
+    ----------
+    require_approval_for_mutations:
+        When True (default), mutating tools return PENDING_APPROVAL until a human
+        approves via the agent ledger. Set False only for trusted local prototyping
+        (see ``automl mcp --allow-mutations``).
+    """
     if not HAS_MCP:
         raise ImportError(
             "El componente MCP requiere la dependencia opcional 'mcp'. "
@@ -76,7 +86,7 @@ def create_mcp_server(
     if policy_evaluator is None:
         policy_evaluator = PolicyEvaluator(
             AgentPolicyConfig(
-                require_approval_for_mutations=True,
+                require_approval_for_mutations=require_approval_for_mutations,
                 default_mode=AgentPermission.EXECUTE_WITHIN_BUDGET,
             )
         )
@@ -646,6 +656,7 @@ def run_mcp_service(
     streamable_http_path: str = "/mcp",
     auth_token: str | None = None,
     insecure_no_auth: bool = False,
+    allow_mutations: bool = False,
 ) -> None:
     """Run the CATML MCP server on stdio or streamable-http transport."""
     logging.basicConfig(
@@ -653,7 +664,15 @@ def run_mcp_service(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    server = create_mcp_server(root_dir=str(root_dir) if root_dir else None)
+    if allow_mutations:
+        logger.warning(
+            "SECURITY NOTICE: MCP mutations run without human approval "
+            "(--allow-mutations). Use only on trusted local workspaces."
+        )
+    server = create_mcp_server(
+        root_dir=str(root_dir) if root_dir else None,
+        require_approval_for_mutations=not allow_mutations,
+    )
     if transport == "streamable-http":
         is_external = host not in ("127.0.0.1", "localhost", "::1")
         if is_external and not auth_token and not insecure_no_auth:

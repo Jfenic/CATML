@@ -1,5 +1,11 @@
 # Progress
 
+### Follow-up: merge #116 + MCP/text PR (2026-10-13)
+
+- Merged [#116](https://github.com/Jfenic/catml/pull/116) (admin; review gate blocked).
+- Smoke `scripts/smoke_fit_time_budget.py`: no-budget 1.5s → budget=60 2.5s (HPO ran; Optuna finishes before wall timeout on tiny data).
+- Branch `fix/mcp-allow-mutations-text-svd`: `automl mcp --allow-mutations`; text TF-IDF → TruncatedSVD (LSA) by default.
+
 ### PR: HPO fold pruning + fit time_budget (2026-10-13)
 
 - Branch `fix/hpo-fold-pruning-time-budget`: CV fold_callback → Optuna `report_step` / MedianPruner; `AutoML.fit(time_budget=…)` runs OptimizeExperiment on best model with remaining seconds (warm-start already in OptimizationService).

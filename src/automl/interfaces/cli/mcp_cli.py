@@ -14,6 +14,7 @@ def run_mcp_cli(args: argparse.Namespace) -> int:
     path = getattr(args, "path", "/mcp") or "/mcp"
     token = getattr(args, "token", None)
     insecure = getattr(args, "insecure_no_auth", False)
+    allow_mutations = bool(getattr(args, "allow_mutations", False))
     try:
         from automl.interfaces.mcp.server import HAS_MCP, run_mcp_service
         if not HAS_MCP:
@@ -22,12 +23,18 @@ def run_mcp_cli(args: argparse.Namespace) -> int:
                 "Instálalas con: pip install '.[mcp]'\n"
             )
             return 1
+        if allow_mutations:
+            sys.stderr.write(
+                "SECURITY NOTICE: --allow-mutations disables PENDING_APPROVAL for "
+                "mutating MCP tools. Local/dev only.\n"
+            )
         kwargs = {
             "root_dir": workspace_path,
             "transport": transport,
             "host": host,
             "port": port,
             "streamable_http_path": path,
+            "allow_mutations": allow_mutations,
         }
         if token is not None:
             kwargs["auth_token"] = token

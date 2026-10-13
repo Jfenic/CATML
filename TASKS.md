@@ -83,7 +83,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | GitHub Environments `testpypi`/`pypi` + required reviewers | Done |
 | P0 | Human: PyPI/TestPyPI Trusted Publisher + first TestPyPI upload | Done (`0.9.0rc1` on PyPI) |
 | P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
-| P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | In PR `fix/hpo-fold-pruning-time-budget` |
+| P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | Done (#116 merged) |
+| P1 | MCP `--allow-mutations` + text LSA (SVD) for trees | In PR `fix/mcp-allow-mutations-text-svd` |
 | P1 | Demo project + executive results export (Sprint 3) | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
@@ -660,8 +661,8 @@ Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF ho
 - [ ] **Study B execution** (Explore/agent lift under hidden holdout) after Study A report.
 - [x] **Data Preparation direction documented** — [spec](docs/features/data-preparation/spec.md), [plan](docs/features/data-preparation/plan.md), [ADR-012](docs/decisions/012-data-preparation-subsystem.md); implement post-rc1 (not blocking load→train).
 - [ ] **Data Preparation P1** — `PreparationPlan` / service / dataset versions (CLI+CQRS first).
-- [ ] **MCP `--allow-mutations` / autonomous local mode** — blackboard [#114](https://github.com/Jfenic/catml/issues/114) (default stays require-approval).
-- [ ] **MLP convergence / text+XGBoost budget UX** — blackboard [#115](https://github.com/Jfenic/catml/issues/115).
+- [x] **MCP `--allow-mutations` / autonomous local mode** — blackboard [#114](https://github.com/Jfenic/catml/issues/114) (PR `fix/mcp-allow-mutations-text-svd`; default stays require-approval).
+- [x] **Text LSA (TruncatedSVD) after TF-IDF** — part of [#115](https://github.com/Jfenic/catml/issues/115) (MLP max_iter still open if needed).
 - [x] Sincronizar el índice y los planes con las capacidades actuales (revisión 2026-10-11): H0–H5, Explore E0–E6, Experiment Recipes R0–R4, stacking/OOF multi-modelo y release `0.9.0-rc1` alineados en `AGENTS.md`, `docs/README.md`, feature plans/specs, ADR-009 y `MASTER_PLAN.md`.
 - [ ] Auditar `feat/workbench-live-experiments` (WIP sin PR, 60 commits detrás de main) y los commits documentales posteriores a PR #40 en `feat/agentic-a4-specialists` antes de limpiar ramas históricas.
 
