@@ -17,7 +17,7 @@ superiority until Study A publishes full results (including losses and failures)
 | --- | --- | --- |
 | **C — Robustness & trust** | Adversarial cases with known expected outcomes | Gate: `tests/test_benchmark_study_c.py` |
 | **A — Predictive performance** | vs sklearn / FLAML / AutoGluon on curated OpenML/sklearn | `run.py --study A` |
-| **B — Explore / agents** | Base vs Explore vs agent under hidden holdout | After Study A report |
+| **B — Explore / agents** | Base vs Explore vs agent under hidden holdout | Lift wiring (`feat/study-b-lift`): verify→recipe; FakeLLM agent |
 
 ## Layout
 
@@ -53,7 +53,7 @@ benchmarks/
 Pilot trio remains available via `--study pilot` (same evaluator).
 
 Scores are **always** from the shared external holdout evaluator.
-Reports: `docs/experiments/pilot-1a-report.md`, `docs/experiments/study-a-report.md`.
+Reports: `docs/experiments/pilot-1a-report.md`, `docs/experiments/study-a-report.md`, `docs/experiments/study-b-report.md`.
 
 ## Rules
 
