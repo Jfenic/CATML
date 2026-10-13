@@ -369,37 +369,125 @@ def _campaign(
 
 
 def _study_b_scaffold(dry_run: bool, out_dir: Path) -> dict:
-    """Scaffold Study B configs; real lift measurement lands after Study A report."""
-    configs = [
-        "sklearn_baseline",
-        "catml_base",
-        "catml_explore",
-        "catml_agent",
-    ]
+    """Scaffold-only payload (kept for --dry-run)."""
+    from benchmarks.frameworks.study_b import STUDY_B_CONFIGS
+
     rows = [
         {
             "config": c,
             "status": "scaffolded",
             "note": "hidden holdout; Explore/agent only on train folds; not executed yet",
         }
-        for c in configs
+        for c in STUDY_B_CONFIGS
     ]
     payload = {
         "protocol": "catml-benchmark-v1",
         "study": "B",
         "evaluation": "hidden_holdout_until_final",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "configurations": configs,
+        "configurations": list(STUDY_B_CONFIGS),
         "holdout_policy": "never_seen_during_search",
         "dry_run": dry_run,
         "rows": rows,
         "notes": [
-            "Study B runs after Study A report",
+            "Study B dry-run scaffold",
             "Wire Ollama/Qwen later for catml_agent if measuring LLM lift",
         ],
     }
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "study-b-scaffold.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+def _study_b_campaign(
+    *,
+    dry_run: bool,
+    out_dir: Path,
+    time_budget_s: float,
+    seeds: list[int],
+    dataset_filter: list[str] | None,
+) -> dict:
+    """Execute Study B: shared holdout; Explore only sees train."""
+    from benchmarks.frameworks.datasets import load_pilot_datasets
+    from benchmarks.frameworks.eval import make_holdout, result_dict
+    from benchmarks.frameworks.study_b import STUDY_B_CONFIGS, run_study_b_cell
+
+    if dry_run:
+        return _study_b_scaffold(dry_run=True, out_dir=out_dir)
+
+    datasets = load_pilot_datasets(study="A")
+    if dataset_filter:
+        wanted = set(dataset_filter)
+        datasets = [d for d in datasets if d.dataset_id in wanted]
+    if not datasets:
+        raise SystemExit("No datasets selected for Study B")
+
+    rows: list[dict] = []
+    for ds in datasets:
+        for seed in seeds:
+            holdout = make_holdout(ds.frame, ds.target, task=ds.task, seed=seed)
+            for config in STUDY_B_CONFIGS:
+                cell = run_study_b_cell(
+                    config=config,
+                    holdout=holdout,
+                    task=ds.task,
+                    metric=ds.metric,
+                    workspace_dir=out_dir / "ws_study_b" / ds.dataset_id / f"seed{seed}" / config,
+                    time_budget=time_budget_s,
+                    random_state=seed,
+                )
+                rows.append(
+                    result_dict(
+                        dataset_id=ds.dataset_id,
+                        task=ds.task,
+                        metric=ds.metric,
+                        framework=config,
+                        seed=seed,
+                        status=cell.status,
+                        primary_score=cell.primary_score,
+                        wall_time_s=cell.wall_time_s,
+                        peak_rss_mb=cell.peak_rss_mb,
+                        secondary=(cell.extra or {}).get("secondary"),
+                        failure_reason=cell.failure_reason,
+                        model_id=(cell.extra or {}).get("model_id"),
+                        note=(cell.extra or {}).get("note"),
+                        framework_version="study-b",
+                    )
+                )
+                # Attach explore metadata without breaking result_dict schema
+                if cell.extra:
+                    rows[-1]["extra"] = {
+                        k: v for k, v in cell.extra.items() if k != "secondary"
+                    }
+
+    skipped = [r for r in rows if r.get("status") == "skipped"]
+    failed = [r for r in rows if r.get("status") == "failed"]
+    ok = [r for r in rows if r.get("status") == "ok"]
+    # comparison_complete when every non-skipped cell is ok
+    comparison_complete = len(failed) == 0 and len(ok) > 0
+
+    payload = {
+        "protocol": "catml-benchmark-v1",
+        "study": "B",
+        "evaluation": "hidden_holdout_until_final",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "time_budget_s": time_budget_s,
+        "seeds": seeds,
+        "environment": _environment(),
+        "datasets": [d.dataset_id for d in datasets],
+        "configurations": list(STUDY_B_CONFIGS),
+        "holdout_policy": "never_seen_during_search",
+        "comparison_complete": comparison_complete,
+        "n_skipped": len(skipped),
+        "n_failed": len(failed),
+        "rows": rows,
+        "notes": [
+            "Explore runs only on train CSV registered in an isolated workspace",
+            "catml_agent is skipped until FakeLLM/Ollama lift measurement is wired",
+            "primary_score is always from the shared external holdout evaluator",
+        ],
+    }
+    _write_artifacts(out_dir, payload, "study-b-raw.json")
     return payload
 
 
@@ -420,6 +508,12 @@ def main() -> int:
         help="Comma-separated seeds (protocol default 42,43,44)",
     )
     parser.add_argument(
+        "--datasets",
+        type=str,
+        default="",
+        help="Optional comma-separated dataset_id filter (Study A/B)",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=ROOT / "benchmarks" / "results" / "v1",
@@ -430,12 +524,21 @@ def main() -> int:
         print("Study C: run `pytest tests/test_benchmark_study_c.py`")
         return 0
 
-    if args.study == "B":
-        payload = _study_b_scaffold(dry_run=args.dry_run, out_dir=args.out)
-        print(json.dumps(payload, indent=2))
-        return 0
-
     seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
+    dataset_filter = [s.strip() for s in args.datasets.split(",") if s.strip()] or None
+
+    if args.study == "B":
+        payload = _study_b_campaign(
+            dry_run=args.dry_run,
+            out_dir=args.out,
+            time_budget_s=float(args.time_budget_minutes) * 60.0,
+            seeds=seeds,
+            dataset_filter=dataset_filter,
+        )
+        print(json.dumps(payload, indent=2))
+        failed = [r for r in payload["rows"] if r.get("status") == "failed"]
+        return 1 if failed else 0
+
     payload = _campaign(
         study=args.study,
         dry_run=args.dry_run,
