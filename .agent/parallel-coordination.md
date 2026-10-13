@@ -8,7 +8,7 @@
 
 | Agente | Rol | Estado | Rama |
 | --- | --- | --- | --- |
-| **A** | Study B lift | **HACIENDO** → PR (smoke 24/0/0) | `feat/study-b-lift` |
+| **A** | Study B lift | **PR** [#122](https://github.com/Jfenic/catml/pull/122) (smoke 24/0/0) | `feat/study-b-lift` |
 | **B** | Demo export + SQLite #94 | **HACIENDO** (otro agente; debe completar Claim abajo) | *(rellena Agente B)* |
 
 ---
@@ -57,7 +57,7 @@ Hallazgos fuera de alcance → `gh issue create --label blackboard` (no arreglar
 - [x] `catml_agent`: FakeLLM + session step (ya no `skipped`)
 - [x] Tests Study B verdes (`tests/test_benchmark_study_b.py` 3 passed)
 - [x] Smoke local breast/wine × 3 seeds + tabla en report (24 ok / 0 skipped / 0 failed)
-- [ ] PR hacia `main`
+- [x] PR hacia `main`: https://github.com/Jfenic/catml/pull/122
 
 ### Notas A
 
