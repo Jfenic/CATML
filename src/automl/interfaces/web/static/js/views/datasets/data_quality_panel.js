@@ -23,10 +23,15 @@ export function _renderHealthCard(view, p) {
         ` : `
           <span class="badge-gain text-[11px] px-2.5 py-0.5 rounded font-mono font-medium flex items-center space-x-1">
             <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-            <span>Limpio y Validado</span>
+            <span>Sin fuga detectada</span>
           </span>
         `}
       </div>
+      ${!(hasLeakage || hasGroupLeakage) ? `
+      <p class="text-[11px] text-[#8B95A7] font-sans">
+        Ausencia de fuga no implica dataset validado al completo (nulos, tipos, duplicados, etc.).
+        La preparación reproducible de datos es un módulo futuro del núcleo CATML.
+      </p>` : ""}
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans pt-1">
         <div class="p-3.5 rounded-xl bg-[#11151E] border border-[#242A36] space-y-1.5">

@@ -371,12 +371,31 @@ def test_cli_explore_lifecycle(synthetic_dataset_csv: Path, tmp_path: Path, caps
         task_type="binary_classification",
     )
 
-    # explore create
+    # explore create (positional)
     exit_code = main(["explore", "create", ds.id, "--name", "CLI Study", "--workspace", ws_dir])
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "Created study" in captured.out
     study_id = [w for w in captured.out.split() if w.startswith("study_")][0]
+
+    # explore create (--dataset-id alias, parity with task/fit flags)
+    exit_code = main(
+        [
+            "explore",
+            "create",
+            "--dataset-id",
+            ds.id,
+            "--name",
+            "CLI Study Flag",
+            "--workspace",
+            ws_dir,
+            "--json",
+        ]
+    )
+    assert exit_code == 0
+    flag_payload = json.loads(capsys.readouterr().out)
+    assert flag_payload["status"] == "success"
+    assert flag_payload["study_id"].startswith("study_")
 
     # explore list
     exit_code = main(["explore", "list", "--workspace", ws_dir])
@@ -384,12 +403,29 @@ def test_cli_explore_lifecycle(synthetic_dataset_csv: Path, tmp_path: Path, caps
     captured = capsys.readouterr()
     assert study_id in captured.out
 
-    # explore run
+    # explore run (positional)
     exit_code = main(["explore", "run", study_id, "--workspace", ws_dir])
     assert exit_code == 0
     captured = capsys.readouterr()
     assert f"Executed study {study_id}" in captured.out
     assert "Findings detected" in captured.out
+
+    # explore run (--study-id alias)
+    exit_code = main(
+        [
+            "explore",
+            "run",
+            "--study-id",
+            flag_payload["study_id"],
+            "--workspace",
+            ws_dir,
+            "--json",
+        ]
+    )
+    assert exit_code == 0
+    run_payload = json.loads(capsys.readouterr().out)
+    assert run_payload["status"] == "success"
+    assert "run_id" in run_payload
 
     # explore show
     exit_code = main(["explore", "show", study_id, "--workspace", ws_dir])

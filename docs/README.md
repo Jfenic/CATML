@@ -37,11 +37,12 @@ Esta tabla describe el alcance comprobable; los criterios ampliados de una espec
 | Experiment Recipes | R0–R4 shipped: verify transforms reales, dominio+CQRS, fit-in-fold, paridad CLI/MCP/REST/Workbench | [Spec](features/experiment-recipes/spec.md), [ADR-009](decisions/009-experiment-recipes-and-interface-parity.md), [tests R0–R4](../tests/) |
 | Clean Architecture refactor | Progresivo PR1–PR5: contratos métrica/CV/ejecución → fachada Workspace → API/UI → UoW → tooling | [Spec](features/clean-architecture-refactor/spec.md), [Plan](features/clean-architecture-refactor/plan.md), [ADR-010](decisions/010-progressive-clean-architecture-refactor.md), código PR1 `#102` |
 | Workbench Labs (futuro) | App Shell + labs por modalidad; motor CQRS único; **tabular first** — no implementar Labs hasta cerrar flujo tabular | [Plan](features/workbench-labs/plan.md), [ADR-011](decisions/011-workbench-labs-modular-frontend.md) |
+| Data Preparation (futuro) | Plan declarativo dataset vs training_pipeline; preview/approve/versiones; paridad CLI/MCP/UI — post-rc1 | [Spec](features/data-preparation/spec.md), [Plan](features/data-preparation/plan.md), [ADR-012](decisions/012-data-preparation-subsystem.md) |
 | Workbench HTTP | Loopback sin token; bind remoto fail-closed con Bearer / `#token=`; confinamiento de rutas | [Servidor](../src/automl/interfaces/web/server.py), [trusted deployment](trusted-deployment.md), [tests auth](../tests/test_workbench_auth.py) |
 | Trabajos persistentes | Experimentos, OOF y submissions con worker, progreso real y controles pause/cancel | [Spec](features/persistent-jobs/spec.md), [tests](../tests/test_jobs.py), [ADR 003](decisions/003-persistent-local-jobs.md) |
 | Knowledge / agente | **H0–H5 completados:** tools, aprobación, leases, MCP dual, especialistas, orquestador determinista + LangGraph durable | [Application agents](../src/automl/application/agents/), [CLI / MCP](../src/automl/interfaces/), [guía agéntica](features/agentic-system/README.md) |
 | Predicciones / submissions | Plantilla Kaggle + OOF multi-modelo; **validación en holdout independiente aún pendiente** antes de promover candidatos | [Tests de plantilla](../tests/test_submission_template.py), [protocolo OOF](features/oof-blending/spec.md), [TASKS.md](../TASKS.md) |
-| CATML Benchmark v1 | Protocolo draft + Study C adversarial; campañas A/B (AMLB/OpenML) post-rc1 | [`benchmarks/README.md`](../benchmarks/README.md), [Study C tests](../tests/test_benchmark_study_c.py) |
+| CATML Benchmark v1 | Protocolo **frozen** 1.0.0; Pilot 1A + Study A smoke; campaña 20 min / Study B scaffold | [`benchmarks/README.md`](../benchmarks/README.md), [Study A report](experiments/study-a-report.md) |
 
 ## Mantener la documentación
 

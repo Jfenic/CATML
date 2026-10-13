@@ -1,5 +1,52 @@
 # Progress
 
+### Agent CLI/MCP fire-test triage (2026-10-13)
+
+- Confirmed: MCP `PENDING_APPROVAL` is by design (`require_approval_for_mutations=True`); not a bug.
+- Fixed: `optimize` / `benchmark --json` emit only JSON on stdout (parity with `fit`).
+- Fixed: `explore create|run` accept `--dataset-id` / `--study-id` in addition to positionals.
+- Blackboard: [#114](https://github.com/Jfenic/catml/issues/114) MCP autonomous flag; [#115](https://github.com/Jfenic/catml/issues/115) MLP/XGBoost text budget.
+- Note: tabular MLP path already has `StandardScaler` in trainer; ConvergenceWarning still possible on text/sparse / max_iter=500.
+- Tests: `test_cli_optimize_json_stdout_is_pure`, extended `test_cli_explore_lifecycle` (3 passed).
+
+### Data Preparation direction documented (2026-10-13)
+
+- Spec/plan + [ADR-012](docs/decisions/012-data-preparation-subsystem.md): `PreparationPlan`, scopes dataset vs training_pipeline, parity, post-rc1.
+- Care points captured in spec §7 (leakage, versions, agents, honest UX).
+- Workbench badge: “Sin fuga detectada” + disclaimer (was “Limpio y Validado”).
+
+### Benchmark v1 frozen + Study A (2026-10-13)
+
+- `protocol-v1.yaml` → **frozen 1.0.0** (shared holdout, seeds 42/43/44, f1_macro, skipped≠comparison).
+- Manifest: **11** Study A datasets; `run.py --study A|B|pilot`; analyze aggregate.csv; environment.json + checksums.
+- Study A **5 min** smoke: **132/132 ok**, report `docs/experiments/study-a-report.md` (artifacts in `results/v1/study-a-5min/`).
+- Study A **20 min** formal: **DONE** (`EXIT:0`, `ANALYZE_DONE_20`, 132/132 ok, budget 1200s). Report refreshed. Artifacts `study-a-20min/`. FLAML gained with budget; CATML/sklearn/AG holdout means flat vs 5 min on this suite.
+- Study B scaffold: `run.py --study B` + `docs/experiments/study-b-scaffold.md`.
+
+### PyPI RC published (2026-10-12)
+
+- TestPyPI smoke OK earlier; PyPI Trusted Publisher fixed; Release `38317226040` → **publish-pypi success**.
+- Live: https://pypi.org/project/catml/ `0.9.0rc1` — clean venv `pip install catml==0.9.0rc1` smoke OK.
+
+### Pilot 1A full campaign — 5 min × 3 seeds × AG (2026-10-12)
+
+- Installed `autogluon.tabular`; ran `--seeds 42,43,44 --time-budget-minutes 5`.
+- **36/36 ok** (sklearn/catml/flaml/autogluon × 3 datasets × 3 seeds). Report updated.
+- Headline: CATML ties sklearn on classif.; FLAML/AG win housing RMSE (~0.47 vs CATML ~0.52). Sklearn housing seed 44 outlier documented.
+- Blackboard #113 can close after maintainers ack public report.
+
+### Pilot 1A protocol fix — shared external holdout (2026-10-12)
+
+- Applied review: public trio breast_cancer / wine / california_housing; **one holdout per (dataset, seed)**; all frameworks fit train-only; `score_external()` shared; wall/RSS/CPU logged; `--seeds` multi-seed.
+- Re-ran seed=42 @ 60s: CATML ≈ sklearn on classif.; FLAML edges housing RMSE; AG still skipped → not a complete bake-off.
+- Report refreshed: `docs/experiments/pilot-1a-report.md`. Tests: `tests/test_benchmark_pilot_1a.py` (shared holdout assertions).
+- Next for public claims: install AG + `--seeds 42,43,44 --time-budget-minutes 5`.
+
+### Pilot 1A + fire tests (2026-10-12)
+
+- Extended `benchmarks/run.py` pilot; fire tests `notebooks/fire_tests/` → **10/10 ok** (functional, separate from competitive pilot).
+- Blackboard: [#113](https://github.com/Jfenic/catml/issues/113) AG unmeasured.
+
 ### Repo rename GitHub `CATML` → `catml` (2026-10-12)
 
 - GitHub nameWithOwner is now `Jfenic/catml`; `origin` remote + README/pyproject/SECURITY/website/publishing/release.yml URLs updated.

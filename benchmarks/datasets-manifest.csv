@@ -1,6 +1,13 @@
-dataset_id,task,source,split_policy,notes,status
-openml_pilot_binary_1,binary_classification,openml,official_openml,"Replace with concrete OpenML tid after pilot selection",planned
-openml_pilot_binary_2,binary_classification,openml,official_openml,"Replace with concrete OpenML tid after pilot selection",planned
-openml_pilot_regression_1,regression,openml,official_openml,"Replace with concrete OpenML tid after pilot selection",planned
-sklearn_breast_cancer,binary_classification,sklearn,holdout_0.2,"Local pilot / CI-friendly smoke dataset",active
-adversarial_study_c,*,synthetic,fixture,"Study C adversarial suite (see tests/test_benchmark_study_c.py)",active
+dataset_id,task,source,split_policy,metric,target,max_rows,notes,status
+sklearn_breast_cancer,binary_classification,sklearn,shared_holdout_0.2,roc_auc,target,,"Study A binary — Breast Cancer Wisconsin",active
+openml_credit_g,binary_classification,openml:31,shared_holdout_0.2,roc_auc,class,,"Study A binary — credit-g (categoricals)",active
+openml_blood,binary_classification,openml:1464,shared_holdout_0.2,roc_auc,Class,,"Study A binary — blood transfusion",active
+openml_phoneme,binary_classification,openml:1489,shared_holdout_0.2,roc_auc,Class,5000,"Study A binary — phoneme",active
+sklearn_wine,multiclass,sklearn,shared_holdout_0.2,f1_macro,target,,"Study A multiclass — Wine",active
+openml_iris,multiclass,openml:61,shared_holdout_0.2,f1_macro,class,,"Study A multiclass — Iris",active
+openml_vehicle,multiclass,openml:54,shared_holdout_0.2,f1_macro,Class,,"Study A multiclass — vehicle",active
+sklearn_california_housing,regression,sklearn,shared_holdout_0.2,rmse,MedHouseVal,5000,"Study A regression — California Housing subsample",active
+sklearn_diabetes,regression,sklearn,shared_holdout_0.2,rmse,target,,"Study A regression — diabetes",active
+openml_kin8nm,regression,openml:189,shared_holdout_0.2,rmse,y,5000,"Study A regression — kin8nm",active
+openml_elevators,regression,openml:216,shared_holdout_0.2,rmse,Goal,5000,"Study A regression — elevators",active
+adversarial_study_c,*,synthetic,fixture,*,*,*,"Study C adversarial suite (see tests/test_benchmark_study_c.py)",active

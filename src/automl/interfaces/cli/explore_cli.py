@@ -31,7 +31,13 @@ def run_explore_cli(args: argparse.Namespace) -> int:
     action = getattr(args, "explore_action", None)
 
     if action == "create":
-        dataset_id = args.dataset_id
+        dataset_id = getattr(args, "dataset_id", None) or getattr(args, "dataset_id_flag", None)
+        if not dataset_id:
+            print(
+                "Error: dataset id required (positional or --dataset-id).",
+                file=sys.stderr,
+            )
+            return 1
         name = getattr(args, "name", None) or f"Study {dataset_id}"
         target = getattr(args, "target", None)
         try:
@@ -53,7 +59,13 @@ def run_explore_cli(args: argparse.Namespace) -> int:
             return 1
 
     elif action == "run":
-        study_id = args.study_id
+        study_id = getattr(args, "study_id", None) or getattr(args, "study_id_flag", None)
+        if not study_id:
+            print(
+                "Error: study id required (positional or --study-id).",
+                file=sys.stderr,
+            )
+            return 1
         try:
             run_id = cmd.dispatch(RunAnalysisCommand(study_id=study_id))
             study = qry.dispatch(GetStudyQuery(study_id=study_id))

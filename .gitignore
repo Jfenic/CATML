@@ -33,3 +33,7 @@ secrets.json
 # Benchmark campaign outputs (keep .gitkeep)
 benchmarks/results/v1/*
 !benchmarks/results/v1/.gitkeep
+
+# Fire-test workspaces / per-run JSON (keep summary if committed intentionally)
+notebooks/fire_tests/results/**
+!notebooks/fire_tests/results/.gitkeep

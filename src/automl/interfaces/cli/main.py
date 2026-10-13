@@ -277,13 +277,16 @@ def optimize_cli(args: argparse.Namespace) -> int:
         )
         experiment_id = exp.id
 
-    print(f"\nStarting Hyperparameter Optimization (V{PLATFORM_VERSION})...")
-    print(f"  Run ID:        {run_id}")
-    print(f"  Experiment ID: {experiment_id}")
-    print(f"  Optimizer:     {args.optimizer}")
-    print(f"  Trials:        {args.trials}")
-    if args.model:
-        print(f"  Model:         {args.model}")
+    json_mode = bool(getattr(args, "json", False))
+
+    if not json_mode:
+        print(f"\nStarting Hyperparameter Optimization (V{PLATFORM_VERSION})...")
+        print(f"  Run ID:        {run_id}")
+        print(f"  Experiment ID: {experiment_id}")
+        print(f"  Optimizer:     {args.optimizer}")
+        print(f"  Trials:        {args.trials}")
+        if args.model:
+            print(f"  Model:         {args.model}")
 
     result = cmd.dispatch(
         OptimizeExperimentCommand(
@@ -297,16 +300,20 @@ def optimize_cli(args: argparse.Namespace) -> int:
         )
     )
 
+    if json_mode:
+        print(json.dumps(result, indent=2))
+        return 0
+
     print("\nOptimization Finished:")
     print(f"  Best Score:    {result['best_score']:.4f}")
     print(f"  Best Params:   {json.dumps(result['best_params'], indent=4)}")
     print(f"  Trials Run:    {result['trials_executed']}")
     print("\nTrial History:")
     for t in result["trials"]:
-        print(f"  Trial {t['trial_id'][:8]}  score={t['score']:.4f}  time={t['training_time_s']:.2f}s  succeeded={t['succeeded']}")
-
-    if args.json:
-        print(json.dumps(result, indent=2))
+        print(
+            f"  Trial {t['trial_id'][:8]}  score={t['score']:.4f}  "
+            f"time={t['training_time_s']:.2f}s  succeeded={t['succeeded']}"
+        )
     return 0
 
 
@@ -316,10 +323,12 @@ def run_benchmark(args: argparse.Namespace) -> int:
 
     runner = BenchmarkRunner(dataset_path=str(dataset), workspace_root=ws_dir)
     results = runner.run_all(scenario_filter=args.scenario)
-    _print_table(results, f"CATML Benchmark (platform {PLATFORM_VERSION})")
 
-    if args.json:
+    if getattr(args, "json", False):
         print(json.dumps(results, indent=2))
+        return 0
+
+    _print_table(results, f"CATML Benchmark (platform {PLATFORM_VERSION})")
     return 0
 
 
@@ -916,7 +925,18 @@ def main(argv: list[str] | None = None) -> int:
     from automl.interfaces.cli.explore_cli import run_explore_cli
 
     exp_create = explore_sub.add_parser("create", help="Create an exploratory study on a dataset")
-    exp_create.add_argument("dataset_id", help="ID of dataset to study")
+    exp_create.add_argument(
+        "dataset_id",
+        nargs="?",
+        default=None,
+        help="ID of dataset to study (positional; or use --dataset-id)",
+    )
+    exp_create.add_argument(
+        "--dataset-id",
+        dest="dataset_id_flag",
+        default=None,
+        help="ID of dataset to study (alias for positional dataset_id)",
+    )
     exp_create.add_argument("--name", "-n", default=None, help="Name of the study")
     exp_create.add_argument("--target", "-t", default=None, help="Optional target column for supervised associations")
     exp_create.add_argument("--workspace", default=None, help="Path to workspace root")
@@ -924,7 +944,18 @@ def main(argv: list[str] | None = None) -> int:
     exp_create.set_defaults(func=run_explore_cli)
 
     exp_run = explore_sub.add_parser("run", help="Execute statistical analysis on a study")
-    exp_run.add_argument("study_id", help="ID of study to run")
+    exp_run.add_argument(
+        "study_id",
+        nargs="?",
+        default=None,
+        help="ID of study to run (positional; or use --study-id)",
+    )
+    exp_run.add_argument(
+        "--study-id",
+        dest="study_id_flag",
+        default=None,
+        help="ID of study to run (alias for positional study_id)",
+    )
     exp_run.add_argument("--workspace", default=None, help="Path to workspace root")
     exp_run.add_argument("--json", action="store_true", help="Output results as JSON")
     exp_run.set_defaults(func=run_explore_cli)

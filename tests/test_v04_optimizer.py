@@ -263,6 +263,34 @@ def test_cli_optimize_command(tmp_path, sample_csv):
     assert ret == 0
 
 
+def test_cli_optimize_json_stdout_is_pure(tmp_path, sample_csv, capsys):
+    """--json must emit only parseable JSON on stdout (no human banners)."""
+    ws_dir = str(tmp_path / "ws_cli_json")
+    ret = main(
+        [
+            "optimize",
+            "--dataset",
+            sample_csv,
+            "--workspace",
+            ws_dir,
+            "--model",
+            "logistic_regression",
+            "--optimizer",
+            "random_search",
+            "--trials",
+            "2",
+            "--json",
+        ]
+    )
+    assert ret == 0
+    captured = capsys.readouterr()
+    parsed = json.loads(captured.out)
+    assert "best_score" in parsed
+    assert "best_params" in parsed
+    assert "trials" in parsed
+    assert "Starting Hyperparameter Optimization" not in captured.out
+
+
 def test_parameter_spec_validation_edge_cases():
     p_int = ParameterSpec.int("n", low=5, high=15)
     assert p_int.validate(10) is True
