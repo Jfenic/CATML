@@ -1,5 +1,10 @@
 # Progress
 
+### Study B minimal runner + #117 merged (2026-10-13)
+
+- [#117](https://github.com/Jfenic/catml/pull/117) merged (MCP `--allow-mutations` + text LSA).
+- Branch `feat/study-b-min-runner`: `run.py --study B` executes configs with train-only Explore; agent skipped; tests `test_benchmark_study_b.py`.
+
 ### Follow-up: merge #116 + MCP/text PR (2026-10-13)
 
 - Merged [#116](https://github.com/Jfenic/catml/pull/116) (admin; review gate blocked).

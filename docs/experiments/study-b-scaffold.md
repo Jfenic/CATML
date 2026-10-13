@@ -1,6 +1,6 @@
 # Study B — Explore / agents incremental value (scaffold)
 
-**Status:** scaffold only — execute after Study A formal report.  
+**Status:** minimal runner shipped — see [`study-b-report.md`](study-b-report.md).  
 **Protocol:** `catml-benchmark-v1` 1.0.0 frozen · `holdout_policy: never_seen_during_search`
 
 ## Configurations
@@ -23,7 +23,7 @@
 
 ```bash
 .venv/bin/python benchmarks/run.py --study B --dry-run
-# → benchmarks/results/v1/study-b-scaffold.json
+.venv/bin/python benchmarks/run.py --study B --datasets sklearn_breast_cancer --seeds 42
 ```
 
-Full runner + `docs/experiments/study-b-report.md` land after Study A closes.
+Report: [`study-b-report.md`](study-b-report.md).
