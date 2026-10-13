@@ -73,6 +73,21 @@ export class RegisterDatasetModal {
             ${escapeHtml(this.errorMessage || "")}
           </div>
 
+          <!-- Demo Quick Load Banner -->
+          <div class="p-3 rounded-xl bg-gradient-to-r from-[#4F67FF]/10 to-[#161B26] border border-[#4F67FF]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div class="text-xs font-semibold text-[#F7F8FA] flex items-center space-x-1.5">
+                <span class="text-[#4F67FF]">${icon("play", "icon-sm")}</span>
+                <span>¿Deseas probar el laboratorio rápidamente?</span>
+              </div>
+              <div class="text-[11px] text-[#8B95A7] mt-0.5">Carga el proyecto demo de retención de clientes con modelos y métricas ya calculados.</div>
+            </div>
+            <button id="btnModalLoadDemoDirect" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5 shrink-0 shadow-sm shadow-[#4F67FF]/20">
+              ${icon("play", "icon-sm")}
+              <span>Cargar Demo</span>
+            </button>
+          </div>
+
           <!-- Tabs de Método de Ingestión -->
           <div class="flex items-center space-x-2 border-b border-[#242A36] pb-2 text-xs font-sans">
             <button class="ingest-tab-btn px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center space-x-1.5 ${this.activeTab === 'dragdrop' ? 'bg-[#161B26] text-[#F7F8FA] border border-[#242A36]' : 'text-[#8B95A7] hover:text-[#F7F8FA]'}" data-tab="dragdrop">
@@ -435,6 +450,25 @@ export class RegisterDatasetModal {
     const close = () => this.close();
     this.container.querySelector("#btnCloseRegModal")?.addEventListener("click", close);
     this.container.querySelector("#btnCancelRegModal")?.addEventListener("click", close);
+
+    this.container.querySelector("#btnModalLoadDemoDirect")?.addEventListener("click", async () => {
+      const btn = this.container.querySelector("#btnModalLoadDemoDirect");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span><span>Cargando...</span>`;
+      }
+      try {
+        const res = await api.loadDemoProject(true);
+        if (res.dataset_id) {
+          bus.emit("dataset:switched", res.dataset_id);
+          if (res.run_id) bus.emit("run:select", res.run_id);
+          this.close();
+        }
+      } catch (err) {
+        this.errorMessage = "Error cargando demo: " + (err.message || err);
+        this.render();
+      }
+    });
 
     // Tab buttons
     this.container.querySelectorAll(".ingest-tab-btn").forEach(btn => {

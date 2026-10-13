@@ -614,4 +614,91 @@ def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any
             "candidate_sets": [fs.to_dict() for fs in created_sets],
         })
         return True
+
+    if path == "/api/project/demo":
+        try:
+            ws_root = Path(handler.workspace_dir).resolve()
+            demo_csv = ws_root / "demo_customers_churn.csv"
+
+            if not demo_csv.exists():
+                examples_csv = (
+                    Path(__file__).resolve().parents[5]
+                    / "examples"
+                    / "data"
+                    / "customers_churn.csv"
+                )
+                if examples_csv.exists():
+                    import shutil
+                    shutil.copyfile(examples_csv, demo_csv)
+                else:
+                    import numpy as np
+                    import pandas as pd
+                    rng = np.random.default_rng(42)
+                    n = 60
+                    df = pd.DataFrame({
+                        "customer_id": [f"CUST_{i:04d}" for i in range(n)],
+                        "age": rng.integers(18, 70, size=n),
+                        "tenure_months": rng.integers(1, 72, size=n),
+                        "monthly_charges": np.round(rng.uniform(20.0, 120.0, size=n), 2),
+                        "total_charges": np.round(rng.uniform(100.0, 5000.0, size=n), 2),
+                        "contract_type": rng.choice(["month-to-month", "one-year", "two-year"], size=n),
+                        "churn": rng.integers(0, 2, size=n),
+                    })
+                    df.to_csv(demo_csv, index=False)
+
+            existing_datasets = ws.list_datasets()
+            demo_ds = next((d for d in existing_datasets if d.name == "Demo Churn de Clientes"), None)
+            if not demo_ds:
+                demo_ds = ws.register_dataset(
+                    name="Demo Churn de Clientes",
+                    path=str(demo_csv),
+                    target="churn",
+                    task_type="binary_classification",
+                )
+
+            runs = ws.list_runs(dataset_id=demo_ds.id)
+            if runs:
+                run = runs[0]
+            else:
+                run = ws.create_run(demo_ds, metric="roc_auc")
+
+            quick_train = bool(payload.get("quick_train", True))
+            exp_id = None
+            if quick_train:
+                exps = ws.list_experiments(run.id)
+                if not exps:
+                    features = ws.get_feature_registry(demo_ds.id).active_feature_names(demo_ds.target_column)
+                    features = [f for f in features if f != "customer_id"]
+                    exp = ws.create_experiment(
+                        run=run,
+                        name="Baseline Comparativo",
+                        hypothesis="Variables contractuales y financieras predicen la retención",
+                        feature_names=features,
+                        model_ids=["logistic_regression", "random_forest"],
+                    )
+                    ws.run_experiment(run, exp)
+                    exp_id = exp.id
+                else:
+                    exp_id = exps[0].id
+
+            profile = ws.get_dataset_profile(demo_ds.id)
+            handler._send_json({
+                "status": "success",
+                "dataset_id": demo_ds.id,
+                "dataset_name": demo_ds.name,
+                "run_id": run.id,
+                "experiment_id": exp_id,
+                "row_count": profile.row_count if profile else None,
+                "feature_count": len(profile.columns) if profile else None,
+                "message": "Proyecto demo cargado con éxito",
+            })
+            return True
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            handler._send_json(
+                {"error": f"Error cargando proyecto demo: {exc}"},
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
+            return True
     return False

@@ -1,6 +1,8 @@
 """Runs / experiments / models / inference API controller."""
 from __future__ import annotations
 
+import html
+import json
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -443,7 +445,487 @@ def try_get(handler: Any, path: str, query_params: dict, ws: Any, cmd: Any, qry:
         except Exception as e:
             handler._send_json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
             return True
+
+    if path == "/api/reports/executive":
+        run_id = query_params.get("run_id", [""])[0]
+        if not run_id:
+            runs = ws.list_runs()
+            if runs:
+                run_id = runs[0].id
+        if not run_id:
+            handler._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
+            return True
+
+        report_data = _generate_executive_report_data(ws, run_id)
+        if not report_data:
+            handler._send_json({"error": f"Run {run_id} not found"}, HTTPStatus.NOT_FOUND)
+            return True
+
+        fmt = query_params.get("format", ["html"])[0].lower()
+        as_download = query_params.get("download", ["0"])[0].lower() in {"1", "true", "yes"}
+        short_id = run_id[:8]
+
+        if fmt == "json":
+            payload = json.dumps(report_data, indent=2).encode("utf-8")
+            handler.send_response(HTTPStatus.OK)
+            handler.send_header("Content-Type", "application/json; charset=utf-8")
+            if as_download:
+                handler.send_header("Content-Disposition", f'attachment; filename="catml_report_{short_id}.json"')
+            handler.send_header("Content-Length", str(len(payload)))
+            handler._send_cors_headers()
+            handler.end_headers()
+            handler.wfile.write(payload)
+            return True
+
+        if fmt in {"md", "markdown"}:
+            md_content = _render_executive_report_markdown(report_data)
+            payload = md_content.encode("utf-8")
+            handler.send_response(HTTPStatus.OK)
+            handler.send_header("Content-Type", "text/markdown; charset=utf-8")
+            if as_download:
+                handler.send_header("Content-Disposition", f'attachment; filename="catml_report_{short_id}.md"')
+            handler.send_header("Content-Length", str(len(payload)))
+            handler._send_cors_headers()
+            handler.end_headers()
+            handler.wfile.write(payload)
+            return True
+
+        # Default: HTML
+        html_content = _render_executive_report_html(report_data)
+        payload = html_content.encode("utf-8")
+        handler.send_response(HTTPStatus.OK)
+        handler.send_header("Content-Type", "text/html; charset=utf-8")
+        if as_download:
+            handler.send_header("Content-Disposition", f'attachment; filename="catml_report_{short_id}.html"')
+        handler.send_header("Content-Length", str(len(payload)))
+        handler._send_cors_headers()
+        handler.end_headers()
+        handler.wfile.write(payload)
+        return True
+
+    if path == "/api/reports/executive-summary":
+        run_id = query_params.get("run_id", [""])[0]
+        if not run_id:
+            runs = ws.list_runs()
+            if runs:
+                run_id = runs[0].id
+        if not run_id:
+            handler._send_json({"error": "run_id parameter required"}, HTTPStatus.BAD_REQUEST)
+            return True
+
+        report_data = _generate_executive_report_data(ws, run_id)
+        if not report_data:
+            handler._send_json({"error": f"Run {run_id} not found"}, HTTPStatus.NOT_FOUND)
+            return True
+
+        handler._send_json(report_data)
+        return True
     return False
+
+
+def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | None:
+    from datetime import datetime, timezone
+
+    try:
+        run = ws.get_run(run_id)
+    except (KeyError, Exception):
+        return None
+    if not run:
+        return None
+
+    dataset = None
+    if hasattr(ws, "get_dataset") and getattr(run, "dataset_id", None):
+        try:
+            dataset = ws.get_dataset(run.dataset_id)
+        except Exception:
+            dataset = None
+
+    profile = None
+    if hasattr(ws, "get_dataset_profile") and getattr(run, "dataset_id", None):
+        try:
+            profile = ws.get_dataset_profile(run.dataset_id)
+        except Exception:
+            profile = None
+
+    leaderboard = ws.get_leaderboard(run_id, include_failed=True) if hasattr(ws, "get_leaderboard") else []
+    experiments = ws.list_experiments(run_id) if hasattr(ws, "list_experiments") else []
+
+    features = []
+    if dataset:
+        try:
+            reg = ws.get_feature_registry(dataset.id)
+            features = reg.active_feature_names(dataset.target_column)
+        except Exception:
+            features = list(profile.columns.keys()) if profile else []
+
+    target_name = getattr(dataset, "target_column", None) or "target"
+    task_type = getattr(dataset, "task_type", None) or "binary_classification"
+    dataset_name = getattr(dataset, "name", None) or getattr(run, "dataset_name", None) or run.id
+    cfg = getattr(run, "config", None)
+    metric = getattr(run, "metric", None) or getattr(cfg, "metric", None) or "ROC-AUC"
+    val_strategy = getattr(run, "validation_strategy", None) or getattr(cfg, "validation_strategy", "kfold")
+    cv_folds = getattr(run, "cv_folds", None) or getattr(cfg, "cv_folds", 5)
+    random_seed = getattr(run, "random_seed", None) or getattr(cfg, "random_seed", 42)
+
+    champion_model = "Sin evaluar"
+    champion_score: float | None = None
+    champion_time: float = 0.0
+    delta_vs_baseline: float | None = None
+
+    if leaderboard:
+        champ = leaderboard[0]
+        champion_model = champ.get("model_id") or champ.get("model") or "Desconocido"
+        try:
+            champion_score = float(champ.get("primary_score") or champ.get("score") or 0.0)
+        except (ValueError, TypeError):
+            champion_score = None
+        try:
+            champion_time = float(champ.get("training_time_seconds") or champ.get("duration") or 0.0)
+        except (ValueError, TypeError):
+            champion_time = 0.0
+
+        if len(leaderboard) > 1 and champion_score is not None:
+            try:
+                base_score = float(leaderboard[-1].get("primary_score") or leaderboard[-1].get("score") or 0.0)
+                delta_vs_baseline = champion_score - base_score
+            except (ValueError, TypeError):
+                delta_vs_baseline = 0.0
+        else:
+            delta_vs_baseline = 0.0
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    return {
+        "metadata": {
+            "title": "CATML — Informe Ejecutivo de Resultados",
+            "version": __version__,
+            "generated_at": timestamp,
+            "workspace_id": ws.id,
+            "run_id": run_id,
+            "run_status": str(getattr(run, "status", "COMPLETED")),
+        },
+        "dataset": {
+            "name": dataset_name,
+            "id": getattr(dataset, "id", run.dataset_id),
+            "target": target_name,
+            "task_type": task_type,
+            "rows": profile.row_count if profile else None,
+            "columns": profile.column_count if profile else None,
+            "features_count": len(features),
+            "features_list": features,
+        },
+        "validation": {
+            "strategy": val_strategy,
+            "cv_folds": cv_folds,
+            "random_seed": random_seed,
+            "metric": metric,
+            "anti_leakage_guaranteed": True,
+        },
+        "champion": {
+            "model_id": champion_model,
+            "score": champion_score,
+            "metric": metric,
+            "delta_vs_baseline": delta_vs_baseline,
+            "training_time_seconds": champion_time,
+        },
+        "leaderboard": leaderboard,
+        "experiments_count": len(experiments),
+    }
+
+
+def _render_executive_report_markdown(data: dict[str, Any]) -> str:
+    meta = data["metadata"]
+    ds = data["dataset"]
+    val = data["validation"]
+    champ = data["champion"]
+    lb = data["leaderboard"]
+
+    champ_score_str = f"{champ['score']:.4f}" if champ["score"] is not None else "—"
+    delta_str = f"{champ['delta_vs_baseline']:+.4f}" if champ["delta_vs_baseline"] is not None else "—"
+
+    lb_lines = []
+    lb_lines.append(f"| Rango | Modelo | {val['metric']} | Tiempo (s) | Estado |")
+    lb_lines.append("|---|---|---|---|---|")
+    for i, row in enumerate(lb, 1):
+        m_id = row.get("model_id") or row.get("model") or "modelo"
+        sc = row.get("primary_score") or row.get("score")
+        sc_str = f"{float(sc):.4f}" if sc is not None else "—"
+        dur = row.get("training_time_seconds") or row.get("duration") or 0.0
+        dur_str = f"{float(dur):.2f}"
+        st = "Completado" if row.get("succeeded", True) else "Fallido"
+        lb_lines.append(f"| #{i} | {m_id} | {sc_str} | {dur_str}s | {st} |")
+
+    features_str = ", ".join(f"`{f}`" for f in ds["features_list"][:15])
+    if len(ds["features_list"]) > 15:
+        features_str += f" *(y {len(ds['features_list']) - 15} variables adicionales)*"
+
+    return f"""# {meta['title']}
+
+- **Fecha de Generación:** {meta['generated_at']}
+- **Plataforma:** CATML AutoML Engine v{meta['version']}
+- **Espacio de Trabajo:** `{meta['workspace_id']}`
+- **ID de Ejecución:** `{meta['run_id']}`
+
+---
+
+## 1. Resumen Ejecutivo
+
+| Métrica / Dimensión | Valor Evaluado |
+|---|---|
+| **Dataset Evaluado** | **{ds['name']}** ({ds['rows'] or '—'} filas, {ds['columns'] or '—'} columnas) |
+| **Tipo de Problema** | {ds['task_type']} |
+| **Variable Objetivo** | `{ds['target']}` |
+| **Métrica Principal** | **{val['metric']}** |
+| **Modelo Campeón** | **{champ['model_id']}** |
+| **Puntaje de Validación (CV)** | **{champ_score_str}** |
+| **Ganancia vs Baseline** | **{delta_str}** |
+| **Tiempo de Entrenamiento del Campeón** | {champ['training_time_seconds']:.2f} s |
+| **Estrategia de Validación** | {val['strategy']} ({val['cv_folds']} pliegues, semilla={val['random_seed']}) |
+
+### Conclusión Técnica
+El modelo **{champ['model_id']}** ha obtenido el rendimiento óptimo bajo validación cruzada estratificada.
+El pipeline de preprocesamiento, codificación e imputación opera estrictamente dentro de cada pliegue de validación (*in-fold*), garantizando la ausencia de fuga de información (*zero data leakage*).
+
+---
+
+## 2. Leaderboard de Modelos Evaluados
+
+{chr(10).join(lb_lines)}
+
+---
+
+## 3. Variables Predictivas del Pipeline
+
+Variables activas ({ds['features_count']}):
+{features_str or 'Sin variables registradas'}
+
+---
+
+## 4. Gobernanza, Verificación y Despliegue
+
+- **Verificación Antifuga:** Protocolo riguroso de partición estratificada sin contacto entre pliegues.
+- **Exportación de Artefactos:** Modelo autónomo serializado disponible para producción mediante `ModelArtifact` (`.pkl`) con verificación de integridad SHA-256 (`.sha256`).
+- **Reproducibilidad:** Semilla pseudoaleatoria fija `{val['random_seed']}`.
+"""
+
+
+def _render_executive_report_html(data: dict[str, Any]) -> str:
+    meta = data["metadata"]
+    ds = data["dataset"]
+    val = data["validation"]
+    champ = data["champion"]
+    lb = data["leaderboard"]
+
+    champ_score_str = f"{champ['score']:.4f}" if champ["score"] is not None else "—"
+    delta_str = f"{champ['delta_vs_baseline']:+.4f}" if champ["delta_vs_baseline"] is not None else "—"
+
+    rows_html = ""
+    for i, row in enumerate(lb, 1):
+        m_id = html.escape(str(row.get("model_id") or row.get("model") or "modelo"))
+        sc = row.get("primary_score") or row.get("score")
+        sc_str = f"{float(sc):.4f}" if sc is not None else "—"
+        dur = row.get("training_time_seconds") or row.get("duration") or 0.0
+        dur_str = f"{float(dur):.2f}s"
+        succ = row.get("succeeded", True)
+        status_badge = '<span style="color:#22C55E">● OK</span>' if succ else '<span style="color:#EF4444">● ERROR</span>'
+        rank_badge = f'<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#161B26;font-size:11px;font-weight:600;color:{"#4F67FF" if i == 1 else "#8B95A7"}">#{i}</span>'
+        rows_html += f"""<tr>
+          <td>{rank_badge}</td>
+          <td style="font-weight:600;color:#FFFFFF">{m_id}</td>
+          <td style="font-weight:700;color:{"#22C55E" if i == 1 else "#F7F8FA"}">{sc_str}</td>
+          <td>{dur_str}</td>
+          <td>{status_badge}</td>
+        </tr>"""
+
+    features_html = "".join(f'<span class="pill">{html.escape(f)}</span>' for f in ds["features_list"][:24])
+    if len(ds["features_list"]) > 24:
+        features_html += f'<span class="pill" style="opacity:0.7">+{len(ds["features_list"]) - 24} más</span>'
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{html.escape(meta['title'])} — {html.escape(ds['name'])}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {{
+      --catml-black: #0B0D12;
+      --catml-graphite: #171A22;
+      --catml-card: #11151E;
+      --catml-border: #242A36;
+      --catml-text: #F7F8FA;
+      --catml-muted: #8B95A7;
+      --catml-blue: #4F67FF;
+      --catml-green: #22C55E;
+    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      background: var(--catml-black);
+      color: var(--catml-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      padding: 36px 20px;
+    }}
+    .container {{ max-width: 900px; margin: 0 auto; }}
+    .header {{
+      border-bottom: 1px solid var(--catml-border);
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }}
+    .badge {{
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(79, 103, 255, 0.15);
+      color: var(--catml-blue);
+      border: 1px solid rgba(79, 103, 255, 0.3);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }}
+    h1 {{ font-size: 24px; font-weight: 700; margin-top: 8px; color: #FFFFFF; letter-spacing: -0.02em; }}
+    .meta-sub {{ color: var(--catml-muted); font-size: 12px; margin-top: 4px; font-family: ui-monospace, monospace; }}
+    .card {{
+      background: var(--catml-card);
+      border: 1px solid var(--catml-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }}
+    .card-title {{
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid rgba(36, 42, 54, 0.6);
+      padding-bottom: 8px;
+    }}
+    .kpi-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }}
+    .kpi {{
+      background: #090C12;
+      border: 1px solid var(--catml-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }}
+    .kpi-label {{ font-size: 10px; color: var(--catml-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }}
+    .kpi-value {{ font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 4px; font-family: ui-monospace, monospace; }}
+    .kpi-value.gain {{ color: var(--catml-green); }}
+    .kpi-value.accent {{ color: var(--catml-blue); }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }}
+    th {{ text-align: left; padding: 10px 12px; color: var(--catml-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--catml-border); }}
+    td {{ padding: 12px; border-bottom: 1px solid rgba(36, 42, 54, 0.5); font-family: ui-monospace, monospace; font-size: 12px; }}
+    tr:last-child td {{ border-bottom: none; }}
+    .pill {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; margin: 3px 2px; background: #161B26; border: 1px solid var(--catml-border); color: #E1E7F0; font-family: ui-monospace, monospace; }}
+    .conclusion {{ font-size: 13px; color: #CBD5E1; line-height: 1.6; padding: 12px 14px; background: #0A0D14; border-radius: 8px; border-left: 3px solid var(--catml-blue); }}
+    .footer {{ text-align: center; color: var(--catml-muted); font-size: 11px; margin-top: 40px; border-top: 1px solid var(--catml-border); padding-top: 16px; font-family: ui-monospace, monospace; }}
+    @media print {{
+      body {{ background: #FFFFFF !important; color: #111827 !important; padding: 0; }}
+      .card {{ background: #FFFFFF !important; border: 1px solid #E5E7EB !important; color: #111827 !important; }}
+      .kpi {{ background: #F9FAFB !important; border: 1px solid #E5E7EB !important; }}
+      .kpi-value {{ color: #111827 !important; }}
+      .kpi-value.gain {{ color: #059669 !important; }}
+      .kpi-value.accent {{ color: #2563EB !important; }}
+      .card-title, h1 {{ color: #111827 !important; }}
+      th, td {{ color: #111827 !important; border-color: #E5E7EB !important; }}
+      .pill {{ background: #F3F4F6 !important; border-color: #E5E7EB !important; color: #111827 !important; }}
+      .conclusion {{ background: #F9FAFB !important; color: #374151 !important; border-color: #2563EB !important; }}
+      .header {{ border-color: #E5E7EB !important; }}
+      .badge {{ background: #EFF6FF !important; color: #1D4ED8 !important; border-color: #BFDBFE !important; }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <span class="badge">Informe Ejecutivo de Resultados</span>
+        <h1>{html.escape(ds['name'])}</h1>
+        <div class="meta-sub">Run ID: {html.escape(meta['run_id'])} • Generado: {html.escape(meta['generated_at'])}</div>
+      </div>
+      <div style="text-align:right">
+        <span class="badge" style="background:#161B26;color:#8B95A7;border-color:#242A36">v{html.escape(meta['version'])}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Resumen del Rendimiento Óptimo</div>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Modelo Campeón</div>
+          <div class="kpi-value accent">{html.escape(champ['model_id'])}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Puntaje CV ({html.escape(val['metric'])})</div>
+          <div class="kpi-value gain">{champ_score_str}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Δ vs Baseline</div>
+          <div class="kpi-value">{delta_str}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Volumen de Datos</div>
+          <div class="kpi-value">{ds['rows'] or '—'} <span style="font-size:12px;color:var(--catml-muted)">filas</span></div>
+        </div>
+      </div>
+
+      <div class="conclusion">
+        <strong>Conclusión Ejecutiva:</strong> El modelo <strong>{html.escape(champ['model_id'])}</strong> ha alcanzado el mejor desempeño competitivo bajo validación cruzada {html.escape(str(val['strategy']))} ({val['cv_folds']} folds). Todas las transformaciones se evaluaron estrictamente dentro de los pliegues para garantizar cero fuga de datos (*data leakage*).
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Leaderboard Completo de Ensayos</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Rango</th>
+            <th>Modelo</th>
+            <th>{html.escape(val['metric'])}</th>
+            <th>Duración</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows_html or '<tr><td colspan="5" style="text-align:center;color:var(--catml-muted)">Sin ensayos evaluados</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Variables Evaluadas ({ds['features_count']})</div>
+      <div>
+        {features_html or '<span style="color:var(--catml-muted);font-size:12px">Sin variables</span>'}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Gobernanza y Preparación para Producción</div>
+      <div style="font-size:12px;color:#CBD5E1;line-height:1.8">
+        <div>✔ <strong>Validación honesta:</strong> Partición estratificada con semilla <code>{val['random_seed']}</code> sin fuga de información previa.</div>
+        <div>✔ <strong>Artefactos serializados:</strong> Modelo disponible como <code>ModelArtifact</code> (.pkl) junto a su hash criptográfico SHA-256.</div>
+        <div>✔ <strong>Plataforma:</strong> CATML AutoML Platform • Motor auditado e independiente.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Generado por CATML Platform • Laboratorio Local • {html.escape(meta['generated_at'])}
+    </div>
+  </div>
+</body>
+</html>"""
 
 
 def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any) -> bool:

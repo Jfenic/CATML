@@ -95,6 +95,8 @@ class AutoMLWorkspace:
     _feature_service: Any = field(default=None, repr=False)
     _experiment_execution_service: Any = field(default=None, repr=False)
     _optimization_service: Any = field(default=None, repr=False)
+    _cached_study_repo: Any = field(default=None, repr=False)
+    _cached_recipe_repo: Any = field(default=None, repr=False)
 
     @property
     def pipeline_service(self):
@@ -413,8 +415,10 @@ class AutoMLWorkspace:
 
     def get_study_repository(self):
         """Retrieve SQLiteStudyRepository for this workspace."""
-        from automl.infrastructure.database.sqlite_studies import SQLiteStudyRepository
-        return SQLiteStudyRepository(self.root_dir / "automl.db")
+        if self._cached_study_repo is None:
+            from automl.infrastructure.database.sqlite_studies import SQLiteStudyRepository
+            self._cached_study_repo = SQLiteStudyRepository(self.root_dir / "automl.db")
+        return self._cached_study_repo
 
     def get_analysis_service(self):
         """Retrieve AnalysisStudyService for this workspace."""
@@ -429,8 +433,10 @@ class AutoMLWorkspace:
 
     def get_recipe_repository(self):
         """Retrieve SQLiteRecipeRepository for this workspace."""
-        from automl.infrastructure.database.sqlite_recipes import SQLiteRecipeRepository
-        return SQLiteRecipeRepository(self.root_dir / "automl.db")
+        if self._cached_recipe_repo is None:
+            from automl.infrastructure.database.sqlite_recipes import SQLiteRecipeRepository
+            self._cached_recipe_repo = SQLiteRecipeRepository(self.root_dir / "automl.db")
+        return self._cached_recipe_repo
 
     def get_recipe_service(self):
         """Retrieve RecipeService for this workspace."""
@@ -440,6 +446,38 @@ class AutoMLWorkspace:
             study_repository=self.get_study_repository(),
             workspace=self,
         )
+
+    def dispose(self) -> None:
+        """Close and release any cached SQLite repositories or long-lived resources."""
+        if self._cached_study_repo is not None:
+            try:
+                self._cached_study_repo.close()
+            except Exception:
+                pass
+            self._cached_study_repo = None
+        if self._cached_recipe_repo is not None:
+            try:
+                self._cached_recipe_repo.close()
+            except Exception:
+                pass
+            self._cached_recipe_repo = None
+        if hasattr(self, "repository") and hasattr(self.repository, "close"):
+            try:
+                self.repository.close()
+            except Exception:
+                pass
+
+    def __enter__(self) -> AutoMLWorkspace:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.dispose()
+
+    def __del__(self) -> None:
+        try:
+            self.dispose()
+        except Exception:
+            pass
 
     def get_feature_registry(self, dataset_id: str) -> FeatureRegistry:
         if dataset_id not in self._feature_registries:

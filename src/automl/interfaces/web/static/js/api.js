@@ -340,6 +340,24 @@ export class CATMLApiClient {
     return this._fetch(url);
   }
 
+  async loadDemoProject(quickTrain = true) {
+    return this._fetch("/api/project/demo", {
+      method: "POST",
+      body: JSON.stringify({ quick_train: quickTrain }),
+    });
+  }
+
+  getExecutiveReportUrl(runId, format = "html", download = false) {
+    let url = `/api/reports/executive?run_id=${encodeURIComponent(runId || '')}&format=${encodeURIComponent(format)}`;
+    if (download) url += "&download=1";
+    return url;
+  }
+
+  async getExecutiveReportSummary(runId) {
+    let url = `/api/reports/executive-summary?run_id=${encodeURIComponent(runId || '')}`;
+    return this._fetch(url);
+  }
+
   async buildEnsemble(payload) {
     return this._fetch("/api/ensemble/build", {
       method: "POST",

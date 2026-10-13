@@ -1,5 +1,19 @@
 # Progress
 
+### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
+
+- **Subtarea B1 (Workbench Demo Project + Executive Export)**:
+  - Backend: `POST /api/project/demo` (crea dataset demo de churn, run `roc_auc` y baseline comparativo idempotente sin duplicar).
+  - Backend: `GET /api/reports/executive` con exportación en HTML (estilo Tech Minimalista Premium), Markdown (`.md`) y JSON descargable (`download=1`), más `GET /api/reports/executive-summary`.
+  - Frontend: Métodos `loadDemoProject()`, `getExecutiveReportUrl()`, `getExecutiveReportSummary()` en `api.js`. Botones interactivos en `home.js` (empty state), `register_dataset_modal.js` (banner 1-click), `studio.js` y `overview.js`.
+  - Tests: `tests/test_workbench_demo_and_export.py` con 5 tests unitarios e integración pasando al 100%.
+- **Subtarea B2 (Blackboard Issue #94 - SQLite connection lifecycle & soak test)**:
+  - `sqlite_recipes.py`, `sqlite_studies.py`: Implementados finalizadores `__del__`, context manager (`__enter__`, `__exit__`) y cierre determinista de conexiones SQLite.
+  - `sqlite_repository.py`: Añadido hook explícito de cierre `close()` y context manager.
+  - `AutoMLWorkspace`: Caching de instancias repository (`_cached_study_repo`, `_cached_recipe_repo`), método `dispose()`, soporte de context manager y `__del__`.
+  - Tests: `tests/test_sqlite_connection_lifecycle.py` con 4 tests (incluyendo soak test de 50 iteraciones sin incremento de FDs ni `ResourceWarning`).
+- **Verificación completa**: 246 tests en verde (`.venv/bin/pytest`). Zero regressions.
+
 ### Study B minimal runner + #117 merged (2026-10-13)
 
 - [#117](https://github.com/Jfenic/catml/pull/117) merged (MCP `--allow-mutations` + text LSA).

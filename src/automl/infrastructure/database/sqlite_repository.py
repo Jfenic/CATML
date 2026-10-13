@@ -47,6 +47,16 @@ class SQLiteExperimentRepository:
         finally:
             conn.close()
 
+    def close(self) -> None:
+        """Disposal hook for connection lifecycle consistency."""
+        pass
+
+    def __enter__(self) -> SQLiteExperimentRepository:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
+
     def _init_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(
