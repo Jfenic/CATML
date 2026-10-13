@@ -1,5 +1,12 @@
 # Progress
 
+### Parallel split A/B (2026-10-14)
+
+- Coordination: [`.agent/parallel-coordination.md`](parallel-coordination.md).
+- **Agente A (esta sesión) HACIENDO:** Study B lift → rama `feat/study-b-lift`.
+  - Wired `catml_explore` verify→recipe→fit; `catml_agent` FakeLLM + session step; `tests/test_benchmark_study_b.py` 3 passed.
+- **Agente B LIBRE:** Demo export Sprint 3 + blackboard #94 — debe reclamar en ese markdown (rama + archivos).
+
 ### Study B minimal runner + #117 merged (2026-10-13)
 
 - [#117](https://github.com/Jfenic/catml/pull/117) merged (MCP `--allow-mutations` + text LSA).
