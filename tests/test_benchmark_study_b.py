@@ -39,3 +39,17 @@ def test_study_b_smoke_breast_cancer(tmp_path: Path):
     assert explore_extra.get("study_id")
     raw = json.loads((tmp_path / "study-b-raw.json").read_text())
     assert raw["comparison_complete"] is True
+
+
+def test_study_b_multiclass_explore_task_alias(tmp_path: Path):
+    """Manifest 'multiclass' must map to multiclass_classification for Explore."""
+    payload = _study_b_campaign(
+        dry_run=False,
+        out_dir=tmp_path,
+        time_budget_s=30.0,
+        seeds=[42],
+        dataset_filter=["sklearn_wine"],
+    )
+    by_fw = {r["framework"]: r for r in payload["rows"]}
+    assert by_fw["catml_explore"]["status"] == "ok", by_fw["catml_explore"].get("failure_reason")
+    assert (by_fw["catml_explore"].get("extra") or {}).get("study_id")

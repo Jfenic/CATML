@@ -197,6 +197,20 @@ def _catml_cell(
     )
 
 
+def _canonical_task_type(task: str) -> str:
+    """Map benchmark manifest task labels to workspace task_type enums."""
+    t = (task or "").strip().lower()
+    aliases = {
+        "binary": "binary_classification",
+        "binary_classification": "binary_classification",
+        "multiclass": "multiclass_classification",
+        "multiclass_classification": "multiclass_classification",
+        "regression": "regression",
+        "clustering": "clustering",
+    }
+    return aliases.get(t, t)
+
+
 def _run_explore_on_train_only(
     *,
     train: pd.DataFrame,
@@ -218,7 +232,7 @@ def _run_explore_on_train_only(
         name="study_b_train",
         path=str(train_path),
         target=target,
-        task_type=task,
+        task_type=_canonical_task_type(task),
     )
     study_id = cmd.dispatch(
         CreateStudyCommand(
