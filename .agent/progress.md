@@ -1,5 +1,11 @@
 # Progress
 
+### Commit + GitHub Release 0.9.0rc1 (2026-10-13)
+
+- Pushed `2b22db5` to `main` (Study A, CLI fixes, Data Prep docs, fire tests).
+- GitHub prerelease [`v0.9.0rc1`](https://github.com/Jfenic/catml/releases/tag/v0.9.0rc1) targets publish SHA `05a004f` (matches PyPI wheel).
+- Next pick: Study B execution **or** HPO wiring (`trial.report` / warm-start) in small PRs.
+
 ### Agent CLI/MCP fire-test triage (2026-10-13)
 
 - Confirmed: MCP `PENDING_APPROVAL` is by design (`require_approval_for_mutations=True`); not a bug.
