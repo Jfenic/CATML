@@ -64,7 +64,7 @@ export class OverviewView {
               <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Tarea: ${escapeHtml((activeRun.task_type || "Clasificación").replace("_", " "))} • Métrica: ${escapeHtml(activeRun.metric || "CV")}</p>
             </div>
             <div class="flex items-center space-x-2">
-              <a href="/api/reports/executive?run_id=${activeRun.id}&format=html" target="_blank" class="btn-technical text-xs px-2.5 py-1 flex items-center space-x-1.5 hover:text-white transition-colors" title="Ver informe ejecutivo de resultados">
+              <a href="/api/reports/executive?run_id=${encodeURIComponent(activeRun.id)}&format=html" target="_blank" class="btn-technical text-xs px-2.5 py-1 flex items-center space-x-1.5 hover:text-white transition-colors" title="Ver informe ejecutivo de resultados">
                 ${icon("file-text", "icon-sm")}<span>Informe ejecutivo</span>
               </a>
               <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1.5">
