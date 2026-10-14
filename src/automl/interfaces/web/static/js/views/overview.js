@@ -63,10 +63,15 @@ export class OverviewView {
               <h3 class="text-base font-semibold font-sans text-[#F7F8FA] mt-0.5">${escapeHtml(activeRun.dataset_name || activeRun.id)}</h3>
               <p class="text-xs text-[#8B95A7] font-sans mt-0.5">Tarea: ${escapeHtml((activeRun.task_type || "Clasificación").replace("_", " "))} • Métrica: ${escapeHtml(activeRun.metric || "CV")}</p>
             </div>
-            <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1.5">
-              ${isRunning ? '<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : '<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>'}
-              <span>${escapeHtml(activeRun.status === 'READY' ? 'LISTO' : (activeRun.status || 'LISTO'))}</span>
-            </span>
+            <div class="flex items-center space-x-2">
+              <a href="/api/reports/executive?run_id=${activeRun.id}&format=html" target="_blank" class="btn-technical text-xs px-2.5 py-1 flex items-center space-x-1.5 hover:text-white transition-colors" title="Ver informe ejecutivo de resultados">
+                ${icon("file-text", "icon-sm")}<span>Informe ejecutivo</span>
+              </a>
+              <span class="${isRunning ? 'badge-warn' : 'badge-gain'} text-xs px-2.5 py-0.5 rounded-md font-mono font-medium flex items-center space-x-1.5">
+                ${isRunning ? '<svg class="animate-spin h-3 w-3 text-[#F59E0B] inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' : '<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>'}
+                <span>${escapeHtml(activeRun.status === 'READY' ? 'LISTO' : (activeRun.status || 'LISTO'))}</span>
+              </span>
+            </div>
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1 text-xs">

@@ -1,9 +1,20 @@
 # Progress
 
+### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
+
+- **Subtarea B1 (Workbench Demo Project + Executive Export)**:
+  - Backend: `POST /api/project/demo`; `GET /api/reports/executive` (HTML/MD/JSON).
+  - Frontend: `loadDemoProject` / informe ejecutivo en home, register modal, studio, overview.
+  - Tests: `tests/test_workbench_demo_and_export.py`.
+- **Subtarea B2 (Blackboard #94)**:
+  - Lifecycle/`dispose` en sqlite recipes/studies/repository + `AutoMLWorkspace`.
+  - Tests: `tests/test_sqlite_connection_lifecycle.py` (soak).
+- PR: [#125](https://github.com/Jfenic/catml/pull/125).
+
 ### Data Preparation P1 started (2026-10-14)
 
-- Branch `feat/data-preparation-p1` / [#124](https://github.com/Jfenic/catml/pull/124): domain `PreparationPlan`/`PreparationStep`/scopes, `PreparationService` (analyze→suggest→preview→validate→apply), JSON version store, CQRS registration.
-- Tests: `tests/test_data_preparation_p1.py` (5 passed). CLI/MCP/UI = P2/P3.
+- [#124](https://github.com/Jfenic/catml/pull/124) merged: domain + `PreparationService` + CQRS + versions.
+- Tests: `tests/test_data_preparation_p1.py`. CLI/MCP/UI = P2/P3.
 
 ### Parallel split A/B (2026-10-14)
 

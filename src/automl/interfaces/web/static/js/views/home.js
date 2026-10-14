@@ -226,11 +226,17 @@ export class HomeView {
                   </div>
                 </div>
 
-                <div class="flex items-center justify-between pt-1">
-                  <button id="btnHomeStartFirstExpInner" class="btn-technical text-xs flex items-center space-x-1.5">
-                    ${icon("play", "icon-sm")}
-                    <span>Lanzar nuevo experimento</span>
-                  </button>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div class="flex items-center space-x-2">
+                    <button id="btnHomeStartFirstExpInner" class="btn-technical text-xs flex items-center space-x-1.5">
+                      ${icon("play", "icon-sm")}
+                      <span>Lanzar nuevo experimento</span>
+                    </button>
+                    <a href="${api.getExecutiveReportUrl(activeRun.id, 'html')}" target="_blank" class="btn-technical text-xs flex items-center space-x-1.5 hover:text-white transition-colors" title="Ver informe ejecutivo de resultados">
+                      ${icon("file-text", "icon-sm")}
+                      <span>Informe ejecutivo</span>
+                    </a>
+                  </div>
                   <button id="btnHomeGoToExperiments" class="text-xs text-[#4F67FF] hover:text-[#53C8FF] font-sans font-medium flex items-center space-x-1.5 transition-colors">
                     <span>Ver experimentos en detalle</span>
                     ${icon("arrow-right", "icon-sm")}
@@ -427,6 +433,12 @@ export class HomeView {
           <!-- Acciones principales -->
           <div class="flex flex-wrap items-center gap-2.5">
             ${primaryCtaHtml}
+            ${hasResults && activeRun ? `
+              <a href="${api.getExecutiveReportUrl(activeRun.id, 'html')}" target="_blank" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] px-4 py-2.5 rounded-lg text-xs font-sans font-medium flex items-center space-x-1.5 transition-colors" title="Ver informe ejecutivo de resultados">
+                ${icon("file-text", "icon-sm")}
+                <span>Informe ejecutivo</span>
+              </a>
+            ` : ''}
             <button id="btnHomeAddDataset" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] px-4 py-2.5 rounded-lg text-xs font-sans font-medium flex items-center space-x-1.5 transition-colors">
               ${icon("plus", "icon-sm")}
               <span>Añadir dataset</span>
@@ -486,8 +498,12 @@ export class HomeView {
             Para comenzar a explorar, formular hipótesis y entrenar modelos en el laboratorio, selecciona un dataset existente o añade uno nuevo.
           </p>
         </div>
-        <div class="flex items-center justify-center space-x-3 pt-2">
-          <button id="btnHomeAddDatasetEmpty" class="btn-signal text-xs flex items-center space-x-2">
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button id="btnHomeLoadDemoEmpty" class="btn-signal text-xs flex items-center space-x-2 shadow-lg shadow-[#4F67FF]/20">
+            ${icon("play", "icon-sm")}
+            <span>Cargar proyecto demo</span>
+          </button>
+          <button id="btnHomeAddDatasetEmpty" class="bg-[#161B26] hover:bg-[#1E2536] text-[#F7F8FA] border border-[#242A36] px-4 py-2 rounded-lg text-xs font-sans font-medium flex items-center space-x-1.5 transition-colors">
             ${icon("plus", "icon-sm")}
             <span>Añadir dataset</span>
           </button>
@@ -516,6 +532,29 @@ export class HomeView {
 
     this.container.querySelector("#btnHomeAddDatasetEmpty")?.addEventListener("click", () => {
       bus.emit("modal:register-dataset");
+    });
+
+    this.container.querySelector("#btnHomeLoadDemoEmpty")?.addEventListener("click", async () => {
+      const btn = this.container.querySelector("#btnHomeLoadDemoEmpty");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span><span>Cargando demo...</span>`;
+      }
+      try {
+        const res = await api.loadDemoProject(true);
+        if (res.dataset_id) {
+          bus.emit("dataset:switched", res.dataset_id);
+          if (res.run_id) {
+            bus.emit("run:select", res.run_id);
+          }
+          await this.fetchData();
+          this.render();
+        }
+      } catch (err) {
+        alert("Error cargando proyecto demo: " + (err.message || err));
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     });
 
     this.container.querySelector("#btnHomeOpenDataset")?.addEventListener("click", () => {

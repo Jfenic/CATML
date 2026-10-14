@@ -85,7 +85,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
 | P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | Done (#116 merged) |
 | P1 | MCP `--allow-mutations` + text LSA (SVD) for trees | In PR `fix/mcp-allow-mutations-text-svd` |
-| P1 | Demo project + executive results export (Sprint 3) | Open |
+| P1 | Demo project + executive results export (Sprint 3) | Done (`feat/demo-export-and-sqlite-94`) |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
 ### Track License compliance (documentation / packaging only)
@@ -153,7 +153,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | Comparator CI / avoid exaggerating tiny ROC-AUC deltas | Done (`#99`) |
 | P1 | Framing/CV coherence: no TimeSeriesSplit on cross-sectional; advisor ignores survey «time» phrases; job errors surface `failure_reason` | Done (local) |
 | P0 | Audit-5: unify budget UI↔JobExecutor; XSS new_experiment; no fake param_importance / predict checklist; Manual model picker; multiclass ROC-AUC; fallback badges | Done (local) |
-| P2 | Demo project + executive results export | Open (Sprint 3) |
+| P2 | Demo project + executive results export | Done (`feat/demo-export-and-sqlite-94`) |
 
 ### Track PyPI Pre-Publish — Wheel Workbench static + distribution gates (`fix/pypi-wheel-workbench-static`)
 

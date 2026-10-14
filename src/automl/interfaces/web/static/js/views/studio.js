@@ -264,6 +264,12 @@ export class StudioView {
         <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Descargar ModelArtifact (.pkl)">
           ${icon("download", "icon-sm")}<span>Exportar modelo (.pkl)</span>
         </a>
+        <a href="/api/reports/executive?run_id=${activeRun.id}&format=html" target="_blank" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Ver informe ejecutivo de resultados">
+          ${icon("file-text", "icon-sm")}<span>Informe ejecutivo</span>
+        </a>
+        <a href="/api/reports/executive?run_id=${activeRun.id}&format=md&download=1" download class="btn-technical text-xs px-2.5 py-1.5 flex items-center space-x-1 hover:text-white transition-colors" title="Descargar informe en Markdown (.md)">
+          ${icon("file", "icon-sm")}<span>.md</span>
+        </a>
       `;
     } else {
       actionControlsHtml = `

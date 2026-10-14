@@ -6,7 +6,7 @@ import json
 import logging
 from pathlib import Path
 import sqlite3
-from typing import Generator
+from typing import Any, Generator
 
 from automl.domain.recipes.ports import ExperimentRecipeRepositoryPort
 from automl.domain.recipes.recipe import ExperimentRecipe, RecipeStatus
@@ -60,6 +60,18 @@ class SQLiteRecipeRepository(ExperimentRecipeRepositoryPort):
             except Exception:
                 pass
             self._mem_conn = None
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def __enter__(self) -> SQLiteRecipeRepository:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
 
     def _init_db(self) -> None:
         with self._connect() as conn:
