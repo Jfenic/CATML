@@ -662,7 +662,7 @@ def try_post(handler: Any, path: str, payload: dict, ws: Any, cmd: Any, qry: Any
             else:
                 run = ws.create_run(demo_ds, metric="roc_auc")
 
-            quick_train = bool(payload.get("quick_train", True))
+            quick_train = bool((payload or {}).get("quick_train", True))
             exp_id = None
             if quick_train:
                 exps = ws.list_experiments(run.id)

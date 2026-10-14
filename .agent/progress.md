@@ -5,6 +5,7 @@
 - **Subtarea B1 (Workbench Demo Project + Executive Export)**:
   - Backend: `POST /api/project/demo`; `GET /api/reports/executive` (HTML/MD/JSON).
   - Frontend: `loadDemoProject` / informe ejecutivo en home, register modal, studio, overview.
+  - Hardening: corregida extracción de duración (`training_time_s`), filtrado de modelos fallidos en selección de campeón, soporte seguro de cuerpos vacíos y `close()` alias en workspace.
   - Tests: `tests/test_workbench_demo_and_export.py`.
 - **Subtarea B2 (Blackboard #94)**:
   - Lifecycle/`dispose` en sqlite recipes/studies/repository + `AutoMLWorkspace`.

@@ -467,6 +467,10 @@ class AutoMLWorkspace:
             except Exception:
                 pass
 
+    def close(self) -> None:
+        """Alias for dispose(). Close and release any cached repositories."""
+        self.dispose()
+
     def __enter__(self) -> AutoMLWorkspace:
         return self
 

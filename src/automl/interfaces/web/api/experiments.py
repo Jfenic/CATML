@@ -556,7 +556,7 @@ def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | No
             reg = ws.get_feature_registry(dataset.id)
             features = reg.active_feature_names(dataset.target_column)
         except Exception:
-            features = list(profile.columns.keys()) if profile else []
+            features = [c.name for c in profile.columns] if profile and hasattr(profile, "columns") else []
 
     target_name = getattr(dataset, "target_column", None) or "target"
     task_type = getattr(dataset, "task_type", None) or "binary_classification"
@@ -573,25 +573,42 @@ def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | No
     delta_vs_baseline: float | None = None
 
     if leaderboard:
-        champ = leaderboard[0]
-        champion_model = champ.get("model_id") or champ.get("model") or "Desconocido"
-        try:
-            champion_score = float(champ.get("primary_score") or champ.get("score") or 0.0)
-        except (ValueError, TypeError):
-            champion_score = None
-        try:
-            champion_time = float(champ.get("training_time_seconds") or champ.get("duration") or 0.0)
-        except (ValueError, TypeError):
-            champion_time = 0.0
-
-        if len(leaderboard) > 1 and champion_score is not None:
+        succeeded_trials = [
+            r for r in leaderboard
+            if not r.get("failed") and r.get("succeeded", True)
+        ]
+        if succeeded_trials:
+            champ = succeeded_trials[0]
+            champion_model = champ.get("model_id") or champ.get("model") or "Desconocido"
+            champ_sc = champ.get("score") if champ.get("score") is not None else champ.get("primary_score")
             try:
-                base_score = float(leaderboard[-1].get("primary_score") or leaderboard[-1].get("score") or 0.0)
-                delta_vs_baseline = champion_score - base_score
+                champion_score = float(champ_sc) if champ_sc is not None else None
             except (ValueError, TypeError):
-                delta_vs_baseline = 0.0
+                champion_score = None
+
+            champ_t = champ.get("training_time_s") if champ.get("training_time_s") is not None else (champ.get("training_time_seconds") or champ.get("duration") or 0.0)
+            try:
+                champion_time = float(champ_t)
+            except (ValueError, TypeError):
+                champion_time = 0.0
+
+            if len(succeeded_trials) > 1 and champion_score is not None:
+                base_trial = succeeded_trials[-1]
+                base_sc = base_trial.get("score") if base_trial.get("score") is not None else base_trial.get("primary_score")
+                try:
+                    delta_vs_baseline = champion_score - float(base_sc)
+                except (ValueError, TypeError):
+                    delta_vs_baseline = None
+            else:
+                delta_vs_baseline = None
         else:
-            delta_vs_baseline = 0.0
+            champion_model = "Sin modelos exitosos"
+            first_trial = leaderboard[0]
+            first_t = first_trial.get("training_time_s") if first_trial.get("training_time_s") is not None else (first_trial.get("training_time_seconds") or first_trial.get("duration") or 0.0)
+            try:
+                champion_time = float(first_t)
+            except (ValueError, TypeError):
+                champion_time = 0.0
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -646,18 +663,38 @@ def _render_executive_report_markdown(data: dict[str, Any]) -> str:
     lb_lines = []
     lb_lines.append(f"| Rango | Modelo | {val['metric']} | Tiempo (s) | Estado |")
     lb_lines.append("|---|---|---|---|---|")
-    for i, row in enumerate(lb, 1):
-        m_id = row.get("model_id") or row.get("model") or "modelo"
-        sc = row.get("primary_score") or row.get("score")
-        sc_str = f"{float(sc):.4f}" if sc is not None else "—"
-        dur = row.get("training_time_seconds") or row.get("duration") or 0.0
-        dur_str = f"{float(dur):.2f}"
-        st = "Completado" if row.get("succeeded", True) else "Fallido"
-        lb_lines.append(f"| #{i} | {m_id} | {sc_str} | {dur_str}s | {st} |")
+    if not lb:
+        lb_lines.append("| — | Sin ensayos evaluados | — | — | — |")
+    else:
+        for i, row in enumerate(lb, 1):
+            m_id = row.get("model_id") or row.get("model") or "modelo"
+            sc = row.get("score") if row.get("score") is not None else row.get("primary_score")
+            try:
+                sc_str = f"{float(sc):.4f}" if sc is not None else "—"
+            except (ValueError, TypeError):
+                sc_str = "—"
+            dur = row.get("training_time_s") if row.get("training_time_s") is not None else (row.get("training_time_seconds") or row.get("duration") or 0.0)
+            try:
+                dur_str = f"{float(dur):.2f}"
+            except (ValueError, TypeError):
+                dur_str = "0.00"
+            is_succ = (not row.get("failed")) if "failed" in row else row.get("succeeded", True)
+            st = "Completado" if is_succ else "Fallido"
+            lb_lines.append(f"| #{i} | {m_id} | {sc_str} | {dur_str}s | {st} |")
 
     features_str = ", ".join(f"`{f}`" for f in ds["features_list"][:15])
     if len(ds["features_list"]) > 15:
         features_str += f" *(y {len(ds['features_list']) - 15} variables adicionales)*"
+
+    if champ["score"] is not None:
+        tech_conclusion = (
+            f"El modelo **{champ['model_id']}** ha obtenido el rendimiento óptimo bajo validación cruzada {val['strategy']} "
+            f"({val['cv_folds']} pliegues, semilla={val['random_seed']}).\n"
+            "El pipeline de preprocesamiento, codificación e imputación opera estrictamente dentro de cada pliegue de validación (*in-fold*), "
+            "garantizando la ausencia de fuga de información (*zero data leakage*)."
+        )
+    else:
+        tech_conclusion = "No se registraron modelos completados exitosamente en esta ejecución."
 
     return f"""# {meta['title']}
 
@@ -683,8 +720,7 @@ def _render_executive_report_markdown(data: dict[str, Any]) -> str:
 | **Estrategia de Validación** | {val['strategy']} ({val['cv_folds']} pliegues, semilla={val['random_seed']}) |
 
 ### Conclusión Técnica
-El modelo **{champ['model_id']}** ha obtenido el rendimiento óptimo bajo validación cruzada estratificada.
-El pipeline de preprocesamiento, codificación e imputación opera estrictamente dentro de cada pliegue de validación (*in-fold*), garantizando la ausencia de fuga de información (*zero data leakage*).
+{tech_conclusion}
 
 ---
 
@@ -722,17 +758,24 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
     rows_html = ""
     for i, row in enumerate(lb, 1):
         m_id = html.escape(str(row.get("model_id") or row.get("model") or "modelo"))
-        sc = row.get("primary_score") or row.get("score")
-        sc_str = f"{float(sc):.4f}" if sc is not None else "—"
-        dur = row.get("training_time_seconds") or row.get("duration") or 0.0
-        dur_str = f"{float(dur):.2f}s"
-        succ = row.get("succeeded", True)
-        status_badge = '<span style="color:#22C55E">● OK</span>' if succ else '<span style="color:#EF4444">● ERROR</span>'
+        sc = row.get("score") if row.get("score") is not None else row.get("primary_score")
+        try:
+            sc_str = f"{float(sc):.4f}" if sc is not None else "—"
+        except (ValueError, TypeError):
+            sc_str = "—"
+        dur = row.get("training_time_s") if row.get("training_time_s") is not None else (row.get("training_time_seconds") or row.get("duration") or 0.0)
+        try:
+            dur_str = f"{float(dur):.2f}s"
+        except (ValueError, TypeError):
+            dur_str = "0.00s"
+        is_succ = (not row.get("failed")) if "failed" in row else row.get("succeeded", True)
+        status_badge = '<span style="color:#22C55E">● OK</span>' if is_succ else '<span style="color:#EF4444">● ERROR</span>'
         rank_badge = f'<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#161B26;font-size:11px;font-weight:600;color:{"#4F67FF" if i == 1 else "#8B95A7"}">#{i}</span>'
+        score_color = "#22C55E" if (i == 1 and is_succ) else "#F7F8FA"
         rows_html += f"""<tr>
           <td>{rank_badge}</td>
           <td style="font-weight:600;color:#FFFFFF">{m_id}</td>
-          <td style="font-weight:700;color:{"#22C55E" if i == 1 else "#F7F8FA"}">{sc_str}</td>
+          <td style="font-weight:700;color:{score_color}">{sc_str}</td>
           <td>{dur_str}</td>
           <td>{status_badge}</td>
         </tr>"""
@@ -740,6 +783,14 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
     features_html = "".join(f'<span class="pill">{html.escape(f)}</span>' for f in ds["features_list"][:24])
     if len(ds["features_list"]) > 24:
         features_html += f'<span class="pill" style="opacity:0.7">+{len(ds["features_list"]) - 24} más</span>'
+
+    if champ["score"] is not None:
+        exec_conclusion_html = (
+            f"<strong>Conclusión Ejecutiva:</strong> El modelo <strong>{html.escape(champ['model_id'])}</strong> ha alcanzado el mejor desempeño competitivo bajo validación cruzada "
+            f"{html.escape(str(val['strategy']))} ({val['cv_folds']} folds). Todas las transformaciones se evaluaron estrictamente dentro de los pliegues para garantizar cero fuga de datos (<em>data leakage</em>)."
+        )
+    else:
+        exec_conclusion_html = "<strong>Conclusión Ejecutiva:</strong> No se registraron modelos completados exitosamente en esta ejecución."
 
     return f"""<!DOCTYPE html>
 <html lang="es">
@@ -882,7 +933,7 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
       </div>
 
       <div class="conclusion">
-        <strong>Conclusión Ejecutiva:</strong> El modelo <strong>{html.escape(champ['model_id'])}</strong> ha alcanzado el mejor desempeño competitivo bajo validación cruzada {html.escape(str(val['strategy']))} ({val['cv_folds']} folds). Todas las transformaciones se evaluaron estrictamente dentro de los pliegues para garantizar cero fuga de datos (*data leakage*).
+        {exec_conclusion_html}
       </div>
     </div>
 
