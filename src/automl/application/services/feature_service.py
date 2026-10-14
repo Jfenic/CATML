@@ -18,7 +18,9 @@ from automl.engine.features.reduction.pca import PCAReducer
 from automl.engine.features.selection.correlation import CorrelationSelector
 from automl.engine.features.selection.ensemble import EnsembleRankSelector
 from automl.engine.features.selection.importance import TreeImportanceSelector
-from automl.engine.features.selection.mutual_information import MutualInformationSelector
+from automl.engine.features.selection.mutual_information import (
+    MutualInformationSelector,
+)
 from automl.engine.features.selection.variance import VarianceSelector
 from automl.engine.planning.ablation_planner import AblationPlanner
 from automl.engine.profiling.dataset_profiler import load_dataframe, profile_dataset
@@ -41,13 +43,15 @@ class FeatureEngineeringService:
         expression_type: str = "formula",
     ) -> Any:
         """Validate and evaluate a derived feature definition on dataset without modifying it."""
+        import os
+
         from automl.domain.features.derived_feature import (
             DerivedFeatureDefinition,
             DerivedFeatureType,
         )
-        from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
-
-        import os
+        from automl.engine.features.generation.derived_feature_engine import (
+            DerivedFeatureEngine,
+        )
 
         dataset = self.workspace._get_dataset(dataset_id)
         df = load_dataframe(dataset.path)
@@ -76,13 +80,15 @@ class FeatureEngineeringService:
         description: str = "",
     ) -> tuple[Any, Any]:
         """Evaluate and apply a derived feature to the dataset, re-profiling the dataset and saving changes."""
+        import os
+
         from automl.domain.features.derived_feature import (
             DerivedFeatureDefinition,
             DerivedFeatureType,
         )
-        from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
-
-        import os
+        from automl.engine.features.generation.derived_feature_engine import (
+            DerivedFeatureEngine,
+        )
 
         dataset = self.workspace._get_dataset(dataset_id)
         df = load_dataframe(dataset.path)
@@ -198,7 +204,9 @@ class FeatureEngineeringService:
         Discovers temporal dynamics (lags, deltas, cyclical periodicities) and registers
         candidate FeatureSet instances obeying 'Propose != Accept'.
         """
-        from automl.engine.features.generation.temporal_generator import TemporalDynamicsGenerator
+        from automl.engine.features.generation.temporal_generator import (
+            TemporalDynamicsGenerator,
+        )
         from automl.engine.profiling.dataset_profiler import detect_sequential_structure
 
         run = self.workspace._get_run(run_id)

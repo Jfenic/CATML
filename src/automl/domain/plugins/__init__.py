@@ -1,3 +1,3 @@
 from automl.domain.plugins.plugin import PluginCapability, PluginType
 
-__all__ = ["PluginType", "PluginCapability"]
+__all__ = ["PluginCapability", "PluginType"]

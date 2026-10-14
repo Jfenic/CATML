@@ -8,7 +8,12 @@ from automl.domain.experiments.execution_spec import (
     build_execution_spec,
     trial_execution_from_spec,
 )
-from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult
+from automl.domain.experiments.trial import (
+    Experiment,
+    ExperimentStatus,
+    Trial,
+    TrialResult,
+)
 from automl.domain.runs.run import AutoMLRun
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.engine.training.sklearn_trainer import SklearnTrainer

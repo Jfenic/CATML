@@ -2,29 +2,19 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import json
 from typing import Any
 from uuid import uuid4
 
-from automl.domain.agents.entities import (
-    AgentBudget,
-    AgentPermission,
-    ApprovalStatus,
-    Hypothesis,
-    PolicyDecisionType,
-)
 from automl.application.agents.contracts import (
     AgentSessionState,
     ApprovalRequest,
     CandidateProposal,
-    EvaluationFeedback,
     SessionStepResult,
     ToolCallContext,
     ToolInvocation,
 )
 from automl.application.agents.orchestrator.state_machine import (
     AgentStateMachine,
-    CycleState,
     SessionStatus,
     StopReason,
 )
@@ -35,6 +25,13 @@ from automl.application.agents.ports import (
 from automl.application.agents.specialists.context_builder import ContextBuilder
 from automl.application.agents.specialists.critic import Critic
 from automl.application.agents.specialists.planner import Planner
+from automl.domain.agents.entities import (
+    AgentBudget,
+    AgentPermission,
+    ApprovalStatus,
+    Hypothesis,
+    PolicyDecisionType,
+)
 
 
 def _utc_now() -> str:
@@ -123,7 +120,7 @@ class AgentSessionManager:
     def list_sessions(self, run_id: str | None = None) -> list[AgentSessionState]:
         """List active and historical sessions, optionally filtered by run_id."""
         if hasattr(self.session_store, "list_sessions"):
-            return getattr(self.session_store, "list_sessions")(run_id)
+            return self.session_store.list_sessions(run_id)
         # Fallback if list_sessions not directly on port
         session = self.get_session(run_id or "")
         return [session] if session else []

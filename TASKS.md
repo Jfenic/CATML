@@ -76,10 +76,10 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | In PR `#129` |
+| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | Done (`#129`) |
 | P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) (model reliability + HTTP/CSRF) | Done |
-| P1 | Clean Arch **PR5**: Ruff/mypy + ESLint + contract/E2E gates | Open (after PR4) |
-| P1 | E2E product gate: load → train → export → reload → predict parity | Open |
+| P0 | Clean Arch **PR5**: Ruff/mypy + ESLint + contract/E2E gates | In progress (`refactor/clean-arch-pr5-quality-gates`) |
+| P1 | E2E product gate: load → train → export → reload → predict parity | Covered in PR5 smoke (`test_export_reload_predict_parity`) |
 | P2 | Stable PyPI `0.9.0` after structure + trust gates | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
@@ -109,8 +109,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
 | P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Done (`#109`) |
 | P1 | PR3: Web controllers + split `datasets.js` components | Done (`#110`) |
-| P0 | PR4: SQLite modular boundary + state machine + Unit of Work | In PR (`refactor/clean-arch-pr4-persistence-uow`) |
-| P1 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open (after PR4) |
+| P0 | PR4: SQLite modular boundary + state machine + Unit of Work | Done (`#129`) |
+| P0 | PR5: Ruff/mypy/ESLint + contract/E2E gates | In progress (`refactor/clean-arch-pr5-quality-gates`) |
 
 ### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)
 

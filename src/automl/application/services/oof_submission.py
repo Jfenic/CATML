@@ -1,17 +1,22 @@
 """OOF command orchestration and side-effect-free artifact queries."""
 
 import hashlib
-from importlib.metadata import PackageNotFoundError, version
 import json
-from pathlib import Path
 import uuid
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from time import monotonic
 
 import numpy as np
 import pandas as pd
 
 from automl import __version__
-from automl.domain.experiments.trial import ExperimentStatus, Trial, TrialResult, TrialStatus
+from automl.domain.experiments.trial import (
+    ExperimentStatus,
+    Trial,
+    TrialResult,
+    TrialStatus,
+)
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.engine.ensemble.oof import evaluate_oof
 from automl.engine.profiling.dataset_profiler import load_dataframe

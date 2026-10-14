@@ -1,12 +1,14 @@
 """Execute the allowlisted operations through the same application commands."""
 
 from automl.application.commands.workspace_commands import (
-    CreateExperimentCommand, GenerateOOFSubmissionCommand, GenerateSubmissionCommand,
+    CreateExperimentCommand,
+    GenerateOOFSubmissionCommand,
+    GenerateSubmissionCommand,
 )
 from automl.application.queries.workspace_queries import GetOOFResultQuery
-from automl.domain.jobs.job import Job, JobStatus, ACTIVE_STATUSES
-from automl.domain.ports import JobRepositoryPort
 from automl.domain.experiments.trial import ExperimentStatus
+from automl.domain.jobs.job import ACTIVE_STATUSES, Job, JobStatus
+from automl.domain.ports import JobRepositoryPort
 
 
 class JobStopped(RuntimeError):
@@ -48,7 +50,9 @@ class JobExecutor:
                 time_budget_seconds = args.pop("time_budget_seconds", None)
                 args.pop("mode", None)
                 if budget is not None or time_budget_seconds is not None:
-                    from automl.domain.experiments.budgets import resolve_time_budget_seconds
+                    from automl.domain.experiments.budgets import (
+                        resolve_time_budget_seconds,
+                    )
 
                     time_sec = resolve_time_budget_seconds(budget, time_budget_seconds)
                     r = self.workspace._get_run(job.run_id)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import Any
 
 from automl.domain.plugins.plugin import PluginType
 from automl.domain.ports import (
@@ -9,7 +9,6 @@ from automl.domain.ports import (
     ModalityPluginPort,
     ModelPluginPort,
     PluginPort,
-    PreprocessorPluginPort,
 )
 from automl.engine.plugins.validator import CompatibilityValidator
 

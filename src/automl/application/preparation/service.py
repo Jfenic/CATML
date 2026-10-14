@@ -34,7 +34,10 @@ from automl.domain.preparation.models import (
     QualityIssue,
     QualityReport,
 )
-from automl.domain.preparation.validation import PreparationValidationError, validate_plan
+from automl.domain.preparation.validation import (
+    PreparationValidationError,
+    validate_plan,
+)
 from automl.infrastructure.preparation.json_store import JsonPreparationStore
 
 if TYPE_CHECKING:
@@ -59,7 +62,7 @@ class PreparationService:
         ds = self.workspace.get_dataset(cmd.dataset_id)
         df = pd.read_csv(ds.path) if str(ds.path).endswith(".csv") else pd.read_parquet(ds.path)
         issues: list[QualityIssue] = []
-        n_rows, n_cols = int(len(df)), int(df.shape[1])
+        n_rows, n_cols = len(df), int(df.shape[1])
 
         null_frac = df.isna().mean()
         for col, frac in null_frac.items():
@@ -184,7 +187,7 @@ class PreparationService:
         warnings = validate_plan(plan)
         ds = self.workspace.get_dataset(plan.dataset_id)
         df = self._load_frame(ds.path)
-        before = {"rows": int(len(df)), "columns": int(df.shape[1]), "column_names": list(df.columns)}
+        before = {"rows": len(df), "columns": int(df.shape[1]), "column_names": list(df.columns)}
 
         working = df.copy()
         pipeline_steps: list[dict[str, Any]] = []
@@ -197,7 +200,7 @@ class PreparationService:
             dataset_steps_applied += 1
 
         after = {
-            "rows": int(len(working)),
+            "rows": len(working),
             "columns": int(working.shape[1]),
             "column_names": list(working.columns),
         }

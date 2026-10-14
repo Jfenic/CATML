@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from automl.domain.jobs.job import Job, JobStatus
-
 from automl.domain.datasets.profile import DatasetProfile
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
@@ -13,15 +11,14 @@ from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionE
 from automl.domain.features.registry import FeatureRegistry
 from automl.domain.features.selection_strategy import (
     FeatureRank,
-    FeatureSelectionStrategy,
     FeatureSetCandidate,
 )
+from automl.domain.jobs.job import Job, JobStatus
 from automl.domain.modalities.modality import DataSource, Modality
 from automl.domain.models.registry import ModelRegistry
 from automl.domain.optimization.search_space import SearchSpace
 from automl.domain.plugins.plugin import PluginCapability, PluginType
 from automl.domain.runs.run import AutoMLRun
-
 
 
 @dataclass
@@ -180,7 +177,7 @@ class FeatureSelectorPort(Protocol):
 class DimensionalityReducerPort(Protocol):
     method_id: str
 
-    def fit(self, context: FeatureAnalysisContext, n_components: int | float | None = None) -> None:
+    def fit(self, context: FeatureAnalysisContext, n_components: float | None = None) -> None:
         ...
 
     def transform(self, data: Any) -> Any:
@@ -263,12 +260,12 @@ class ModalityPluginPort(PluginPort, Protocol):
 
 class JobRepositoryPort(Protocol):
     """Atomic state transitions and claims for durable local jobs."""
-    def enqueue(self, job: "Job") -> str: ...
-    def get(self, job_id: str) -> "Job": ...
-    def list(self, run_id: str | None = None) -> list["Job"]: ...
-    def change(self, job_id: str, allowed: set["JobStatus"], **changes: Any) -> "Job": ...
-    def finish(self, job_id: str, status: "JobStatus", **changes: Any) -> "Job": ...
-    def claim(self) -> "Job | None": ...
+    def enqueue(self, job: Job) -> str: ...
+    def get(self, job_id: str) -> Job: ...
+    def list(self, run_id: str | None = None) -> list[Job]: ...
+    def change(self, job_id: str, allowed: set[JobStatus], **changes: Any) -> Job: ...
+    def finish(self, job_id: str, status: JobStatus, **changes: Any) -> Job: ...
+    def claim(self) -> Job | None: ...
     def recover(self) -> None: ...
 
 

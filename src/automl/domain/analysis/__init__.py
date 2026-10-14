@@ -22,8 +22,8 @@ __all__ = [
     "DataSourceRef",
     "EvidenceLink",
     "StatisticalFinding",
+    "StudyRepositoryPort",
     "StudySpec",
     "StudyStatus",
     "VisualizationSpec",
-    "StudyRepositoryPort",
 ]

@@ -59,8 +59,8 @@ def build_execution_spec(
     metric_spec = resolve_metric_spec(raw_metric, greater_is_better=greater_is_better)
 
     feature_names = tuple(getattr(experiment, "feature_names", None) or ())
-    transforms = tuple(list(getattr(experiment, "column_transforms", None) or []))
-    derived = tuple(list(getattr(experiment, "derived_features", None) or []))
+    transforms = tuple(getattr(experiment, "column_transforms", None) or ())
+    derived = tuple(getattr(experiment, "derived_features", None) or ())
     param_items = tuple(sorted((params or {}).items(), key=lambda kv: kv[0]))
 
     ds_id = getattr(dataset, "id", None) or getattr(run, "dataset_id", "")

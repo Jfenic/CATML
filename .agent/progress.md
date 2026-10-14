@@ -1,5 +1,14 @@
 # Progress
 
+### Clean Arch PR5 — quality gates (2026-10-14)
+
+- Branch `refactor/clean-arch-pr5-quality-gates` (from main after `#128`/`#129`).
+- Ruff + mypy: `pyproject.toml` tools; domain green; application gradual ignores for legacy debt.
+- ESLint/Prettier: root `package.json`, `eslint.config.js`, CI `lint-js`.
+- CI: `lint-python` + `lint-js` before `test` matrix.
+- Tests: `tests/test_clean_arch_pr5_quality_gates.py` (config contract + export→predict parity).
+- Fixed `knowledge.js` undefined `state` (use `store.getActiveDatasetId()`).
+
 ### Clean Arch PR4 — persistence / states / UoW (2026-10-14)
 
 - Branch `refactor/clean-arch-pr4-persistence-uow` → PR `#129` (synced with `#128` on main).

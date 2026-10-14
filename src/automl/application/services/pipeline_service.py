@@ -124,12 +124,7 @@ class PipelineExecutionService:
                 fusion = FeatureFusionNode.from_pipeline_node(node)
                 node_outputs[node.node_id] = fusion.fuse(fusion_dict)
 
-            elif node.node_type == NodeType.PREPROCESSOR:
-                incoming = graph.get_incoming_nodes(node.node_id)
-                src_data = node_outputs[incoming[0].node_id]
-                node_outputs[node.node_id] = src_data
-
-            elif node.node_type == NodeType.MODEL:
+            elif node.node_type == NodeType.PREPROCESSOR or node.node_type == NodeType.MODEL:
                 incoming = graph.get_incoming_nodes(node.node_id)
                 src_data = node_outputs[incoming[0].node_id]
                 node_outputs[node.node_id] = src_data

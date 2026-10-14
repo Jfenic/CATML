@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from automl.application.analysis.commands import (
     ArchiveStudyCommand,
@@ -216,9 +217,7 @@ class AnalysisStudyService:
                 p_raw = f.p_value
                 p_fdr = f.metrics.get("p_value_fdr") if isinstance(f.metrics, dict) else None
                 is_significant = False
-                if p_raw is not None and p_raw <= threshold:
-                    is_significant = True
-                elif p_fdr is not None and p_fdr <= threshold:
+                if (p_raw is not None and p_raw <= threshold) or (p_fdr is not None and p_fdr <= threshold):
                     is_significant = True
                 if is_significant:
                     filtered.append(f)

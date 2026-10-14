@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
-import uuid
 
 from automl.domain.experiments.validation import normalize_validation_strategy
 
@@ -178,9 +178,8 @@ class ExperimentRecipe:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ExperimentRecipe:
         d = dict(data)
-        if "status" in d:
-            if isinstance(d["status"], str):
-                d["status"] = RecipeStatus(d["status"].lower())
+        if "status" in d and isinstance(d["status"], str):
+            d["status"] = RecipeStatus(d["status"].lower())
         if "validation_strategy" in d:
             d["validation_strategy"] = normalize_validation_strategy(
                 d.get("validation_strategy"),

@@ -45,7 +45,9 @@ class Experiment:
 
     def transition_to(self, status: ExperimentStatus) -> None:
         """Apply an allowed experiment status change (terminal states are sticky)."""
-        from automl.domain.experiments.transitions import assert_valid_experiment_transition
+        from automl.domain.experiments.transitions import (
+            assert_valid_experiment_transition,
+        )
 
         assert_valid_experiment_transition(self.status, status)
         self.status = status

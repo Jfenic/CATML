@@ -163,9 +163,14 @@ class OptimizationService:
             report_step = getattr(opt, "report_step", None)
             if callable(report_step):
 
-                def _fold_callback(step: int, score: float, _idx: int = trial_idx) -> bool:
+                def _fold_callback(
+                    step: int,
+                    score: float,
+                    _idx: int = trial_idx,
+                    _report=report_step,
+                ) -> bool:
                     try:
-                        return bool(report_step(_idx, step, float(score)))
+                        return bool(_report(_idx, step, float(score)))
                     except Exception:
                         return False
 

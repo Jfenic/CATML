@@ -1,21 +1,14 @@
 """Tool executor dispatching invocations through policy checks, scope isolation, and QueryBus."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
+import logging
 import time
-from typing import Any, Callable
 import uuid
+from collections.abc import Callable
+from datetime import datetime, timezone
+from typing import Any
 
-from automl.domain.agents.entities import (
-    AgentBudget,
-    AgentPermission,
-    ApprovalStatus,
-    OperationStatus,
-    PolicyDecisionType,
-    ToolEffect,
-    ToolErrorCode,
-)
 from automl.application.agents.contracts import (
     ApprovalRequest,
     OperationRecord,
@@ -52,6 +45,17 @@ from automl.application.queries.workspace_queries import (
     ListModelsQuery,
     ListPluginsQuery,
 )
+from automl.domain.agents.entities import (
+    AgentBudget,
+    AgentPermission,
+    ApprovalStatus,
+    OperationStatus,
+    PolicyDecisionType,
+    ToolEffect,
+    ToolErrorCode,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class ToolExecutor:
@@ -559,7 +563,7 @@ class ToolExecutor:
                     success=False,
                     error=ToolError(
                         code=ToolErrorCode.INTERNAL_ERROR,
-                        message=f"Failed to record operation intention in ledger: {str(exc)}",
+                        message=f"Failed to record operation intention in ledger: {exc!s}",
                         correlation_id=invocation.context.correlation_id,
                     ),
                     execution_time_seconds=time.perf_counter() - start_time,
@@ -791,7 +795,7 @@ class ToolExecutor:
                     execution_time_seconds=time.perf_counter() - start_time,
                 )
 
-            err_msg = f"Internal error executing '{invocation.tool_name}': {str(exc)}"
+            err_msg = f"Internal error executing '{invocation.tool_name}': {exc!s}"
             if self.ledger and operation_id:
                 self.ledger.update_operation_status(
                     operation_id=operation_id,

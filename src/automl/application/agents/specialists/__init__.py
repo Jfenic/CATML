@@ -8,7 +8,7 @@ from automl.application.agents.specialists.planner import Planner
 
 __all__ = [
     "ContextBuilder",
-    "Planner",
-    "FeatureAdvisor",
     "Critic",
+    "FeatureAdvisor",
+    "Planner",
 ]

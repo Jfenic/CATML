@@ -5,6 +5,6 @@ from automl.domain.recipes.recipe import ExperimentRecipe, RecipeStatus
 
 __all__ = [
     "ExperimentRecipe",
-    "RecipeStatus",
     "ExperimentRecipeRepositoryPort",
+    "RecipeStatus",
 ]

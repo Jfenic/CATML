@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import hashlib
+import sys
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-import sys
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -130,7 +130,9 @@ class InferenceService:
 
         test_df = load_dataframe(test_dataset_path)
         if experiment.validation_strategy == "oof":
-            from automl.application.services.oof_submission import cached_oof_predictions
+            from automl.application.services.oof_submission import (
+                cached_oof_predictions,
+            )
 
             raw_preds = cached_oof_predictions(self.workspace, run_id, experiment.id, test_dataset_path, predict_proba)
         else:
@@ -141,7 +143,9 @@ class InferenceService:
             train_df = load_dataframe(dataset.path)
             # Parity with SklearnTrainer.run / export: materialize derived cols then apply transforms.
             if derived_features:
-                from automl.domain.features.derived_feature import DerivedFeatureDefinition
+                from automl.domain.features.derived_feature import (
+                    DerivedFeatureDefinition,
+                )
                 from automl.engine.features.generation.derived_feature_engine import (
                     DerivedFeatureEngine,
                     assert_derived_specs_safe_for_cross_validation,

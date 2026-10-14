@@ -24,18 +24,24 @@ class BudgetPolicy:
         # Pinned candidates always bypass soft filters (score thresholds, etc.)
         is_pinned = candidate.priority is not None and candidate.priority.is_pinned
 
-        if self.max_experiments is not None and (executed_experiments >= self.max_experiments):
-            if not is_pinned:
-                return False
+        if (
+            self.max_experiments is not None
+            and executed_experiments >= self.max_experiments
+            and not is_pinned
+        ):
+            return False
 
         if self.max_trials is not None:
             projected_trials = executed_trials + len(candidate.model_ids)
             if projected_trials > self.max_trials and not is_pinned:
                 return False
 
-        if candidate.priority is not None:
-            if candidate.priority.effective_score < self.min_effective_score and not is_pinned:
-                return False
+        if (
+            candidate.priority is not None
+            and candidate.priority.effective_score < self.min_effective_score
+            and not is_pinned
+        ):
+            return False
 
         if self.allowed_models is not None:
             allowed_set = set(self.allowed_models)

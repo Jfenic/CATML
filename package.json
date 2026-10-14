@@ -1,0 +1,16 @@
+{
+  "name": "catml-workbench",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling for CATML Workbench static JS (Clean Arch PR5)",
+  "scripts": {
+    "lint:js": "eslint \"src/automl/interfaces/web/static/js/**/*.js\" --max-warnings 100",
+    "format:js:check": "prettier --check \"src/automl/interfaces/web/static/js/**/*.js\"",
+    "test:js": "node --test tests/js/*.test.mjs"
+  },
+  "devDependencies": {
+    "eslint": "^9.16.0",
+    "globals": "^15.13.0",
+    "prettier": "^3.4.2"
+  }
+}

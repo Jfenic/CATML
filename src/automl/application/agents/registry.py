@@ -1,7 +1,8 @@
 """Agent tool registry maintaining tool definitions and executable handlers."""
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from automl.application.agents.contracts import ToolDefinition
 
