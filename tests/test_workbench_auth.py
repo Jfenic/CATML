@@ -101,7 +101,10 @@ def test_workbench_auth_query_token_rejected_on_post():
 
 def test_workbench_payload_size_limit():
     handler = AutoMLWebHandler.__new__(AutoMLWebHandler)
-    handler.headers = {"Content-Length": str(AutoMLWebHandler.MAX_PAYLOAD_SIZE + 100)}
+    handler.headers = {
+        "Content-Length": str(AutoMLWebHandler.MAX_PAYLOAD_SIZE + 100),
+        "Content-Type": "application/json",
+    }
     handler.path = "/api/jobs"
     handler.command = "POST"
 

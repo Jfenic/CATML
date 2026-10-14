@@ -71,8 +71,9 @@ def test_select_features_stores_tree_importance_not_shap(tmp_path: Path):
         strategy=FeatureSelectionStrategy(methods=["importance", "mutual_information"], top_k=[2]),
     )
     assert candidates
-    assert candidates[0].metadata.get("evaluation_mode") == "exploratory_full_dataset"
-    assert candidates[0].metadata.get("supervised_selection_leakage_risk") is True
+    assert candidates[0].metadata.get("evaluation_mode") == "nested_in_fold"
+    assert candidates[0].metadata.get("supervised_selection_leakage_risk") is False
+    assert candidates[0].metadata.get("column_transforms")
 
     evidence_rows = ws.repository.list_feature_evidence(run.id)
     assert evidence_rows

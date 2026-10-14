@@ -26,6 +26,7 @@ jobs:
   pip-audit:
     runs-on: ubuntu-latest
     needs: test
+    # Advisory noise may still appear on PR CI; release verify gate is blocking.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +42,17 @@ jobs:
       - name: Audit installed dependencies
         # Package name is pip-audit; Python module is pip_audit.
         run: python -m pip_audit
+
+  js-unit:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run Workbench JS unit tests
+        run: node --test tests/js/*.test.mjs
 
   package-smoke:
     runs-on: ubuntu-latest

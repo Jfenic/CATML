@@ -70,23 +70,47 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-### Focus — Publish tabular `0.9.0rc1`
+### Focus — Consolidation cycle (trust before features)
 
-> Labs UI deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Active work = packaging + TestPyPI/PyPI.
+> Goal: leave tabular CATML in a **professional, trustable** state before adding Labs / more AutoML surface. Labs remain deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)).
+
+**Gate to merge now:** [#128](https://github.com/Jfenic/catml/pull/128) (CI green) — model reliability + HTTP/CSRF + honest executive reports. `#127` closed as superseded.
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Merge Clean Arch PR2/PR3 + UX #111 | Done (`#111` → `main`) |
-| P0 | Audit-5 honesty (budget/XSS/Manual/multiclass/fallback/HPO) | Done (in `#111`) |
-| P0 | Third-party license compliance (`THIRD_PARTY_LICENSES.md` + wheel/sdist tests) | Done (this PR) |
-| P0 | Build/twine check wheel locally (`catml-0.9.0rc1`) | Done |
-| P0 | GitHub Environments `testpypi`/`pypi` + required reviewers | Done |
-| P0 | Human: PyPI/TestPyPI Trusted Publisher + first TestPyPI upload | Done (`0.9.0rc1` on PyPI) |
-| P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
-| P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | Done (#116 merged) |
-| P1 | MCP `--allow-mutations` + text LSA (SVD) for trees | In PR `fix/mcp-allow-mutations-text-svd` |
-| P1 | Demo project + executive results export (Sprint 3) | Done (`feat/demo-export-and-sqlite-94`) |
+| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) into `main` | Ready (human merge) |
+| P0 | Close stale duplicate honesty PR `#127` | Done (superseded by `#128`) |
+| P1 | E2E product gate: load → train → export → reload process → predict parity | Open (next) |
+| P1 | Document guarantees & limits (SECURITY + docs/README honesty for export/parity) | Open (next) |
+| P1 | Triage remaining open feature PRs / stale branches; keep only merge-worthy | Open |
+| P2 | Persist/reuse `build_application` across HTTP requests (latency) | Open |
+| P2 | Playwright critical Workbench paths (optional after pytest E2E gate) | Open |
+| P2 | Clean Arch PR4/PR5 | Open (after consolidation gate) |
+| P2 | Stable PyPI `0.9.0` after consolidation green | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
+
+### Shipped — rc1 publish + audit remediations (reference)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Tabular `0.9.0rc1` on PyPI + Trusted Publisher | Done |
+| P0 | Clean Arch PR1–PR3 + UX/Audit-5 (`#111`) | Done |
+| P1 | Demo/export + SQLite lifecycle (`#125`/`#126`) | Done |
+| P1 | HPO fold pruning + `fit(time_budget)` (`#116`) | Done |
+| P1 | Audit HTTP path/CSRF + JS CI + release pip-audit | Done (`#128`) |
+| P1 | Audit model reliability (export chain, derived predict, nested FS) | Done (`#128`) |
+| P1 | Executive report honesty | Done (`#128`; `#127` superseded) |
+
+### Track Consolidation — Quality & trust indicators
+
+| Indicator | Target | Status |
+| --- | --- | --- |
+| Inference parity | Exported artifact predicts like workspace pipeline on original columns | Partial (`#128`); needs process-isolated E2E |
+| Path security | No HTTP read/write outside cwd∪workspace | Done (`#128`) |
+| Unevaluated models | Predict/export require succeeded trial | Done (`#128`) |
+| Report honesty | No stronger claims than evidence | Done (`#128`) |
+| Recovery | Interrupted jobs/sessions resume with history | Existing (jobs + LangGraph); soak docs Open |
+| Full-product E2E | Automated load→train→export→reload→predict | Open |
 
 ### Track License compliance (documentation / packaging only)
 

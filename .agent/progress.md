@@ -1,5 +1,27 @@
 # Progress
 
+### Consolidation cycle started (2026-10-14)
+
+- Focus shifted: trust/consolidation before new features (Labs still deferred).
+- [#128](https://github.com/Jfenic/catml/pull/128) merge-ready (CI green): model reliability + HTTP/CSRF + honest reports.
+- Closed [#127](https://github.com/Jfenic/catml/pull/127) as superseded by `#128`.
+- Next after merge: process-isolated export→predict E2E gate; document guarantees/limits; triage stale PRs; then stable `0.9.0`.
+
+### Model reliability audit (2026-10-14)
+
+- Branch `fix/model-reliability-audit` → PR `#128`.
+- Done: trial chain for predict/export; derived features in `ModelArtifact.predict`; block stateful apply; nested supervised select; HTTP path/CSRF; honest executive report.
+- Tests: `tests/test_audit_model_reliability.py`, `tests/test_audit_http_path_csrf.py`.
+
+### Audit-HTTP remediations + executive honesty (2026-10-14)
+
+- External audit P1s on `main` @ `c7718768`:
+  1. `/api/predict` path confinement (`resolve_allowed_path`; relative outputs → `workspace/exports/`).
+  2. Mutable POST guards: `Content-Type: application/json`, reject `Sec-Fetch-Site: cross-site`, Origin loopback/Host match.
+  3. Executive report honesty: no `anti_leakage_guaranteed`, Δ vs worst succeeded, duration `—`.
+- P2/P3: release blocking `pip-audit`, CI `js-unit` (`node --test`), MIME `.woff2`/fonts, SECURITY.md notes.
+- Tests: `tests/test_audit_http_path_csrf.py`.
+
 ### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
 
 - **Subtarea B1 (Workbench Demo Project + Executive Export)**:

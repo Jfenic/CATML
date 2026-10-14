@@ -21,6 +21,19 @@ from automl.interfaces.web.api._helpers import (  # noqa: F401 — public re-exp
     _status_value,
 )
 
+
+def _is_loopback_origin(origin: str) -> bool:
+    """Return True when Origin is an http(s) loopback URL."""
+    try:
+        parsed = urlparse(origin)
+    except Exception:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in {"localhost", "127.0.0.1", "::1"}
+
+
 class AutoMLWebHandler(BaseHTTPRequestHandler):
     """
     HTTP request handler for the CATML interactive web dashboard / workbench.
@@ -79,10 +92,57 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
     def _send_cors_headers(self) -> None:
         origin = self.headers.get("Origin") if hasattr(self, "headers") and self.headers else None
-        if origin and (origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")):
+        if origin and _is_loopback_origin(origin):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+    def _mutable_request_allowed(self) -> bool:
+        """Defend against casual cross-origin POSTs to the local Workbench.
+
+        Policy (defense in depth; browsers still control real CSRF surface):
+        - Require ``Content-Type: application/json`` (blocks simple form CSRF).
+        - Reject ``Sec-Fetch-Site: cross-site`` when the browser sends it.
+        - If ``Origin`` is present, require loopback or same Host as the request.
+        Missing Origin / Sec-Fetch-Site (CLI, urlopen, older clients) is allowed.
+        """
+        headers = self.headers if hasattr(self, "headers") and self.headers else {}
+        content_type = (headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            self._send_json(
+                {
+                    "error": "Unsupported Media Type",
+                    "message": "Mutable Workbench endpoints require Content-Type: application/json",
+                },
+                HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+            )
+            return False
+
+        sec_fetch_site = (headers.get("Sec-Fetch-Site") or "").strip().lower()
+        if sec_fetch_site == "cross-site":
+            self._send_json(
+                {
+                    "error": "Forbidden",
+                    "message": "Cross-site mutable requests are not allowed",
+                },
+                HTTPStatus.FORBIDDEN,
+            )
+            return False
+
+        origin = (headers.get("Origin") or "").strip()
+        if origin:
+            host = (headers.get("Host") or "").strip().lower()
+            origin_host = (urlparse(origin).netloc or "").lower()
+            if not (_is_loopback_origin(origin) or (host and origin_host == host)):
+                self._send_json(
+                    {
+                        "error": "Forbidden",
+                        "message": "Origin is not allowed for mutable Workbench requests",
+                    },
+                    HTTPStatus.FORBIDDEN,
+                )
+                return False
+        return True
 
     def _send_json(self, data: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         payload = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
@@ -141,8 +201,12 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
                     ".json": "application/json; charset=utf-8",
                     ".svg": "image/svg+xml",
                     ".png": "image/png",
+                    ".woff": "font/woff",
+                    ".woff2": "font/woff2",
+                    ".ttf": "font/ttf",
+                    ".otf": "font/otf",
                 }
-                content_type = mime_types.get(target_file.suffix, "text/plain; charset=utf-8")
+                content_type = mime_types.get(target_file.suffix.lower(), "application/octet-stream")
                 payload = target_file.read_bytes()
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", content_type)
@@ -169,6 +233,8 @@ class AutoMLWebHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if not self._require_auth_or_reject():
+            return
+        if not self._mutable_request_allowed():
             return
 
         parsed = urlparse(self.path)

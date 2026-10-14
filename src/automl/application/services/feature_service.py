@@ -93,14 +93,31 @@ class FeatureEngineeringService:
             expression=expression,
             description=description,
         )
+        from automl.engine.features.generation.derived_feature_engine import (
+            formula_uses_stateful_aggregates,
+        )
+
         engine = DerivedFeatureEngine()
         allow_python = os.environ.get("CATML_ALLOW_DERIVED_PYTHON", "").strip() == "1"
+        # Never materialize stateful aggregates onto the dataset file: that bakes
+        # full-frame statistics into columns before CV and defeats fold isolation.
+        if expression_type == "formula" and formula_uses_stateful_aggregates(expression):
+            raise ValueError(
+                f"Cannot persist derived feature '{name}' with stateful aggregate(s) in "
+                f"'{expression}'. Use fit-in-fold column_transforms (StandardScaler / "
+                "RobustScaler) or row-wise formulas (e.g. log1p(x)). Preview via "
+                "validate_derived_feature remains available."
+            )
         updated_df, result = engine.apply(
             df,
             def_obj,
             allow_python_code=allow_python,
-            allow_stateful_aggregates=True,
+            allow_stateful_aggregates=False,
         )
+        if not result.is_valid:
+            raise ValueError(
+                f"Cannot apply derived feature '{name}': {result.error_message}"
+            )
 
         # Preserve original on-disk format (Parquet must not be overwritten with CSV bytes).
         from automl.engine.profiling.dataset_profiler import save_dataframe
@@ -110,6 +127,9 @@ class FeatureEngineeringService:
         # Re-profile dataset so new feature is part of the profile schema and available for experiments
         profile = profile_dataset(dataset, updated_df)
         self.workspace.repository.save_dataset_profile(profile)
+        # Invalidate cached registry so create_experiment sees the new column.
+        self.workspace._feature_registries.pop(dataset_id, None)
+        self.workspace._hydrate_feature_registry(dataset_id)
 
         return result, profile
 
@@ -322,26 +342,65 @@ class FeatureEngineeringService:
 
         self.workspace._feature_ranks[run.id] = combined_ranks
 
+        supervised_method_ids = {"mutual_information", "importance", "tree_importance"}
+        used_methods = {sel.method_id for sel in selectors}
+        is_supervised = bool(used_methods & supervised_method_ids)
+        method_label = (
+            strat.combine_method if len(selectors) > 1 else selectors[0].method_id
+        )
+        select_method = (
+            "mutual_information"
+            if "mutual_information" in used_methods
+            else ("tree_importance" if used_methods & {"importance", "tree_importance"} else method_label)
+        )
+
         candidates: list[FeatureSetCandidate] = []
         for k in strat.top_k:
             if k <= len(combined_ranks):
                 selected_names = [r.feature_name for r in combined_ranks[:k]]
-                candidates.append(
-                    FeatureSetCandidate.create(
-                        name=f"selected_top_{k}",
-                        feature_names=selected_names,
-                        method=strat.combine_method if len(selectors) > 1 else selectors[0].method_id,
-                        k=k,
-                        metadata={
-                            "strategy": strat.to_dict(),
-                            "features": selected_names,
-                            # Supervised selectors fit on the full labeled dataset; treating
-                            # CV scores on the same rows as unbiased estimates is optimistic.
-                            "evaluation_mode": "exploratory_full_dataset",
-                            "supervised_selection_leakage_risk": True,
-                        },
+                if is_supervised:
+                    # Keep the full active set; re-select top-k inside each CV fold via
+                    # column_transforms kind=supervised_select (fold-safe).
+                    candidates.append(
+                        FeatureSetCandidate.create(
+                            name=f"selected_top_{k}_nested",
+                            feature_names=list(active_features),
+                            method=method_label,
+                            k=k,
+                            metadata={
+                                "strategy": strat.to_dict(),
+                                "exploratory_ranking_top_k": selected_names,
+                                "features": list(active_features),
+                                "evaluation_mode": "nested_in_fold",
+                                "supervised_selection_leakage_risk": False,
+                                "column_transforms": [
+                                    {
+                                        "column": "*",
+                                        "kind": "supervised_select",
+                                        "params": {
+                                            "method": select_method,
+                                            "k": k,
+                                        },
+                                    }
+                                ],
+                            },
+                        )
                     )
-                )
+                else:
+                    candidates.append(
+                        FeatureSetCandidate.create(
+                            name=f"selected_top_{k}",
+                            feature_names=selected_names,
+                            method=method_label,
+                            k=k,
+                            metadata={
+                                "strategy": strat.to_dict(),
+                                "features": selected_names,
+                                "evaluation_mode": "exploratory_unsupervised",
+                                "supervised_selection_leakage_risk": False,
+                            },
+                        )
+                    )
 
         if strat.include_reduction:
             pca = PCAReducer()
@@ -472,7 +531,11 @@ class FeatureEngineeringService:
         run_id: str,
         candidate_id: str,
         new_name: str | None = None,
+        *,
+        allow_unverified_promotion: bool = False,
     ) -> FeatureSet:
+        import json
+
         run = self.workspace._get_run(run_id)
         candidates = self.workspace._candidate_feature_sets.get(run.id, [])
         candidate = next(
@@ -482,12 +545,26 @@ class FeatureEngineeringService:
         if candidate is None:
             raise KeyError(f"Candidate feature set not found: {candidate_id}")
 
+        meta = dict(candidate.metadata or {})
+        if meta.get("supervised_selection_leakage_risk") and not allow_unverified_promotion:
+            raise ValueError(
+                f"Candidate '{candidate.name}' was ranked with supervised selectors on the "
+                "full labeled dataset (optimistic bias risk). Refuse promotion without "
+                "allow_unverified_promotion=True, or use a nested_in_fold candidate "
+                "(evaluation_mode='nested_in_fold') and pass its column_transforms into "
+                "create_experiment."
+            )
+
         feature_set_name = new_name or candidate.name
+        lineage = f"promoted_from_{candidate.method}_{candidate.id}"
+        transforms = meta.get("column_transforms") or []
+        if transforms:
+            lineage = f"{lineage}\ncatml_column_transforms:{json.dumps(transforms)}"
         feature_set = self.workspace.create_feature_set(
             dataset_id=run.dataset_id,
             name=feature_set_name,
             feature_names=candidate.feature_names,
-            lineage=f"promoted_from_{candidate.method}_{candidate.id}",
+            lineage=lineage,
         )
         self.workspace._emit(
             "FeatureSetPromoted",
