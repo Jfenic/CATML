@@ -139,12 +139,45 @@ class ModelArtifact:
         probs = self.pipeline.predict_proba(X_proc)
         return np.asarray(probs)
 
+    def _apply_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Materialize recipe-derived columns from original inputs when missing."""
+        derived_specs = list(self.metadata.get("derived_features") or [])
+        if not derived_specs:
+            return df
+
+        from automl.domain.features.derived_feature import DerivedFeatureDefinition
+        from automl.engine.features.generation.derived_feature_engine import (
+            DerivedFeatureEngine,
+            assert_derived_specs_safe_for_cross_validation,
+        )
+
+        assert_derived_specs_safe_for_cross_validation(derived_specs)
+        engine = DerivedFeatureEngine()
+        out = df
+        for spec in derived_specs:
+            defn = DerivedFeatureDefinition.from_dict(spec) if isinstance(spec, dict) else spec
+            if defn.name in out.columns:
+                continue
+            out, eval_res = engine.apply(
+                out,
+                defn,
+                allow_python_code=False,
+                allow_stateful_aggregates=False,
+            )
+            if not eval_res.is_valid:
+                raise ValueError(
+                    f"Failed to materialize derived feature '{defn.name}' during inference: "
+                    f"{eval_res.error_message}"
+                )
+        return out
+
     def _prepare_features(self, X: pd.DataFrame | np.ndarray) -> pd.DataFrame:
         if isinstance(X, pd.DataFrame):
-            missing = [f for f in self.feature_names if f not in X.columns]
+            prepared = self._apply_derived_features(X)
+            missing = [f for f in self.feature_names if f not in prepared.columns]
             if missing:
                 raise ValueError(f"Input DataFrame is missing required features: {missing}")
-            return X[self.feature_names]
+            return prepared[self.feature_names]
         elif isinstance(X, np.ndarray):
             arr = np.asarray(X)
             if arr.ndim == 1:

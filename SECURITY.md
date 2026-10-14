@@ -57,9 +57,9 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - **Loopback Default:** Both Workbench (`127.0.0.1:8080`) and MCP server (`127.0.0.1:8000`) bind exclusively to loopback interfaces by default.
 - **Fail-Closed Remote Binding:** Binding to external network interfaces (`0.0.0.0` or non-loopback IP) strictly requires authentication. Any attempt to use `--insecure-no-auth` remotely without explicitly setting the environment variable `CATML_ALLOW_INSECURE=1` is rejected with `PermissionError`.
 - **Fragment-Only URLs:** Access tokens are provided using client-side fragments (`/#token=...`), ensuring tokens are never transmitted across HTTP requests or leaked in server access logs.
-- **CORS:** Workbench reflects `Access-Control-Allow-Origin` only for `http://localhost:*` / `http://127.0.0.1:*` origins; it is not a wildcard public API.
-- **CSRF posture:** The Workbench is a same-origin static SPA talking to its own loopback HTTP handler with Bearer tokens for remote binds. It is not a cookie-session multi-site app; deploy behind TLS + reverse-proxy auth for any non-loopback exposure.
-- **Path confinement:** Dataset browse/upload/download, **inspect-file**, and media preview endpoints reject path traversal and stay within cwd and/or workspace roots (see Workbench file-confinement tests). Authentication for remote binds does not replace filesystem confinement.
+- **CORS:** Workbench reflects `Access-Control-Allow-Origin` only for loopback origins (`localhost` / `127.0.0.1` / `::1`); it is not a wildcard public API.
+- **CSRF posture:** Mutable `POST` endpoints require `Content-Type: application/json`, reject `Sec-Fetch-Site: cross-site`, and reject non-loopback `Origin` values that do not match the request `Host`. Missing Origin (CLI / urlopen) is allowed. The Workbench remains a same-origin SPA on loopback with Bearer tokens for remote binds — not a cookie-session multi-site app. Deploy behind TLS + reverse-proxy auth for any non-loopback exposure.
+- **Path confinement:** Dataset browse/upload/download, **inspect-file**, **`/api/predict`** (test/template/output paths), and media preview endpoints reject path traversal and stay within cwd and/or workspace roots. Relative prediction outputs are rewritten under `workspace/exports/`. CLI submission paths remain unrestricted for local operators. Authentication for remote binds does not replace filesystem confinement.
 - **Model export:** Workbench `/api/models/export` returns a zip containing the `.pkl` and its `.sha256` sidecar so `ModelArtifact.load(verify_checksum=True)` succeeds after download.
 - **Production Deployments:** When deployed on LAN or cloud VPS, CATML services must be placed behind an authenticated TLS reverse proxy (Nginx, Caddy, Envoy). See [`docs/trusted-deployment.md`](docs/trusted-deployment.md) for reference configurations.
 
@@ -69,7 +69,9 @@ CATML is architected as a **local-first, governed toolkit for machine learning**
 - **Auditing & Policies:** Agent actions are dispatched through typed CQRS commands and recorded in a durable SQLite ledger. Long-running tasks operate under budget leases with cooperative cancellation.
 
 ### 5. Supply Chain & Dependencies
-- CI includes a `pip-audit` job against the installed editable environment (currently **non-blocking** / `continue-on-error` until the advisory backlog is cleared).
+- CI includes a `pip-audit` job against the installed editable environment (**non-blocking** on PR CI via `continue-on-error` so advisory noise does not block every push).
+- **Release gate:** `.github/workflows/release.yml` runs `pip-audit` as a **blocking** verify step before TestPyPI/PyPI publish. Document any temporary allowlist exceptions in the release PR with an expiry date.
+- CI also runs Workbench JS unit tests (`node --test tests/js/*.test.mjs`).
 - Core and optional extras primarily declare lower bounds; pin or constrain versions in deployment environments as needed.
 - Release artifacts should be built with `python -m build` and validated with `twine check` plus the Workbench-static wheel assertion in CI / `release.yml`.
 - Optional vision backbones may download pretrained weights on first use; that is not dataset egress.

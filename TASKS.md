@@ -85,8 +85,38 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
 | P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | Done (#116 merged) |
 | P1 | MCP `--allow-mutations` + text LSA (SVD) for trees | In PR `fix/mcp-allow-mutations-text-svd` |
-| P1 | Demo project + executive results export (Sprint 3) | Done (`feat/demo-export-and-sqlite-94`) |
+| P1 | Demo project + executive results export (Sprint 3) | Done (`#125` / `#126`) |
+| P1 | Executive report honesty follow-up (Δ label, leakage copy, duration —) | Done (`#127` / this branch) |
+| P1 | Audit HTTP: confine `/api/predict` paths + CSRF Origin/Content-Type/Sec-Fetch-Site | Done (this branch) |
+| P1 | Audit model reliability: export membership, derived predict, no trial-less infer, stateful apply, nested FS | Done (this branch) |
+
+### Track Audit — Model reliability (2026-10-14)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P1 | Export/predict: strict Run→Experiment→Trial→succeeded TrialResult | Done |
+| P1 | `ModelArtifact.predict` applies `metadata.derived_features` on original columns | Done |
+| P1 | Block stateful aggregates in `apply_derived_feature` (persist); preview still allowed | Done |
+| P1 | Reject predict/export without successful trial (no unevaluated `model_ids[0]` fallback) | Done |
+| P1 | Supervised `select_features` → nested_in_fold + `supervised_select` transform; promote guard | Done |
+| P2 | Regression suite `tests/test_audit_model_reliability.py` | Done |
+| P2 | Audit: blocking `pip-audit` on release + JS unit tests in CI | Done (this branch) |
+| P2 | Audit: per-request `build_application` reuse / latency | Open |
+| P2 | Audit: Playwright E2E for critical Workbench flows | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
+
+### Track Audit-HTTP — Path confinement & CSRF (2026-10-14)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P1 | Confine `/api/predict` test/template/output via `resolve_allowed_path`; relative → `workspace/exports/` | Done |
+| P1 | Mutable POST: require JSON Content-Type; reject cross-site Sec-Fetch-Site; Origin loopback/Host match | Done |
+| P1 | Executive report honesty (`anti_leakage_guaranteed=false`, Δ vs worst succeeded) | Done |
+| P2 | Regression suite `tests/test_audit_http_path_csrf.py` | Done |
+| P2 | Release `pip-audit` blocking; CI `node --test` JS job | Done |
+| P3 | Static MIME for `.woff` / `.woff2` / `.ttf` / `.otf` | Done |
+| P2 | Cache `build_application` across requests | Open |
+| P2 | Playwright E2E critical paths | Open |
 
 ### Track License compliance (documentation / packaging only)
 

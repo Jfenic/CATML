@@ -1,5 +1,25 @@
 # Progress
 
+### Model reliability audit (2026-10-14)
+
+- Branch `fix/model-reliability-audit` (includes prior HTTP/CSRF remediations).
+- Done:
+  1. `InferenceService._resolve_validated_trial_chain` for predict + export.
+  2. `ModelArtifact._apply_derived_features` before feature check.
+  3. `apply_derived_feature` rejects zscore/mean/std persist; re-hydrates feature registry.
+  4. No unevaluated experiment fallback for predict.
+  5. Supervised selection candidates use `nested_in_fold` + `supervised_select` pipeline step; promote blocks leakage-risk without opt-in.
+- Tests: `tests/test_audit_model_reliability.py`.
+
+### Audit-HTTP remediations + executive honesty (2026-10-14)
+
+- External audit P1s on `main` @ `c7718768`:
+  1. `/api/predict` path confinement (`resolve_allowed_path`; relative outputs → `workspace/exports/`).
+  2. Mutable POST guards: `Content-Type: application/json`, reject `Sec-Fetch-Site: cross-site`, Origin loopback/Host match.
+  3. Executive report honesty: no `anti_leakage_guaranteed`, Δ vs worst succeeded, duration `—`.
+- P2/P3: release blocking `pip-audit`, CI `js-unit` (`node --test`), MIME `.woff2`/fonts, SECURITY.md notes.
+- Tests: `tests/test_audit_http_path_csrf.py`.
+
 ### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
 
 - **Subtarea B1 (Workbench Demo Project + Executive Export)**:

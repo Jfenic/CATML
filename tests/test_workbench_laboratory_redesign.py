@@ -186,7 +186,10 @@ def test_file_browse_and_inspect_api_endpoints(tmp_path):
     handler.rfile = MagicMock()
     body = json.dumps({"path": str(sample_file)}).encode("utf-8")
     handler.rfile.read.return_value = body
-    handler.headers = {"Content-Length": str(len(body))}
+    handler.headers = {
+        "Content-Length": str(len(body)),
+        "Content-Type": "application/json",
+    }
     handler.do_POST()
 
     assert sent_data.get("status") == "success"
@@ -198,7 +201,10 @@ def test_file_browse_and_inspect_api_endpoints(tmp_path):
     b64_content = base64.b64encode(b"feature1,feature2,churn\n10,20,yes\n").decode("utf-8")
     body = json.dumps({"filename": "customer_churn.csv", "content_base64": b64_content}).encode("utf-8")
     handler.rfile.read.return_value = body
-    handler.headers = {"Content-Length": str(len(body))}
+    handler.headers = {
+        "Content-Length": str(len(body)),
+        "Content-Type": "application/json",
+    }
     handler.do_POST()
 
     assert sent_data.get("status") == "success"

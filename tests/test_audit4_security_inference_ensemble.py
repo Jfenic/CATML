@@ -71,7 +71,10 @@ def test_web_register_rejects_path_outside_workspace(tmp_path: Path, monkeypatch
     body = json.dumps({"name": "escape", "path": str(outside), "target": "target"}).encode()
     handler.rfile = MagicMock()
     handler.rfile.read.return_value = body
-    handler.headers = {"Content-Length": str(len(body))}
+    handler.headers = {
+        "Content-Length": str(len(body)),
+        "Content-Type": "application/json",
+    }
 
     sent: dict = {}
 

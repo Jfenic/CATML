@@ -315,6 +315,8 @@ def test_web_oof_submission_uses_same_command_and_report(app, tmp_path, monkeypa
     from automl.interfaces.web.server import AutoMLWebHandler
 
     workspace, _, _, run, source, test, template = app
+    # Align with Workbench path policy: HTTP predict allows cwd ∪ workspace only.
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(AutoMLWebHandler, "workspace_dir", str(workspace.root_dir))
     server = ThreadingHTTPServer(("127.0.0.1", 0), AutoMLWebHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

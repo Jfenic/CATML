@@ -94,6 +94,9 @@ def test_export_model_artifact_replays_recipe_transforms(tmp_path: Path):
     artifact.save(out)
     loaded = ModelArtifact.load(out)
     assert loaded.feature_names == artifact.feature_names
+    # Loaded artifact must predict from original columns (derived applied internally).
+    preds = loaded.predict(df[["num1", "num2"]].head(3))
+    assert len(preds) == 3
 
 
 def test_web_model_export_includes_sha256_sidecar(tmp_path: Path):
@@ -200,7 +203,10 @@ def test_inspect_file_rejects_outside_workspace(tmp_path: Path, monkeypatch):
     handler.rfile = MagicMock()
     body = json.dumps({"path": str(outside)}).encode("utf-8")
     handler.rfile.read.return_value = body
-    handler.headers = {"Content-Length": str(len(body))}
+    handler.headers = {
+        "Content-Length": str(len(body)),
+        "Content-Type": "application/json",
+    }
 
     # Ensure cwd is not parent of /etc
     monkeypatch.chdir(tmp_path)
