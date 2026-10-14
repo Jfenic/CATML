@@ -173,6 +173,7 @@ class SklearnTrainer(TrainerPort):
                 image_columns=image_cols,
                 image_model=image_model,
                 column_transforms=getattr(execution, "column_transforms", None),
+                task_type=getattr(execution, "task_type", None),
             )
 
             metric_name = execution.metric
@@ -480,6 +481,7 @@ class SklearnTrainer(TrainerPort):
             image_columns=image_cols,
             image_model=image_model,
             column_transforms=column_transforms,
+            task_type=task_type,
         )
         pipeline.fit(X_train, y_train_adapted)
         return pipeline, adapter
@@ -512,6 +514,63 @@ class SklearnTrainer(TrainerPort):
         return adapter.inverse_transform(preds)
 
 
+def _build_supervised_select_step(
+    params: dict[str, Any],
+    *,
+    task_type: str | None,
+) -> Any:
+    """Fold-safe supervised selector fitted inside the Pipeline (train fold only)."""
+    from sklearn.base import BaseEstimator, TransformerMixin
+    from sklearn.feature_selection import (
+        SelectFromModel,
+        SelectKBest,
+        f_classif,
+        f_regression,
+        mutual_info_classif,
+        mutual_info_regression,
+    )
+
+    method = str(params.get("method", "mutual_information")).lower()
+    k = int(params.get("k", 10))
+    task = str(task_type or "binary_classification").lower()
+    is_classif = "classif" in task or task in {
+        "binary_classification",
+        "multiclass_classification",
+        "multiclass",
+    }
+
+    class _AdaptiveSelectKBest(BaseEstimator, TransformerMixin):
+        def __init__(self, score_func: Any, k: int) -> None:
+            self.score_func = score_func
+            self.k = k
+            self._inner: Any = None
+
+        def fit(self, X: Any, y: Any = None):
+            n_features = int(getattr(X, "shape", [0, 0])[1])
+            effective_k = max(1, min(int(self.k), n_features)) if n_features else int(self.k)
+            self._inner = SelectKBest(score_func=self.score_func, k=effective_k)
+            self._inner.fit(X, y)
+            return self
+
+        def transform(self, X: Any):
+            return self._inner.transform(X)
+
+    if method in {"mutual_information", "mi"}:
+        score_func = mutual_info_classif if is_classif else mutual_info_regression
+        return _AdaptiveSelectKBest(score_func=score_func, k=k)
+    if method in {"tree_importance", "importance"}:
+        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+        est = (
+            RandomForestClassifier(n_estimators=50, random_state=0, n_jobs=1)
+            if is_classif
+            else RandomForestRegressor(n_estimators=50, random_state=0, n_jobs=1)
+        )
+        return SelectFromModel(est, max_features=k, threshold=-np.inf)
+    score_func = f_classif if is_classif else f_regression
+    return _AdaptiveSelectKBest(score_func=score_func, k=k)
+
+
 def _build_pipeline(
     X: pd.DataFrame,
     model: Any,
@@ -519,6 +578,7 @@ def _build_pipeline(
     image_columns: list[str] | None = None,
     image_model: str | None = None,
     column_transforms: list[dict[str, Any]] | None = None,
+    task_type: str | None = None,
 ) -> Pipeline:
     from automl.engine.features.text import LightweightTextExtractor, is_text_column
     from automl.plugins.modalities.image_plugin import is_image_column, ImageModalityPlugin
@@ -647,17 +707,29 @@ def _build_pipeline(
     preprocessor = ColumnTransformer(transformers=transformers, sparse_threshold=0.0)
     steps: list[tuple[str, Any]] = [("preprocessor", preprocessor)]
 
-    # Optional fold-safe PCA reduction (declared as column_transforms kind=pca, column='*').
+    # Optional fold-safe reductions / selectors (column='*', kind=pca|supervised_select).
     pca_spec = None
+    supervised_select_spec = None
     if column_transforms:
         for ct in column_transforms:
             if not isinstance(ct, dict):
                 continue
             kind = str(ct.get("kind", "")).lower()
             col = str(ct.get("column", ""))
-            if kind == "pca" and col in {"*", "__all__", "__dataset__"}:
+            if col not in {"*", "__all__", "__dataset__"}:
+                continue
+            if kind == "pca" and pca_spec is None:
                 pca_spec = ct
-                break
+            elif kind in {"supervised_select", "select_kbest", "nested_select"} and supervised_select_spec is None:
+                supervised_select_spec = ct
+    if supervised_select_spec is not None:
+        params = dict(supervised_select_spec.get("params") or {})
+        steps.append(
+            (
+                "supervised_select",
+                _build_supervised_select_step(params, task_type=task_type),
+            )
+        )
     if pca_spec is not None:
         from sklearn.decomposition import PCA
 

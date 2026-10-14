@@ -255,7 +255,8 @@ def test_feature_selection_workspace_flow(tmp_path: Path, sample_dataset_csv: st
     salary_ev = next(e for e in evidence if e.feature_id == "salary")
     assert salary_ev.mutual_information is not None
 
-    # 5. Promote candidate feature set to formal FeatureSet
+    # 5. Promote nested candidate (full feature set + fold-safe select transform)
+    assert candidates[0].metadata.get("evaluation_mode") == "nested_in_fold"
     promoted_fs = cmd.dispatch(
         PromoteCandidateFeatureSetCommand(
             run_id=run.id,
@@ -264,7 +265,9 @@ def test_feature_selection_workspace_flow(tmp_path: Path, sample_dataset_csv: st
         )
     )
     assert promoted_fs.name == "curated_top_features"
-    assert len(promoted_fs.feature_names) == candidates[0].k
+    assert len(promoted_fs.feature_names) == len(candidates[0].feature_names)
+    assert "catml_column_transforms:" in promoted_fs.lineage
+    assert candidates[0].k == 2
 
     # 6. Plan ablation experiments
     ablation_candidates = cmd.dispatch(

@@ -72,23 +72,24 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 ### Focus — Structure & Clean Architecture (modular maintainability)
 
-> Priority: clean structure, modular persistence, maintainability. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Trust/HTTP audits: merge [#128](https://github.com/Jfenic/catml/pull/128) when ready (independent of PR4).
+> Priority: clean structure, modular persistence, maintainability. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Trust audits merged via [#128](https://github.com/Jfenic/catml/pull/128).
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | In PR `refactor/clean-arch-pr4-persistence-uow` |
-| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) (model reliability + HTTP/CSRF) | Ready (human) |
+| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | In PR `#129` |
+| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) (model reliability + HTTP/CSRF) | Done |
 | P1 | Clean Arch **PR5**: Ruff/mypy + ESLint + contract/E2E gates | Open (after PR4) |
 | P1 | E2E product gate: load → train → export → reload → predict parity | Open |
 | P2 | Stable PyPI `0.9.0` after structure + trust gates | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
-### Shipped — rc1 (reference)
+### Shipped — rc1 + audits (reference)
 
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 | Tabular `0.9.0rc1` on PyPI + Clean Arch PR1–PR3 (`#111`) | Done |
 | P1 | Demo/export (`#125`/`#126`); HPO fold pruning (`#116`) | Done |
+| P1 | Audit HTTP/CSRF + model reliability + honest reports | Done (`#128`) |
 
 ### Track License compliance (documentation / packaging only)
 

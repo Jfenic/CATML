@@ -529,6 +529,7 @@ class AutoMLWorkspace:
         priority_value = ExperimentPriority.parse(priority).value
 
         resolved_features = feature_names
+        resolved_column_transforms = list(column_transforms or [])
         if feature_set_id:
             feature_set = self.repository.get_feature_set(feature_set_id)
             if feature_set is None:
@@ -539,6 +540,18 @@ class AutoMLWorkspace:
                     f"not run dataset {run.dataset_id}"
                 )
             resolved_features = feature_set.feature_names
+            if not resolved_column_transforms and feature_set.lineage:
+                import json
+
+                for line in str(feature_set.lineage).splitlines():
+                    if line.startswith("catml_column_transforms:"):
+                        try:
+                            decoded = json.loads(line[len("catml_column_transforms:") :])
+                            if isinstance(decoded, list):
+                                resolved_column_transforms = decoded
+                        except json.JSONDecodeError:
+                            pass
+                        break
         profile = self.repository.get_dataset_profile(run.dataset_id)
         effective_group = group_column or run.config.group_column
         exclude_cols = [effective_group] if effective_group else None
@@ -615,7 +628,7 @@ class AutoMLWorkspace:
             priority=priority_value,
             feature_set_id=feature_set_id,
             group_column=resolved_group_col,
-            column_transforms=list(column_transforms or []),
+            column_transforms=list(resolved_column_transforms),
             derived_features=list(derived_features or []),
             recipe_id=recipe_id,
         )
@@ -1298,11 +1311,14 @@ class AutoMLWorkspace:
         run_id: str,
         candidate_id: str,
         new_name: str | None = None,
+        *,
+        allow_unverified_promotion: bool = False,
     ) -> FeatureSet:
         return self.feature_service.promote_candidate_feature_set(
             run_id=run_id,
             candidate_id=candidate_id,
             new_name=new_name,
+            allow_unverified_promotion=allow_unverified_promotion,
         )
 
     def get_feature_evidence(

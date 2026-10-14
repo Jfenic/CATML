@@ -2,11 +2,16 @@
 
 ### Clean Arch PR4 — persistence / states / UoW (2026-10-14)
 
-- Branch `refactor/clean-arch-pr4-persistence-uow` from `main`.
+- Branch `refactor/clean-arch-pr4-persistence-uow` → PR `#129` (synced with `#128` on main).
 - Domain: `runs/transitions.py`, `experiments/transitions.py` (CANCELLED sticky; retry from COMPLETED/FAILED OK).
 - Infra: `connection.py`, `unit_of_work.py`, `mappers.py`, `stores/`; `persist_trial_outcome` on facade.
 - Services: execution/HPO use UoW; `Experiment.transition_to` wired.
 - Tests: `tests/test_clean_arch_pr4_persistence_uow.py`. Brief: `agent-brief-pr4.md`.
+
+### Consolidation + audits landed (2026-10-14)
+
+- [#128](https://github.com/Jfenic/catml/pull/128) **merged**: model reliability + HTTP/CSRF + honest reports.
+- [#127](https://github.com/Jfenic/catml/pull/127) closed as superseded.
 
 ### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
 

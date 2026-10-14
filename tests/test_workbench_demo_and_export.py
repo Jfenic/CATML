@@ -114,7 +114,8 @@ def test_executive_report_html_md_json(tmp_path: Path):
     assert "Informe Ejecutivo de Resultados" in body
     assert "Resumen del Rendimiento Óptimo" in body
     assert "Leaderboard Completo de Ensayos" in body
-    assert "cero fuga de datos" in body
+    assert "no es un certificado" in body
+    assert "in-fold" in body
 
     # 3. Test Markdown report
     h_md, w_md = _create_handler(ws_dir, f"/api/reports/executive?run_id={run_id}&format=md")
@@ -159,7 +160,9 @@ def test_executive_report_summary_endpoint(tmp_path: Path):
     assert data["metadata"]["run_id"] == run_id
     assert "champion" in data
     assert "validation" in data
-    assert data["validation"]["anti_leakage_guaranteed"] is True
+    assert data["validation"]["anti_leakage_guaranteed"] is False
+    assert data["validation"]["in_fold_preprocessing"] is True
+    assert "delta_vs_worst_succeeded" in data["champion"]
 
 
 def test_executive_report_errors_on_invalid_run(tmp_path: Path):
@@ -267,7 +270,8 @@ def test_executive_report_failed_trials_and_duration_extraction(tmp_path: Path):
     assert data["champion"]["model_id"] == "random_forest"
     assert data["champion"]["score"] == 0.88
     assert data["champion"]["training_time_seconds"] == 2.5
-    assert data["champion"]["delta_vs_baseline"] is None  # only 1 successful trial -> no baseline to delta against
+    assert data["champion"]["delta_vs_worst_succeeded"] is None  # only 1 successful trial
+    assert data["champion"]["delta_vs_baseline"] is None  # legacy alias
 
     # Leaderboard row durations must NOT be 0.0s
     lb = data["leaderboard"]

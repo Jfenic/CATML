@@ -261,7 +261,7 @@ export class StudioView {
         <button id="btnCloneRun" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Clonar ejecución">
           ${icon("copy", "icon-sm")}<span>Clonar</span>
         </button>
-        <a href="/api/models/export?run_id=${activeRun.id}" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Descargar ModelArtifact (.pkl)">
+        <a href="/api/models/export?run_id=${encodeURIComponent(activeRun.id)}" class="btn-signal text-xs px-3 py-1.5 flex items-center space-x-1.5" title="Descargar ModelArtifact (.pkl)">
           ${icon("download", "icon-sm")}<span>Exportar modelo (.pkl)</span>
         </a>
         <a href="/api/reports/executive?run_id=${encodeURIComponent(activeRun.id)}&format=html" target="_blank" class="btn-technical text-xs px-3 py-1.5 flex items-center space-x-1.5 hover:text-white transition-colors" title="Ver informe ejecutivo de resultados">

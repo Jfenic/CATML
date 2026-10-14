@@ -24,6 +24,93 @@ class InferenceService:
     def __init__(self, workspace: AutoMLWorkspace) -> None:
         self.workspace = workspace
 
+    def _resolve_validated_trial_chain(
+        self,
+        run_id: str,
+        *,
+        experiment_id: str | None = None,
+        trial_id: str | None = None,
+    ) -> tuple[Any, Any, Any, Any]:
+        """Strict membership: Run → Experiment → Trial → succeeded TrialResult.
+
+        Returns ``(run, experiment, trial, trial_result)``.
+        """
+        run = self.workspace._get_run(run_id)
+
+        if trial_id:
+            trial = self.workspace.repository.get_trial(trial_id)
+            if trial is None:
+                raise KeyError(f"Trial '{trial_id}' not found.")
+            experiment = self.workspace.repository.get_experiment(trial.experiment_id)
+            if experiment is None:
+                raise KeyError(f"Experiment '{trial.experiment_id}' not found for trial '{trial_id}'.")
+            if experiment_id is not None and experiment.id != experiment_id:
+                raise ValueError(
+                    f"Trial '{trial_id}' belongs to experiment '{experiment.id}', "
+                    f"not requested experiment '{experiment_id}'."
+                )
+            if experiment.run_id != run.id:
+                raise ValueError(
+                    f"Trial '{trial_id}' (experiment '{experiment.id}') does not belong to run '{run_id}'."
+                )
+            results = self.workspace.repository.list_trial_results(experiment.id)
+            trial_result = next((r for r in results if r.trial_id == trial.id and r.succeeded), None)
+            if trial_result is None:
+                raise ValueError(
+                    f"Trial '{trial_id}' has no successful evaluation result; "
+                    "refusing inference/export without a validated trial."
+                )
+            return run, experiment, trial, trial_result
+
+        if experiment_id:
+            experiment = self.workspace.repository.get_experiment(experiment_id)
+            if experiment is None:
+                raise KeyError(f"Experiment '{experiment_id}' not found.")
+            if experiment.run_id != run.id:
+                raise ValueError(f"Experiment '{experiment_id}' does not belong to run '{run_id}'.")
+            leaderboard = self.workspace.repository.get_leaderboard(run.id, include_failed=False)
+            exp_results = [
+                r for r in leaderboard
+                if r.experiment_id == experiment_id and getattr(r, "succeeded", True)
+            ]
+            if not exp_results:
+                raise ValueError(
+                    f"Experiment '{experiment_id}' has no successful trials on the leaderboard; "
+                    "refusing inference/export of an unevaluated model."
+                )
+            best = exp_results[0]
+            trial = self.workspace.repository.get_trial(best.trial_id)
+            if trial is None:
+                raise KeyError(f"Trial '{best.trial_id}' not found for experiment '{experiment_id}'.")
+            if trial.experiment_id != experiment.id:
+                raise ValueError(
+                    f"Leaderboard trial '{trial.id}' does not belong to experiment '{experiment.id}'."
+                )
+            return run, experiment, trial, best
+
+        leaderboard = self.workspace.repository.get_leaderboard(run.id, include_failed=False)
+        valid = [r for r in leaderboard if getattr(r, "succeeded", True)]
+        if not valid:
+            raise ValueError(
+                f"Run '{run_id}' has no successful trials; refusing inference/export without validation."
+            )
+        best = valid[0]
+        experiment = self.workspace.repository.get_experiment(best.experiment_id)
+        if experiment is None:
+            raise KeyError(f"Experiment '{best.experiment_id}' not found.")
+        if experiment.run_id != run.id:
+            raise ValueError(
+                f"Leaderboard experiment '{experiment.id}' does not belong to run '{run_id}'."
+            )
+        trial = self.workspace.repository.get_trial(best.trial_id)
+        if trial is None:
+            raise KeyError(f"Trial '{best.trial_id}' not found.")
+        if trial.experiment_id != experiment.id:
+            raise ValueError(
+                f"Trial '{trial.id}' does not belong to experiment '{experiment.id}'."
+            )
+        return run, experiment, trial, best
+
     def predict(
         self,
         run_id: str,
@@ -34,53 +121,12 @@ class InferenceService:
         template_path: str | Path | None = None,
         id_column: str | None = None,
     ) -> list[Any]:
-        run = self.workspace._get_run(run_id)
+        run, experiment, trial, _trial_result = self._resolve_validated_trial_chain(
+            run_id, experiment_id=experiment_id, trial_id=trial_id
+        )
         dataset = self.workspace._get_dataset(run.dataset_id)
-
-        target_trial_id = trial_id
-        target_experiment_id = experiment_id
-        target_model_id = None
-        parameters: dict[str, Any] = {}
-
-        if target_trial_id:
-            trial = self.workspace.repository.get_trial(target_trial_id)
-            if trial is None:
-                raise KeyError(f"Trial '{target_trial_id}' not found.")
-            target_experiment_id = trial.experiment_id
-            target_model_id = trial.model_id
-            parameters = dict(trial.parameters or {})
-        elif target_experiment_id:
-            experiment = self.workspace.repository.get_experiment(target_experiment_id)
-            if experiment is None:
-                raise KeyError(f"Experiment '{target_experiment_id}' not found.")
-            lb = self.workspace.repository.get_leaderboard(run.id)
-            exp_results = [r for r in lb if r.experiment_id == target_experiment_id]
-            if exp_results:
-                best = exp_results[0]
-                target_model_id = best.model_id
-                t = self.workspace.repository.get_trial(best.trial_id)
-                parameters = dict(t.parameters or {}) if t else {}
-            else:
-                target_model_id = experiment.model_ids[0] if experiment.model_ids else "random_forest"
-        else:
-            lb = self.workspace.repository.get_leaderboard(run.id)
-            if not lb:
-                raise ValueError(f"Run '{run_id}' has no completed trials in its leaderboard to predict with.")
-            best = lb[0]
-            target_experiment_id = best.experiment_id
-            target_model_id = best.model_id
-            t = self.workspace.repository.get_trial(best.trial_id)
-            parameters = dict(t.parameters or {}) if t else {}
-
-        experiment = self.workspace.repository.get_experiment(target_experiment_id)
-        if experiment is None:
-            raise KeyError(f"Experiment '{target_experiment_id}' not found.")
-        if experiment.run_id != run.id:
-            if target_trial_id:
-                raise ValueError(
-                    f"Trial '{target_trial_id}' (experiment '{target_experiment_id}') does not belong to run '{run_id}'."
-                )
-            raise ValueError(f"Experiment '{target_experiment_id}' does not belong to run '{run_id}'.")
+        target_model_id = trial.model_id
+        parameters = dict(trial.parameters or {})
 
         test_df = load_dataframe(test_dataset_path)
         if experiment.validation_strategy == "oof":
@@ -236,35 +282,11 @@ class InferenceService:
         trial_id: str | None = None,
     ) -> ModelArtifact:
         """Fits and exports a standalone, portable ModelArtifact for the specified or winning trial."""
-        run = self.workspace._get_run(run_id)
+        run, experiment, target_trial, trial_result = self._resolve_validated_trial_chain(
+            run_id, experiment_id=experiment_id, trial_id=trial_id
+        )
         dataset = self.workspace._get_dataset(run.dataset_id)
-
-        target_exp_id = experiment_id
-        target_trial_id = trial_id
-
-        if target_exp_id is None:
-            leaderboard = self.workspace.repository.get_leaderboard(run_id, include_failed=False)
-            valid_trials = [res for res in leaderboard if res.succeeded]
-            if not valid_trials:
-                raise ValueError(f"No completed trials found in run '{run_id}'. Cannot export artifact.")
-            best_trial_res = valid_trials[0]
-            target_exp_id = best_trial_res.experiment_id
-            target_trial_id = best_trial_res.trial_id
-
-        experiment = self.workspace.repository.get_experiment(target_exp_id)
-        if experiment is None:
-            raise KeyError(f"Experiment '{target_exp_id}' not found.")
-
-        target_trial = None
-        if target_trial_id:
-            target_trial = self.workspace.repository.get_trial(target_trial_id)
-        if target_trial is None:
-            trial_results = self.workspace.repository.list_trial_results(target_exp_id)
-            if trial_results:
-                target_trial = self.workspace.repository.get_trial(trial_results[0].trial_id)
-
-        if target_trial is None:
-            raise ValueError(f"No trial found for experiment '{target_exp_id}'.")
+        target_exp_id = experiment.id
 
         train_df = load_dataframe(dataset.path)
 
@@ -328,14 +350,8 @@ class InferenceService:
             parameters=params,
         )
 
-        score = 0.0
-        metric = "score"
-        leaderboard = self.workspace.repository.get_leaderboard(run_id)
-        for res in leaderboard:
-            if res.trial_id == target_trial.id:
-                score = res.primary_score
-                metric = res.primary_metric
-                break
+        score = float(getattr(trial_result, "primary_score", 0.0) or 0.0)
+        metric = str(getattr(trial_result, "primary_metric", None) or "score")
 
         dep_versions: dict[str, str] = {"catml": __version__}
         for name in (
