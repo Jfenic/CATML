@@ -1,5 +1,10 @@
 # Progress
 
+### Follow-up: executive report honesty (2026-10-14)
+
+- From review of `#126`: fix misleading “Δ vs baseline”, soften “cero fuga” claims, duration `—` when missing, `encodeURIComponent` on model export.
+- Branch `fix/executive-report-honesty`.
+
 ### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
 
 - **Subtarea B1 (Workbench Demo Project + Executive Export)**:

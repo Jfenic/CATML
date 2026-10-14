@@ -85,7 +85,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
 | P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | Done (#116 merged) |
 | P1 | MCP `--allow-mutations` + text LSA (SVD) for trees | In PR `fix/mcp-allow-mutations-text-svd` |
-| P1 | Demo project + executive results export (Sprint 3) | Done (`feat/demo-export-and-sqlite-94`) |
+| P1 | Demo project + executive results export (Sprint 3) | Done (`#125` / `#126`) |
+| P1 | Executive report honesty follow-up (Δ label, leakage copy, duration —) | In PR `fix/executive-report-honesty` |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
 ### Track License compliance (documentation / packaging only)

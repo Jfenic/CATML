@@ -523,6 +523,25 @@ def try_get(handler: Any, path: str, query_params: dict, ws: Any, cmd: Any, qry:
     return False
 
 
+def _trial_duration_seconds(row: dict[str, Any]) -> float | None:
+    """Extract training duration; None when missing (do not fake 0.0)."""
+    for key in ("training_time_s", "training_time_seconds", "duration"):
+        if key not in row or row[key] is None:
+            continue
+        try:
+            return float(row[key])
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _format_duration_seconds(row: dict[str, Any], *, suffix: str = "") -> str:
+    value = _trial_duration_seconds(row)
+    if value is None:
+        return "—"
+    return f"{value:.2f}{suffix}"
+
+
 def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | None:
     from datetime import datetime, timezone
 
@@ -569,8 +588,9 @@ def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | No
 
     champion_model = "Sin evaluar"
     champion_score: float | None = None
-    champion_time: float = 0.0
-    delta_vs_baseline: float | None = None
+    champion_time: float | None = None
+    # Δ vs worst succeeded on the same board — NOT a paired baseline experiment.
+    delta_vs_worst_succeeded: float | None = None
 
     if leaderboard:
         succeeded_trials = [
@@ -586,29 +606,18 @@ def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | No
             except (ValueError, TypeError):
                 champion_score = None
 
-            champ_t = champ.get("training_time_s") if champ.get("training_time_s") is not None else (champ.get("training_time_seconds") or champ.get("duration") or 0.0)
-            try:
-                champion_time = float(champ_t)
-            except (ValueError, TypeError):
-                champion_time = 0.0
+            champion_time = _trial_duration_seconds(champ)
 
             if len(succeeded_trials) > 1 and champion_score is not None:
-                base_trial = succeeded_trials[-1]
-                base_sc = base_trial.get("score") if base_trial.get("score") is not None else base_trial.get("primary_score")
+                worst_ok = succeeded_trials[-1]
+                worst_sc = worst_ok.get("score") if worst_ok.get("score") is not None else worst_ok.get("primary_score")
                 try:
-                    delta_vs_baseline = champion_score - float(base_sc)
+                    delta_vs_worst_succeeded = champion_score - float(worst_sc)
                 except (ValueError, TypeError):
-                    delta_vs_baseline = None
-            else:
-                delta_vs_baseline = None
+                    delta_vs_worst_succeeded = None
         else:
             champion_model = "Sin modelos exitosos"
-            first_trial = leaderboard[0]
-            first_t = first_trial.get("training_time_s") if first_trial.get("training_time_s") is not None else (first_trial.get("training_time_seconds") or first_trial.get("duration") or 0.0)
-            try:
-                champion_time = float(first_t)
-            except (ValueError, TypeError):
-                champion_time = 0.0
+            champion_time = _trial_duration_seconds(leaderboard[0])
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -636,13 +645,17 @@ def _generate_executive_report_data(ws: Any, run_id: str) -> dict[str, Any] | No
             "cv_folds": cv_folds,
             "random_seed": random_seed,
             "metric": metric,
-            "anti_leakage_guaranteed": True,
+            "in_fold_preprocessing": True,
+            # Honest: in-fold intent is recorded; not a formal leakage certificate.
+            "anti_leakage_guaranteed": False,
         },
         "champion": {
             "model_id": champion_model,
             "score": champion_score,
             "metric": metric,
-            "delta_vs_baseline": delta_vs_baseline,
+            "delta_vs_worst_succeeded": delta_vs_worst_succeeded,
+            # Legacy alias (same value); not a true paired baseline.
+            "delta_vs_baseline": delta_vs_worst_succeeded,
             "training_time_seconds": champion_time,
         },
         "leaderboard": leaderboard,
@@ -658,7 +671,12 @@ def _render_executive_report_markdown(data: dict[str, Any]) -> str:
     lb = data["leaderboard"]
 
     champ_score_str = f"{champ['score']:.4f}" if champ["score"] is not None else "—"
-    delta_str = f"{champ['delta_vs_baseline']:+.4f}" if champ["delta_vs_baseline"] is not None else "—"
+    delta_val = champ.get("delta_vs_worst_succeeded")
+    if delta_val is None:
+        delta_val = champ.get("delta_vs_baseline")
+    delta_str = f"{delta_val:+.4f}" if delta_val is not None else "—"
+    champ_time = champ.get("training_time_seconds")
+    champ_time_str = f"{float(champ_time):.2f} s" if champ_time is not None else "—"
 
     lb_lines = []
     lb_lines.append(f"| Rango | Modelo | {val['metric']} | Tiempo (s) | Estado |")
@@ -673,14 +691,10 @@ def _render_executive_report_markdown(data: dict[str, Any]) -> str:
                 sc_str = f"{float(sc):.4f}" if sc is not None else "—"
             except (ValueError, TypeError):
                 sc_str = "—"
-            dur = row.get("training_time_s") if row.get("training_time_s") is not None else (row.get("training_time_seconds") or row.get("duration") or 0.0)
-            try:
-                dur_str = f"{float(dur):.2f}"
-            except (ValueError, TypeError):
-                dur_str = "0.00"
+            dur_str = _format_duration_seconds(row)
             is_succ = (not row.get("failed")) if "failed" in row else row.get("succeeded", True)
             st = "Completado" if is_succ else "Fallido"
-            lb_lines.append(f"| #{i} | {m_id} | {sc_str} | {dur_str}s | {st} |")
+            lb_lines.append(f"| #{i} | {m_id} | {sc_str} | {dur_str} | {st} |")
 
     features_str = ", ".join(f"`{f}`" for f in ds["features_list"][:15])
     if len(ds["features_list"]) > 15:
@@ -688,10 +702,11 @@ def _render_executive_report_markdown(data: dict[str, Any]) -> str:
 
     if champ["score"] is not None:
         tech_conclusion = (
-            f"El modelo **{champ['model_id']}** ha obtenido el rendimiento óptimo bajo validación cruzada {val['strategy']} "
+            f"El modelo **{champ['model_id']}** ha obtenido el mejor puntaje entre ensayos exitosos "
+            f"bajo validación cruzada {val['strategy']} "
             f"({val['cv_folds']} pliegues, semilla={val['random_seed']}).\n"
-            "El pipeline de preprocesamiento, codificación e imputación opera estrictamente dentro de cada pliegue de validación (*in-fold*), "
-            "garantizando la ausencia de fuga de información (*zero data leakage*)."
+            "El preprocesamiento del trainer está diseñado para ajustarse *in-fold*; "
+            "esto reduce el riesgo de fuga, pero **no constituye un certificado** de ausencia total de leakage."
         )
     else:
         tech_conclusion = "No se registraron modelos completados exitosamente en esta ejecución."
@@ -715,8 +730,8 @@ def _render_executive_report_markdown(data: dict[str, Any]) -> str:
 | **Métrica Principal** | **{val['metric']}** |
 | **Modelo Campeón** | **{champ['model_id']}** |
 | **Puntaje de Validación (CV)** | **{champ_score_str}** |
-| **Ganancia vs Baseline** | **{delta_str}** |
-| **Tiempo de Entrenamiento del Campeón** | {champ['training_time_seconds']:.2f} s |
+| **Δ vs peor ensayo OK** | **{delta_str}** |
+| **Tiempo de Entrenamiento del Campeón** | {champ_time_str} |
 | **Estrategia de Validación** | {val['strategy']} ({val['cv_folds']} pliegues, semilla={val['random_seed']}) |
 
 ### Conclusión Técnica
@@ -739,7 +754,7 @@ Variables activas ({ds['features_count']}):
 
 ## 4. Gobernanza, Verificación y Despliegue
 
-- **Verificación Antifuga:** Protocolo riguroso de partición estratificada sin contacto entre pliegues.
+- **Anti-fuga (honesto):** Preprocesamiento *in-fold* por diseño; sin fuga detectada ≠ dataset plenamente validado.
 - **Exportación de Artefactos:** Modelo autónomo serializado disponible para producción mediante `ModelArtifact` (`.pkl`) con verificación de integridad SHA-256 (`.sha256`).
 - **Reproducibilidad:** Semilla pseudoaleatoria fija `{val['random_seed']}`.
 """
@@ -753,7 +768,10 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
     lb = data["leaderboard"]
 
     champ_score_str = f"{champ['score']:.4f}" if champ["score"] is not None else "—"
-    delta_str = f"{champ['delta_vs_baseline']:+.4f}" if champ["delta_vs_baseline"] is not None else "—"
+    delta_val = champ.get("delta_vs_worst_succeeded")
+    if delta_val is None:
+        delta_val = champ.get("delta_vs_baseline")
+    delta_str = f"{delta_val:+.4f}" if delta_val is not None else "—"
 
     rows_html = ""
     for i, row in enumerate(lb, 1):
@@ -763,11 +781,7 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
             sc_str = f"{float(sc):.4f}" if sc is not None else "—"
         except (ValueError, TypeError):
             sc_str = "—"
-        dur = row.get("training_time_s") if row.get("training_time_s") is not None else (row.get("training_time_seconds") or row.get("duration") or 0.0)
-        try:
-            dur_str = f"{float(dur):.2f}s"
-        except (ValueError, TypeError):
-            dur_str = "0.00s"
+        dur_str = _format_duration_seconds(row, suffix="s")
         is_succ = (not row.get("failed")) if "failed" in row else row.get("succeeded", True)
         status_badge = '<span style="color:#22C55E">● OK</span>' if is_succ else '<span style="color:#EF4444">● ERROR</span>'
         rank_badge = f'<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#161B26;font-size:11px;font-weight:600;color:{"#4F67FF" if i == 1 else "#8B95A7"}">#{i}</span>'
@@ -786,8 +800,10 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
 
     if champ["score"] is not None:
         exec_conclusion_html = (
-            f"<strong>Conclusión Ejecutiva:</strong> El modelo <strong>{html.escape(champ['model_id'])}</strong> ha alcanzado el mejor desempeño competitivo bajo validación cruzada "
-            f"{html.escape(str(val['strategy']))} ({val['cv_folds']} folds). Todas las transformaciones se evaluaron estrictamente dentro de los pliegues para garantizar cero fuga de datos (<em>data leakage</em>)."
+            f"<strong>Conclusión Ejecutiva:</strong> El modelo <strong>{html.escape(champ['model_id'])}</strong> obtuvo el mejor puntaje "
+            f"entre ensayos exitosos bajo validación cruzada {html.escape(str(val['strategy']))} ({val['cv_folds']} folds). "
+            "El preprocesamiento está diseñado <em>in-fold</em>; esto reduce el riesgo de fuga, "
+            "pero <strong>no es un certificado</strong> de ausencia total de <em>data leakage</em>."
         )
     else:
         exec_conclusion_html = "<strong>Conclusión Ejecutiva:</strong> No se registraron modelos completados exitosamente en esta ejecución."
@@ -923,7 +939,7 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
           <div class="kpi-value gain">{champ_score_str}</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">Δ vs Baseline</div>
+          <div class="kpi-label">Δ vs peor ensayo OK</div>
           <div class="kpi-value">{delta_str}</div>
         </div>
         <div class="kpi">
@@ -965,7 +981,7 @@ def _render_executive_report_html(data: dict[str, Any]) -> str:
     <div class="card">
       <div class="card-title">Gobernanza y Preparación para Producción</div>
       <div style="font-size:12px;color:#CBD5E1;line-height:1.8">
-        <div>✔ <strong>Validación honesta:</strong> Partición estratificada con semilla <code>{val['random_seed']}</code> sin fuga de información previa.</div>
+        <div>✔ <strong>Validación honesta:</strong> Partición con semilla <code>{val['random_seed']}</code>; preprocesamiento <em>in-fold</em> por diseño (no certificado de leakage cero).</div>
         <div>✔ <strong>Artefactos serializados:</strong> Modelo disponible como <code>ModelArtifact</code> (.pkl) junto a su hash criptográfico SHA-256.</div>
         <div>✔ <strong>Plataforma:</strong> CATML AutoML Platform • Motor auditado e independiente.</div>
       </div>
