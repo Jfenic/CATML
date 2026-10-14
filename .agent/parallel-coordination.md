@@ -9,7 +9,7 @@
 | Agente | Rol | Estado | Rama |
 | --- | --- | --- | --- |
 | **A** | Study B lift | **MERGED** [#122](https://github.com/Jfenic/catml/pull/122) (smoke 24/0/0) | `feat/study-b-lift` |
-| **B** | Demo export + SQLite #94 | **PR** [#125](https://github.com/Jfenic/catml/pull/125) | `feat/demo-export-and-sqlite-94` |
+| **B** | Demo export + SQLite #94 | **MERGED** [#125](https://github.com/Jfenic/catml/pull/125), [#126](https://github.com/Jfenic/catml/pull/126) | `feat/demo-export-and-sqlite-94` |
 
 ---
 
@@ -84,7 +84,7 @@ Hallazgos fuera de alcance → `gh issue create --label blackboard` (no arreglar
   - `tests/test_workbench_demo_and_export.py`
   - `TASKS.md` / `.agent/progress.md`
 - **Orden:** B2 primero, luego B1
-- **PR(s):** [#125](https://github.com/Jfenic/catml/pull/125)
+- **PR(s):** [#125](https://github.com/Jfenic/catml/pull/125), [#126](https://github.com/Jfenic/catml/pull/126)
 
 ### Criterio de hecho B
 
