@@ -18,7 +18,7 @@ the full Study A table (including losses and failures).
 | --- | --- | --- |
 | **C — Robustness & trust** | Adversarial cases with known expected outcomes | Gate: `tests/test_benchmark_study_c.py` |
 | **A — Predictive performance** | vs sklearn / FLAML / AutoGluon on curated OpenML/sklearn | **Done** — 20 min, 132/132 ok |
-| **B — Explore / agents** | Base vs Explore vs agent under hidden holdout | **Smoke done** — lift + agent pending |
+| **B — Explore / agents** | Base vs Explore vs agent under hidden holdout | **Lift wired** — verify→recipe; FakeLLM agent |
 
 ## Results summary
 
@@ -30,12 +30,11 @@ the full Study A table (including losses and failures).
 - CATML still shows a large lift vs sklearn on **phoneme**; often ties sklearn elsewhere; trails FLAML/AG on several regression/search-heavy sets.
 - Full table + wins: [`docs/experiments/study-a-report.md`](../docs/experiments/study-a-report.md).
 
-### Study B — Explore incremental value (smoke)
+### Study B — Explore incremental value
 
-- Configs: `sklearn_baseline` / `catml_base` / `catml_explore` executed; `catml_agent` **skipped** (FakeLLM/Ollama later).
-- Explore runs on **train only**; Propose ≠ Accept — findings recorded, recipes **not** auto-applied yet → explore ≈ base on smoke.
-- Smoke (`breast_cancer` + `wine` × 3 seeds, 1 min): **18 ok / 6 skipped / 0 failed**.
-- Next: apply verified Explore recipes into fit; wire agent.
+- Configs: `sklearn_baseline` / `catml_base` / `catml_explore` / `catml_agent` (FakeLLM + session step).
+- Explore on **train only**; Propose ≠ Accept — verify hyps → recipe from evidence → fit; else base fallback (`recipes_applied=0`).
+- Lift smoke (`breast_cancer` + `wine` × 3 seeds, 1 min): **24 ok / 0 skipped / 0 failed**.
 - Detail: [`docs/experiments/study-b-report.md`](../docs/experiments/study-b-report.md).
 
 Also: [`docs/experiments/pilot-1a-report.md`](../docs/experiments/pilot-1a-report.md).
@@ -66,7 +65,7 @@ benchmarks/
 .venv/bin/python benchmarks/analyze.py --study A
 # Formal: --time-budget-minutes 20
 
-# Study B (train-only Explore; agent skipped)
+# Study B (train-only Explore; FakeLLM agent)
 .venv/bin/python benchmarks/run.py --study B --dry-run
 .venv/bin/python benchmarks/run.py --study B \
   --datasets sklearn_breast_cancer,sklearn_wine \

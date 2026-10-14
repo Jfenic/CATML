@@ -32,11 +32,15 @@ def test_study_b_smoke_breast_cancer(tmp_path: Path):
     by_fw = {r["framework"]: r for r in payload["rows"]}
     assert by_fw["sklearn_baseline"]["status"] == "ok"
     assert by_fw["catml_base"]["status"] == "ok"
-    assert by_fw["catml_explore"]["status"] == "ok"
-    assert by_fw["catml_agent"]["status"] == "skipped"
+    assert by_fw["catml_explore"]["status"] == "ok", by_fw["catml_explore"].get("failure_reason")
+    assert by_fw["catml_agent"]["status"] == "ok", by_fw["catml_agent"].get("failure_reason")
     explore_extra = by_fw["catml_explore"].get("extra") or {}
     assert explore_extra.get("findings_count", 0) >= 0
     assert explore_extra.get("study_id")
+    assert "recipes_applied" in explore_extra
+    agent_extra = by_fw["catml_agent"].get("extra") or {}
+    assert agent_extra.get("agent_invoked") is True
+    assert agent_extra.get("agent_llm") == "fake"
     raw = json.loads((tmp_path / "study-b-raw.json").read_text())
     assert raw["comparison_complete"] is True
 
@@ -53,3 +57,4 @@ def test_study_b_multiclass_explore_task_alias(tmp_path: Path):
     by_fw = {r["framework"]: r for r in payload["rows"]}
     assert by_fw["catml_explore"]["status"] == "ok", by_fw["catml_explore"].get("failure_reason")
     assert (by_fw["catml_explore"].get("extra") or {}).get("study_id")
+    assert by_fw["catml_agent"]["status"] == "ok", by_fw["catml_agent"].get("failure_reason")

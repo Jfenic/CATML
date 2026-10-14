@@ -483,7 +483,8 @@ def _study_b_campaign(
         "rows": rows,
         "notes": [
             "Explore runs only on train CSV registered in an isolated workspace",
-            "catml_agent is skipped until FakeLLM/Ollama lift measurement is wired",
+            "catml_explore: verify hypotheses → recipe from evidence → fit (Propose ≠ Accept)",
+            "catml_agent: FakeLLM + one AgentSessionManager step, then same verify/recipe lift",
             "primary_score is always from the shared external holdout evaluator",
         ],
     }
