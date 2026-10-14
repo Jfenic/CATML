@@ -1,9 +1,13 @@
 # Progress
 
+### Focus → product robustness (2026-10-14)
+
+- Confirmed **`0.9.0rc1` on TestPyPI + PyPI** (GitHub `v0.9.0rc1`); TASKS publish rows marked Done.
+- Focus retargeted: honesty/OOF holdout, Data Prep P2, provenance, workspace slim, quality debt → then stable `0.9.0`.
+
 ### TASKS hygiene — Study A/B already done (2026-10-14)
 
 - RC1 track still said Study A “in progress” / Study B “scaffold”; corrected to **Done** (reports + `#118`/`#119`/`#122`).
-- Focus section retargeted to **publish / Trusted Publisher → 0.9.0**.
 
 ### Clean Arch PR5 — quality gates (2026-10-14)
 

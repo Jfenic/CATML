@@ -70,22 +70,27 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-### Focus — Release & publish
+### Focus — Product robustness (post-rc1)
 
-> Clean Arch PR1–PR5, trust audits, Study A/B, and export→predict parity are done. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)).
+> **`0.9.0rc1` ya publicado** (TestPyPI + PyPI + GitHub `v0.9.0rc1`). Clean Arch / audits / Study A/B cerrados. Objetivo: tabular más sólido antes de stable `0.9.0` y Labs ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)).
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Human: Trusted Publisher + protect `testpypi`/`pypi` envs | Open (blocks publish) |
-| P0 | Publish TestPyPI / PyPI **`0.9.0rc1`** then stable **`0.9.0`** | Open |
+| P0 | **Honesty & leakage residual**: OOF blending holdout validation; pip-audit hard-fail opcional; stacking holdout residual | Open |
+| P0 | **Data Prep P2**: CLI + facade `prepare` + wire pipeline-scoped steps into recipes | Open (P1 done) |
+| P1 | **Provenance**: trial/run metadata (seeds, CV fold ids, content hash) on export/leaderboard | Open |
+| P1 | **Facade slim**: deeper `workspace.py` decomposition (más servicios; menos God-object) | Open (debt) |
+| P1 | **Quality debt**: application mypy gradual; ESLint warnings cleanup; `feature_selection_v05` bench | Open |
+| P2 | Stable PyPI **`0.9.0`** when robustness gates agreed | Open (rc1 already shipped) |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
-### Shipped — structure / trust / studies (reference)
+### Shipped — structure / trust / studies / rc1 (reference)
 
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 | Clean Arch PR1–PR5 | Done (`#102`…`#130`) |
 | P0 | Audits HTTP/CSRF + model reliability | Done (`#128`) |
+| P0 | Publish **`0.9.0rc1`** TestPyPI + PyPI | Done (`v0.9.0rc1`) |
 | P1 | Study A (5+20 min) + Study B lift | Done |
 | P1 | E2E export → reload → predict parity | Done (PR5) |
 
@@ -175,7 +180,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P1 | SECURITY/`pip-audit` honesty + CI audit job | Done (audit job non-blocking) |
 | P1 | CI matrix Python 3.11 + 3.13 | Done |
 | P2 | Vendor Workbench CDN assets for fully offline UI | Done (`fix/workbench-offline-vendor-assets`) |
-| P0 | Reserve/publish `catml` on TestPyPI then PyPI as **0.9.0rc1** | Not started (needs human Trusted Publisher setup) |
+| P0 | Reserve/publish `catml` on TestPyPI then PyPI as **0.9.0rc1** | Done (`v0.9.0rc1` on TestPyPI + PyPI) |
 
 ### Track Pre-Publish Security & Leakage (`fix/pre-publish-security-and-leakage`)
 
@@ -199,7 +204,7 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | HPO all-fail → `FAILED`; best only from succeeded trials | Done |
 | P0 | `release.yml` build → verify → publish; tag↔version; env approval | Done |
 | P1 | SQLite connections close-on-exit + bounded FD stress test | Done (soak: [#94](https://github.com/Jfenic/catml/issues/94)) |
-| P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | In progress (Trusted Publisher pending; Release → testpypi) |
+| P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | Done (rc1 published) |
 | P1 | CATML Benchmark v1 Pilot 1A (sklearn/FLAML/AG vs OpenML) | Done — [`docs/experiments/pilot-1a-report.md`](docs/experiments/pilot-1a-report.md) |
 | P1 | Fire tests: 10 Jupyter/scripts post-pilot | Done — [`notebooks/fire_tests/`](notebooks/fire_tests/) |
 | P1 | Protocol v1 frozen + Study A (11 datasets; 5 min + 20 min formal 132/132) | Done — [`docs/experiments/study-a-report.md`](docs/experiments/study-a-report.md) |
@@ -239,9 +244,10 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 - [x] Align public docs/packaging with shipped security & API surface (merged PR #91).
 - [x] Domain import architecture guard test.
 - [ ] Live coverage badge (Codecov) if/when token is configured.
-- [ ] Publish PyPI `0.9.0rc1` then stable `0.9.0` (see PyPI pre-publish track above).
+- [x] Publish PyPI `0.9.0rc1` (TestPyPI + PyPI + GitHub release `v0.9.0rc1`).
+- [ ] Stable PyPI `0.9.0` after agreed robustness gates (Focus above).
 
-Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF holdout validation; trial provenance metadata; `feature_selection_v05` benchmark; advanced meta-learning *policies*; historical branch cleanup; deeper `workspace.py` decomposition.
+Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases) and **Focus — Product robustness**): OOF holdout validation; trial provenance metadata; Data Prep P2/P3; `feature_selection_v05` benchmark; advanced meta-learning *policies*; historical branch cleanup; deeper `workspace.py` decomposition.
 
 ## Completed Phase: v0.8.2 Phase 2 — Ingestion Polymorphism, Strict CQRS Boundaries & Application Services Decomposition
 
