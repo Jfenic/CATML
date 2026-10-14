@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import builtins
+
 from automl.domain.features.feature import Feature, FeatureStatus
 
 
 class FeatureRegistry:
-    def __init__(self, features: list[Feature] | None = None) -> None:
+    def __init__(self, features: builtins.list[Feature] | None = None) -> None:
         self._features: dict[str, Feature] = {}
         for feature in features or []:
             self.register(feature)
@@ -15,8 +17,9 @@ class FeatureRegistry:
     def get(self, name: str) -> Feature | None:
         return self._features.get(name)
 
-    def list(self) -> list[Feature]:
-        return list(self._features.values())
+    def list(self) -> builtins.list[Feature]:
+        # Method name `list` shadows builtins.list for mypy; annotate via builtins.
+        return [*self._features.values()]
 
     def exclude(self, name: str) -> None:
         feature = self._require(name)
@@ -26,8 +29,8 @@ class FeatureRegistry:
         feature = self._require(name)
         feature.prioritize(score)
 
-    def active_feature_names(self, target: str | None = None) -> list[str]:
-        names: list[str] = []
+    def active_feature_names(self, target: str | None = None) -> builtins.list[str]:
+        names: builtins.list[str] = []
         for feature in self._features.values():
             if target is not None and feature.name == target:
                 continue

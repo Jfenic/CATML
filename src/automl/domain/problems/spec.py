@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from automl.domain.modalities.modality import DataSource, Modality
+from automl.domain.modalities.modality import Modality
 from automl.domain.tasks.task_type import TaskType
 
 

@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from automl.application.registries.analysis_registry import register_analysis_handlers
 from automl.application.registries.core_registry import register_core_handlers
-from automl.application.registries.experiment_registry import register_experiment_handlers
+from automl.application.registries.experiment_registry import (
+    register_experiment_handlers,
+)
 from automl.application.registries.feature_registry import register_feature_handlers
 from automl.application.registries.inference_registry import register_inference_handlers
 from automl.application.registries.job_registry import register_job_handlers
-from automl.application.registries.preparation_registry import register_preparation_handlers
+from automl.application.registries.preparation_registry import (
+    register_preparation_handlers,
+)
 from automl.application.registries.recipe_registry import register_recipe_handlers
 
 __all__ = [

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import math
 import random
 from dataclasses import dataclass, field
@@ -21,7 +22,7 @@ class ParameterSpec:
     high: float | int | None = None
     step: float | int | None = None
     log: bool = False
-    choices: list[Any] | None = None
+    choices: builtins.list[Any] | None = None
     default: Any | None = None
 
     @property
@@ -70,7 +71,7 @@ class ParameterSpec:
     def categorical(
         cls,
         name: str,
-        choices: list[Any],
+        choices: builtins.list[Any],
         default: Any | None = None,
     ) -> ParameterSpec:
         return cls(
@@ -84,20 +85,16 @@ class ParameterSpec:
         if self.type == ParameterType.INT:
             if not isinstance(value, int) or isinstance(value, bool):
                 return False
-            if self.low is not None and value < self.low:
-                return False
-            if self.high is not None and value > self.high:
-                return False
-            return True
-        elif self.type == ParameterType.FLOAT:
+            return (self.low is None or value >= self.low) and (
+                self.high is None or value <= self.high
+            )
+        if self.type == ParameterType.FLOAT:
             if not isinstance(value, (int, float)) or isinstance(value, bool):
                 return False
-            if self.low is not None and value < self.low:
-                return False
-            if self.high is not None and value > self.high:
-                return False
-            return True
-        elif self.type == ParameterType.CATEGORICAL:
+            return (self.low is None or value >= self.low) and (
+                self.high is None or value <= self.high
+            )
+        if self.type == ParameterType.CATEGORICAL:
             if self.choices is not None:
                 return value in self.choices
             return True
@@ -127,8 +124,9 @@ class SearchSpace:
     def get(self, name: str) -> ParameterSpec | None:
         return self.parameters.get(name)
 
-    def list(self) -> list[ParameterSpec]:
-        return list(self.parameters.values())
+    def list(self) -> builtins.list[ParameterSpec]:
+        # Method name `list` shadows builtins.list for mypy; annotate via builtins.
+        return [*self.parameters.values()]
 
     def validate_params(self, params: dict[str, Any]) -> dict[str, bool]:
         return {
@@ -147,12 +145,12 @@ class SearchSpace:
                 step = int(spec.step) if spec.step else 1
                 sampled[name] = rng.randrange(low, high + 1, step)
             elif spec.type == ParameterType.FLOAT:
-                low = float(spec.low if spec.low is not None else 1e-3)
-                high = float(spec.high if spec.high is not None else 1.0)
+                low_f = float(spec.low if spec.low is not None else 1e-3)
+                high_f = float(spec.high if spec.high is not None else 1.0)
                 if spec.log:
-                    val = math.exp(rng.uniform(math.log(low), math.log(high)))
+                    val = math.exp(rng.uniform(math.log(low_f), math.log(high_f)))
                 else:
-                    val = rng.uniform(low, high)
+                    val = rng.uniform(low_f, high_f)
                 sampled[name] = val
             elif spec.type == ParameterType.CATEGORICAL:
                 choices = spec.choices or ([spec.default] if spec.default is not None else [])

@@ -1,22 +1,28 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from automl import __version__
-from automl.domain.datasets.profile import Dataset
+from automl.application.plugins.registry import PluginRegistry
+from automl.domain.datasets.profile import Dataset, DatasetProfile
 from automl.domain.experiments.candidate import ExperimentCandidate
 from automl.domain.experiments.priority import ExperimentPriority, Priority
-from automl.domain.experiments.trial import Experiment, ExperimentStatus, Trial, TrialResult, TrialStatus
+from automl.domain.experiments.trial import (
+    Experiment,
+    ExperimentStatus,
+    Trial,
+    TrialResult,
+    TrialStatus,
+)
 from automl.domain.experiments.validation import require_known_validation_strategy
-from automl.domain.metrics.exceptions import InvalidMetric
-from automl.domain.metrics.spec import MetricSpec, resolve_metric_spec
-from automl.domain.features.evidence import FeatureEvidence, FeatureInteractionEvidence
+from automl.domain.features.evidence import FeatureEvidence
 from automl.domain.features.feature import Feature
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.features.registry import FeatureRegistry
@@ -25,7 +31,10 @@ from automl.domain.features.selection_strategy import (
     FeatureSelectionStrategy,
     FeatureSetCandidate,
 )
+from automl.domain.metrics.exceptions import InvalidMetric
+from automl.domain.metrics.spec import MetricSpec, resolve_metric_spec
 from automl.domain.models.registry import ModelRegistry
+from automl.domain.pipelines.graph import PipelineGraph, PipelineNode
 from automl.domain.policies.budget import BudgetPolicy
 from automl.domain.ports import (
     ExperimentPlannerPort,
@@ -34,22 +43,30 @@ from automl.domain.ports import (
 from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
 from automl.domain.tasks.problem_definition import ProblemDefinition
-from automl.domain.tasks.task_type import TASK_CATALOG, TaskType, default_metric_for
+from automl.domain.tasks.task_type import TASK_CATALOG, TaskType
 from automl.engine.planning.experiment_planner import RuleBasedExperimentPlanner
 from automl.engine.planning.task_planner import plan_from_dataframe
 from automl.engine.priority.scheduler import ExperimentQueue, Scheduler
-from automl.application.plugins.registry import PluginRegistry
 from automl.engine.priority.scorer import RuleBasedPriorityScorer
-from automl.engine.profiling.dataset_profiler import infer_task_type, load_dataframe, profile_dataset
+from automl.engine.profiling.dataset_profiler import (
+    infer_task_type,
+    load_dataframe,
+    profile_dataset,
+)
 from automl.infrastructure.database.sqlite_repository import SQLiteExperimentRepository
-from automl.domain.modalities.modality import Modality
-from automl.domain.pipelines.graph import NodeType, PipelineGraph, PipelineNode
-from automl.plugins.metrics.business_metrics import CostSensitiveMetricPlugin, WeightedF1MetricPlugin
+from automl.plugins.metrics.business_metrics import (
+    CostSensitiveMetricPlugin,
+    WeightedF1MetricPlugin,
+)
 from automl.plugins.modalities.image_plugin import ImageModalityPlugin
 from automl.plugins.models.catboost_plugin import CatBoostPlugin
 from automl.plugins.models.ensemble import VotingEnsemblePlugin
 from automl.plugins.models.gradient_boosting import LightGBMPlugin, XGBoostPlugin
-from automl.plugins.models.sklearn_models import ExtraTreesPlugin, MLPPlugin, default_model_specs
+from automl.plugins.models.sklearn_models import (
+    ExtraTreesPlugin,
+    MLPPlugin,
+    default_model_specs,
+)
 from automl.plugins.models.sklearn_plugin import create_default_sklearn_plugins
 from automl.plugins.models.vision_plugin import TimmVisionPlugin
 
@@ -101,7 +118,9 @@ class AutoMLWorkspace:
     @property
     def pipeline_service(self):
         if self._pipeline_service is None:
-            from automl.application.services.pipeline_service import PipelineExecutionService
+            from automl.application.services.pipeline_service import (
+                PipelineExecutionService,
+            )
             self._pipeline_service = PipelineExecutionService(self)
         return self._pipeline_service
 
@@ -115,7 +134,9 @@ class AutoMLWorkspace:
     @property
     def feature_service(self):
         if self._feature_service is None:
-            from automl.application.services.feature_service import FeatureEngineeringService
+            from automl.application.services.feature_service import (
+                FeatureEngineeringService,
+            )
             self._feature_service = FeatureEngineeringService(self)
         return self._feature_service
 
@@ -131,7 +152,9 @@ class AutoMLWorkspace:
     @property
     def optimization_service(self):
         if self._optimization_service is None:
-            from automl.application.services.optimization_service import OptimizationService
+            from automl.application.services.optimization_service import (
+                OptimizationService,
+            )
             self._optimization_service = OptimizationService(self)
         return self._optimization_service
 
@@ -416,7 +439,9 @@ class AutoMLWorkspace:
     def get_study_repository(self):
         """Retrieve SQLiteStudyRepository for this workspace."""
         if self._cached_study_repo is None:
-            from automl.infrastructure.database.sqlite_studies import SQLiteStudyRepository
+            from automl.infrastructure.database.sqlite_studies import (
+                SQLiteStudyRepository,
+            )
             self._cached_study_repo = SQLiteStudyRepository(self.root_dir / "automl.db")
         return self._cached_study_repo
 
@@ -434,7 +459,9 @@ class AutoMLWorkspace:
     def get_recipe_repository(self):
         """Retrieve SQLiteRecipeRepository for this workspace."""
         if self._cached_recipe_repo is None:
-            from automl.infrastructure.database.sqlite_recipes import SQLiteRecipeRepository
+            from automl.infrastructure.database.sqlite_recipes import (
+                SQLiteRecipeRepository,
+            )
             self._cached_recipe_repo = SQLiteRecipeRepository(self.root_dir / "automl.db")
         return self._cached_recipe_repo
 
@@ -691,7 +718,7 @@ class AutoMLWorkspace:
 
     def clone_run(self, run_id: str, new_name: str | None = None) -> AutoMLRun:
         source = self._get_run(run_id)
-        dataset = self._get_dataset(source.dataset_id)
+        self._get_dataset(source.dataset_id)  # ensure dataset still exists
         cloned_config = RunConfig.from_dict(source.config.to_dict())
         cloned = AutoMLRun(
             id=f"run_{uuid.uuid4().hex[:8]}",
@@ -1522,7 +1549,6 @@ class AutoMLWorkspace:
         dataset_id: str,
         run_id: str | None = None,
     ) -> Any:
-        from automl.domain.meta_learning.fingerprint import MetaLearningKnowledge
         from automl.engine.meta_learning.extractor import extract_fingerprint
         from automl.engine.meta_learning.knowledge_base import MetaKnowledgeBase
 
@@ -1635,9 +1661,13 @@ class AutoMLWorkspace:
             weights = oof_res.weights or {m: 1.0 / len(unique_models) for m in unique_models}
             cv_std = float(np.std(oof_res.fold_scores["oof_blend"]))
         else:
-            from automl.engine.ensemble.voting import VotingEnsembleEstimator
-            from automl.engine.training.sklearn_trainer import _build_pipeline, _sklearn_scoring
             from sklearn.model_selection import KFold, cross_val_score
+
+            from automl.engine.ensemble.voting import VotingEnsembleEstimator
+            from automl.engine.training.sklearn_trainer import (
+                _build_pipeline,
+                _sklearn_scoring,
+            )
 
             estimators = [(m, factories[m]()) for m in unique_models]
             voting_mode = "soft"

@@ -1,32 +1,21 @@
 """LangGraph StateGraph orchestrator for durable, crash-resilient autonomous agent cycles."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import json
 import logging
-from typing import Any, Callable, Optional
+from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
-from automl.domain.agents.entities import (
-    AgentBudget,
-    AgentPermission,
-    ApprovalStatus,
-    Hypothesis,
-    OperationStatus,
-    PolicyDecisionType,
-)
 from automl.application.agents.contracts import (
     AgentSessionState,
     ApprovalRequest,
     CandidateProposal,
     EvaluationFeedback,
-    SessionStepResult,
     ToolCallContext,
     ToolInvocation,
 )
 from automl.application.agents.orchestrator.state_machine import (
     AgentStateMachine,
-    CycleState,
     SessionStatus,
     StopReason,
 )
@@ -43,13 +32,21 @@ from automl.application.agents.state import (
     graph_state_to_session,
     session_to_graph_state,
 )
+from automl.domain.agents.entities import (
+    AgentBudget,
+    AgentPermission,
+    ApprovalStatus,
+    Hypothesis,
+    OperationStatus,
+    PolicyDecisionType,
+)
 
 logger = logging.getLogger(__name__)
 
 try:
-    from langgraph.graph import StateGraph, START, END
-    from langgraph.types import Command, interrupt
     from langgraph.checkpoint.base import BaseCheckpointSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.types import Command, interrupt
     _LANGGRAPH_AVAILABLE = True
 except ImportError:  # pragma: no cover
     StateGraph = None  # type: ignore[assignment, misc]
@@ -77,15 +74,15 @@ class LangGraphAgentOrchestrator:
         self,
         workspace: Any,
         session_store: AgentSessionStorePort,
-        checkpointer: Optional[BaseCheckpointSaver] = None,
-        approval_store: Optional[AgentApprovalStorePort] = None,
-        operation_store: Optional[AgentOperationStorePort] = None,
-        context_builder: Optional[ContextBuilder] = None,
-        planner: Optional[Planner] = None,
-        critic: Optional[Critic] = None,
-        feature_advisor: Optional[Any] = None,
-        executor: Optional[Any] = None,
-        policy_evaluator: Optional[Any] = None,
+        checkpointer: BaseCheckpointSaver | None = None,
+        approval_store: AgentApprovalStorePort | None = None,
+        operation_store: AgentOperationStorePort | None = None,
+        context_builder: ContextBuilder | None = None,
+        planner: Planner | None = None,
+        critic: Critic | None = None,
+        feature_advisor: Any | None = None,
+        executor: Any | None = None,
+        policy_evaluator: Any | None = None,
         patience: int = 3,
         permission: AgentPermission = AgentPermission.EXECUTE_WITHIN_BUDGET,
     ) -> None:
@@ -198,7 +195,6 @@ class LangGraphAgentOrchestrator:
             past_signatures.add(sig)
 
         # Context reconstruction
-        ctx_dict = state.get("context", {})
         context = self.context_builder.build(
             workspace=self.workspace,
             run_id=run_id,
@@ -382,7 +378,7 @@ class LangGraphAgentOrchestrator:
         budget_obj = AgentBudget.from_dict(budget_dict)
 
         latest_result: dict[str, Any] = {}
-        operation_id: Optional[str] = None
+        operation_id: str | None = None
 
         if self.executor is not None:
             tool_context = ToolCallContext(
@@ -640,7 +636,7 @@ class LangGraphAgentOrchestrator:
     def run(
         self,
         session_id_or_state: str | AgentSessionState,
-        thread_id: Optional[str] = None,
+        thread_id: str | None = None,
         recursion_limit: int = 50,
     ) -> GraphAgentState:
         """Execute autonomous cycle until pause, interruption, or termination."""
@@ -661,7 +657,7 @@ class LangGraphAgentOrchestrator:
         }
 
         # Check existing state in checkpointer
-        existing_graph_state: Optional[dict[str, Any]] = None
+        existing_graph_state: dict[str, Any] | None = None
         if self.checkpointer:
             tup = self.checkpointer.get_tuple(config)
             if tup and tup.checkpoint:
@@ -679,7 +675,7 @@ class LangGraphAgentOrchestrator:
         self,
         session_id: str,
         human_decision: bool | dict[str, Any] = True,
-        thread_id: Optional[str] = None,
+        thread_id: str | None = None,
         recursion_limit: int = 50,
     ) -> GraphAgentState:
         """Resume execution following an approval interruption or manual pause."""
@@ -701,7 +697,7 @@ class LangGraphAgentOrchestrator:
         result = self._compiled_graph.invoke(Command(resume=human_decision), config=config)
         return GraphAgentState(**result)
 
-    def get_latest_graph_state(self, session_id: str) -> Optional[GraphAgentState]:
+    def get_latest_graph_state(self, session_id: str) -> GraphAgentState | None:
         """Fetch latest persisted state from checkpointer for given session."""
         if not self.checkpointer:
             return None

@@ -117,7 +117,9 @@ class RecipeService:
                     drop_features = [f for f in baseline_exp.feature_names if f not in feature_names]
         else:
             # Fallback to translate via HypothesisExperimentTranslator
-            from automl.engine.analysis.hypothesis_translator import HypothesisExperimentTranslator
+            from automl.engine.analysis.hypothesis_translator import (
+                HypothesisExperimentTranslator,
+            )
 
             base_reg = self.workspace.get_feature_registry(dataset_id)
             base_features = [f.name for f in base_reg.list()]

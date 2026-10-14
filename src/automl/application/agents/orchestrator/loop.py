@@ -1,7 +1,7 @@
 """Autonomous execution loop and lifecycle runner with hooks for agent sessions."""
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
 
 from automl.application.agents.contracts import AgentSessionState, SessionStepResult
 from automl.application.agents.orchestrator.session_manager import AgentSessionManager

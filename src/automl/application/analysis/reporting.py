@@ -45,7 +45,7 @@ def generate_study_markdown_report(
             sig_findings.append(f)
 
     md = [
-        f"# Technical Exploration Report · CATML Explore",
+        "# Technical Exploration Report · CATML Explore",
         "",
         f"**Study Name:** {name} (`{study_id}`)",
         f"**Dataset:** `{dataset_id}` (Path: `{dataset_path}`)",

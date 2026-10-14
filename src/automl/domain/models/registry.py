@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass
 class ModelSpec:
     id: str
     name: str
-    task_types: list[str] = field(default_factory=lambda: ["binary_classification"])
+    task_types: builtins.list[str] = field(default_factory=lambda: ["binary_classification"])
     description: str = ""
 
 
@@ -25,18 +25,19 @@ class ModelRegistry:
     def get(self, model_id: str) -> ModelSpec | None:
         return self._models.get(model_id)
 
-    def list(self, task_type: str | None = None) -> list[ModelSpec]:
-        models = list(self._models.values())
+    def list(self, task_type: str | None = None) -> builtins.list[ModelSpec]:
+        # Method name `list` shadows builtins.list for mypy; annotate via builtins.
+        models: builtins.list[ModelSpec] = [*self._models.values()]
         if task_type is None:
             return models
         return [m for m in models if task_type in m.task_types]
 
     def resolve_active(
         self,
-        include: list[str],
-        exclude: list[str],
+        include: builtins.list[str],
+        exclude: builtins.list[str],
         task_type: str | None = None,
-    ) -> list[str]:
+    ) -> builtins.list[str]:
         compatible = {m.id for m in self.list(task_type)} if task_type else set(self._models.keys())
         if include:
             candidates = [m for m in include if m in self._models and m in compatible]
@@ -44,7 +45,7 @@ class ModelRegistry:
             candidates = [m for m in compatible if m in self._models]
         return [m for m in candidates if m not in exclude]
 
-    def validate_for_task(self, model_ids: list[str], task_type: str) -> list[str]:
+    def validate_for_task(self, model_ids: builtins.list[str], task_type: str) -> builtins.list[str]:
         compatible = {m.id for m in self.list(task_type)}
         invalid = [m for m in model_ids if m not in compatible]
         if invalid:

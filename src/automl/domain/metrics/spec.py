@@ -1,9 +1,9 @@
 """MetricSpec: single source of truth for metric direction and best-score selection."""
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Sequence
 
 from automl.domain.metrics.exceptions import InvalidMetric
 

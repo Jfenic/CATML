@@ -170,16 +170,17 @@ views/datasets/
 - [x] `persist_trial_outcome(trial, result, experiment=?)` atomic; used by execution/HPO services
 - [x] Tests: `tests/test_clean_arch_pr4_persistence_uow.py`
 - [x] Brief: [agent-brief-pr4.md](agent-brief-pr4.md)
-- [ ] Merge PR (cobertura ≥ 85 %, suite completa verde)
+- [x] Merge PR (cobertura ≥ 85 %, suite completa verde) — `#129`
 
 ---
 
 ## PR 5 — Calidad automática
 
-- Ruff + mypy gradual en `domain/` y `application/`.
-- ESLint/Prettier para `static/js`.
-- Tests de contrato + E2E Workbench smoke.
-- Mantener gate pytest coverage ≥ 85 % en CI.
+- [x] Ruff + mypy gradual en `domain/` y `application/` (`pyproject.toml`; CI `lint-python`).
+- [x] ESLint/Prettier para `static/js` (`eslint.config.js`, `package.json`; CI `lint-js`).
+- [x] Tests de contrato + E2E export→predict parity (`tests/test_clean_arch_pr5_quality_gates.py`).
+- [x] Mantener gate pytest coverage ≥ 85 % en CI.
+- [ ] Merge PR (suite verde + lint jobs).
 - (Opcional) endurecer `pip-audit` cuando el equipo lo decida.
 
 ---

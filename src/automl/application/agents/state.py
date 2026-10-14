@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 from automl.application.agents.contracts import AgentSessionState
 from automl.application.agents.orchestrator.state_machine import SessionStatus
@@ -18,30 +18,30 @@ class GraphAgentState(TypedDict, total=False):
     status: str
     iteration_count: int
     max_iterations: int
-    stop_reason: Optional[str]
-    session_checkpoint_id: Optional[str]
+    stop_reason: str | None
+    session_checkpoint_id: str | None
     budget: dict[str, Any]
-    context: Optional[dict[str, Any]]
-    proposal: Optional[dict[str, Any]]
-    pending_approval_id: Optional[str]
-    approval_status: Optional[str]
-    latest_result: Optional[dict[str, Any]]
-    feedback: Optional[dict[str, Any]]
-    operation_id: Optional[str]
-    current_hypothesis_id: Optional[str]
-    error: Optional[str]
+    context: dict[str, Any] | None
+    proposal: dict[str, Any] | None
+    pending_approval_id: str | None
+    approval_status: str | None
+    latest_result: dict[str, Any] | None
+    feedback: dict[str, Any] | None
+    operation_id: str | None
+    current_hypothesis_id: str | None
+    error: str | None
     created_at: str
     updated_at: str
 
 
 def session_to_graph_state(
     session: AgentSessionState,
-    context: Optional[dict[str, Any]] = None,
-    proposal: Optional[dict[str, Any]] = None,
-    latest_result: Optional[dict[str, Any]] = None,
-    feedback: Optional[dict[str, Any]] = None,
-    operation_id: Optional[str] = None,
-    error: Optional[str] = None,
+    context: dict[str, Any] | None = None,
+    proposal: dict[str, Any] | None = None,
+    latest_result: dict[str, Any] | None = None,
+    feedback: dict[str, Any] | None = None,
+    operation_id: str | None = None,
+    error: str | None = None,
 ) -> GraphAgentState:
     """Translate public AgentSessionState into internal GraphAgentState for LangGraph execution."""
     return GraphAgentState(

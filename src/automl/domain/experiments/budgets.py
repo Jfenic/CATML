@@ -10,8 +10,8 @@ EXPERIMENT_BUDGET_SECONDS: dict[str, float] = {
 
 
 def resolve_time_budget_seconds(
-    budget: str | int | float | None = None,
-    time_budget_seconds: float | int | None = None,
+    budget: str | float | None = None,
+    time_budget_seconds: float | None = None,
     *,
     default: float = 300.0,
 ) -> float:

@@ -17,15 +17,15 @@ from automl.application.recipes.queries import (
 from automl.application.recipes.recipe_service import RecipeService
 
 __all__ = [
-    "CreateExperimentRecipeFromEvidenceCommand",
-    "SubmitExperimentFromRecipeCommand",
-    "SelectExperimentRecipeCommand",
-    "PromoteExperimentRecipeCommand",
     "ArchiveExperimentRecipeCommand",
+    "CreateExperimentRecipeFromEvidenceCommand",
+    "ExperimentRecipeDTO",
     "GetExperimentRecipeQuery",
     "ListExperimentRecipesQuery",
     "ListVerifiedImprovementsQuery",
-    "ExperimentRecipeDTO",
-    "VerifiedImprovementDTO",
+    "PromoteExperimentRecipeCommand",
     "RecipeService",
+    "SelectExperimentRecipeCommand",
+    "SubmitExperimentFromRecipeCommand",
+    "VerifiedImprovementDTO",
 ]

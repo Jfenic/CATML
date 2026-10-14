@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from automl.application.agents.contracts import ContextPayload, EvaluationFeedback
-from automl.application.agents.ports import LLMProviderPort, SpecialistPort
+from automl.application.agents.ports import LLMProviderPort
 
 
 class Critic:

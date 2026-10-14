@@ -39,7 +39,9 @@ export class KnowledgeView {
         || dsRuns[0]
         || null;
 
-      const datasetId = this.activeRun ? this.activeRun.dataset_id : (state.activeDatasetId || "");
+      const datasetId = this.activeRun
+        ? this.activeRun.dataset_id
+        : (store.getActiveDatasetId() || "");
       this.knowledge = await api.getKnowledge(datasetId).catch(() => null);
     } catch (e) {
       console.warn("KnowledgeView fetchData error:", e);

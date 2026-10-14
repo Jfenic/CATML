@@ -4,8 +4,8 @@ from __future__ import annotations
 from automl.domain.experiments.transitions import InvalidExperimentTransition
 
 __all__ = [
-    "InvalidValidationStrategy",
     "InvalidExperimentTransition",
+    "InvalidValidationStrategy",
 ]
 
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from automl.domain.agents.entities import ApprovalStatus, Hypothesis, OperationStatus, RunLease
 from automl.application.agents.contracts import (
     AgentSessionState,
     ApprovalRequest,
@@ -12,6 +11,12 @@ from automl.application.agents.contracts import (
     EvaluationFeedback,
     LLMResponse,
     OperationRecord,
+)
+from automl.domain.agents.entities import (
+    ApprovalStatus,
+    Hypothesis,
+    OperationStatus,
+    RunLease,
 )
 
 
@@ -179,6 +184,5 @@ class AgentLedgerPort(
     Protocol,
 ):
     """Unified ledger protocol combining operation, approval, and session stores for backward compatibility."""
-    ...
 
 

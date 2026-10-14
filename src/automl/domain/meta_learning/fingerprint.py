@@ -4,8 +4,8 @@ Pure Python standard library implementation adhering to Hexagonal Architecture.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from typing import Any
 
 

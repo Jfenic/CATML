@@ -5,10 +5,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from automl.domain.agents.entities import (
-    AgentBudget,
     AgentPermission,
     ApprovalStatus,
-    Hypothesis,
     OperationStatus,
     PolicyDecisionType,
     ToolEffect,

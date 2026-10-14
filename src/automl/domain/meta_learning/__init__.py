@@ -9,8 +9,8 @@ from automl.domain.meta_learning.fingerprint import (
 
 __all__ = [
     "DatasetFingerprint",
-    "SimilarDatasetMatch",
     "HistoricalModelRanking",
-    "WarmStartRecommendation",
     "MetaLearningKnowledge",
+    "SimilarDatasetMatch",
+    "WarmStartRecommendation",
 ]

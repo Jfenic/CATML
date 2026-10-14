@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from automl.application.agents.contracts import CandidateProposal, ContextPayload
-from automl.application.agents.ports import LLMProviderPort, SpecialistPort
+from automl.application.agents.ports import LLMProviderPort
 
 
 class FeatureAdvisor:
@@ -43,7 +43,7 @@ class FeatureAdvisor:
             col for col in numeric_cols + categorical_cols
             if col.lower() != target_col and (
                 col.lower() in ("target", "label", "outcome", "ground_truth", "is_churned")
-                or target_col and target_col in col.lower() and len(col) > len(target_col)
+                or (target_col and target_col in col.lower() and len(col) > len(target_col))
             )
         ]
         if suspicious_leakage_cols:

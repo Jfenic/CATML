@@ -1,12 +1,15 @@
 """Job validation and controls: commands return IDs, queries return snapshots."""
-from dataclasses import asdict
 import json
 import uuid
+from dataclasses import asdict
 
-from automl.application.commands.workspace_commands import GenerateOOFSubmissionCommand, GenerateSubmissionCommand
+from automl.application.commands.workspace_commands import (
+    GenerateOOFSubmissionCommand,
+    GenerateSubmissionCommand,
+)
 from automl.domain.jobs.job import Job, JobStatus
 from automl.domain.ports import JobRepositoryPort
-from automl.domain.runs.states import RunStatus, RunPhase
+from automl.domain.runs.states import RunPhase, RunStatus
 
 
 class JobService:

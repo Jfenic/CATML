@@ -11,7 +11,9 @@ from automl.domain.features.derived_feature import (
     DerivedFeatureType,
     FeatureEvaluationResult,
 )
-from automl.engine.features.generation.derived_feature_engine import DerivedFeatureEngine
+from automl.engine.features.generation.derived_feature_engine import (
+    DerivedFeatureEngine,
+)
 
 
 class FeatureAdvisor:

@@ -20,8 +20,8 @@ from automl.application.commands.workspace_commands import (
 from automl.application.queries.workspace_queries import (
     CompareExperimentsQuery,
     GetBestTrialQuery,
-    GetExperimentQueueQuery,
     GetExperimentQuery,
+    GetExperimentQueueQuery,
     GetExperimentTrialsQuery,
     GetLeaderboardQuery,
     GetTrialQuery,
