@@ -12,6 +12,7 @@ from typing import Any, Generator
 logger = logging.getLogger(__name__)
 
 from automl.domain.datasets.profile import ColumnProfile, Dataset, DatasetProfile
+from automl.domain.experiments.transitions import assert_valid_experiment_transition
 from automl.domain.experiments.trial import (
     Experiment,
     ExperimentStatus,
@@ -24,6 +25,14 @@ from automl.domain.features.feature import Feature, FeatureStatus
 from automl.domain.features.feature_set import FeatureSet
 from automl.domain.runs.run import AutoMLRun, RunConfig
 from automl.domain.runs.states import RunPhase, RunStatus
+from automl.domain.runs.transitions import assert_valid_run_transition
+from automl.infrastructure.database.connection import connect as sqlite_connect
+from automl.infrastructure.database.mappers import (
+    _row_to_experiment,
+    _row_to_feature,
+    _row_to_result,
+)
+from automl.infrastructure.database.unit_of_work import SqliteUnitOfWork
 
 
 class SQLiteExperimentRepository:
@@ -36,16 +45,8 @@ class SQLiteExperimentRepository:
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection, None, None]:
         """Open a short-lived connection that always closes (sqlite3's context manager does not)."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        try:
+        with sqlite_connect(self.db_path) as conn:
             yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
 
     def close(self) -> None:
         """Disposal hook for connection lifecycle consistency."""
@@ -401,6 +402,9 @@ class SQLiteExperimentRepository:
     # --- runs ---
 
     def save_run(self, run: AutoMLRun) -> None:
+        existing = self.get_run(run.id)
+        if existing is not None:
+            assert_valid_run_transition(existing.status, run.status)
         with self._connect() as conn:
             conn.execute(
                 """
@@ -576,34 +580,40 @@ class SQLiteExperimentRepository:
     # --- experiments ---
 
     def save_experiment(self, experiment: Experiment) -> None:
+        existing = self.get_experiment(experiment.id)
+        if existing is not None:
+            assert_valid_experiment_transition(existing.status, experiment.status)
         with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO experiments
-                (id, run_id, name, hypothesis, feature_set_id, feature_names_json, model_ids_json,
-                 metric, validation_strategy, status, created_by, priority, group_column,
-                 column_transforms_json, derived_features_json, recipe_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    experiment.id,
-                    experiment.run_id,
-                    experiment.name,
-                    experiment.hypothesis,
-                    experiment.feature_set_id,
-                    json.dumps(experiment.feature_names),
-                    json.dumps(experiment.model_ids),
-                    experiment.metric,
-                    experiment.validation_strategy,
-                    experiment.status.value,
-                    experiment.created_by,
-                    experiment.priority,
-                    experiment.group_column,
-                    json.dumps(getattr(experiment, "column_transforms", []) or []),
-                    json.dumps(getattr(experiment, "derived_features", []) or []),
-                    getattr(experiment, "recipe_id", None),
-                ),
-            )
+            self._write_experiment(conn, experiment)
+
+    def _write_experiment(self, conn: sqlite3.Connection, experiment: Experiment) -> None:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO experiments
+            (id, run_id, name, hypothesis, feature_set_id, feature_names_json, model_ids_json,
+             metric, validation_strategy, status, created_by, priority, group_column,
+             column_transforms_json, derived_features_json, recipe_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                experiment.id,
+                experiment.run_id,
+                experiment.name,
+                experiment.hypothesis,
+                experiment.feature_set_id,
+                json.dumps(experiment.feature_names),
+                json.dumps(experiment.model_ids),
+                experiment.metric,
+                experiment.validation_strategy,
+                experiment.status.value,
+                experiment.created_by,
+                experiment.priority,
+                experiment.group_column,
+                json.dumps(getattr(experiment, "column_transforms", []) or []),
+                json.dumps(getattr(experiment, "derived_features", []) or []),
+                getattr(experiment, "recipe_id", None),
+            ),
+        )
 
     def get_experiment(self, experiment_id: str) -> Experiment | None:
         with self._connect() as conn:
@@ -624,21 +634,24 @@ class SQLiteExperimentRepository:
 
     def save_trial(self, trial: Trial) -> None:
         with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO trials
-                (id, experiment_id, model_id, parameters_json, seed, status)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    trial.id,
-                    trial.experiment_id,
-                    trial.model_id,
-                    json.dumps(trial.parameters),
-                    trial.seed,
-                    trial.status.value,
-                ),
-            )
+            self._write_trial(conn, trial)
+
+    def _write_trial(self, conn: sqlite3.Connection, trial: Trial) -> None:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO trials
+            (id, experiment_id, model_id, parameters_json, seed, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                trial.id,
+                trial.experiment_id,
+                trial.model_id,
+                json.dumps(trial.parameters),
+                trial.seed,
+                trial.status.value,
+            ),
+        )
 
     def get_trial(self, trial_id: str) -> Trial | None:
         with self._connect() as conn:
@@ -655,27 +668,48 @@ class SQLiteExperimentRepository:
         )
 
     def save_trial_result(self, result: TrialResult) -> None:
-
         with self._connect() as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO trial_results
-                (trial_id, experiment_id, model_id, primary_metric, primary_score,
-                 secondary_metrics_json, training_time_seconds, failure_reason, artifacts_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    result.trial_id,
-                    result.experiment_id,
-                    result.model_id,
-                    result.primary_metric,
-                    result.primary_score,
-                    json.dumps(result.secondary_metrics),
-                    result.training_time_seconds,
-                    result.failure_reason,
-                    json.dumps(result.artifacts),
-                ),
-            )
+            self._write_trial_result(conn, result)
+
+    def _write_trial_result(self, conn: sqlite3.Connection, result: TrialResult) -> None:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO trial_results
+            (trial_id, experiment_id, model_id, primary_metric, primary_score,
+             secondary_metrics_json, training_time_seconds, failure_reason, artifacts_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                result.trial_id,
+                result.experiment_id,
+                result.model_id,
+                result.primary_metric,
+                result.primary_score,
+                json.dumps(result.secondary_metrics),
+                result.training_time_seconds,
+                result.failure_reason,
+                json.dumps(result.artifacts),
+            ),
+        )
+
+    def persist_trial_outcome(
+        self,
+        trial: Trial,
+        result: TrialResult,
+        *,
+        experiment: Experiment | None = None,
+    ) -> None:
+        """Atomically persist trial + result (+ optional experiment status) via Unit of Work."""
+        if experiment is not None:
+            existing = self.get_experiment(experiment.id)
+            if existing is not None:
+                assert_valid_experiment_transition(existing.status, experiment.status)
+        with SqliteUnitOfWork(self.db_path) as uow:
+            self._write_trial(uow.connection, trial)
+            self._write_trial_result(uow.connection, result)
+            if experiment is not None:
+                self._write_experiment(uow.connection, experiment)
+            uow.commit()
 
     def list_trial_results(self, experiment_id: str) -> list[TrialResult]:
         with self._connect() as conn:
@@ -985,80 +1019,3 @@ class SQLiteExperimentRepository:
             )
             for row in rows
         ]
-
-
-def _row_to_feature(row: sqlite3.Row) -> Feature:
-    semantic_type = "unknown"
-    if "semantic_type" in row.keys() and row["semantic_type"]:
-        semantic_type = row["semantic_type"]
-    return Feature(
-        id=row["id"],
-        dataset_id=row["dataset_id"],
-        name=row["name"],
-        physical_dtype=row["physical_dtype"] or "unknown",
-        status=FeatureStatus(row["status"]),
-        user_priority=float(row["user_priority"] or 0),
-        semantic_type=semantic_type,
-    )
-
-
-def _row_to_experiment(row: sqlite3.Row) -> Experiment:
-    group_column = None
-    try:
-        group_column = row["group_column"]
-    except (IndexError, KeyError):
-        pass
-
-    column_transforms = []
-    try:
-        if "column_transforms_json" in row.keys() and row["column_transforms_json"]:
-            column_transforms = json.loads(row["column_transforms_json"])
-    except (IndexError, KeyError, TypeError):
-        pass
-
-    derived_features = []
-    try:
-        if "derived_features_json" in row.keys() and row["derived_features_json"]:
-            derived_features = json.loads(row["derived_features_json"])
-    except (IndexError, KeyError, TypeError):
-        pass
-
-    recipe_id = None
-    try:
-        if "recipe_id" in row.keys():
-            recipe_id = row["recipe_id"]
-    except (IndexError, KeyError, TypeError):
-        pass
-
-    return Experiment(
-        id=row["id"],
-        run_id=row["run_id"],
-        name=row["name"],
-        hypothesis=row["hypothesis"] or "",
-        feature_names=json.loads(row["feature_names_json"]),
-        model_ids=json.loads(row["model_ids_json"]),
-        metric=row["metric"],
-        validation_strategy=row["validation_strategy"],
-        status=ExperimentStatus(row["status"]),
-        created_by=row["created_by"] or "user",
-        priority=row["priority"] or "normal",
-        feature_set_id=row["feature_set_id"],
-        group_column=group_column,
-        column_transforms=column_transforms,
-        derived_features=derived_features,
-        recipe_id=recipe_id,
-    )
-
-
-def _row_to_result(row: sqlite3.Row) -> TrialResult:
-    return TrialResult(
-        trial_id=row["trial_id"],
-        experiment_id=row["experiment_id"],
-        model_id=row["model_id"],
-        primary_metric=row["primary_metric"],
-        primary_score=row["primary_score"],
-        secondary_metrics=json.loads(row["secondary_metrics_json"] or "{}"),
-        training_time_seconds=row["training_time_seconds"] or 0.0,
-        failure_reason=row["failure_reason"],
-        artifacts=json.loads(row["artifacts_json"] or "{}"),
-    )

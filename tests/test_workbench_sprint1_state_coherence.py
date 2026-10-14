@@ -88,9 +88,13 @@ def test_api_experiments_status_coerces_created_with_trials(tmp_path: Path):
     )
     ws.run_experiment(run, exp)
 
-    # Simulate stale persisted status after trials were written
+    # Simulate stale persisted status after trials were written (bypass transition map).
+    with ws.repository._connect() as conn:
+        conn.execute(
+            "UPDATE experiments SET status = ? WHERE id = ?",
+            (ExperimentStatus.CREATED.value, exp.id),
+        )
     exp.status = ExperimentStatus.CREATED
-    ws.repository.save_experiment(exp)
 
     handler, wfile = _create_handler(ws_dir, f"/api/experiments?run_id={run.id}")
     handler.do_GET()

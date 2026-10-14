@@ -162,6 +162,16 @@ views/datasets/
 - Máquina de estados explícita para `AutoMLRun` / experiment / job (cancelado ↛ completed por worker tardío).
 - Unit of Work en operaciones críticas (crear experiment + trial + result).
 
+### PR4 acceptance checklist
+
+- [x] `domain/runs/transitions.py` + `domain/experiments/transitions.py` (CANCELLED sticky; retry from COMPLETED/FAILED allowed)
+- [x] `AutoMLRun.transition_to` / `Experiment.transition_to` enforce maps; persist layer re-validates on save
+- [x] `SqliteUnitOfWork` + `connection.py` + `mappers.py`; package `stores/` as aggregate boundary
+- [x] `persist_trial_outcome(trial, result, experiment=?)` atomic; used by execution/HPO services
+- [x] Tests: `tests/test_clean_arch_pr4_persistence_uow.py`
+- [x] Brief: [agent-brief-pr4.md](agent-brief-pr4.md)
+- [ ] Merge PR (cobertura ≥ 85 %, suite completa verde)
+
 ---
 
 ## PR 5 — Calidad automática

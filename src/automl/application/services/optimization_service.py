@@ -55,7 +55,7 @@ class OptimizationService:
         if target_model not in experiment.model_ids:
             raise ValueError(f"Model {target_model} is not part of experiment {experiment_id}")
 
-        experiment.status = ExperimentStatus.RUNNING
+        experiment.transition_to(ExperimentStatus.RUNNING)
         ws.repository.save_experiment(experiment)
         run.transition_to(RunStatus.OPTIMIZING, RunPhase.OPTIMIZATION)
         ws.repository.save_run(run)
@@ -121,14 +121,14 @@ class OptimizationService:
             refreshed = ws.repository.get_run(run.id)
             if refreshed and refreshed.status == RunStatus.PAUSED:
                 is_paused = True
-                experiment.status = ExperimentStatus.PAUSED
+                experiment.transition_to(ExperimentStatus.PAUSED)
                 ws.repository.save_experiment(experiment)
                 ws._emit("RunPaused", {"experiment_id": experiment.id, "trial_idx": trial_idx}, run_id=run.id)
                 break
 
             if refreshed and refreshed.status == RunStatus.CANCELLED:
                 is_cancelled = True
-                experiment.status = ExperimentStatus.CANCELLED
+                experiment.transition_to(ExperimentStatus.CANCELLED)
                 ws.repository.save_experiment(experiment)
                 ws._emit("RunCancelled", {"experiment_id": experiment.id, "trial_idx": trial_idx}, run_id=run.id)
                 break
@@ -172,8 +172,7 @@ class OptimizationService:
                 execution.fold_callback = _fold_callback
 
             result = trainer.run(execution)
-            ws.repository.save_trial(trial)
-            ws.repository.save_trial_result(result)
+            ws.repository.persist_trial_outcome(trial, result)
             was_pruned = bool(
                 (result.failure_reason or "").lower() == "pruned"
                 or (result.secondary_metrics or {}).get("pruned")
@@ -202,7 +201,7 @@ class OptimizationService:
         succeeded = [r for r in results if getattr(r, "succeeded", False)]
         if not is_cancelled and not is_paused:
             if not results or not succeeded:
-                experiment.status = ExperimentStatus.FAILED
+                experiment.transition_to(ExperimentStatus.FAILED)
                 ws.repository.save_experiment(experiment)
                 run.transition_to(RunStatus.FAILED, RunPhase.OPTIMIZATION)
                 ws.repository.save_run(run)
@@ -217,7 +216,7 @@ class OptimizationService:
                     run_id=run.id,
                 )
             else:
-                experiment.status = ExperimentStatus.COMPLETED
+                experiment.transition_to(ExperimentStatus.COMPLETED)
                 ws.repository.save_experiment(experiment)
                 run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
                 ws.repository.save_run(run)

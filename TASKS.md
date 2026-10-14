@@ -70,47 +70,26 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-### Focus — Consolidation cycle (trust before features)
+### Focus — Structure & Clean Architecture (modular maintainability)
 
-> Goal: leave tabular CATML in a **professional, trustable** state before adding Labs / more AutoML surface. Labs remain deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)).
-
-**Gate to merge now:** [#128](https://github.com/Jfenic/catml/pull/128) (CI green) — model reliability + HTTP/CSRF + honest executive reports. `#127` closed as superseded.
+> Priority: clean structure, modular persistence, maintainability. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Trust audits merged via [#128](https://github.com/Jfenic/catml/pull/128).
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) into `main` | Ready (human merge) |
-| P0 | Close stale duplicate honesty PR `#127` | Done (superseded by `#128`) |
-| P1 | E2E product gate: load → train → export → reload process → predict parity | Open (next) |
-| P1 | Document guarantees & limits (SECURITY + docs/README honesty for export/parity) | Open (next) |
-| P1 | Triage remaining open feature PRs / stale branches; keep only merge-worthy | Open |
-| P2 | Persist/reuse `build_application` across HTTP requests (latency) | Open |
-| P2 | Playwright critical Workbench paths (optional after pytest E2E gate) | Open |
-| P2 | Clean Arch PR4/PR5 | Open (after consolidation gate) |
-| P2 | Stable PyPI `0.9.0` after consolidation green | Open |
+| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | In PR `#129` |
+| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) (model reliability + HTTP/CSRF) | Done |
+| P1 | Clean Arch **PR5**: Ruff/mypy + ESLint + contract/E2E gates | Open (after PR4) |
+| P1 | E2E product gate: load → train → export → reload → predict parity | Open |
+| P2 | Stable PyPI `0.9.0` after structure + trust gates | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
 
-### Shipped — rc1 publish + audit remediations (reference)
+### Shipped — rc1 + audits (reference)
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Tabular `0.9.0rc1` on PyPI + Trusted Publisher | Done |
-| P0 | Clean Arch PR1–PR3 + UX/Audit-5 (`#111`) | Done |
-| P1 | Demo/export + SQLite lifecycle (`#125`/`#126`) | Done |
-| P1 | HPO fold pruning + `fit(time_budget)` (`#116`) | Done |
-| P1 | Audit HTTP path/CSRF + JS CI + release pip-audit | Done (`#128`) |
-| P1 | Audit model reliability (export chain, derived predict, nested FS) | Done (`#128`) |
-| P1 | Executive report honesty | Done (`#128`; `#127` superseded) |
-
-### Track Consolidation — Quality & trust indicators
-
-| Indicator | Target | Status |
-| --- | --- | --- |
-| Inference parity | Exported artifact predicts like workspace pipeline on original columns | Partial (`#128`); needs process-isolated E2E |
-| Path security | No HTTP read/write outside cwd∪workspace | Done (`#128`) |
-| Unevaluated models | Predict/export require succeeded trial | Done (`#128`) |
-| Report honesty | No stronger claims than evidence | Done (`#128`) |
-| Recovery | Interrupted jobs/sessions resume with history | Existing (jobs + LangGraph); soak docs Open |
-| Full-product E2E | Automated load→train→export→reload→predict | Open |
+| P0 | Tabular `0.9.0rc1` on PyPI + Clean Arch PR1–PR3 (`#111`) | Done |
+| P1 | Demo/export (`#125`/`#126`); HPO fold pruning (`#116`) | Done |
+| P1 | Audit HTTP/CSRF + model reliability + honest reports | Done (`#128`) |
 
 ### Track License compliance (documentation / packaging only)
 
@@ -130,8 +109,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
 | P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Done (`#109`) |
 | P1 | PR3: Web controllers + split `datasets.js` components | Done (`#110`) |
-| P2 | PR4: SQLite repos + state machine + Unit of Work | Open (after PR3) |
-| P2 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open |
+| P0 | PR4: SQLite modular boundary + state machine + Unit of Work | In PR (`refactor/clean-arch-pr4-persistence-uow`) |
+| P1 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open (after PR4) |
 
 ### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)
 
