@@ -2,9 +2,20 @@
 
 ### Data Preparation P1 started (2026-10-14)
 
-- Branch `feat/data-preparation-p1`: domain `PreparationPlan`/`PreparationStep`/scopes, `PreparationService` (analyze→suggest→preview→validate→apply), JSON version store, CQRS registration.
+- Branch `feat/data-preparation-p1` / [#124](https://github.com/Jfenic/catml/pull/124): domain `PreparationPlan`/`PreparationStep`/scopes, `PreparationService` (analyze→suggest→preview→validate→apply), JSON version store, CQRS registration.
 - Tests: `tests/test_data_preparation_p1.py` (5 passed). CLI/MCP/UI = P2/P3.
-- Note: Agent B SQLite WIP was stashed as `stash@{0}: agent-b-wip-preserve` — restore on their branch with `git stash pop` (merge-only).
+
+### Parallel split A/B (2026-10-14)
+
+- Coordination: [`.agent/parallel-coordination.md`](parallel-coordination.md).
+- **Agente A:** Study B lift → [#122](https://github.com/Jfenic/catml/pull/122) merged; smoke 24/0/0.
+- **Agente B:** Demo export + #94 → [#125](https://github.com/Jfenic/catml/pull/125).
+
+### Study B smoke + #119 merge (2026-10-13)
+
+- [#118](https://github.com/Jfenic/catml/pull/118) merged (Study B minimal runner).
+- Smoke failed on wine Explore (`Unknown task type: multiclass`) → [#119](https://github.com/Jfenic/catml/pull/119) maps `multiclass` → `multiclass_classification`.
+- Re-smoke: 18 ok / 6 skipped / 0 failed; report updated; #119 merged (`d7982bb`); `main` synced.
 
 ### Study B minimal runner + #117 merged (2026-10-13)
 

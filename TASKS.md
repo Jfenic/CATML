@@ -659,7 +659,8 @@ Open product backlog (see [Next / Roadmap Phases](#next-roadmap-phases)): OOF ho
 - [x] **Study A campaign** (11 OpenML/sklearn datasets): 5 min smoke + 20 min formal **132/132 ok** → [`docs/experiments/study-a-report.md`](docs/experiments/study-a-report.md).
 - [x] **Study B scaffold** — [`docs/experiments/study-b-scaffold.md`](docs/experiments/study-b-scaffold.md) / `run.py --study B`.
 - [x] **Study B minimal runner** (sklearn / catml_base / catml_explore; agent skipped) → [`docs/experiments/study-b-report.md`](docs/experiments/study-b-report.md).
-- [ ] **Study B lift phase** — apply verified Explore recipes into fit; wire `catml_agent` (FakeLLM/Ollama).
+- [x] **Study B multiclass Explore alias** — `#119` (`multiclass` → `multiclass_classification`); smoke 18/6/0.
+- [x] **Study B lift phase** — verify→recipe→fit; FakeLLM agent (`#122`); smoke 24/0/0.
 - [x] **Data Preparation direction documented** — [spec](docs/features/data-preparation/spec.md), [plan](docs/features/data-preparation/plan.md), [ADR-012](docs/decisions/012-data-preparation-subsystem.md); implement post-rc1 (not blocking load→train).
 - [x] **Data Preparation P1 (core)** — domain + `PreparationService` + CQRS + versions (`feat/data-preparation-p1`); CLI/facade = P2.
 - [x] **MCP `--allow-mutations` / autonomous local mode** — blackboard [#114](https://github.com/Jfenic/catml/issues/114) (PR `fix/mcp-allow-mutations-text-svd`; default stays require-approval).
