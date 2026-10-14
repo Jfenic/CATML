@@ -180,7 +180,7 @@ views/datasets/
 - [x] ESLint/Prettier para `static/js` (`eslint.config.js`, `package.json`; CI `lint-js`).
 - [x] Tests de contrato + E2E export→predict parity (`tests/test_clean_arch_pr5_quality_gates.py`).
 - [x] Mantener gate pytest coverage ≥ 85 % en CI.
-- [ ] Merge PR (suite verde + lint jobs).
+- [x] Merge PR (suite verde + lint jobs) — `#130`
 - (Opcional) endurecer `pip-audit` cuando el equipo lo decida.
 
 ---

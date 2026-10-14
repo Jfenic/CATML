@@ -2,7 +2,7 @@
 
 ### Clean Arch PR5 — quality gates (2026-10-14)
 
-- Branch `refactor/clean-arch-pr5-quality-gates` (from main after `#128`/`#129`).
+- **Merged** [#130](https://github.com/Jfenic/catml/pull/130) → `main` (`5f5fce7`). Clean Arch PR1–PR5 complete.
 - Ruff + mypy: `pyproject.toml` tools; domain green; application gradual ignores for legacy debt.
 - ESLint/Prettier: root `package.json`, `eslint.config.js`, CI `lint-js`.
 - CI: `lint-python` + `lint-js` before `test` matrix.
