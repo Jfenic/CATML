@@ -3,16 +3,30 @@
 ### Agente B — Workbench Demo/Export & SQLite Connection Lifecycle #94 (2026-10-14)
 
 - **Subtarea B1 (Workbench Demo Project + Executive Export)**:
-  - Backend: `POST /api/project/demo` (crea dataset demo de churn, run `roc_auc` y baseline comparativo idempotente sin duplicar).
-  - Backend: `GET /api/reports/executive` con exportación en HTML (estilo Tech Minimalista Premium), Markdown (`.md`) y JSON descargable (`download=1`), más `GET /api/reports/executive-summary`.
-  - Frontend: Métodos `loadDemoProject()`, `getExecutiveReportUrl()`, `getExecutiveReportSummary()` en `api.js`. Botones interactivos en `home.js` (empty state), `register_dataset_modal.js` (banner 1-click), `studio.js` y `overview.js`.
-  - Tests: `tests/test_workbench_demo_and_export.py` con 5 tests unitarios e integración pasando al 100%.
-- **Subtarea B2 (Blackboard Issue #94 - SQLite connection lifecycle & soak test)**:
-  - `sqlite_recipes.py`, `sqlite_studies.py`: Implementados finalizadores `__del__`, context manager (`__enter__`, `__exit__`) y cierre determinista de conexiones SQLite.
-  - `sqlite_repository.py`: Añadido hook explícito de cierre `close()` y context manager.
-  - `AutoMLWorkspace`: Caching de instancias repository (`_cached_study_repo`, `_cached_recipe_repo`), método `dispose()`, soporte de context manager y `__del__`.
-  - Tests: `tests/test_sqlite_connection_lifecycle.py` con 4 tests (incluyendo soak test de 50 iteraciones sin incremento de FDs ni `ResourceWarning`).
-- **Verificación completa**: 246 tests en verde (`.venv/bin/pytest`). Zero regressions.
+  - Backend: `POST /api/project/demo`; `GET /api/reports/executive` (HTML/MD/JSON).
+  - Frontend: `loadDemoProject` / informe ejecutivo en home, register modal, studio, overview.
+  - Tests: `tests/test_workbench_demo_and_export.py`.
+- **Subtarea B2 (Blackboard #94)**:
+  - Lifecycle/`dispose` en sqlite recipes/studies/repository + `AutoMLWorkspace`.
+  - Tests: `tests/test_sqlite_connection_lifecycle.py` (soak).
+- PR: [#125](https://github.com/Jfenic/catml/pull/125).
+
+### Data Preparation P1 started (2026-10-14)
+
+- [#124](https://github.com/Jfenic/catml/pull/124) merged: domain + `PreparationService` + CQRS + versions.
+- Tests: `tests/test_data_preparation_p1.py`. CLI/MCP/UI = P2/P3.
+
+### Parallel split A/B (2026-10-14)
+
+- Coordination: [`.agent/parallel-coordination.md`](parallel-coordination.md).
+- **Agente A:** Study B lift → [#122](https://github.com/Jfenic/catml/pull/122) merged; smoke 24/0/0.
+- **Agente B:** Demo export + #94 → [#125](https://github.com/Jfenic/catml/pull/125).
+
+### Study B smoke + #119 merge (2026-10-13)
+
+- [#118](https://github.com/Jfenic/catml/pull/118) merged (Study B minimal runner).
+- Smoke failed on wine Explore (`Unknown task type: multiclass`) → [#119](https://github.com/Jfenic/catml/pull/119) maps `multiclass` → `multiclass_classification`.
+- Re-smoke: 18 ok / 6 skipped / 0 failed; report updated; #119 merged (`d7982bb`); `main` synced.
 
 ### Study B minimal runner + #117 merged (2026-10-13)
 
