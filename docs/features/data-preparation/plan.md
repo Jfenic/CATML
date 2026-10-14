@@ -14,11 +14,11 @@
 
 ### P1 — Domain + application core
 
-- [ ] `PreparationPlan` / `PreparationStep` / scopes in `domain/` (pure)  
-- [ ] `PreparationService`: analyze, suggest, preview, validate, apply  
-- [ ] Dataset version entity + storage under workspace (hash + lineage)  
-- [ ] Register commands/queries in `bootstrap.py`  
-- [ ] Unit tests: scope guard, preview purity, apply immutability
+- [x] `PreparationPlan` / `PreparationStep` / scopes in `domain/` (pure)  
+- [x] `PreparationService`: analyze, suggest, preview, validate, apply  
+- [x] Dataset version entity + storage under workspace (hash + lineage)  
+- [x] Register commands/queries in `bootstrap.py`  
+- [x] Unit tests: scope guard, preview purity, apply immutability (`tests/test_data_preparation_p1.py`)
 
 ### P2 — CLI + Python facade
 

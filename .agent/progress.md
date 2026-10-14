@@ -1,9 +1,14 @@
 # Progress
 
+### Data Preparation P1 started (2026-10-14)
+
+- Branch `feat/data-preparation-p1` / [#124](https://github.com/Jfenic/catml/pull/124): domain `PreparationPlan`/`PreparationStep`/scopes, `PreparationService` (analyze→suggest→preview→validate→apply), JSON version store, CQRS registration.
+- Tests: `tests/test_data_preparation_p1.py` (5 passed). CLI/MCP/UI = P2/P3.
+
 ### Parallel split A/B (2026-10-14)
 
 - Coordination: [`.agent/parallel-coordination.md`](parallel-coordination.md).
-- **Agente A:** Study B lift → [#122](https://github.com/Jfenic/catml/pull/122) (`feat/study-b-lift`); smoke 24/0/0.
+- **Agente A:** Study B lift → [#122](https://github.com/Jfenic/catml/pull/122) merged; smoke 24/0/0.
 - **Agente B:** Demo export + #94 → [#125](https://github.com/Jfenic/catml/pull/125).
 
 ### Study B smoke + #119 merge (2026-10-13)
