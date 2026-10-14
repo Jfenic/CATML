@@ -1,15 +1,17 @@
 # Progress
 
+### Consolidation cycle started (2026-10-14)
+
+- Focus shifted: trust/consolidation before new features (Labs still deferred).
+- [#128](https://github.com/Jfenic/catml/pull/128) merge-ready (CI green): model reliability + HTTP/CSRF + honest reports.
+- Closed [#127](https://github.com/Jfenic/catml/pull/127) as superseded by `#128`.
+- Next after merge: process-isolated export→predict E2E gate; document guarantees/limits; triage stale PRs; then stable `0.9.0`.
+
 ### Model reliability audit (2026-10-14)
 
-- Branch `fix/model-reliability-audit` (includes prior HTTP/CSRF remediations).
-- Done:
-  1. `InferenceService._resolve_validated_trial_chain` for predict + export.
-  2. `ModelArtifact._apply_derived_features` before feature check.
-  3. `apply_derived_feature` rejects zscore/mean/std persist; re-hydrates feature registry.
-  4. No unevaluated experiment fallback for predict.
-  5. Supervised selection candidates use `nested_in_fold` + `supervised_select` pipeline step; promote blocks leakage-risk without opt-in.
-- Tests: `tests/test_audit_model_reliability.py`.
+- Branch `fix/model-reliability-audit` → PR `#128`.
+- Done: trial chain for predict/export; derived features in `ModelArtifact.predict`; block stateful apply; nested supervised select; HTTP path/CSRF; honest executive report.
+- Tests: `tests/test_audit_model_reliability.py`, `tests/test_audit_http_path_csrf.py`.
 
 ### Audit-HTTP remediations + executive honesty (2026-10-14)
 
