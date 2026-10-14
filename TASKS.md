@@ -70,18 +70,24 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-### Focus — Structure & Clean Architecture (modular maintainability)
+### Focus — Release & publish
 
-> Priority: clean structure, modular persistence, maintainability. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Trust audits merged via [#128](https://github.com/Jfenic/catml/pull/128).
+> Clean Arch PR1–PR5, trust audits, Study A/B, and export→predict parity are done. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)).
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | Done (`#129`) |
-| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) (model reliability + HTTP/CSRF) | Done |
-| P0 | Clean Arch **PR5**: Ruff/mypy + ESLint + contract/E2E gates | Done (`#130`) |
-| P1 | E2E product gate: load → train → export → reload → predict parity | Done (PR5 smoke `test_export_reload_predict_parity`) |
-| P2 | Stable PyPI `0.9.0` after structure + trust gates | Open |
+| P0 | Human: Trusted Publisher + protect `testpypi`/`pypi` envs | Open (blocks publish) |
+| P0 | Publish TestPyPI / PyPI **`0.9.0rc1`** then stable **`0.9.0`** | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
+
+### Shipped — structure / trust / studies (reference)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Clean Arch PR1–PR5 | Done (`#102`…`#130`) |
+| P0 | Audits HTTP/CSRF + model reliability | Done (`#128`) |
+| P1 | Study A (5+20 min) + Study B lift | Done |
+| P1 | E2E export → reload → predict parity | Done (PR5) |
 
 ### Shipped — rc1 + audits (reference)
 
@@ -196,8 +202,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | Human: protect `pypi`/`testpypi` envs + Trusted Publisher + TestPyPI | In progress (Trusted Publisher pending; Release → testpypi) |
 | P1 | CATML Benchmark v1 Pilot 1A (sklearn/FLAML/AG vs OpenML) | Done — [`docs/experiments/pilot-1a-report.md`](docs/experiments/pilot-1a-report.md) |
 | P1 | Fire tests: 10 Jupyter/scripts post-pilot | Done — [`notebooks/fire_tests/`](notebooks/fire_tests/) |
-| P1 | Protocol v1 frozen + Study A (11 datasets, 5 min done; 20 min running) | In progress — [`docs/experiments/study-a-report.md`](docs/experiments/study-a-report.md) |
-| P1 | Study B Explore/agent lift | Scaffold done — execute after Study A 20 min |
+| P1 | Protocol v1 frozen + Study A (11 datasets; 5 min + 20 min formal 132/132) | Done — [`docs/experiments/study-a-report.md`](docs/experiments/study-a-report.md) |
+| P1 | Study B Explore/agent lift (minimal + lift + `#119`/`#122`) | Done — [`docs/experiments/study-b-report.md`](docs/experiments/study-b-report.md) |
 
 ### Track Export / path integrity (`fix/export-parquet-path-confinement`)
 

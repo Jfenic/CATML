@@ -1,5 +1,10 @@
 # Progress
 
+### TASKS hygiene — Study A/B already done (2026-10-14)
+
+- RC1 track still said Study A “in progress” / Study B “scaffold”; corrected to **Done** (reports + `#118`/`#119`/`#122`).
+- Focus section retargeted to **publish / Trusted Publisher → 0.9.0**.
+
 ### Clean Arch PR5 — quality gates (2026-10-14)
 
 - **Merged** [#130](https://github.com/Jfenic/catml/pull/130) → `main` (`5f5fce7`). Clean Arch PR1–PR5 complete.
