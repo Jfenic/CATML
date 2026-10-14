@@ -119,7 +119,7 @@ def generate_oof_submission(workspace, command) -> str:
     )
     experiment.validation_strategy = "oof"
     experiment.metric = "roc_auc"
-    experiment.status = ExperimentStatus.RUNNING
+    experiment.transition_to(ExperimentStatus.RUNNING)
     workspace.repository.save_experiment(experiment)
     trial = Trial(
         id=f"trial_{uuid.uuid4().hex[:8]}",
@@ -217,11 +217,11 @@ def generate_oof_submission(workspace, command) -> str:
             training_time_seconds=result.training_seconds,
             artifacts={"report": str(report_path), "oof": str(oof_path), "test": str(test_path)},
         ))
-        experiment.status = ExperimentStatus.COMPLETED
+        experiment.transition_to(ExperimentStatus.COMPLETED)
         workspace._emit("OOFCompleted", {"experiment_id": experiment.id, "score": report["score"], "delta": report["delta"], "promoted": False}, run_id=run.id)
     except Exception as exc:
         trial.status = TrialStatus.FAILED
-        experiment.status = ExperimentStatus.FAILED
+        experiment.transition_to(ExperimentStatus.FAILED)
         workspace.repository.save_trial_result(TrialResult(
             trial_id=trial.id, experiment_id=experiment.id, model_id=trial.model_id,
             primary_metric="roc_auc", primary_score=0.0, failure_reason=str(exc),

@@ -88,6 +88,9 @@ class AutoMLRun:
     current_phase: RunPhase = RunPhase.DATASET_REGISTRATION
 
     def transition_to(self, status: RunStatus, phase: RunPhase | None = None) -> None:
+        from automl.domain.runs.transitions import assert_valid_run_transition
+
+        assert_valid_run_transition(self.status, status)
         self.status = status
         if phase is not None:
             self.current_phase = phase

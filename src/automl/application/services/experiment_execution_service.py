@@ -37,7 +37,7 @@ class ExperimentExecutionService:
             raise ValueError(f"Experiment {experiment.id} does not belong to run {run.id}")
 
         dataset = ws._get_dataset(run.dataset_id)
-        experiment.status = ExperimentStatus.RUNNING
+        experiment.transition_to(ExperimentStatus.RUNNING)
         ws.repository.save_experiment(experiment)
         run.transition_to(RunStatus.EXPERIMENTING, RunPhase.EXPERIMENT_EXECUTION)
         ws.repository.save_run(run)
@@ -61,13 +61,13 @@ class ExperimentExecutionService:
             refreshed = ws.repository.get_run(run.id)
             if refreshed.status == RunStatus.PAUSED:
                 ws.repository.save_checkpoint(run.id, experiment.id, index)
-                experiment.status = ExperimentStatus.PAUSED
+                experiment.transition_to(ExperimentStatus.PAUSED)
                 ws.repository.save_experiment(experiment)
                 ws._emit("RunPaused", {"experiment_id": experiment.id, "next_index": index}, run_id=run.id)
                 return results
 
             if refreshed.status == RunStatus.CANCELLED:
-                experiment.status = ExperimentStatus.CANCELLED
+                experiment.transition_to(ExperimentStatus.CANCELLED)
                 ws.repository.save_experiment(experiment)
                 ws._emit("RunCancelled", {"experiment_id": experiment.id}, run_id=run.id)
                 return results
@@ -111,8 +111,7 @@ class ExperimentExecutionService:
                 spec=spec,
             )
             result = trainer.run(execution)
-            ws.repository.save_trial(trial)
-            ws.repository.save_trial_result(result)
+            ws.repository.persist_trial_outcome(trial, result)
             results.append(result)
             if ws.execution_progress:
                 ws.repository.save_checkpoint(run.id, experiment.id, index + 1)
@@ -129,7 +128,7 @@ class ExperimentExecutionService:
 
         succeeded = [r for r in results if getattr(r, "succeeded", False)]
         if not results or not succeeded:
-            experiment.status = ExperimentStatus.FAILED
+            experiment.transition_to(ExperimentStatus.FAILED)
             ws.repository.save_experiment(experiment)
             run.transition_to(RunStatus.FAILED, RunPhase.EVALUATION)
             ws.repository.save_run(run)
@@ -148,7 +147,7 @@ class ExperimentExecutionService:
         budget_exhausted = bool((latest_run.config.extra or {}).get("time_budget_exhausted"))
         # Preserve valid trials but do not present a budget stop as a full completion.
         if budget_exhausted and len(succeeded) < len(model_ids):
-            experiment.status = ExperimentStatus.PARTIAL
+            experiment.transition_to(ExperimentStatus.PARTIAL)
             latest_run.config.extra["completion_reason"] = "BUDGET_EXHAUSTED"
             ws.repository.save_experiment(experiment)
             latest_run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
@@ -167,7 +166,7 @@ class ExperimentExecutionService:
             )
             return results
 
-        experiment.status = ExperimentStatus.COMPLETED
+        experiment.transition_to(ExperimentStatus.COMPLETED)
         ws.repository.save_experiment(experiment)
         run.transition_to(RunStatus.COMPLETED, RunPhase.EVALUATION)
         ws.repository.save_run(run)

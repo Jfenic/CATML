@@ -1585,7 +1585,7 @@ class AutoMLWorkspace:
             hypothesis=f"Ensemble {method_norm.upper()} blend of [{', '.join(unique_models)}] with {folds} folds",
             validation_strategy="oof" if dataset.task_type == "binary_classification" else "kfold",
         )
-        experiment.status = ExperimentStatus.RUNNING
+        experiment.transition_to(ExperimentStatus.RUNNING)
         self.repository.save_experiment(experiment)
 
         df = load_dataframe(dataset.path)
@@ -1695,7 +1695,7 @@ class AutoMLWorkspace:
         )
         self.repository.save_trial_result(trial_result)
 
-        experiment.status = ExperimentStatus.COMPLETED
+        experiment.transition_to(ExperimentStatus.COMPLETED)
         self.repository.save_experiment(experiment)
 
         self._emit(

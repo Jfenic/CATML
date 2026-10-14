@@ -90,7 +90,11 @@ class JobExecutor:
                 self.workspace.run_experiment(self.workspace._get_run(job.run_id), experiment,
                                               start_index=start_index, skip_model_ids=successful_models)
             except JobStopped as exc:
-                experiment.status = ExperimentStatus.CANCELLED if exc.status == JobStatus.CANCELLED else ExperimentStatus.PAUSED
+                experiment.transition_to(
+                    ExperimentStatus.CANCELLED
+                    if exc.status == JobStatus.CANCELLED
+                    else ExperimentStatus.PAUSED
+                )
                 self.workspace.repository.save_experiment(experiment)
                 raise
             if experiment.status == ExperimentStatus.PAUSED:

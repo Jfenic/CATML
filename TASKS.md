@@ -70,23 +70,25 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 
 > Package version: **`0.9.0-rc1`** (`src/automl/__init__.py`). Strategic roadmap: [`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md). Docs index: [`docs/README.md`](docs/README.md).
 
-### Focus — Publish tabular `0.9.0rc1`
+### Focus — Structure & Clean Architecture (modular maintainability)
 
-> Labs UI deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Active work = packaging + TestPyPI/PyPI.
+> Priority: clean structure, modular persistence, maintainability. Labs deferred ([ADR-011](docs/decisions/011-workbench-labs-modular-frontend.md)). Trust/HTTP audits: merge [#128](https://github.com/Jfenic/catml/pull/128) when ready (independent of PR4).
 
 | Priority | Item | Status |
 | --- | --- | --- |
-| P0 | Merge Clean Arch PR2/PR3 + UX #111 | Done (`#111` → `main`) |
-| P0 | Audit-5 honesty (budget/XSS/Manual/multiclass/fallback/HPO) | Done (in `#111`) |
-| P0 | Third-party license compliance (`THIRD_PARTY_LICENSES.md` + wheel/sdist tests) | Done (this PR) |
-| P0 | Build/twine check wheel locally (`catml-0.9.0rc1`) | Done |
-| P0 | GitHub Environments `testpypi`/`pypi` + required reviewers | Done |
-| P0 | Human: PyPI/TestPyPI Trusted Publisher + first TestPyPI upload | Done (`0.9.0rc1` on PyPI) |
-| P0 | Agent CLI fire-test fixes: `optimize --json` pure stdout; `explore create/run` `--dataset-id`/`--study-id` | Done (`2b22db5`) |
-| P1 | HPO fold pruning + `fit(time_budget)` spends remaining budget | Done (#116 merged) |
-| P1 | MCP `--allow-mutations` + text LSA (SVD) for trees | In PR `fix/mcp-allow-mutations-text-svd` |
-| P1 | Demo project + executive results export (Sprint 3) | Done (`feat/demo-export-and-sqlite-94`) |
+| P0 | Clean Arch **PR4**: transitions + UoW + SQLite modular boundary | In PR `refactor/clean-arch-pr4-persistence-uow` |
+| P0 | Merge [#128](https://github.com/Jfenic/catml/pull/128) (model reliability + HTTP/CSRF) | Ready (human) |
+| P1 | Clean Arch **PR5**: Ruff/mypy + ESLint + contract/E2E gates | Open (after PR4) |
+| P1 | E2E product gate: load → train → export → reload → predict parity | Open |
+| P2 | Stable PyPI `0.9.0` after structure + trust gates | Open |
 | P2 | Workbench Labs Phase 1 | **Deferred** |
+
+### Shipped — rc1 (reference)
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 | Tabular `0.9.0rc1` on PyPI + Clean Arch PR1–PR3 (`#111`) | Done |
+| P1 | Demo/export (`#125`/`#126`); HPO fold pruning (`#116`) | Done |
 
 ### Track License compliance (documentation / packaging only)
 
@@ -106,8 +108,8 @@ Fuente del estado operativo y del backlog. Las guías y los planes enlazan aquí
 | P0 | PR1: `MetricSpec` registry + `ExecutionSpec` + wire consumers | Done (`#102`) |
 | P1 | PR2: Extract `run_experiment` / `optimize_experiment` behind Workspace facade | Done (`#109`) |
 | P1 | PR3: Web controllers + split `datasets.js` components | Done (`#110`) |
-| P2 | PR4: SQLite repos + state machine + Unit of Work | Open (after PR3) |
-| P2 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open |
+| P0 | PR4: SQLite modular boundary + state machine + Unit of Work | In PR (`refactor/clean-arch-pr4-persistence-uow`) |
+| P1 | PR5: Ruff/mypy/ESLint + contract/E2E gates | Open (after PR4) |
 
 ### Track Audit-4 — Security / inference / ensemble honesty (`fix/audit4-security-inference-ensemble`)
 
